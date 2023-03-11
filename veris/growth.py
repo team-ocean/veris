@@ -71,10 +71,7 @@ def Growth(state):
 
     hIceActual = npx.where(isIce, hIceMeanpreTH * recip_regArea, 0)
     recip_hIceActual = AreapreTH / npx.sqrt(hIceMeanpreTH**2 + sett.hIce_reg)
-    if sett.growthTesting:
-        hSnowActual = npx.where(isIce, hSnowMeanpreTH / AreapreTH, 0)
-    else:
-        hSnowActual = npx.where(isIce, hSnowMeanpreTH * recip_regArea, 0)
+    hSnowActual = npx.where(isIce, hSnowMeanpreTH * recip_regArea, 0)
 
     hIceActual = npx.maximum(hIceActual, 0.05)
 
@@ -113,19 +110,12 @@ def Growth(state):
 
     # if there is ice and the temperature is below the freezing point,
     # the precipitation falls and accumulates as snow
-    if sett.growthTesting:
-        tmp = ((AreapreTH > 0) & (TIce_mult[:,:,0] < sett.celsius2K))
-    else:
-        tmp = ((AreapreTH > 0) & (npx.mean(TIce_mult,axis=2) < sett.celsius2K))
+    tmp = ((AreapreTH > 0) & (npx.mean(TIce_mult,axis=2) < sett.celsius2K))
 
     # snow accumulation rate over ice [m/s]
     # the snowfall is given in water equivalent, therefore it also needs to be muliplied with rhoFresh2rhoSnow
     SnowAccRateOverIce = vs.snowfall
-    if sett.growthTesting:
-        SnowAccRateOverIce = npx.where(tmp, SnowAccRateOverIce + vs.precip * sett.rhoFresh2rhoSnow,
-                                SnowAccRateOverIce)
-    else:
-        SnowAccRateOverIce = npx.where(tmp, SnowAccRateOverIce + vs.precip,
+    SnowAccRateOverIce = npx.where(tmp, SnowAccRateOverIce + vs.precip,
                                 SnowAccRateOverIce) * sett.rhoFresh2rhoSnow
 
     # the precipitation rate over the ice which goes immediately into the
@@ -146,16 +136,10 @@ def Growth(state):
 
     # multplying the fluxes with the area changes them from mean fluxes
     # for the ice part of the cell to mean fluxes for the whole cell
-    if sett.growthTesting:
-        F_io_net = npx.sum(F_io_net_mult, axis=2) * sett.recip_nITC
-        F_ia_net = npx.sum(F_ia_net_mult, axis=2) * sett.recip_nITC
-        IcePenetSW = npx.sum(IcePenetSW_mult, axis=2) * sett.recip_nITC
-        # FWsublim = npx.sum(FWsublim_mult, axis=2) * sett.recip_nITC
-    else:
-        F_io_net = npx.sum(F_io_net_mult, axis=2) * sett.recip_nITC * AreapreTH
-        F_ia_net = npx.sum(F_ia_net_mult, axis=2) * sett.recip_nITC * AreapreTH
-        IcePenetSW = npx.sum(IcePenetSW_mult, axis=2) * sett.recip_nITC * AreapreTH
-        # FWsublim = npx.sum(FWsublim_mult, axis=2) * sett.recip_nITC * AreapreTH
+    F_io_net = npx.sum(F_io_net_mult, axis=2) * sett.recip_nITC * AreapreTH
+    F_ia_net = npx.sum(F_ia_net_mult, axis=2) * sett.recip_nITC * AreapreTH
+    IcePenetSW = npx.sum(IcePenetSW_mult, axis=2) * sett.recip_nITC * AreapreTH
+    # FWsublim = npx.sum(FWsublim_mult, axis=2) * sett.recip_nITC * AreapreTH
 
 
     ##### calculate growth rates of ice and snow #####
@@ -184,18 +168,11 @@ def Growth(state):
     # be used to melt ice
 
     # (use hSnowActual for comparison with the MITgcm)
-    if sett.growthTesting:
-        allSnowMelted = (PotSnowMeltFromSurf >= hSnowActual)
-    else:
-        allSnowMelted = (PotSnowMeltFromSurf >= hSnowMeanpreTH)
+    allSnowMelted = (PotSnowMeltFromSurf >= hSnowMeanpreTH)
 
     # the actual thickness of snow to be melted by snow surface
     # heat flux convergence [m]
-    if sett.growthTesting:
-        SnowMeltFromSurface = npx.where(allSnowMelted, hSnowActual,
-                                                    PotSnowMeltFromSurf)
-    else:
-        SnowMeltFromSurface = npx.where(allSnowMelted, hSnowMeanpreTH,
+    SnowMeltFromSurface = npx.where(allSnowMelted, hSnowMeanpreTH,
                                                     PotSnowMeltFromSurf)
 
     # the actual snow melt rate due to snow surface heat flux convergence [m/s]
@@ -204,11 +181,7 @@ def Growth(state):
                 PotSnowMeltRateFromSurf)
 
     # the actual surface heat flux convergence used to melt snow [W/m2]
-    if sett.growthTesting:
-        SurfHeatFluxConvergToSnowMelt = npx.where(allSnowMelted,
-                - hSnowActual * sett.recip_deltatTherm / qs, F_ia_net)
-    else:
-        SurfHeatFluxConvergToSnowMelt = npx.where(allSnowMelted,
+    SurfHeatFluxConvergToSnowMelt = npx.where(allSnowMelted,
                 - hSnowMeanpreTH * sett.recip_deltatTherm / qs, F_ia_net)
 
     # the surface heat flux convergence is reduced by the amount that
@@ -220,12 +193,8 @@ def Growth(state):
 
     # the total ice growth rate is then:
     # (remove * recip_regArea for comparison with the MITgcm)
-    if sett.growthTesting:
-        NetExistingIceGrowthRate = (IceGrowthRateUnderExistingIce
-                                    + IceGrowthRateFromSurface)
-    else:
-        NetExistingIceGrowthRate = (IceGrowthRateUnderExistingIce
-                                    + IceGrowthRateFromSurface) * recip_regArea
+    NetExistingIceGrowthRate = (IceGrowthRateUnderExistingIce
+                                + IceGrowthRateFromSurface) * recip_regArea
 
 
     ##### calculate the ice melting due to mixed layer temperature #####
@@ -241,6 +210,7 @@ def Growth(state):
     # difference is used for heat flux)
     mltf = 1 + (sett.McPheeTaperFac - 1) / (1 + npx.exp((AreapreTH - tmpscal0) * tmpscal1))
 
+    # heat flux from ocean to the ice (+ = upward)
     F_oi = - tmpscal2 * (surf_theta - TempFrz) * mltf
     IceGrowthRateMixedLayer = F_oi * qi
 
