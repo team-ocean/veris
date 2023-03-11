@@ -15,13 +15,13 @@ def Growth(state):
     sett = state.settings
 
 
-    # heat fluxes in [W/m2]
+    ##### initializations #####
 
-    # F_ia_net: net heat flux divergence at the sea ice/snow surface
+    # F_ia_net: net heat flux divergence at the sea ice/snow surface [W/m2]
     # = 0: surface heat loss is balanced by upward conductive fluxes
     # < 0: net heat flux convergence at the ice/ snow surface
 
-    # F_io_net: net upward conductive heat flux through sea ice and snow
+    # F_io_net: net upward conductive heat flux through sea ice and snow [W/m2]
 
     # initialize three dimensional arrays accounting for the thickness categories of the ice
     # (using * 1 ensures that a new array is created for each variable. otherwise they would
@@ -37,7 +37,6 @@ def Growth(state):
     # constants for converting heat fluxes into growth rates
     qi = 1 / (sett.rhoIce * sett.lhFusion)
     qs = 1 / (sett.rhoSnow * sett.lhFusion)
-
 
     # store sea ice fields prior to any thermodynamical changes
     noIce = ((vs.hIceMean == 0) | (vs.Area == 0))
@@ -58,6 +57,30 @@ def Growth(state):
 
     hIceActual = npx.maximum(hIceActual, 0.05)
 
+
+    ##### evaluate precipitation as snow or rain #####
+
+    # if there is ice and the temperature is below the freezing point,
+    # the precipitation falls and accumulates as snow
+    tmp = ((AreapreTH > 0) & (npx.mean(TIce_mult,axis=2) < sett.celsius2K))
+
+    # snow accumulation rate over ice [m/s]
+    # the snowfall is given in water equivalent, therefore it also needs to be muliplied with rhoFresh2rhoSnow
+    SnowAccRateOverIce = vs.snowfall
+    SnowAccRateOverIce = npx.where(tmp, SnowAccRateOverIce + vs.precip,
+                                SnowAccRateOverIce) * sett.rhoFresh2rhoSnow
+
+    # the precipitation rate over the ice which goes immediately into the
+    # ocean (flowing through cracks in the ice). if the temperature is
+    # above the freezing point, the precipitation remains wet and runs
+    # into the ocean
+    PrecipRateOverIceSurfaceToSea = npx.where(tmp, 0, vs.precip)
+
+    # total snow accumulation over ice [m]
+    SnowAccOverIce = SnowAccRateOverIce * AreapreTH * sett.deltatTherm
+
+
+    ##### calculate heat fluxes through the ice #####
 
     # set ice and snow thickness categories to account for thicknes variations in one grid cell
     TIce_mult = ones3d * 1
@@ -86,32 +109,6 @@ def Growth(state):
         F_ia_net_mult = update(F_ia_net_mult, at[:,:,l], output[2])
         IcePenetSW_mult = update(IcePenetSW_mult, at[:,:,l], output[4])
         FWsublim_mult = update(FWsublim_mult, at[:,:,l], output[5])
-
-
-    ##### evaluate precipitation as snow or rain #####
-
-    # if there is ice and the temperature is below the freezing point,
-    # the precipitation falls and accumulates as snow
-    tmp = ((AreapreTH > 0) & (npx.mean(TIce_mult,axis=2) < sett.celsius2K))
-
-    # snow accumulation rate over ice [m/s]
-    # the snowfall is given in water equivalent, therefore it also needs to be muliplied with rhoFresh2rhoSnow
-    SnowAccRateOverIce = vs.snowfall
-    SnowAccRateOverIce = npx.where(tmp, SnowAccRateOverIce + vs.precip,
-                                SnowAccRateOverIce) * sett.rhoFresh2rhoSnow
-
-    # the precipitation rate over the ice which goes immediately into the
-    # ocean (flowing through cracks in the ice). if the temperature is
-    # above the freezing point, the precipitation remains wet and runs
-    # into the ocean
-    PrecipRateOverIceSurfaceToSea = npx.where(tmp, 0, vs.precip)
-
-    # total snow accumulation over ice [m]
-    SnowAccOverIce = SnowAccRateOverIce * AreapreTH * sett.deltatTherm
-
-
-    ##### for every thickness category, record the ice surface #####
-    #####  temperature and find the average flux across it     #####
 
     # update surface temperature and fluxes
     TSurf = npx.sum(TIce_mult, axis=2) * sett.recip_nITC
