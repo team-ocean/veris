@@ -85,8 +85,8 @@ def Growth(state):
         TIce_mult = update(TIce_mult, at[:,:,l], output[0])
         F_io_net_mult = update(F_io_net_mult, at[:,:,l], output[1])
         F_ia_net_mult = update(F_ia_net_mult, at[:,:,l], output[2])
-        IcePenetSW_mult = update(IcePenetSW_mult, at[:,:,l], output[4])
-        FWsublim_mult = update(FWsublim_mult, at[:,:,l], output[5])
+        IcePenetSW_mult = update(IcePenetSW_mult, at[:,:,l], output[3])
+        FWsublim_mult = update(FWsublim_mult, at[:,:,l], output[4])
 
     # update surface temperature and fluxes
     TSurf = npx.sum(TIce_mult, axis=2) * sett.recip_nITC
