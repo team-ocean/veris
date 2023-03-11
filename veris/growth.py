@@ -23,8 +23,6 @@ def Growth(state):
 
     # F_io_net: net upward conductive heat flux through sea ice and snow
 
-    # F_ia: upward seaice/snow surface heat flux to atmosphere
-
     # initialize three dimensional arrays accounting for the thickness categories of the ice
     # (using * 1 ensures that a new array is created for each variable. otherwise they would
     # all point to the same one)
@@ -33,7 +31,6 @@ def Growth(state):
     hSnowActual_mult = ones3d * 1
     F_io_net_mult = ones3d * 1
     F_ia_net_mult = ones3d * 1
-    F_ia_mult = ones3d * 1
     IcePenetSW_mult = ones3d * 1
     FWsublim_mult = ones3d * 1
 
@@ -87,7 +84,6 @@ def Growth(state):
         TIce_mult = update(TIce_mult, at[:,:,l], output[0])
         F_io_net_mult = update(F_io_net_mult, at[:,:,l], output[1])
         F_ia_net_mult = update(F_ia_net_mult, at[:,:,l], output[2])
-        F_ia_mult = update(F_ia_mult, at[:,:,l], output[3])
         IcePenetSW_mult = update(IcePenetSW_mult, at[:,:,l], output[4])
         FWsublim_mult = update(FWsublim_mult, at[:,:,l], output[5])
 
