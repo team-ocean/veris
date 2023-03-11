@@ -21,19 +21,19 @@ import h5netcdf
 import netCDF4
 import xarray as xr
 
-import versis
+import veris
 
-import versis.constants as ct
-import versis.flux_CESM as flux_cesm
-import versis.flux_MITgcm as flux_mitgcm
-from versis.area_mass import SeaIceMass, AreaWS
-from versis.dynsolver import WindForcingXY, IceVelocities
-from versis.dynamics_routines import SeaIceStrength
-from versis.ocean_stress import OceanStressUV
-from versis.advection import Advection
-from versis.clean_up import clean_up_advection, ridging
-from versis.growth import Growth
-from versis.fill_overlap import fill_overlap, fill_overlap_uv
+import veris.constants as ct
+import veris.flux_CESM as flux_cesm
+import veris.flux_MITgcm as flux_mitgcm
+from veris.area_mass import SeaIceMass, AreaWS
+from veris.dynsolver import WindForcingXY, IceVelocities
+from veris.dynamics_routines import SeaIceStrength
+from veris.ocean_stress import OceanStressUV
+from veris.advection import Advection
+from veris.clean_up import clean_up_advection, ridging
+from veris.growth import Growth
+from veris.fill_overlap import fill_overlap, fill_overlap_uv
 
 import veros.tools
 from veros import VerosSetup, veros_routine, veros_kernel, KernelOutput, logger
@@ -46,7 +46,7 @@ DATA_FILES = veros.tools.get_assets("global_4deg", os.path.join(BASE_PATH, "asse
 
 class GlobalFourDegreeSetup(VerosSetup):
 
-    __veros_plugins__ = (versis,)
+    __veros_plugins__ = (veris,)
 
     """Global 4 degree model with 15 vertical levels.
 
@@ -336,13 +336,13 @@ class GlobalFourDegreeSetup(VerosSetup):
             "v10m",
             "q10m",
             "t2m",
-            # versis forcing
+            # veris forcing
             "uWind_f","vWind_f",
             "SWdown_f","LWdown_f",
             "ATemp_f","aqh_f",
             "precip_f","snowfall_f","evap_f",
             "surfPress_f",
-            # versis masks and grid (and veros ones to be copied to versis)
+            # veris masks and grid (and veros ones to be copied to veris)
             "maskT","maskU","maskV",
             "iceMask","iceMaskU","iceMaskV","maskInC","maskInU","maskInV",
             "coriolis_t","fCori",
@@ -502,7 +502,7 @@ class GlobalFourDegreeSetup(VerosSetup):
                 vs.forc_iw_surface, at[2:-2, 2:-2], self._read_forcing("wind_energy") / settings.rho_0 * 0.2
             )
 
-        ##### versis #####
+        ##### veris #####
 
         # read forcing data, interpolate it to veros grid and update the variable
         def read_int_update(field, var_read, file):
