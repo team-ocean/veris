@@ -176,4 +176,4 @@ def solve4temp(state, hIceActual, hSnowActual, TSurfIn, TempFrz):
     # freshwater flux due to sublimation [kg/m2] (+ = upward)
     FWsublim = npx.where(isIce, F_lh / sett.lhSublim, 0)
 
-    return TSurfOut, F_io_net, F_ia_net, F_ia, IcePenetSW, FWsublim
+    return TSurfOut, F_io_net, F_ia_net, IcePenetSW, FWsublim
