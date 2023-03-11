@@ -58,28 +58,6 @@ def Growth(state):
     hIceActual = npx.maximum(hIceActual, 0.05)
 
 
-    ##### evaluate precipitation as snow or rain #####
-
-    # if there is ice and the temperature is below the freezing point,
-    # the precipitation falls and accumulates as snow
-    tmp = ((AreapreTH > 0) & (npx.mean(TIce_mult,axis=2) < sett.celsius2K))
-
-    # snow accumulation rate over ice [m/s]
-    # the snowfall is given in water equivalent, therefore it also needs to be muliplied with rhoFresh2rhoSnow
-    SnowAccRateOverIce = vs.snowfall
-    SnowAccRateOverIce = npx.where(tmp, SnowAccRateOverIce + vs.precip,
-                                SnowAccRateOverIce) * sett.rhoFresh2rhoSnow
-
-    # the precipitation rate over the ice which goes immediately into the
-    # ocean (flowing through cracks in the ice). if the temperature is
-    # above the freezing point, the precipitation remains wet and runs
-    # into the ocean
-    PrecipRateOverIceSurfaceToSea = npx.where(tmp, 0, vs.precip)
-
-    # total snow accumulation over ice [m]
-    SnowAccOverIce = SnowAccRateOverIce * AreapreTH * sett.deltatTherm
-
-
     ##### calculate heat fluxes through the ice #####
 
     # set ice and snow thickness categories to account for thicknes variations in one grid cell
@@ -119,6 +97,28 @@ def Growth(state):
     F_ia_net = npx.sum(F_ia_net_mult, axis=2) * sett.recip_nITC * AreapreTH
     IcePenetSW = npx.sum(IcePenetSW_mult, axis=2) * sett.recip_nITC * AreapreTH
     # FWsublim = npx.sum(FWsublim_mult, axis=2) * sett.recip_nITC * AreapreTH
+
+
+    ##### evaluate precipitation as snow or rain #####
+
+    # if there is ice and the temperature is below the freezing point,
+    # the precipitation falls and accumulates as snow
+    tmp = ((AreapreTH > 0) & (npx.mean(TIce_mult,axis=2) < sett.celsius2K))
+
+    # snow accumulation rate over ice [m/s]
+    # the snowfall is given in water equivalent, therefore it also needs to be muliplied with rhoFresh2rhoSnow
+    SnowAccRateOverIce = vs.snowfall
+    SnowAccRateOverIce = npx.where(tmp, SnowAccRateOverIce + vs.precip,
+                                SnowAccRateOverIce) * sett.rhoFresh2rhoSnow
+
+    # the precipitation rate over the ice which goes immediately into the
+    # ocean (flowing through cracks in the ice). if the temperature is
+    # above the freezing point, the precipitation remains wet and runs
+    # into the ocean
+    PrecipRateOverIceSurfaceToSea = npx.where(tmp, 0, vs.precip)
+
+    # total snow accumulation over ice [m]
+    SnowAccOverIce = SnowAccRateOverIce * AreapreTH * sett.deltatTherm
 
 
     ##### calculate growth rates of ice and snow #####
