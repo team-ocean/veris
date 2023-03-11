@@ -350,5 +350,5 @@ def Growth(state):
     # sea ice + snow load on the sea surface
     SeaIceLoad = hIceMean * sett.rhoIce + hSnowMean * sett.rhoSnow
 
-    return hIceMean, hSnowMean, Area, TSurf, saltflux, EmPmR, forc_salt_surface, Qsw, Qnet, \
+    return hIceMean, hSnowMean, Area, TSurf, EmPmR, forc_salt_surface, Qsw, Qnet, \
         SeaIceLoad, IcePenetSW, recip_hIceMean
