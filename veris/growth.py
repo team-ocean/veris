@@ -17,27 +17,13 @@ def Growth(state):
 
     # heat fluxes in [W/m2]
 
-    # F_ia_net
-    # net heat flux divergence at the
-    # sea ice/snow surface including sea ice conductive fluxes and
-    # atmospheric fluxes
+    # F_ia_net: net heat flux divergence at the sea ice/snow surface
     # = 0: surface heat loss is balanced by upward conductive fluxes
     # < 0: net heat flux convergence at the ice/ snow surface
 
-    # F_ia_net_before_snow
-    # the net heat flux divergence at the sea ice/snow
-    # surface before snow is melted with any convergence
-    # < 0: some snow (if present) will melt
+    # F_io_net: net upward conductive heat flux through sea ice and snow
 
-    # F_io_net
-    # net upward conductive heat flux
-    # through sea ice and snow realized at the sea ice/snow surface
-
-    # F_oi
-    # heat flux from ocean to the ice (change of mixed layer temperature) (+ = upward)
-
-    # FWsublim
-    # freshwater flux due to sublimation [kg/m2] (+ = upward)
+    # F_ia: upward seaice/snow surface heat flux to atmosphere
 
     # initialize three dimensional arrays accounting for the thickness categories of the ice
     # (using * 1 ensures that a new array is created for each variable. otherwise they would
