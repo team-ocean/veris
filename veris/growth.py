@@ -288,10 +288,10 @@ def Growth(state):
 
     # the net melted snow thickness [m3/m2] (positive if the snow
     # thickness decreases/ melting occurs)
-    ActualNewTotalSnowMelt = hSnowMeanpreTH + SnowAccOverIce - hSnowMean
+    MeltedSnowMean = hSnowMeanpreTH + SnowAccOverIce - hSnowMean
 
     # the energy required to melt or form the new ice volume [J/m2]
-    EnergyInNewTotalIceVolume = hIceMeanChange / qi
+    EnergyForIceChange = hIceMeanChange / qi
 
     # the net energy flux out of the ocean [J/m2]
     NetEnergyFluxOutOfOcean = (AreapreTH * (F_ia_net + F_io_net + IcePenetSW)
@@ -300,7 +300,7 @@ def Growth(state):
     # energy taken out of the ocean which is not used for sea ice growth [J].
     # If the net energy flux out of the ocean is balanced by the latent
     # heat of fusion, the temperature of the mixed layer will not change
-    ResidualEnergyOutOfOcean = NetEnergyFluxOutOfOcean - EnergyInNewTotalIceVolume
+    ResidualEnergyOutOfOcean = NetEnergyFluxOutOfOcean - EnergyForIceChange
 
     # total heat flux out of the ocean [W/m2]
     Qnet = ResidualEnergyOutOfOcean * sett.recip_deltatTherm
@@ -327,7 +327,7 @@ def Growth(state):
         * vs.iceMask * sett.rhoIce * sett.recip_deltatTherm
 
     # the freshwater contribution to the ocean from melting snow [m]
-    FreshwaterContribFromSnowMelt = ActualNewTotalSnowMelt / sett.rhoFresh2rhoSnow
+    FreshwaterContribFromSnowMelt = MeltedSnowMean / sett.rhoFresh2rhoSnow
 
     # evaporation minus precipitation minus runoff (salt flux into ocean) [kg/m2 s]
     # this is a virtual salt flux (actually just a negative freshwater flux, it still needs to be
