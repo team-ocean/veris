@@ -39,7 +39,6 @@ with open(os.path.join(here, "README.md"), encoding="utf-8") as f:
 setup(
     name='veris',
     license='MIT',
-    version='1.0',
     author='Jan Gärtner (AWI Bremen)',
     author_email='jph.gaertner@gmail.com',
     keywords="oceanography python parallel numpy multi-core geophysics ocean-model mpi4py jax",
