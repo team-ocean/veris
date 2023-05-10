@@ -29,7 +29,7 @@ Operating System :: MacOS
 """
 
 INSTALL_REQUIRES = [
-    'veros>=1.4.4'
+    "veros>=1.4.4"
 ]
 
 with open(os.path.join(here, "README.md"), encoding="utf-8") as f:
@@ -37,12 +37,12 @@ with open(os.path.join(here, "README.md"), encoding="utf-8") as f:
 
 
 setup(
-    name='veris',
-    license='MIT',
-    author='Jan Gärtner (AWI Bremen)',
-    author_email='jph.gaertner@gmail.com',
+    name="veris",
+    license="MIT",
+    author="Jan Gärtner (AWI Bremen)",
+    author_email="jph.gaertner@gmail.com",
     keywords="oceanography python parallel numpy multi-core geophysics ocean-model mpi4py jax",
-    description='Sea-ice plugin for Veros, the versatile ocean simulator',
+    description="Sea-ice plugin for Veros, the versatile ocean simulator",
     long_description=long_description,
     long_description_content_type="text/markdown",
     python_requires=">=3.7",
@@ -50,5 +50,11 @@ setup(
     cmdclass=versioneer.get_cmdclass(),
     packages=find_packages(),
     install_requires=INSTALL_REQUIRES,
-    classifiers=[c for c in CLASSIFIERS.split('\n') if c],
+    entry_points={
+            "veros.setup_dirs": [
+                "seaice = veris.setup"
+            ]
+    },
+    package_data={"veris": ["setup/*/assets.json"]},
+    classifiers=[c for c in CLASSIFIERS.split("\n") if c],
 )
