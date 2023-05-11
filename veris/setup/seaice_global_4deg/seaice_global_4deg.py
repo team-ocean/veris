@@ -165,7 +165,7 @@ class GlobalFourDegreeSetup(VerosSetup):
         )
 
     def _read_forcing(self, var, forcing="forcing", flip_y=False):
-        with h5netcdf.File(forcing, "r") as infile:
+        with h5netcdf.File(DATA_FILES[forcing], "r") as infile:
             var_obj = npx.array(infile.variables[var]).T
             if flip_y:
                 return npx.flip(var_obj, axis=1)
@@ -179,7 +179,9 @@ class GlobalFourDegreeSetup(VerosSetup):
         veros_grid,
         forcing_grid,
         forcing="era5_ml",
-        slice=None,
+        slice=(slice(None, None, None),
+               slice(None, None, None),
+               slice(None, None, None)),
         flip_y=True,
     ):
         """Read forcing data, interpolate it to veros grid and update the variable
@@ -202,7 +204,7 @@ class GlobalFourDegreeSetup(VerosSetup):
             slice
         ]
         interp_var = veros.tools.interpolate(forcing_grid, input_var, veros_grid)
-        output_var = update(veros_var, at[2:-2, 2:-2], interp_var)
+        output_var = update(veros_var, at[2:-2, 2:-2, :], interp_var)
 
         return output_var
 
@@ -509,7 +511,7 @@ class GlobalFourDegreeSetup(VerosSetup):
         # -------------------
         lnsp = veros.tools.interpolate(
             forc_time_xygrid,
-            self._read_forcing_legacy("lnsp", forcing="era5_ml", flip_y=True)[
+            self._read_forcing("lnsp", forcing="era5_ml", flip_y=True)[
                 ..., 0, :
             ],  # L136
             time_xygrid,
@@ -529,10 +531,10 @@ class GlobalFourDegreeSetup(VerosSetup):
             time_xyzgrid,
         )
         vs.ubot = self._read_slice_interp_upd(
-            vs.ubot, "u", time_xygrid, forc_time_xygrid, slice=npx._s[:, :, 1, :]
+            vs.ubot, "u", time_xygrid, forc_time_xygrid, slice=npx.s_[:, :, 1, :]
         )  # L136
         vs.vbot = self._read_slice_interp_upd(
-            vs.vbot, "v", time_xygrid, forc_time_xygrid, slice=npx._s[:, :, 1, :]
+            vs.vbot, "v", time_xygrid, forc_time_xygrid, slice=npx.s_[:, :, 1, :]
         )  # L136
         vs.tcc = self._read_slice_interp_upd(
             vs.tcc, "tcc", time_xygrid, forc_time_xygrid, forcing="era5_sfc"
@@ -624,10 +626,10 @@ class GlobalFourDegreeSetup(VerosSetup):
 
         # ERA5 forcing fields
         vs.uWind_f = self._read_slice_interp_upd(
-            vs.uWind_f, "u", time_xygrid, forc_time_xygrid, slice=npx._s[:, :, 1, :]
+            vs.uWind_f, "u", time_xygrid, forc_time_xygrid, slice=npx.s_[:, :, 1, :]
         )  # [m/s] # ubot
         vs.vWind_f = self._read_slice_interp_upd(
-            vs.vWind_f, "v", time_xygrid, forc_time_xygrid, slice=npx._s[:, :, 1, :]
+            vs.vWind_f, "v", time_xygrid, forc_time_xygrid, slice=npx.s_[:, :, 1, :]
         )  # [m/s] # vbot
         vs.SWdown_f = self._read_slice_interp_upd(
             vs.SWdown_f, "msdwswrf", time_xygrid, forc_time_xygrid, forcing="era5_sfc"
@@ -636,10 +638,10 @@ class GlobalFourDegreeSetup(VerosSetup):
             vs.LWdown_f, "msdwlwrf", time_xygrid, forc_time_xygrid, forcing="era5_sfc"
         )  # [W/m2] # lwr_dw
         vs.ATemp_f = self._read_slice_interp_upd(
-            vs.ATemp_f, "t", time_xygrid, forc_time_xygrid, slice=npx._s[:, :, 1, :]
+            vs.ATemp_f, "t", time_xygrid, forc_time_xygrid, slice=npx.s_[:, :, 1, :]
         )  # [K]
         vs.aqh_f = self._read_slice_interp_upd(
-            vs.aqh_f, "q", time_xygrid, forc_time_xygrid, slice=npx._s[:, :, 1, :]
+            vs.aqh_f, "q", time_xygrid, forc_time_xygrid, slice=npx.s_[:, :, 1, :]
         )  # [kg/kg]
         vs.precip_f = (
             self._read_slice_interp_upd(

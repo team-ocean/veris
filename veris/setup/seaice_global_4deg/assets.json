@@ -10,17 +10,17 @@
   },
 
   "era5_ml": {
-    "url": "https://sid.erda.dk/share_redirect/hdmPVy4Zmh/seaice_global_4deg/era5_198x_ml_4x4deg_monthly_mean.nc",
+    "url": "https://sid.erda.dk/share_redirect/gsdZADr8to/seaice_global_4deg/era5_198x_ml_4x4deg_monthly_mean.nc",
     "md5": "2ada464b2eb2bf3a7abec7f77a18634c"
   },
 
   "era5_sfc": {
-    "url": "https://sid.erda.dk/share_redirect/hdmPVy4Zmh/seaice_global_4deg/era5_198x_sfc_4x4deg_monthly_mean.nc",
+    "url": "https://sid.erda.dk/share_redirect/gsdZADr8to/seaice_global_4deg/era5_198x_sfc_4x4deg_monthly_mean.nc",
     "md5": "304d547b72b3677f7bc44c71bcf7cb8f"
   },
 
   "formfact": {
-    "url": "https://sid.erda.dk/share_redirect/hdmPVy4Zmh/seaice_global_4deg/formfactor.nc",
+    "url": "https://sid.erda.dk/share_redirect/gsdZADr8to/seaice_global_4deg/formfactor.nc",
     "md5": "105043997769b926505613a0d495874c"
   }
 }
