@@ -4,7 +4,7 @@
 UMIN_O = 0.5
 
 # minimum atm. wind speed over ice surface ~ (m/s)
-UMIN_I = 1.
+UMIN_I = 1.0
 
 # reference height ~ (m)
 ZREF = 10.0
@@ -88,9 +88,9 @@ EPS2 = 1.0e-20
 
 # Surface emissivity (usually 0.97-0.98 for sea surface)
 EMISSIVITY = 1.0
-OCEAN_EMISSIVITY= 0.985
+OCEAN_EMISSIVITY = 0.985
 SNOW_EMISSIVITY = 0.98
-ICE_EMISSIVITY  = 0.98
+ICE_EMISSIVITY = 0.98
 
 # FROM MITgcm
 # Freezing temp of fresh water in Kelvin

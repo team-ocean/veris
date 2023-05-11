@@ -4,8 +4,7 @@ from veros import veros_kernel
 
 @veros_kernel
 def clean_up_advection(state):
-
-    '''clean up overshoots and other pathological cases after advection'''
+    """clean up overshoots and other pathological cases after advection"""
 
     vs = state.variables
     sett = state.settings
@@ -22,7 +21,7 @@ def clean_up_advection(state):
 
     # case 2: very thin ice
     # set thicknesses to zero if the ice thickness is very small
-    thinIce = (hIceMean <= sett.hIce_min)
+    thinIce = hIceMean <= sett.hIce_min
     hIceMean *= ~thinIce
     hSnowMean *= ~thinIce
     TSurf = npx.where(thinIce, sett.celsius2K, vs.TSurf)
@@ -33,15 +32,16 @@ def clean_up_advection(state):
 
     # case 4: very small area
     # introduce lower boundary for the area (if ice or snow is present)
-    Area = npx.where((hIceMean > 0) | (hSnowMean > 0),
-                        npx.maximum(Area, sett.Area_min), Area)
+    Area = npx.where(
+        (hIceMean > 0) | (hSnowMean > 0), npx.maximum(Area, sett.Area_min), Area
+    )
 
     return hIceMean, hSnowMean, Area, TSurf, os_hIceMean, os_hSnowMean
 
+
 @veros_kernel
 def ridging(state):
-
-    '''cut off ice cover fraction at 1 after advection to account for ridging'''
+    """cut off ice cover fraction at 1 after advection to account for ridging"""
     Area = npx.minimum(state.variables.Area, 1)
 
     return Area
