@@ -5,7 +5,7 @@ import h5netcdf
 
 import veris
 import veris.heat_flux_MITgcm as flux_mitgcm
-from veris.heat_flux_CESM import flux_cesm, get_press_levs, compute_z_level
+import veris.heat_flux_CESM as flux_cesm
 from veris.area_mass import SeaIceMass, AreaWS
 from veris.dynsolver import WindForcingXY, IceVelocities
 from veris.dynamics_routines import SeaIceStrength
@@ -498,12 +498,12 @@ class GlobalFourDegreeSetup(VerosSetup):
         vs.spres = update(vs.spres, at[2:-2, 2:-2, :], npx.exp(lnsp))
 
         for m in range(12):
-            ph = get_press_levs(vs.spres[..., m], hyai, hybi)
-            pf = get_press_levs(vs.spres[..., m], hyam, hybm)
+            ph = flux_cesm.get_press_levs(vs.spres[..., m], hyai, hybi)
+            pf = flux_cesm.get_press_levs(vs.spres[..., m], hyam, hybm)
             vs.zbot = update(
                 vs.zbot,
                 at[2:-2, 2:-2, m],
-                compute_z_level(t[..., m], q[..., m], ph[2:-2, 2:-2]),
+                flux_cesm.compute_z_level(t[..., m], q[..., m], ph[2:-2, 2:-2]),
             )  # L136
 
             # air density
