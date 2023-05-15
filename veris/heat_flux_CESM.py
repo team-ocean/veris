@@ -104,8 +104,7 @@ def get_press_levs(sp, hya, hyb):
     )
 
 
-@veros_kernel
-def compute_z_level(state, t, q, ph):
+def compute_z_level(settings, t, q, ph):
     """Computes the altitudes at ECMWF Integrated Forecasting System
     (ECMWF-IFS) model half- and full-levels (for 137 levels model reanalysis: L137)
 
@@ -126,8 +125,6 @@ def compute_z_level(state, t, q, ph):
     Returns:
         :obj:`ndarray`: Altitude of the atmospheric near surface layer (second IFS level)
     """
-
-    settings = state.settings
 
     # virtual temperature (K)
     tv = t[...] * (1.0 + settings.zvir * q[...])

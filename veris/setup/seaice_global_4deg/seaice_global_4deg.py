@@ -503,7 +503,7 @@ class GlobalFourDegreeSetup(VerosSetup):
             vs.zbot = update(
                 vs.zbot,
                 at[2:-2, 2:-2, m],
-                flux_cesm.compute_z_level(t[..., m], q[..., m], ph[2:-2, 2:-2]),
+                flux_cesm.compute_z_level(settings, t[..., m], q[..., m], ph[2:-2, 2:-2]),
             )  # L136
 
             # air density
