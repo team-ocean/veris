@@ -4,8 +4,8 @@ import os
 import h5netcdf
 
 import veris
-import veris.heat_flux_mitgcm as flux_mitgcm
-from veris.heat_flux_cesm import flux_cesm, get_press_levs, compute_z_level
+import veris.heat_flux_MITgcm as flux_mitgcm
+from veris.heat_flux_CESM import flux_cesm, get_press_levs, compute_z_level
 from veris.area_mass import SeaIceMass, AreaWS
 from veris.dynsolver import WindForcingXY, IceVelocities
 from veris.dynamics_routines import SeaIceStrength
