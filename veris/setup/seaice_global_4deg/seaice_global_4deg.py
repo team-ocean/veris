@@ -4,9 +4,8 @@ import os
 import h5netcdf
 
 import veris
-import veris.heat_flux_constants as ct
-import veris.heat_flux_CESM as flux_cesm
-import veris.heat_flux_MITgcm as flux_mitgcm
+import veris.heat_flux_mitgcm as flux_mitgcm
+from veris.heat_flux_cesm import flux_cesm, get_press_levs, compute_z_level
 from veris.area_mass import SeaIceMass, AreaWS
 from veris.dynsolver import WindForcingXY, IceVelocities
 from veris.dynamics_routines import SeaIceStrength
@@ -207,68 +206,6 @@ class GlobalFourDegreeSetup(VerosSetup):
         output_var = update(veros_var, at[2:-2, 2:-2, :], interp_var)
 
         return output_var
-
-    def _get_press_levs(self, sp, hya, hyb):
-        """Compute pressure levels
-
-        Arguments:
-            sp (:obj:`ndarray`): Atmospheric surface pressure
-            hya (:obj:`ndarray`): Hybrid sigma level A coefficient for vertical grid
-            hyb (:obj:`ndarray`): Hybrid sigma level B coefficient for vertical grid
-
-        Return:
-            :obj:`ndarray`
-        """
-
-        return (
-            hya[npx.newaxis, npx.newaxis, :]
-            + hyb[npx.newaxis, npx.newaxis, :] * sp[:, :, npx.newaxis]
-        )
-
-    def _compute_z_level(self, t, q, ph):
-        """Computes the altitudes at ECMWF Integrated Forecasting System
-        (ECMWF-IFS) model half- and full-levels (for 137 levels model reanalysis: L137)
-
-        Arguments:
-            t (:obj:`ndarray`): Atmospheric temperture [K]
-            q (:obj:`ndarray`): Atmospheric specific humidity [kg/kg]
-            ph (:obj:`ndarray`): Pressure at half model levels
-
-        Note:
-            The top level of the atmosphere is excluded
-
-        Reference:
-            - https://www.ecmwf.int/sites/default/files/elibrary/2015/
-            9210-part-iii-dynamics-and-numerical-procedures.pdf
-            - https://confluence.ecmwf.int/display/CKB/
-            ERA5%3A+compute+pressure+and+geopotential+on+model+levels%2C+geopotential+height+and+geometric+height
-
-        Returns:
-            :obj:`ndarray`: Altitude of the atmospheric near surface layer (second IFS level)
-        """
-
-        # virtual temperature (K)
-        tv = t[...] * (1.0 + ct.ZVIR * q[...])
-
-        # compute geopotential for 2 lowermost (near-surface) model levels
-        dlog_p = npx.log(ph[:, :, 1:] / ph[:, :, :-1])
-        alpha = 1.0 - ((ph[:, :, :-1] / (ph[:, :, 1:] - ph[:, :, :-1])) * dlog_p)
-        tv = tv * ct.RDAIR
-
-        # z_h is the geopotential of 'half-levels'
-        # integrate z_h to next half level
-        increment = npx.flip(tv * dlog_p, axis=2)
-        zh = npx.cumsum(increment, axis=2)
-
-        # z_f is the geopotential of this full level
-        # integrate from previous (lower) half-level z_h to the
-        # full level
-        increment_zh = npx.insert(zh, 0, 0, axis=2)
-        zf = npx.flip(tv * alpha, axis=2) + increment_zh[:, :, :-1]
-
-        alt = ct.RE * zf / ct.G / (ct.RE - zf / ct.G)
-
-        return alt[:, :, -1]
 
     @veros_routine
     def set_grid(self, state):
@@ -561,26 +498,26 @@ class GlobalFourDegreeSetup(VerosSetup):
         vs.spres = update(vs.spres, at[2:-2, 2:-2, :], npx.exp(lnsp))
 
         for m in range(12):
-            ph = self._get_press_levs(vs.spres[..., m], hyai, hybi)
-            pf = self._get_press_levs(vs.spres[..., m], hyam, hybm)
+            ph = get_press_levs(vs.spres[..., m], hyai, hybi)
+            pf = get_press_levs(vs.spres[..., m], hyam, hybm)
             vs.zbot = update(
                 vs.zbot,
                 at[2:-2, 2:-2, m],
-                self._compute_z_level(t[..., m], q[..., m], ph[2:-2, 2:-2]),
+                compute_z_level(t[..., m], q[..., m], ph[2:-2, 2:-2]),
             )  # L136
 
             # air density
             vs.rbot = update(
                 vs.rbot,
                 at[2:-2, 2:-2, m],
-                ct.MWDAIR / ct.RGAS * pf[2:-2, 2:-2, 0] / vs.tbot[2:-2, 2:-2, m],
+                settings.mwdair / settings.rgas * pf[2:-2, 2:-2, 0] / vs.tbot[2:-2, 2:-2, m],
             )  # L136
 
             # potential temperature
             vs.thbot = update(
                 vs.thbot,
                 at[2:-2, 2:-2, m],
-                vs.tbot[2:-2, 2:-2, m] * (ct.P0 / pf[2:-2, 2:-2, 0]) ** ct.CAPPA,
+                vs.tbot[2:-2, 2:-2, m] * (settings.p0 / pf[2:-2, 2:-2, 0]) ** settings.cappa,
             )  # L136
 
         # -----------------------------------------------------------------
@@ -841,6 +778,7 @@ def set_forcing_kernel(state):
             _,
             _,
         ) = flux_cesm.flux_atmOcn(
+            state,
             ocn_mask,
             rbot,
             zbot,
@@ -861,6 +799,7 @@ def set_forcing_kernel(state):
 
         # different/ simpler formula for the surface heat flux
         qir, qh, qe = flux_cesm.flux_atmOcn_simple(
+            state,
             ocn_mask,
             spres,
             qbot,
@@ -876,6 +815,7 @@ def set_forcing_kernel(state):
         qnet_simple = swr_net + qir + lwr_dw + qh + qe
 
         dqir_dt, dqh_dt, dqe_dt = flux_cesm.dqnetdt(
+            state,
             ocn_mask,
             spres,
             rbot,
@@ -893,11 +833,11 @@ def set_forcing_kernel(state):
         t2m = current_value(vs.t2m)
 
         lwup, lat, sen, qnec, taux, tauy, _, _, _ = flux_mitgcm.bulkf_formula_lanl(
-            u10m, v10m, t2m, q10m, temp, ocn_mask
+            state, u10m, v10m, t2m, q10m, temp, ocn_mask
         )
 
     else:
-        pass
+        raise ValueError("Either cesm forcing or mitgcm forcing should be active")
 
     # wind stress
     # if use_cesm_forcing and not use_mitgcm_forcing:
@@ -907,8 +847,8 @@ def set_forcing_kernel(state):
     #    vs.surface_taux = taux
     #    vs.surface_tauy = tauy
     # else:
-    vs.surface_taux = f1 * vs.taux[:, :, n1] + f2 * vs.taux[:, :, n2]
-    vs.surface_tauy = f1 * vs.tauy[:, :, n1] + f2 * vs.tauy[:, :, n2]
+    vs.surface_taux = current_value(vs.taux)
+    vs.surface_tauy = current_value(vs.tauy)
 
     # tke flux
     if settings.enable_tke:
@@ -934,8 +874,8 @@ def set_forcing_kernel(state):
 
     # heat flux [W/m^2 K kg/J m^3/kg] = [K m/s]
     cp_0 = 3991.86795711963
-    sst = f1 * vs.sst_clim[:, :, n1] + f2 * vs.sst_clim[:, :, n2]
-    swr_net = swr_net * (1.0 - ct.OCEAN_ALBEDO)
+    sst = current_value(vs.sst_clim)
+    swr_net = swr_net * (1.0 - settings.ocean_albedo)
 
     if use_cesm_forcing and not use_mitgcm_forcing:
         qnec = -(dqir_dt + dqh_dt + dqe_dt)
@@ -948,8 +888,8 @@ def set_forcing_kernel(state):
         qnet = swr_net - lwup + lwr_dw + sen + lat
         # qnet = qnet + 50 energy conservation
     else:
-        qnec = f1 * vs.qnec[:, :, n1] + f2 * vs.qnec[:, :, n2]
-        qnet = f1 * vs.qnet[:, :, n1] + f2 * vs.qnet[:, :, n2]
+        qnec = current_value(vs.qnec)
+        qnet = current_value(vs.qnet)
 
     forc_temp_surface = (
         (qnet + qnec * (sst - vs.temp[:, :, -1, vs.tau]))
@@ -964,7 +904,7 @@ def set_forcing_kernel(state):
 
     # salinity restoring
     t_rest = 30 * 86400.0
-    sss = f1 * vs.sss_clim[:, :, n1] + f2 * vs.sss_clim[:, :, n2]
+    sss = current_value(vs.sss_clim)
     forc_salt_surface_res = (
         1.0 / t_rest * (sss - vs.salt[:, :, -1, vs.tau]) * ocn_mask * vs.dzt[-1]
     )

@@ -143,7 +143,7 @@ def solve4temp(state, hIceActual, hSnowActual, TSurfIn, TempFrz):
         return F_c, F_lh, F_ia, dFia_dTs
 
     # iterate for the temperatue to converge (Newton-Raphson method)
-    for i in range(6):
+    for _ in range(6):
         F_c, F_lh, F_ia, dFia_dTs = fluxes(TSurfLoc)
 
         # update surface temperature as solution of

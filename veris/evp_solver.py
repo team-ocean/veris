@@ -348,6 +348,7 @@ def evp_solver(state):
     resSig = arg_body[15]
     resU = arg_body[16]
 
+    """
     if computeEvpResidual and plotEvpResidual:
         import matplotlib.pyplot as plt
 
@@ -368,5 +369,6 @@ def evp_solver(state):
         plt.show()
         # print(resU)
         # print(resSig)
-
+    """
+    
     return uIce, vIce

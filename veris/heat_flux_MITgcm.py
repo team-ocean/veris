@@ -1,14 +1,11 @@
-import veris.heat_flux_constants as ct
 from veros import veros_kernel
-
-# from veros.variables import allocate
-from veros.core.operators import numpy as npx  # , update, at
+from veros.core.operators import numpy as npx
 
 # heat flux bulk formula of the MITgcm, used in the setup file of Veros
 
 
 @veros_kernel
-def bulkf_formula_lanl(uw, vw, ta, qa, tsf, ocn_mask):
+def bulkf_formula_lanl(state, uw, vw, ta, qa, tsf, ocn_mask):
     """Calculate bulk formula fluxes over open ocean
 
         wind stress = (ust,vst) = rhoA * Cd * Ws * (del.u,del.v)
@@ -40,27 +37,29 @@ def bulkf_formula_lanl(uw, vw, ta, qa, tsf, ocn_mask):
         dEvdT  (:obj:`ndarray`): derivative of evap. with respect to tsf [kg/m2/s/K]
     """
 
+    settings = state.settings
+
     # Compute turbulent surface fluxes
     ht = 2.0
     zref = 10.0
     zice = 0.0005
     aln = npx.log(ht / zref)
-    czol = zref * ct.KARMAN * ct.G
+    czol = zref * settings.karman * settings.grav
 
-    lath = npx.ones_like(ocn_mask) * ct.LATVAP
+    lath = npx.ones_like(ocn_mask) * settings.latvap
 
     # wind speed
     us = npx.sqrt(uw[...] * uw[...] + vw[...] * vw[...])
     usm = npx.maximum(us[...], 1.0)
 
-    t0 = ta[...] * (1.0 + ct.ZVIR * qa[...])
+    t0 = ta[...] * (1.0 + settings.zvir * qa[...])
     ssq = 3.797915 * npx.exp(lath[...] * (7.93252e-6 - 2.166847e-3 / tsf[...])) / 1013.0
 
-    deltap = ta[...] - tsf[...] + ct.GAMMA_BLK * ht
+    deltap = ta[...] - tsf[...] + settings.gamma_blk * ht
     delq = qa[...] - ssq[...]
 
     # initialize estimate exchange coefficients
-    rdn = ct.KARMAN / npx.log(zref / zice)
+    rdn = settings.karman / npx.log(zref / zice)
     rhn = rdn
     ren = rdn
     # calculate turbulent scales
@@ -73,7 +72,7 @@ def bulkf_formula_lanl(uw, vw, ta, qa, tsf, ocn_mask):
         huol = (
             czol
             / ustar[...] ** 2
-            * (tstar[...] / t0 + qstar[...] / (1.0 / ct.ZVIR + qa[...]))
+            * (tstar[...] / t0 + qstar[...] / (1.0 / settings.zvir + qa[...]))
         )
         huol = npx.minimum(npx.abs(huol[...]), 10.0) * npx.sign(huol[...])
         stable = 0.5 + 0.5 * npx.sign(huol[...])
@@ -90,8 +89,8 @@ def bulkf_formula_lanl(uw, vw, ta, qa, tsf, ocn_mask):
         )
 
         # update the transfer coefficients
-        rd = rdn / (1.0 + rdn * (aln[...] - psimh[...]) / ct.KARMAN)
-        rh = rhn / (1.0 + rhn * (aln[...] - psixh[...]) / ct.KARMAN)
+        rd = rdn / (1.0 + rdn * (aln[...] - psimh[...]) / settings.karman)
+        rh = rhn / (1.0 + rhn * (aln[...] - psixh[...]) / settings.karman)
         re = rh
 
         # update ustar, tstar, qstar using updated, shifted coefficients.
@@ -99,17 +98,17 @@ def bulkf_formula_lanl(uw, vw, ta, qa, tsf, ocn_mask):
         qstar = re[...] * delq[...]
         tstar = rh[...] * deltap[...]
 
-    # tau = ct.RHOA * ustar[...]**2
+    # tau = settings.rhoAir * ustar[...]**2
     # tau = tau * us[...] / usm[...]
-    csha = ct.RHOA * ct.CPDAIR * us[...] * rh[...] * rd[...]
-    clha = ct.RHOA * lath[...] * us[...] * re[...] * rd[...]
+    csha = settings.rhoAir * settings.cpdair * us[...] * rh[...] * rd[...]
+    clha = settings.rhoAir * lath[...] * us[...] * re[...] * rd[...]
 
     fsha = csha[...] * deltap[...]
     flha = clha[...] * delq[...]
     evp = -flha[...] / lath[...]
 
-    flwupa = ct.OCEAN_EMISSIVITY * ct.STEBOL * tsf[...] ** 4
-    dflwupdt = 4.0 * ct.OCEAN_EMISSIVITY * ct.STEBOL * tsf[...] ** 3
+    flwupa = settings.ocean_emissivity * settings.stefBoltz * tsf[...] ** 4
+    dflwupdt = 4.0 * settings.ocean_emissivity * settings.stefBoltz * tsf[...] ** 3
 
     devdt = clha[...] * ssq[...] * 2.166847e-3 / (tsf[...] * tsf[...])
     dflhdt = -lath[...] * devdt[...]
@@ -120,7 +119,7 @@ def bulkf_formula_lanl(uw, vw, ta, qa, tsf, ocn_mask):
 
     #  wind stress at center points
     bulkf_cdn = 2.7e-3 / usm[...] + 0.142e-3 + 0.0764e-3 * usm[...]
-    ust = ct.RHOA * bulkf_cdn * us[...] * uw[...]
-    vst = ct.RHOA * bulkf_cdn * us[...] * vw[...]
+    ust = settings.rhoAir * bulkf_cdn * us[...] * uw[...]
+    vst = settings.rhoAir * bulkf_cdn * us[...] * vw[...]
 
     return (flwupa, flha, fsha, df0dt, ust, vst, evp, ssq, devdt)
