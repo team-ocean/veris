@@ -2,8 +2,6 @@ from veros import veros_kernel
 from veros.core.operators import numpy as npx, update, at
 
 
-# heat flux bulk formula of the CESM, used in the setup file of Veros
-
 _cc = npx.array(
     [
         0.88,

@@ -1,8 +1,6 @@
 from veros import veros_kernel
 from veros.core.operators import numpy as npx
 
-# heat flux bulk formula of the MITgcm, used in the setup file of Veros
-
 
 @veros_kernel
 def bulkf_formula_lanl(state, uw, vw, ta, qa, tsf, ocn_mask):
