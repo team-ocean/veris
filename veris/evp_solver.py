@@ -241,7 +241,25 @@ def evp_solver_body(iEVP, arg_body):
         if printEvpResidual:
             print("evp resU, resSigma: %i %e %e" % (iEVP, resU[iEVP], resSig[iEVP]))
 
-    return (uIce, vIce, resSig, resU)
+    return (
+        state,
+        uIce,
+        vIce,
+        uIceNm1,
+        vIceNm1,
+        sigma11,
+        sigma22,
+        sigma12,
+        denom1,
+        denom2,
+        EVPcFac,
+        evpAlphaC,
+        evpAlphaZ,
+        evpBetaU,
+        evpBetaV,
+        resSig,
+        resU,
+    )
 
 
 @veros_kernel
@@ -304,6 +322,6 @@ def evp_solver(state):
     )
 
     # calculate u^n, sigma^n and residuals
-    uIce, vIce, resSig, resU = for_loop(0, 400, evp_solver_body, arg_body)
+    arg_body = for_loop(0, 400, evp_solver_body, arg_body)
 
-    return uIce, vIce
+    return arg_body[1], arg_body[2]
