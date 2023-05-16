@@ -15,17 +15,8 @@ from veris.global_sum import global_sum
 from veris.fill_overlap import fill_overlap_uv
 
 
-computeEvpResidual = True
 printEvpResidual = False
 plotEvpResidual = False
-
-evpAlpha = 500
-evpBeta = evpAlpha
-useAdaptiveEVP = False
-aEVPalphaMin = 5
-aEvpCoeff = 0.5
-explicitDrag = False
-nEVPsteps = 500
 
 
 @veros_kernel
@@ -36,28 +27,30 @@ def evp_solver_body(iEVP, arg_body):
     equations is done following Kimmritz (2016)
     """
 
-    state = arg_body[0]
-    uIce = arg_body[1]
-    vIce = arg_body[2]
-    uIceNm1 = arg_body[3]
-    vIceNm1 = arg_body[4]
-    sigma11 = arg_body[5]
-    sigma22 = arg_body[6]
-    sigma12 = arg_body[7]
-    denom1 = arg_body[8]
-    denom2 = arg_body[9]
-    EVPcFac = arg_body[10]
-    evpAlphaC = arg_body[11]
-    evpAlphaZ = arg_body[12]
-    evpBetaU = arg_body[13]
-    evpBetaV = arg_body[14]
-    resSig = arg_body[15]
-    resU = arg_body[16]
+    (
+        state,
+        uIce,
+        vIce,
+        uIceNm1,
+        vIceNm1,
+        sigma11,
+        sigma22,
+        sigma12,
+        denom1,
+        denom2,
+        EVPcFac,
+        evpAlphaC,
+        evpAlphaZ,
+        evpBetaU,
+        evpBetaV,
+        resSig,
+        resU,
+    ) = arg_body
 
     vs = state.variables
     sett = state.settings
 
-    if computeEvpResidual:
+    if sett.computeEvpResidual:
         # save previous (p-1) iteration for residual computation
         sig11Pm1 = sigma11
         sig22Pm1 = sigma22
@@ -71,12 +64,12 @@ def evp_solver_body(iEVP, arg_body):
     sig11, sig22, sig12 = stress(state, e11, e22, e12, zeta, eta, press)
 
     # calculate adaptive relaxation parameters
-    if useAdaptiveEVP:
+    if sett.useAdaptiveEVP:
         evpAlphaC = (
             npx.sqrt(zeta * EVPcFac / npx.maximum(vs.SeaIceMassC, 1e-4) * vs.recip_rA)
             * vs.iceMask
         )
-        evpAlphaC = npx.maximum(evpAlphaC, aEVPalphaMin)
+        evpAlphaC = npx.maximum(evpAlphaC, sett.aEVPalphaMin)
         denom1 = 1.0 / evpAlphaC
         denom2 = denom1
 
@@ -85,7 +78,7 @@ def evp_solver_body(iEVP, arg_body):
     sigma22 = sigma22 + (sig22 - sigma22) * denom2 * vs.iceMask
 
     # calculate adaptive relaxation parameter on z-points and step sigma12
-    if useAdaptiveEVP:
+    if sett.useAdaptiveEVP:
         evpAlphaZ = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 1))
         evpAlphaZ = 0.5 * (evpAlphaZ + npx.roll(evpAlphaZ, 1, 0))
         denom2 = 1.0 / evpAlphaZ
@@ -144,7 +137,7 @@ def evp_solver_body(iEVP, arg_body):
     ForcingY = ForcingY - 0.5 * (fuAtC + npx.roll(fuAtC, 1, 1))
 
     # interpolate relaxation parameters to velocity points
-    if useAdaptiveEVP:
+    if sett.useAdaptiveEVP:
         evpBetaU = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 0))
         evpBetaV = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 1))
 
@@ -170,7 +163,7 @@ def evp_solver_body(iEVP, arg_body):
         dragV = dragV + SideDragV
 
     # step momentum equations with ice-ocean stress treated ...
-    if explicitDrag:
+    if sett.explicitDrag:
         # ... explicitly
         ForcingX = ForcingX - uIce * dragU
         ForcingY = ForcingY - vIce * dragV
@@ -205,7 +198,7 @@ def evp_solver_body(iEVP, arg_body):
     uIce, vIce = fill_overlap_uv(state, uIce, vIce)
 
     # residual computation
-    if computeEvpResidual:
+    if sett.computeEvpResidual:
         sig11Pm1 = (sigma11 - sig11Pm1) * evpAlphaC * vs.iceMask
         sig22Pm1 = (sigma22 - sig22Pm1) * evpAlphaC * vs.iceMask
         sig12Pm1 = (sigma12 - sig12Pm1) * evpAlphaZ  # * maskZ
@@ -261,25 +254,7 @@ def evp_solver_body(iEVP, arg_body):
         # ax[1].set_title('uIce')
         # plt.show()
 
-    return [
-        state,
-        uIce,
-        vIce,
-        uIceNm1,
-        vIceNm1,
-        sigma11,
-        sigma22,
-        sigma12,
-        denom1,
-        denom2,
-        EVPcFac,
-        evpAlphaC,
-        evpAlphaZ,
-        evpBetaU,
-        evpBetaV,
-        resSig,
-        resU,
-    ]
+    return (uIce, vIce, resSig, resU)
 
 
 @veros_kernel
@@ -289,15 +264,16 @@ def evp_solver(state):
     """
 
     vs = state.variables
+    settings = state.settings
 
     # calculate parameter used for adaptive relaxation parameters
-    if useAdaptiveEVP:
+    if settings.useAdaptiveEVP:
         aEVPcStar = 4
-        EVPcFac = state.settings.deltatDyn * aEVPcStar * (npx.pi * aEvpCoeff) ** 2
+        EVPcFac = state.settings.deltatDyn * aEVPcStar * (npx.pi * settings.aEvpCoeff) ** 2
     else:
         EVPcFac = 0
 
-    denom1 = npx.ones_like(vs.iceMask) / evpAlpha
+    denom1 = npx.ones_like(vs.iceMask) / settings.evpAlpha
     denom2 = denom1
 
     # copy previous time step (n-1) of uIce, vIce
@@ -311,16 +287,16 @@ def evp_solver(state):
     sigma12 = npx.zeros_like(vs.iceMask)
 
     # initialize adaptive EVP specific fields
-    evpAlphaC = npx.ones_like(vs.iceMask) * evpAlpha
-    evpAlphaZ = npx.ones_like(vs.iceMask) * evpAlpha
-    evpBetaU = npx.ones_like(vs.iceMask) * evpBeta
-    evpBetaV = npx.ones_like(vs.iceMask) * evpBeta
+    evpAlphaC = npx.ones_like(vs.iceMask) * settings.evpAlpha
+    evpAlphaZ = npx.ones_like(vs.iceMask) * settings.evpAlpha
+    evpBetaU = npx.ones_like(vs.iceMask) * settings.evpBeta
+    evpBetaV = npx.ones_like(vs.iceMask) * settings.evpBeta
 
-    resSig = npx.zeros(nEVPsteps)
-    resU = npx.zeros(nEVPsteps)
+    resSig = npx.zeros(settings.nEVPsteps)
+    resU = npx.zeros(settings.nEVPsteps)
 
     # set argument for the loop (the for_loop of jax can only take one argument)
-    arg_body = [
+    arg_body = (
         state,
         uIce,
         vIce,
@@ -338,18 +314,13 @@ def evp_solver(state):
         evpBetaV,
         resSig,
         resU,
-    ]
+    )
 
     # calculate u^n, sigma^n and residuals
-    arg_body = for_loop(0, 400, evp_solver_body, arg_body)
-
-    uIce = arg_body[1]
-    vIce = arg_body[2]
-    resSig = arg_body[15]
-    resU = arg_body[16]
+    uIce, vIce, resSig, resU = for_loop(0, 400, evp_solver_body, arg_body)
 
     """
-    if computeEvpResidual and plotEvpResidual:
+    if settings.computeEvpResidual and plotEvpResidual:
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True)
@@ -370,5 +341,5 @@ def evp_solver(state):
         # print(resU)
         # print(resSig)
     """
-    
+
     return uIce, vIce

@@ -24,6 +24,14 @@ SETTINGS = dict(
     ),
     useFreedrift=Setting(False, bool, "flag for using the freedrift solver"),
     useEVP=Setting(True, bool, "flag for using the EVP solver"),
+    evpAlpha=Setting(500., float, "EVP parameter"),
+    evpBeta=Setting(500., float, "EVP parameter"),
+    useAdaptiveEVP=Setting(False, bool, "flag for using adaptive relaxation parameters"),
+    aEVPalphaMin=Setting(5, float, "lower limit of alpha and beta"),
+    aEvpCoeff=Setting(0.5, float, "largest stabilized frequency for adaptive EVP"),
+    explicitDrag=Setting(False, bool, "-"),
+    nEVPsteps=Setting(500, float, "-"),
+    computeEvpResidual=Setting(True, bool, "-"),
     veros_fill=Setting(True, bool, "flag for using the fill overlap function of Veros"),
     use_coastline=Setting(
         False, bool, "flag for using the coastline data for lateral drag"
