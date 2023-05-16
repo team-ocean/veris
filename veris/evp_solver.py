@@ -240,19 +240,6 @@ def evp_solver_body(iEVP, arg_body):
 
         if printEvpResidual:
             print("evp resU, resSigma: %i %e %e" % (iEVP, resU[iEVP], resSig[iEVP]))
-        # print(i)
-        # print(uIce.max(),vIce.max())
-        # print(sigma1.max(), sigma2.max(), sigma12.max())
-
-        # import matplotlib.pyplot as plt
-        # fig2, ax = plt.subplots(nrows=2,ncols=1,sharex=True)
-        # csf0=ax[0].pcolormesh(e12)
-        # ax[0].set_title('e12')
-        # plt.colorbar(csf0,ax=ax[0])
-        # csf1=ax[1].pcolormesh(uIce)
-        # plt.colorbar(csf1,ax=ax[1])
-        # ax[1].set_title('uIce')
-        # plt.show()
 
     return (uIce, vIce, resSig, resU)
 
@@ -318,28 +305,5 @@ def evp_solver(state):
 
     # calculate u^n, sigma^n and residuals
     uIce, vIce, resSig, resU = for_loop(0, 400, evp_solver_body, arg_body)
-
-    """
-    if settings.computeEvpResidual and plotEvpResidual:
-        import matplotlib.pyplot as plt
-
-        fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True)
-        ax[0].semilogy(resU[:], "x-")
-        ax[0].set_title("resU")
-        ax[1].semilogy(resSig[:], "x-")
-        ax[1].set_title("resSig")
-        # s12 = sigma12 + npx.roll(sigma12,-1,0)
-        # s12 = 0.25*(s12 + npx.roll(s12,-1,1))
-        # s1=( sigma1 + npx.sqrt(sigma2**2 + 4*s12**2) )/press # I changed press -> 0.5 * press
-        # s2=( sigma1 - npx.sqrt(sigma2**2 + 4*s12**2) )/press
-        # csf0=ax[0].plot(s1.ravel(),s2.ravel(),'.');#plt.colorbar(csf0,ax=ax[0])
-        # ax[0].plot([-1.4,0.1],[-1.4,0.1],'k-'); #plt.colorbar(csf0,ax=ax[0])
-        # ax[0].set_title('sigma1')
-        # csf1=ax[1].pcolormesh(sigma12); plt.colorbar(csf1,ax=ax[1])
-        # ax[1].set_title('sigma2')
-        plt.show()
-        # print(resU)
-        # print(resSig)
-    """
 
     return uIce, vIce
