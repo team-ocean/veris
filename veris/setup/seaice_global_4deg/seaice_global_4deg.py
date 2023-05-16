@@ -557,29 +557,25 @@ class GlobalFourDegreeSetup(VerosSetup):
                 self._read_forcing("wind_energy") / settings.rho_0 * 0.2,
             )
 
-        ###############################################
-        #################### VERIS ####################
-        ###############################################
-
         # ERA5 forcing fields
         vs.uWind_f = self._read_slice_interp_upd(
             vs.uWind_f, "u", time_xygrid, forc_time_xygrid, slice=npx.s_[:, :, 1, :]
-        )  # [m/s] # ubot
+        ) # ubot
         vs.vWind_f = self._read_slice_interp_upd(
             vs.vWind_f, "v", time_xygrid, forc_time_xygrid, slice=npx.s_[:, :, 1, :]
-        )  # [m/s] # vbot
+        ) # vbot
         vs.SWdown_f = self._read_slice_interp_upd(
             vs.SWdown_f, "msdwswrf", time_xygrid, forc_time_xygrid, forcing="era5_sfc"
-        )  # [W/m2]
+        )
         vs.LWdown_f = self._read_slice_interp_upd(
             vs.LWdown_f, "msdwlwrf", time_xygrid, forc_time_xygrid, forcing="era5_sfc"
-        )  # [W/m2] # lwr_dw
+        ) # lwr_dw
         vs.ATemp_f = self._read_slice_interp_upd(
             vs.ATemp_f, "t", time_xygrid, forc_time_xygrid, slice=npx.s_[:, :, 1, :]
-        )  # [K]
+        )
         vs.aqh_f = self._read_slice_interp_upd(
             vs.aqh_f, "q", time_xygrid, forc_time_xygrid, slice=npx.s_[:, :, 1, :]
-        )  # [kg/kg]
+        )
         vs.precip_f = (
             self._read_slice_interp_upd(
                 vs.precip_f, "crr", time_xygrid, forc_time_xygrid, forcing="era5_sfc"
@@ -587,7 +583,7 @@ class GlobalFourDegreeSetup(VerosSetup):
             + self._read_slice_interp_upd(
                 vs.precip_f, "lsrr", time_xygrid, forc_time_xygrid, forcing="era5_sfc"
             )
-        ) / settings.rhoFresh  # [m/s]
+        ) / settings.rhoFresh
         vs.snowfall_f = (
             self._read_slice_interp_upd(
                 vs.snowfall_f, "csfr", time_xygrid, forc_time_xygrid, forcing="era5_sfc"
@@ -599,16 +595,16 @@ class GlobalFourDegreeSetup(VerosSetup):
                 forc_time_xygrid,
                 forcing="era5_sfc",
             )
-        ) / settings.rhoFresh  # [m/s]
+        ) / settings.rhoFresh
         vs.evap_f = (
             self._read_slice_interp_upd(
                 vs.evap_f, "e", time_xygrid, forc_time_xygrid, forcing="era5_sfc"
             )
             / 86400
-        )  # [m/s]
+        )
         vs.surfPress_f = self._read_slice_interp_upd(
             vs.surfPress_f, "sp", time_xygrid, forc_time_xygrid, forcing="era5_sfc"
-        )  # [Pa]
+        )
 
         vs.Fu = update(
             vs.Fu, at[2:-2, 2:-2], self._read_forcing("fu", forcing="formfact")
@@ -616,45 +612,6 @@ class GlobalFourDegreeSetup(VerosSetup):
         vs.Fv = update(
             vs.Fv, at[2:-2, 2:-2], self._read_forcing("fv", forcing="formfact")
         )
-
-        # masks
-        vs.iceMask = vs.maskT[:, :, -1]
-        vs.iceMaskU = vs.maskU[:, :, -1]
-        vs.iceMaskV = vs.maskV[:, :, -1]
-        vs.maskInC = vs.iceMask
-        vs.maskInU = vs.iceMaskU
-        vs.maskInV = vs.iceMaskV
-
-        # grid
-        vs.R_low = vs.ht
-        vs.fCori = vs.coriolis_t
-        ones2d = npx.ones_like(vs.maskInC)
-        vs.dxC = ones2d * vs.dxt[:, npx.newaxis]
-        vs.dyC = ones2d * vs.dyt
-        vs.dxU = ones2d * vs.dxu[:, npx.newaxis]
-        vs.dyU = ones2d * vs.dyu
-        vs.dxG = 0.5 * (vs.dxU + npx.roll(vs.dxU, 1, 1))
-        vs.dyG = 0.5 * (vs.dyU + npx.roll(vs.dyU, 1, 0))
-        vs.dxV = 0.5 * (vs.dxC + npx.roll(vs.dxC, 1, 1))
-        vs.dyV = 0.5 * (vs.dyC + npx.roll(vs.dyC, 1, 0))
-        vs.rA = vs.area_t
-        vs.rAu = vs.area_u
-        vs.rAv = vs.area_v
-        vs.rAz = vs.rA + npx.roll(vs.rA, 1, 0)
-        vs.rAz = 0.25 * npx.roll(vs.rAz, 1, 1)
-
-        vs.recip_dxC = 1 / vs.dxC
-        vs.recip_dyC = 1 / vs.dyC
-        vs.recip_dxG = 1 / vs.dxG
-        vs.recip_dyG = 1 / vs.dyG
-        vs.recip_dxU = 1 / vs.dxU
-        vs.recip_dyU = 1 / vs.dyU
-        vs.recip_dxV = 1 / vs.dxV
-        vs.recip_dyV = 1 / vs.dyV
-        vs.recip_rA = 1 / vs.rA
-        vs.recip_rAu = 1 / vs.rAu
-        vs.recip_rAv = 1 / vs.rAv
-        vs.recip_rAz = 1 / vs.rAz
 
     @veros_routine
     def set_forcing(self, state):
