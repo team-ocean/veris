@@ -8,9 +8,9 @@ $ pip install veros
 $ git clone https://github.com/team-ocean/veris.git
 $ cd veris
 $ pip install -e .
-$ veros copy-setup seaice_global_4deg --to /tmp/seaice-4deg
-$ cd /tmp/seaice-4deg
-$ python seaice_global_4deg.py
+$ veros copy-setup seaice_global_4deg --to /tmp/seaice_4deg
+$ cd /tmp/seaice_4deg
+$ veros run seaice_global_4deg.py
 ```
 
 ## Credits
