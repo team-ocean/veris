@@ -659,6 +659,8 @@ def set_forcing_kernel(state):
     vs = state.variables
     settings = state.settings
 
+    conditional_outputs = {}
+
     use_cesm_forcing = False
     use_mitgcm_forcing = True
 
@@ -690,12 +692,12 @@ def set_forcing_kernel(state):
 
         # ocean net surface heat flux
         (
-            ocn_sen,
-            ocn_lat,
-            ocn_lwup,
+            sen,
+            lat,
+            lwup,
             _,
-            ocn_taux,
-            ocn_tauy,
+            taux,
+            tauy,
             _,
             _,
             _,
@@ -718,7 +720,7 @@ def set_forcing_kernel(state):
         )
 
         # Net LW radiation flux from sea surface
-        ocn_lwnet = flux_cesm.net_lw_ocn(
+        vs.lwnet = flux_cesm.net_lw_ocn(
             state, ocn_mask, vs.yt[:], qbot, temp, tbot, tcc
         )
 
@@ -804,14 +806,16 @@ def set_forcing_kernel(state):
 
     if use_cesm_forcing and not use_mitgcm_forcing:
         qnec = -(dqir_dt + dqh_dt + dqe_dt)
-        qnet = swr_net + ocn_lwnet + ocn_sen + ocn_lat  # mean_flux = (
+        qnet = swr_net + vs.lwnet + sen + lat  # mean_flux = (
         #    npx.sum(qnet[2:-2, 2:-2] * vs.area_t[2:-2, 2:-2]) / npx.sum(vs.area_t[2:-2, 2:-2])
         # )
         # qnet = qnet + 50
+        conditional_outputs.update(lwnet=vs.lwnet, sen=sen, lat=lat)
     elif not use_cesm_forcing and use_mitgcm_forcing:
         qnec = -qnec
         qnet = swr_net - lwup + lwr_dw + sen + lat
         # qnet = qnet + 50 energy conservation
+        conditional_outputs.update(lwnet=lwr_dw - lwup, sen=sen, lat=lat)
     else:
         qnec = current_value(vs.qnec)
         qnet = current_value(vs.qnet)
@@ -851,9 +855,7 @@ def set_forcing_kernel(state):
     vs.surfPress = current_value(vs.surfPress_f)
 
     # calculate evaporation from latent heat flux
-    if use_cesm_forcing and not use_mitgcm_forcing:
-        vs.evap = ocn_lat / (settings.lhEvap * settings.rhoSea)
-    if use_mitgcm_forcing and not use_cesm_forcing:
+    if use_cesm_forcing or use_mitgcm_forcing:
         vs.evap = lat / (settings.lhEvap * settings.rhoSea)
     else:
         vs.evap = current_value(vs.evap_f)
@@ -941,116 +943,39 @@ def set_forcing_kernel(state):
     # use this if you want to use the salt nudging in regions of open water only
     # vs.forc_salt_surface = vs.forc_salt_surface_ice + forc_salt_surface_res * ( 1 - vs.Area )
 
-    if use_cesm_forcing and not use_mitgcm_forcing:
-        KO = KernelOutput(
-            hIceMean=vs.hIceMean,
-            hSnowMean=vs.hSnowMean,
-            Area=vs.Area,
-            TSurf=vs.TSurf,
-            EmPmR=vs.EmPmR,
-            Qsw=vs.Qsw,
-            Qnet=vs.Qnet,
-            SeaIceLoad=vs.SeaIceLoad,
-            IcePenetSW=vs.IcePenetSW,
-            recip_hIceMean=vs.recip_hIceMean,
-            forc_salt_surface_ice=vs.forc_salt_surface_ice,
-            forc_salt_surface_res=forc_salt_surface_res,
-            uIce=vs.uIce,
-            vIce=vs.vIce,
-            qnet_=qnet,
-            qnet_forc=qnet,
-            qnec_forc=qnec,
-            surface_taux=vs.surface_taux,
-            surface_tauy=vs.surface_tauy,
-            forc_tke_surface=vs.forc_tke_surface,
-            forc_temp_surface=vs.forc_temp_surface,
-            forc_salt_surface=vs.forc_salt_surface,
-            uWind=vs.uWind,
-            vWind=vs.vWind,
-            wSpeed=vs.wSpeed,
-            SWdown=vs.SWdown,
-            LWdown=vs.LWdown,
-            ATemp=vs.ATemp,
-            aqh=vs.aqh,
-            precip=vs.precip,
-            snowfall=vs.snowfall,
-            evap=vs.evap,
-            surfPress=vs.surfPress,
-        )
-    elif not use_cesm_forcing and use_mitgcm_forcing:
-        KO = KernelOutput(
-            hIceMean=vs.hIceMean,
-            hSnowMean=vs.hSnowMean,
-            Area=vs.Area,
-            TSurf=vs.TSurf,
-            EmPmR=vs.EmPmR,
-            Qsw=vs.Qsw,
-            Qnet=vs.Qnet,
-            SeaIceLoad=vs.SeaIceLoad,
-            IcePenetSW=vs.IcePenetSW,
-            recip_hIceMean=vs.recip_hIceMean,
-            forc_salt_surface_ice=vs.forc_salt_surface_ice,
-            forc_salt_surface_res=forc_salt_surface_res,
-            uIce=vs.uIce,
-            vIce=vs.vIce,
-            qnet_=qnet,
-            qnet_forc=qnet,
-            qnec_forc=qnec,
-            lwnet=lwr_dw - lwup,
-            sen=sen,
-            lat=lat,
-            surface_taux=vs.surface_taux,
-            surface_tauy=vs.surface_tauy,
-            forc_tke_surface=vs.forc_tke_surface,
-            forc_temp_surface=vs.forc_temp_surface,
-            forc_salt_surface=vs.forc_salt_surface,
-            uWind=vs.uWind,
-            vWind=vs.vWind,
-            wSpeed=vs.wSpeed,
-            SWdown=vs.SWdown,
-            LWdown=vs.LWdown,
-            ATemp=vs.ATemp,
-            aqh=vs.aqh,
-            precip=vs.precip,
-            snowfall=vs.snowfall,
-            evap=vs.evap,
-            surfPress=vs.surfPress,
-        )
-    else:
-        KO = KernelOutput(
-            hIceMean=vs.hIceMean,
-            hSnowMean=vs.hSnowMean,
-            Area=vs.Area,
-            TSurf=vs.TSurf,
-            EmPmR=vs.EmPmR,
-            Qsw=vs.Qsw,
-            Qnet=vs.Qnet,
-            SeaIceLoad=vs.SeaIceLoad,
-            IcePenetSW=vs.IcePenetSW,
-            recip_hIceMean=vs.recip_hIceMean,
-            forc_salt_surface_ice=vs.forc_salt_surface_ice,
-            forc_salt_surface_res=forc_salt_surface_res,
-            uIce=vs.uIce,
-            vIce=vs.vIce,
-            qnet_=qnet,
-            qnet_forc=qnet,
-            qnec_forc=qnec,
-            surface_taux=vs.surface_taux,
-            surface_tauy=vs.surface_tauy,
-            forc_tke_surface=vs.forc_tke_surface,
-            forc_temp_surface=vs.forc_temp_surface,
-            forc_salt_surface=vs.forc_salt_surface,
-            uWind=vs.uWind,
-            vWind=vs.vWind,
-            wSpeed=vs.wSpeed,
-            SWdown=vs.SWdown,
-            LWdown=vs.LWdown,
-            ATemp=vs.ATemp,
-            aqh=vs.aqh,
-            precip=vs.precip,
-            snowfall=vs.snowfall,
-            evap=vs.evap,
-            surfPress=vs.surfPress,
-        )
-
-    return KO
+    return KernelOutput(
+        hIceMean=vs.hIceMean,
+        hSnowMean=vs.hSnowMean,
+        Area=vs.Area,
+        TSurf=vs.TSurf,
+        EmPmR=vs.EmPmR,
+        Qsw=vs.Qsw,
+        Qnet=vs.Qnet,
+        SeaIceLoad=vs.SeaIceLoad,
+        IcePenetSW=vs.IcePenetSW,
+        recip_hIceMean=vs.recip_hIceMean,
+        forc_salt_surface_ice=vs.forc_salt_surface_ice,
+        forc_salt_surface_res=forc_salt_surface_res,
+        uIce=vs.uIce,
+        vIce=vs.vIce,
+        qnet_=qnet,
+        qnet_forc=qnet,
+        qnec_forc=qnec,
+        surface_taux=vs.surface_taux,
+        surface_tauy=vs.surface_tauy,
+        forc_tke_surface=vs.forc_tke_surface,
+        forc_temp_surface=vs.forc_temp_surface,
+        forc_salt_surface=vs.forc_salt_surface,
+        uWind=vs.uWind,
+        vWind=vs.vWind,
+        wSpeed=vs.wSpeed,
+        SWdown=vs.SWdown,
+        LWdown=vs.LWdown,
+        ATemp=vs.ATemp,
+        aqh=vs.aqh,
+        precip=vs.precip,
+        snowfall=vs.snowfall,
+        evap=vs.evap,
+        surfPress=vs.surfPress,
+        **conditional_outputs
+    )
