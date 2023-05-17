@@ -1,5 +1,4 @@
 def global_sum(A):
-
-    #TODO
+    # TODO
 
     return A

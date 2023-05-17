@@ -1,25 +1,59 @@
-import veris.heat_flux_constants as ct
 from veros import veros_kernel
-# from veros.variables import allocate
 from veros.core.operators import numpy as npx, update, at
 
-# heat flux bulk formula of the CESM, used in the setup file of Veros
 
-_cc = npx.array([0.88, 0.84, 0.80,
-                0.76, 0.72, 0.68,
-                0.63, 0.59, 0.52,
-                0.50, 0.50, 0.50,
-                0.52, 0.59, 0.63,
-                0.68, 0.72, 0.76,
-                0.80, 0.84, 0.88])
+_cc = npx.array(
+    [
+        0.88,
+        0.84,
+        0.80,
+        0.76,
+        0.72,
+        0.68,
+        0.63,
+        0.59,
+        0.52,
+        0.50,
+        0.50,
+        0.50,
+        0.52,
+        0.59,
+        0.63,
+        0.68,
+        0.72,
+        0.76,
+        0.80,
+        0.84,
+        0.88,
+    ]
+)
 
-_clat = npx.array([-90.0, -80.0, -70.0,
-                    -60.0, -50.0, -40.0,
-                    -30.0, -20.0, -10.0,
-                    -5.0,   0.0,   5.0,
-                    10.0,  20.0,  30.0,
-                    40.0,  50.0,  60.0,
-                    70.0,  80.0,  90.0])
+_clat = npx.array(
+    [
+        -90.0,
+        -80.0,
+        -70.0,
+        -60.0,
+        -50.0,
+        -40.0,
+        -30.0,
+        -20.0,
+        -10.0,
+        -5.0,
+        0.0,
+        5.0,
+        10.0,
+        20.0,
+        30.0,
+        40.0,
+        50.0,
+        60.0,
+        70.0,
+        80.0,
+        90.0,
+    ]
+)
+
 
 @veros_kernel
 def qsat(tk):
@@ -29,6 +63,7 @@ def qsat(tk):
         tk (:obj:`ndarray`): temperature (K)
     """
     return 640380.0 / npx.exp(5107.4 / tk)
+
 
 @veros_kernel
 def qsat_august_eqn(ps, tk):
@@ -47,10 +82,76 @@ def qsat_august_eqn(ps, tk):
         using a three-year climatology of ECMWF analyses,
         Journal of Marine Systems, 6, p. 363-380.
     """
-    return 0.622 / ps * 10**(9.4051 - 2353. / tk) * 133.322
+    return 0.622 / ps * 10 ** (9.4051 - 2353.0 / tk) * 133.322
+
 
 @veros_kernel
-def dqnetdt(mask, ps, rbot, sst, ubot, vbot, us, vs):
+def get_press_levs(sp, hya, hyb):
+    """Compute pressure levels
+
+    Arguments:
+        sp (:obj:`ndarray`): Atmospheric surface pressure
+        hya (:obj:`ndarray`): Hybrid sigma level A coefficient for vertical grid
+        hyb (:obj:`ndarray`): Hybrid sigma level B coefficient for vertical grid
+
+    Return:
+        :obj:`ndarray`
+    """
+
+    return (
+        hya[npx.newaxis, npx.newaxis, :]
+        + hyb[npx.newaxis, npx.newaxis, :] * sp[:, :, npx.newaxis]
+    )
+
+
+def compute_z_level(settings, t, q, ph):
+    """Computes the altitudes at ECMWF Integrated Forecasting System
+    (ECMWF-IFS) model half- and full-levels (for 137 levels model reanalysis: L137)
+
+    Arguments:
+        t (:obj:`ndarray`): Atmospheric temperture [K]
+        q (:obj:`ndarray`): Atmospheric specific humidity [kg/kg]
+        ph (:obj:`ndarray`): Pressure at half model levels
+
+    Note:
+        The top level of the atmosphere is excluded
+
+    Reference:
+        - https://www.ecmwf.int/sites/default/files/elibrary/2015/
+        9210-part-iii-dynamics-and-numerical-procedures.pdf
+        - https://confluence.ecmwf.int/display/CKB/
+        ERA5%3A+compute+pressure+and+geopotential+on+model+levels%2C+geopotential+height+and+geometric+height
+
+    Returns:
+        :obj:`ndarray`: Altitude of the atmospheric near surface layer (second IFS level)
+    """
+
+    # virtual temperature (K)
+    tv = t[...] * (1.0 + settings.zvir * q[...])
+
+    # compute geopotential for 2 lowermost (near-surface) model levels
+    dlog_p = npx.log(ph[:, :, 1:] / ph[:, :, :-1])
+    alpha = 1.0 - ((ph[:, :, :-1] / (ph[:, :, 1:] - ph[:, :, :-1])) * dlog_p)
+    tv = tv * settings.rdair
+
+    # zh is the geopotential of 'half-levels'
+    # integrate zh to next half level
+    increment = npx.flip(tv * dlog_p, axis=2)
+    zh = npx.cumsum(increment, axis=2)
+
+    # zf is the geopotential of this full level
+    # integrate from previous (lower) half-level zh to the
+    # full level
+    increment_zh = npx.insert(zh, 0, 0, axis=2)
+    zf = npx.flip(tv * alpha, axis=2) + increment_zh[:, :, :-1]
+
+    alt = settings.radius * zf / settings.grav / (settings.radius - zf / settings.grav)
+
+    return alt[:, :, -1]
+
+
+@veros_kernel
+def dqnetdt(state, mask, ps, rbot, sst, ubot, vbot, us, vs):
     """Calculates correction term of net ocean heat flux (W/m^2)
 
     Arguments:
@@ -70,15 +171,37 @@ def dqnetdt(mask, ps, rbot, sst, ubot, vbot, us, vs):
         Journal of Marine Systems, 6, p. 363-380.
     """
 
-    vmag = npx.maximum(ct.UMIN_O, npx.sqrt((ubot[...] - us[...])**2
-                                        + (vbot[...] - vs[...])**2))
+    settings = state.settings
 
-    dqir_dt = -ct.STEBOL * 4. * sst[...]**3 * mask  # long-wave radiation correction (IR)
-    dqh_dt = -rbot[...] * ct.CPDAIR * ct.CH * vmag[...] * mask  # sensible heat flux correction
-    dqe_dt = -rbot[...] * ct.CE * ct.LATVAP * vmag[...] * 2353.\
-        * npx.log(10.) * qsat_august_eqn(ps, sst) / (sst[...]**2) * mask  # latent heat flux correction
+    vmag = npx.maximum(
+        settings.umin_o, npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2)
+    )
+
+    # long-wave radiation correction (IR)
+    dqir_dt = (
+        -settings.stefBoltz * 4.0 * sst[...] ** 3 * mask
+    )
+
+    # sensible heat flux correction
+    dqh_dt = (
+        -rbot[...] * settings.cpdair * settings.ch * vmag[...] * mask
+    )
+
+    # latent heat flux correction
+    dqe_dt = (
+        -rbot[...]
+        * settings.ce
+        * settings.latvap
+        * vmag[...]
+        * 2353.0
+        * npx.log(10.0)
+        * qsat_august_eqn(ps, sst)
+        / (sst[...] ** 2)
+        * mask
+    )
 
     return (dqir_dt, dqh_dt, dqe_dt)
+
 
 @veros_kernel
 def net_lw_ocn(state, mask, lat, qbot, sst, tbot, tcc):
@@ -101,24 +224,38 @@ def net_lw_ocn(state, mask, lat, qbot, sst, tbot, tcc):
         NOAA Technical report No. NMFS SSRF-682.
     """
 
+    settings = state.settings
+
     ccint = npx.zeros(lat.shape)
     idx_num = npx.arange(lat.size)
-    #ccint = allocate(state.dimensions, ("yt",))
+    # ccint = allocate(state.dimensions, ("yt",))
 
     for i in range(20):
-        #idx = npx.squeeze(npx.argwhere((lat[:] > _clat[i]) & (lat[:] <= _clat[i+1])))
-        idx = npx.where((lat[:] > _clat[i]) & (lat[:] <= _clat[i+1]), idx_num, 0) # to make it work with JAX
-        ccint = update(ccint, at[idx],
-                        _cc[i] + (_cc[i+1] - _cc[i])\
-                       * (lat[idx] - _clat[i]) / (_clat[i+1] - _clat[i])
+        # idx = npx.squeeze(npx.argwhere((lat[:] > _clat[i]) & (lat[:] <= _clat[i+1])))
+        idx = npx.where(
+            (lat[:] > _clat[i]) & (lat[:] <= _clat[i + 1]), idx_num, 0
+        )  # to make it work with JAX
+        ccint = update(
+            ccint,
+            at[idx],
+            _cc[i]
+            + (_cc[i + 1] - _cc[i]) * (lat[idx] - _clat[i]) / (_clat[i + 1] - _clat[i]),
         )
 
-    frac_cloud_cover = 1. - ccint[npx.newaxis, :] * tcc[...]**2
-    rtea = npx.sqrt(1000. * qbot[...] / (0.622 + 0.378 * qbot[...]) + ct.EPS2)
+    frac_cloud_cover = 1.0 - ccint[npx.newaxis, :] * tcc[...] ** 2
+    rtea = npx.sqrt(1000.0 * qbot[...] / (0.622 + 0.378 * qbot[...]) + settings.eps2)
 
-    return -ct.EMISSIVITY * ct.STEBOL * tbot[...]**3\
-        * (tbot[...] * (0.39 - 0.05 * rtea[...]) * frac_cloud_cover
-           + 4. * (sst[...] - tbot[...])) * mask[...]
+    return (
+        -settings.emissivity
+        * settings.stefBoltz
+        * tbot[...] ** 3
+        * (
+            tbot[...] * (0.39 - 0.05 * rtea[...]) * frac_cloud_cover
+            + 4.0 * (sst[...] - tbot[...])
+        )
+        * mask[...]
+    )
+
 
 @veros_kernel
 def cdn(umps):
@@ -129,6 +266,7 @@ def cdn(umps):
     """
     return 0.0027 / umps + 0.000142 + 0.0000764 * umps
 
+
 @veros_kernel
 def psimhu(xd):
     """Unstable part of psimh
@@ -136,8 +274,12 @@ def psimhu(xd):
     Argument:
         xd (:obj:`ndarray`): model level height devided by Obukhov length
     """
-    return npx.log((1.0 + xd * (2.0 + xd)) * (1.0 + xd * xd) / 8.0)\
-        - 2.0 * npx.arctan(xd) + 1.571
+    return (
+        npx.log((1.0 + xd * (2.0 + xd)) * (1.0 + xd * xd) / 8.0)
+        - 2.0 * npx.arctan(xd)
+        + 1.571
+    )
+
 
 @veros_kernel
 def psixhu(xd):
@@ -148,8 +290,9 @@ def psixhu(xd):
     """
     return 2.0 * npx.log((1.0 + xd * xd) / 2.0)
 
+
 @veros_kernel
-def flux_atmOcn(mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, ts):
+def flux_atmOcn(state, mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, ts):
     """atm/ocn fluxes calculation
 
     Arguments:
@@ -189,10 +332,13 @@ def flux_atmOcn(mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, ts):
         - https://svn-ccsm-release.cgd.ucar.edu/model_versions/cesm1_0_5/models/csm_share/shr/shr_flux_mod.F90
     """
 
-    al2 = npx.log(ct.ZREF / ct.ZTREF)
+    settings = state.settings
 
-    vmag = npx.maximum(ct.UMIN_O, npx.sqrt((ubot[...] - us[...])**2
-                                        + (vbot[...] - vs[...])**2))
+    al2 = npx.log(settings.zref / settings.ztref)
+
+    vmag = npx.maximum(
+        settings.umin_o, npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2)
+    )
 
     # sea surface humidity (kg/kg)
     ssq = 0.98 * qsat(ts[...]) / rbot[...]
@@ -203,8 +349,8 @@ def flux_atmOcn(mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, ts):
     # specific humidity diff. (kg/kg)
     delq = qbot[...] - ssq[...]
 
-    alz = npx.log(zbot[...] / ct.ZREF)
-    cp = ct.CPDAIR * (1.0 + ct.CPVIR * ssq[...])
+    alz = npx.log(zbot[...] / settings.zref)
+    cp = settings.cpdair * (1.0 + settings.cpvir * ssq[...])
 
     # first estimate of Z/L and ustar, tstar and qstar
 
@@ -219,9 +365,13 @@ def flux_atmOcn(mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, ts):
     qstar = ren * delq[...]
 
     # compute stability & evaluate all stability functions
-    hol = ct.KARMAN * ct.G * zbot[...] *\
-        (tstar[...] / thbot[...] + qstar[...]
-        / (1.0 / ct.ZVIR + qbot[...])) / ustar[...]**2
+    hol = (
+        settings.karman
+        * settings.grav
+        * zbot[...]
+        * (tstar[...] / thbot[...] + qstar[...] / (1.0 / settings.zvir + qbot[...]))
+        / ustar[...] ** 2
+    )
     hol = npx.minimum(npx.abs(hol[...]), 10.0) * npx.sign(hol[...])
     stable = 0.5 + 0.5 * npx.sign(hol[...])
     xsq = npx.maximum(npx.sqrt(npx.abs(1.0 - 16.0 * hol[...])), 1.0)
@@ -230,7 +380,7 @@ def flux_atmOcn(mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, ts):
     psixh = -5.0 * hol[...] * stable[...] + (1.0 - stable[...]) * psixhu(xqq[...])
 
     # shift wind speed using old coefficient
-    rd = rdn[...] / (1.0 + rdn[...] / ct.KARMAN * (alz[...] - psimh[...]))
+    rd = rdn[...] / (1.0 + rdn[...] / settings.karman * (alz[...] - psimh[...]))
     u10n = vmag[...] * rd[...] / rdn[...]
 
     # update transfer coeffs at 10m and neutral stability
@@ -239,9 +389,9 @@ def flux_atmOcn(mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, ts):
     rhn = (1.0 - stable[...]) * 0.0327 + stable[...] * 0.018
 
     # shift all coeffs to measurement height and stability
-    rd = rdn[...] / (1.0 + rdn[...] / ct.KARMAN * (alz[...] - psimh[...]))
-    rh = rhn[...] / (1.0 + rhn[...] / ct.KARMAN * (alz[...] - psixh[...]))
-    re = ren / (1.0 + ren / ct.KARMAN * (alz[...] - psixh[...]))
+    rd = rdn[...] / (1.0 + rdn[...] / settings.karman * (alz[...] - psimh[...]))
+    rh = rhn[...] / (1.0 + rhn[...] / settings.karman * (alz[...] - psixh[...]))
+    re = ren / (1.0 + ren / settings.karman * (alz[...] - psixh[...]))
 
     # update ustar, tstar, qstar using updated, shifted coeffs
     ustar = rd[...] * vmag[...]
@@ -251,9 +401,13 @@ def flux_atmOcn(mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, ts):
     # iterate to converge on Z/L, ustar, tstar and qstar
 
     # compute stability & evaluate all stability functions
-    hol = ct.KARMAN * ct.G * zbot[...] *\
-        (tstar[...] / thbot[...] + qstar[...]
-         / (1.0 / ct.ZVIR + qbot[...])) / ustar[...]**2
+    hol = (
+        settings.karman
+        * settings.grav
+        * zbot[...]
+        * (tstar[...] / thbot[...] + qstar[...] / (1.0 / settings.zvir + qbot[...]))
+        / ustar[...] ** 2
+    )
     hol = npx.minimum(npx.abs(hol[...]), 10.0) * npx.sign(hol[...])
     stable = 0.5 + 0.5 * npx.sign(hol[...])
     xsq = npx.maximum(npx.sqrt(npx.abs(1.0 - 16.0 * hol[...])), 1.0)
@@ -262,7 +416,7 @@ def flux_atmOcn(mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, ts):
     psixh = -5.0 * hol[...] * stable[...] + (1.0 - stable[...]) * psixhu(xqq[...])
 
     # shift wind speed using old coefficient
-    rd = rdn[...] / (1.0 + rdn[...] / ct.KARMAN * (alz[...] - psimh[...]))
+    rd = rdn[...] / (1.0 + rdn[...] / settings.karman * (alz[...] - psimh[...]))
     u10n = vmag[...] * rd[...] / rdn[...]
 
     # update transfer coeffs at 10m and neutral stability
@@ -271,9 +425,9 @@ def flux_atmOcn(mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, ts):
     rhn = (1.0 - stable[...]) * 0.0327 + stable[...] * 0.018
 
     # shift all coeffs to measurement height and stability
-    rd = rdn[...] / (1.0 + rdn[...] / ct.KARMAN * (alz[...] - psimh[...]))
-    rh = rhn[...] / (1.0 + rhn[...] / ct.KARMAN * (alz[...] - psixh[...]))
-    re = ren / (1.0 + ren / ct.KARMAN * (alz[...] - psixh[...]))
+    rd = rdn[...] / (1.0 + rdn[...] / settings.karman * (alz[...] - psimh[...]))
+    rh = rhn[...] / (1.0 + rhn[...] / settings.karman * (alz[...] - psixh[...]))
+    re = ren / (1.0 + ren / settings.karman * (alz[...] - psixh[...]))
 
     # update ustar, tstar, qstar using updated, shifted coeffs
     ustar = rd[...] * vmag[...]
@@ -290,24 +444,24 @@ def flux_atmOcn(mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, ts):
 
     # heat flux
     sen = cp[...] * tau[...] * tstar[...] / ustar[...] * mask[...]
-    lat = ct.LATVAP * tau[...] * qstar[...] / ustar[...] * mask[...]
-    lwup = -ct.STEBOL * ts[...]**4 * mask[...]
+    lat = settings.latvap * tau[...] * qstar[...] / ustar[...] * mask[...]
+    lwup = -settings.stefBoltz * ts[...] ** 4 * mask[...]
 
     # water flux
-    evap = lat[...] / ct.LATVAP * mask[...]
+    evap = lat[...] / settings.latvap * mask[...]
 
     # compute diagnositcs: 2m ref T & Q, 10m wind speed squared
 
-    hol = hol[...] * ct.ZTREF / zbot[...]
+    hol = hol[...] * settings.ztref / zbot[...]
     xsq = npx.maximum(1.0, npx.sqrt(npx.abs(1.0 - 16.0 * hol[...])))
     xqq = npx.sqrt(xsq)
     psix2 = -5.0 * hol[...] * stable[...] + (1.0 - stable[...]) * psixhu(xqq[...])
-    fac = (rh[...] / ct.KARMAN) * (alz[...] + al2 - psixh[...] + psix2[...])
+    fac = (rh[...] / settings.karman) * (alz[...] + al2 - psixh[...] + psix2[...])
     tref = thbot[...] - delt[...] * fac[...]
 
     # pot. temp to temp correction
-    tref = (tref[...] - 0.01 * ct.ZTREF) * mask[...]
-    fac = (re[...] / ct.KARMAN) * (alz[...] + al2 - psixh[...] + psix2[...]) * mask[...]
+    tref = (tref[...] - 0.01 * settings.ztref) * mask[...]
+    fac = (re[...] / settings.karman) * (alz[...] + al2 - psixh[...] + psix2[...]) * mask[...]
     qref = (qbot[...] - delq[...] * fac[...]) * mask[...]
 
     # 10m wind speed squared
@@ -315,8 +469,9 @@ def flux_atmOcn(mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, ts):
 
     return (sen, lat, lwup, evap, taux, tauy, tref, qref, duu10n, ustar, tstar, qstar)
 
+
 @veros_kernel
-def flux_atmOcn_simple(mask, ps, qbot, rbot, ubot, vbot, tbot, us, vs, ts):
+def flux_atmOcn_simple(state, mask, ps, qbot, rbot, ubot, vbot, tbot, us, vs, ts):
     """Calculates bulk net heat flux
 
     Arguments:
@@ -333,7 +488,7 @@ def flux_atmOcn_simple(mask, ps, qbot, rbot, ubot, vbot, tbot, us, vs, ts):
         ts   (:obj:`ndarray`): surface temperature   (K)
 
     Returns:
-        tuple(:obj:`ndarray`, :obj:`ndarray`, :obj:`ndarray`) 
+        tuple(:obj:`ndarray`, :obj:`ndarray`, :obj:`ndarray`)
 
     Reference:
         Barnier B., L. Siefridt, P. Marchesiello, (1995):
@@ -342,17 +497,26 @@ def flux_atmOcn_simple(mask, ps, qbot, rbot, ubot, vbot, tbot, us, vs, ts):
         Journal of Marine Systems, 6, p. 363-380.
     """
 
-    vmag = npx.maximum(ct.UMIN_O, npx.sqrt((ubot[...] - us[...])**2
-                                        + (vbot[...] - vs[...])**2))
+    settings = state.settings
+
+    vmag = npx.maximum(
+        settings.umin_o, npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2)
+    )
 
     # long-wave radiation (IR)
-    qir = -ct.STEBOL * ts[...]**4 * mask[...]
+    qir = -settings.stefBoltz * ts[...] ** 4 * mask[...]
 
     # sensible heat flux
-    qh = rbot[...] * ct.CPDAIR * ct.CH * vmag[...] * (tbot[...] - ts[...]) * mask[...]
+    qh = rbot[...] * settings.cpdair * settings.ch * vmag[...] * (tbot[...] - ts[...]) * mask[...]
 
     # latent heat flux
-    qe = -rbot[...] * ct.CE * ct.LATVAP * vmag[...] * (qsat_august_eqn(ps, ts)
-                                                       - qbot[...]) * mask[...]
+    qe = (
+        -rbot[...]
+        * settings.ce
+        * settings.latvap
+        * vmag[...]
+        * (qsat_august_eqn(ps, ts) - qbot[...])
+        * mask[...]
+    )
 
     return (qir, qh, qe)
