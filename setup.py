@@ -45,6 +45,7 @@ setup(
     description="Sea-ice plugin for Veros, the versatile ocean simulator",
     long_description=long_description,
     long_description_content_type="text/markdown",
+    url='https://veris.readthedocs.io',
     python_requires=">=3.7",
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
