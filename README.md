@@ -4,10 +4,7 @@ Sea ice plugin for Veros, based on SEAICE package of MITgcm model
 ## Quick usage
 
 ```bash
-$ pip install veros 
-$ git clone https://github.com/team-ocean/veris.git
-$ cd veris
-$ pip install -e .
+$ pip install veros veris
 $ veros copy-setup seaice_global_4deg --to /tmp/seaice_4deg
 $ cd /tmp/seaice_4deg
 $ veros run seaice_global_4deg.py
