@@ -3,4 +3,4 @@ entrypoints==0.4
 Pillow==9.5.0
 Sphinx==6.2.0
 sphinx-rtd-theme==1.2.0
-veros==1.4.5 --no-deps
+veros==1.4.5
