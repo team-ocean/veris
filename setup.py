@@ -13,7 +13,7 @@ import versioneer  # noqa: E402
 
 
 CLASSIFIERS = """
-Development Status :: 1 - Alpha
+Development Status :: 3 - Alpha
 Intended Audience :: Science/Research
 License :: OSI Approved :: MIT License
 Programming Language :: Python :: 3
