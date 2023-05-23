@@ -27,8 +27,6 @@ DATA_FILES = veros.tools.get_assets(
 
 
 class GlobalFourDegreeSetup(VerosSetup):
-    __veros_plugins__ = (veris,)
-
     """Global 4 degree model with 15 or 40 vertical levels
     and sea-ice model.
 
@@ -42,9 +40,10 @@ class GlobalFourDegreeSetup(VerosSetup):
     `Adapted from global 4 degree model <https://veros.readthedocs.io/en/latest/reference/setups/4deg.html>`_.
 
     Reference:
-        Jan Philipp Gärtner. (2023). Sea Ice Modelling in Python. MSc. 55p.
-        `<https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Jan_Gaertner_MSc_thesis.pdf>`_.
+        `Jan Philipp Gärtner. (2023). Sea Ice Modelling in Python. MSc. 55p
+        <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Jan_Gaertner_MSc_thesis.pdf>`_.
     """
+    __veros_plugins__ = (veris,)
 
     min_depth = 10.0
     max_depth = 5400.0
