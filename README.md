@@ -2,9 +2,10 @@
 Sea ice plugin for Veros, based on SEAICE package of MITgcm model
 
 ## Quick usage
-
+In order to start using the sea ice plugin you need to [install Veros](https://veros.readthedocs.io/en/latest/introduction/get-started.html).
+Then follow the steps below to install and use Veris: 
 ```bash
-$ pip install veros veris
+$ pip install veris
 $ veros copy-setup seaice_global_4deg --to /tmp/seaice_4deg
 $ cd /tmp/seaice_4deg
 $ veros run seaice_global_4deg.py
