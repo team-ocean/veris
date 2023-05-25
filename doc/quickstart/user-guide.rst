@@ -1,7 +1,7 @@
 Basic usage
 ===========
 
-Assuming that you have already `installed Veros <https://veros.readthedocs.io/en/latest/introduction/get-started.html>`_, the follwoing command is required to install the sea ice plugin Veris:
+Assuming that you have already `installed Veros <https://veros.readthedocs.io/en/latest/introduction/get-started.html>`_, the following command is required to install the sea ice plugin Veris:
 
 ::
 
@@ -26,8 +26,6 @@ Add the following to your setup definition:
 
 This registers the plugin for use with Veros.
 Then, you can use :doc:`the Veris settings </reference/settings>` to configure Veris.
-
-Remember to prepare atmospheric forcing if you want to use a different one. This could be various reanalysis products such as ERA5 (from ECMWF) and NCEP (from NCAR) or a numerical weather prediction model output.
 
 .. seealso::
 
