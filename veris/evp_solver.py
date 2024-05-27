@@ -322,10 +322,6 @@ def evp_solver(state):
     )
 
     # calculate u^n, sigma^n and residuals
-    arg_body = evp_loop(settings.nEVPsteps, arg_body)
+    arg_body = for_loop(0, settings.nEVPsteps, evp_solver_body, arg_body)
 
     return arg_body[1], arg_body[2]
-
-@veros_kernel(static_args=("nEVPsteps"))
-def evp_loop(nEVPsteps, arg_body):
-    return for_loop(0, nEVPsteps, evp_solver_body, arg_body)
