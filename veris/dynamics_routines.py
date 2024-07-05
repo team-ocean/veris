@@ -251,7 +251,6 @@ def viscosities(state, e11, e22, e12):
     # smooth regularization of delta for better differentiability
     # deltaCreg = npx.sqrt( deltaSq + deltaMin**2 )
 
-
     # calculate viscosities
     zeta = 0.5 * (vs.SeaIceStrength * (1 + sett.tensileStrFac)) / deltaCreg
     eta = zeta * recip_PlasDefCoeffSq
@@ -273,10 +272,14 @@ def viscosities(state, e11, e22, e12):
 def stress(state, e11, e22, e12, zeta, eta, press):
     """calculate stress tensor components"""
 
+    sett = state.settings
+
     from veris.averaging import c_point_to_z_point
 
-    sig11 = zeta * (e11 + e22) + eta * (e11 - e22) - press
-    sig22 = zeta * (e11 + e22) - eta * (e11 - e22) - press
+    recip_PlasDefCoeffSq = 1.0 / sett.PlasDefCoeff**2
+
+    sig11 = zeta * (e11 + e22) + recip_PlasDefCoeffSq * zeta * (e11 - e22) - press
+    sig22 = zeta * (e11 + e22) - recip_PlasDefCoeffSq * zeta * (e11 - e22) - press
     sig12 = 2.0 * e12 * c_point_to_z_point(state, eta)
 
     return sig11, sig22, sig12
