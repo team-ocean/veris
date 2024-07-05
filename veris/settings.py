@@ -30,8 +30,10 @@ SETTINGS = dict(
     aEVPalphaMin=Setting(5, float, "lower limit of alpha and beta"),
     aEvpCoeff=Setting(0.5, float, "largest stabilized frequency for adaptive EVP"),
     explicitDrag=Setting(False, bool, "-"),
-    nEVPsteps=Setting(500, int, "number of sub cycling iterations of the EVP solver"),
-    computeEvpResidual=Setting(True, bool, "-"),
+    nEVPsteps=Setting(400, int, "number of subcycling iterations of the EVP solver"),
+    computeEvpResidual=Setting(
+        False, bool, "flag for computing the residual of stress and velocity in the EVP loop"
+    ),
     veros_fill=Setting(True, bool, "flag for using the fill overlap function of Veros"),
     use_coastline=Setting(
         False, bool, "flag for using the coastline data for lateral drag"
