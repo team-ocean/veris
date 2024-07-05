@@ -2,6 +2,8 @@ from veros.core.operators import numpy as npx
 from veros.core.operators import update, at, for_loop
 from veros import veros_kernel
 
+from veris.averaging import c_point_to_z_point
+
 from veris.dynamics_routines import (
     strainrates,
     viscosities,
@@ -100,19 +102,19 @@ def evp_solver_body(iEVP, arg_body):
 
     # calculate velocity of ice relative to ocean surface
     # and interpolate to c-points
-    duAtC = 0.5 * (vs.uOcean - uIce + npx.roll(vs.uOcean - uIce, -1, 0))
-    dvAtC = 0.5 * (vs.vOcean - vIce + npx.roll(vs.vOcean - vIce, -1, 1))
+    duAtC = 0.5 * (vs.uOcean - uIce + npx.roll(vs.uOcean - uIce, -1, 1))
+    dvAtC = 0.5 * (vs.vOcean - vIce + npx.roll(vs.vOcean - vIce, -1, 0))
 
     # add ice-ocean stress  to the forcing
     # (still without ice velocity, added through drag coefficients)
     ForcingX = (
         vs.WindForcingX
         + (
-            0.5 * (cDrag + npx.roll(cDrag, 1, 0)) * sett.cosWat * vs.uOcean
+            0.5 * (cDrag + npx.roll(cDrag, 1, 1)) * sett.cosWat * vs.uOcean
             - npx.sign(vs.fCori)
             * sett.sinWat
             * 0.5
-            * (cDrag * dvAtC + npx.roll(cDrag * dvAtC, 1, 0))
+            * (cDrag * dvAtC + npx.roll(cDrag * dvAtC, 1, 1))
             * locMaskU
         )
         * vs.AreaW
@@ -120,37 +122,37 @@ def evp_solver_body(iEVP, arg_body):
     ForcingY = (
         vs.WindForcingY
         + (
-            0.5 * (cDrag + npx.roll(cDrag, 1, 1)) * sett.cosWat * vs.vOcean
+            0.5 * (cDrag + npx.roll(cDrag, 1, 0)) * sett.cosWat * vs.vOcean
             + npx.sign(vs.fCori)
             * sett.sinWat
             * 0.5
-            * (cDrag * duAtC + npx.roll(cDrag * duAtC, 1, 1))
+            * (cDrag * duAtC + npx.roll(cDrag * duAtC, 1, 0))
             * locMaskV
         )
         * vs.AreaS
     )
 
     # add coriolis term
-    fvAtC = vs.SeaIceMassC * vs.fCori * 0.5 * (vIce + npx.roll(vIce, -1, 1))
-    fuAtC = vs.SeaIceMassC * vs.fCori * 0.5 * (uIce + npx.roll(uIce, -1, 0))
-    ForcingX = ForcingX + 0.5 * (fvAtC + npx.roll(fvAtC, 1, 0))
-    ForcingY = ForcingY - 0.5 * (fuAtC + npx.roll(fuAtC, 1, 1))
+    fvAtC = vs.SeaIceMassC * vs.fCori * 0.5 * (vIce + npx.roll(vIce, -1, 0))
+    fuAtC = vs.SeaIceMassC * vs.fCori * 0.5 * (uIce + npx.roll(uIce, -1, 1))
+    ForcingX = ForcingX + 0.5 * (fvAtC + npx.roll(fvAtC, 1, 1))
+    ForcingY = ForcingY - 0.5 * (fuAtC + npx.roll(fuAtC, 1, 0))
 
     # interpolate relaxation parameters to velocity points
     if sett.useAdaptiveEVP:
-        evpBetaU = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 0))
-        evpBetaV = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 1))
+        evpBetaU = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 1))
+        evpBetaV = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 0))
 
     # calculate ice-water drag coefficient at velocity points
     rMassU = 1.0 / npx.where(vs.SeaIceMassU == 0, npx.inf, vs.SeaIceMassU)
     rMassV = 1.0 / npx.where(vs.SeaIceMassV == 0, npx.inf, vs.SeaIceMassV)
     dragU = (
-        0.5 * (cDrag + npx.roll(cDrag, 1, 0)) * sett.cosWat * vs.AreaW
-        + 0.5 * (cBotC + npx.roll(cBotC, 1, 0)) * vs.AreaW
+        0.5 * (cDrag + npx.roll(cDrag, 1, 1)) * sett.cosWat * vs.AreaW
+        + 0.5 * (cBotC + npx.roll(cBotC, 1, 1)) * vs.AreaW
     )
     dragV = (
-        0.5 * (cDrag + npx.roll(cDrag, 1, 1)) * sett.cosWat * vs.AreaS
-        + 0.5 * (cBotC + npx.roll(cBotC, 1, 1)) * vs.AreaS
+        0.5 * (cDrag + npx.roll(cDrag, 1, 0)) * sett.cosWat * vs.AreaS
+        + 0.5 * (cBotC + npx.roll(cBotC, 1, 0)) * vs.AreaS
     )
 
     # add lateral drag
