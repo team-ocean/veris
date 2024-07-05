@@ -148,28 +148,30 @@ def strainrates(state, uIce, vIce):
     sett = state.settings
 
     # some abbreviations at c-points
-    dudx = (npx.roll(uIce, -1, axis=0) - uIce) * vs.recip_dxU
-    uave = (npx.roll(uIce, -1, axis=0) + uIce) * 0.5
-    dvdy = (npx.roll(vIce, -1, axis=1) - vIce) * vs.recip_dyV
-    vave = (npx.roll(vIce, -1, axis=1) + vIce) * 0.5
+    dudx = (npx.roll(uIce, -1, axis=1) - uIce) * vs.recip_dxU
+    uave = (npx.roll(uIce, -1, axis=1) + uIce) * 0.5
+    dvdy = (npx.roll(vIce, -1, axis=0) - vIce) * vs.recip_dyV
+    vave = (npx.roll(vIce, -1, axis=0) + vIce) * 0.5
 
     # calculate strain rates at c-points
     e11 = (dudx + vave * vs.k2AtC) * vs.maskInC
     e22 = (dvdy + uave * vs.k1AtC) * vs.maskInC
 
     # some abbreviations at z-points
-    dudy = (uIce - npx.roll(uIce, 1, axis=1)) * vs.recip_dyU
-    uave = (uIce + npx.roll(uIce, 1, axis=1)) * 0.5
-    dvdx = (vIce - npx.roll(vIce, 1, axis=0)) * vs.recip_dxV
-    vave = (vIce + npx.roll(vIce, 1, axis=0)) * 0.5
+    dudy = (uIce - npx.roll(uIce, 1, axis=0)) * vs.recip_dyU
+    uave = (uIce + npx.roll(uIce, 1, axis=0)) * 0.5
+    dvdx = (vIce - npx.roll(vIce, 1, axis=1)) * vs.recip_dxV
+    vave = (vIce + npx.roll(vIce, 1, axis=1)) * 0.5
 
+    npx.save('/home/a/a270230/models/veris_benchmarks/uvave', [uave, vave])
+    
     # calculate strain rate at z-points
     mskZ = vs.iceMask * npx.roll(vs.iceMask, 1, axis=0)
     mskZ = mskZ * npx.roll(mskZ, 1, axis=1)
     e12 = 0.5 * (dudy + dvdx - vs.k1AtZ * vave - vs.k2AtZ * uave) * mskZ
     if sett.noSlip:
-        hFacU = vs.iceMaskU - npx.roll(vs.iceMaskU, 1, axis=1)
-        hFacV = vs.iceMaskV - npx.roll(vs.iceMaskV, 1, axis=0)
+        hFacU = vs.iceMaskU - npx.roll(vs.iceMaskU, 1, axis=0)
+        hFacV = vs.iceMaskV - npx.roll(vs.iceMaskV, 1, axis=1)
         e12 = e12 + (
             2.0 * uave * vs.recip_dyU * hFacU + 2.0 * vave * vs.recip_dxV * hFacV
         )
