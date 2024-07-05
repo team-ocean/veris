@@ -293,15 +293,15 @@ def stressdiv(state, sig11, sig22, sig12):
 
     stressDivX = (
         sig11 * vs.dyV
-        - npx.roll(sig11 * vs.dyV, 1, axis=0)
+        - npx.roll(sig11 * vs.dyV, 1, axis=1)
         - sig12 * vs.dxV
-        + npx.roll(sig12 * vs.dxV, -1, axis=1)
+        + npx.roll(sig12 * vs.dxV, -1, axis=0)
     ) * vs.recip_rAu
     stressDivY = (
         sig22 * vs.dxU
-        - npx.roll(sig22 * vs.dxU, 1, axis=1)
+        - npx.roll(sig22 * vs.dxU, 1, axis=0)
         - sig12 * vs.dyU
-        + npx.roll(sig12 * vs.dyU, -1, axis=0)
+        + npx.roll(sig12 * vs.dyU, -1, axis=1)
     ) * vs.recip_rAv
 
     return stressDivX, stressDivY
