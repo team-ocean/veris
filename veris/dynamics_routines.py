@@ -162,8 +162,6 @@ def strainrates(state, uIce, vIce):
     uave = (uIce + npx.roll(uIce, 1, axis=0)) * 0.5
     dvdx = (vIce - npx.roll(vIce, 1, axis=1)) * vs.recip_dxV
     vave = (vIce + npx.roll(vIce, 1, axis=1)) * 0.5
-
-    npx.save('/home/a/a270230/models/veris_benchmarks/uvave', [uave, vave])
     
     # calculate strain rate at z-points
     mskZ = vs.iceMask * npx.roll(vs.iceMask, 1, axis=0)
