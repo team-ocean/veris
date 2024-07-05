@@ -248,11 +248,11 @@ def viscosities(state, e11, e22, e12):
     deltaC = npx.sqrt(deltaSq)
 
     # use regularization to avoid singularies of zeta
+    deltaCreg = deltaC + sett.deltaMin
     # TODO implement smooth regularization after comparing with the MITgcm
     # smooth regularization of delta for better differentiability
-    # deltaCreg = deltaC + deltaMin
     # deltaCreg = npx.sqrt( deltaSq + deltaMin**2 )
-    deltaCreg = npx.maximum(deltaC, sett.deltaMin)
+
 
     # calculate viscosities
     zeta = 0.5 * (vs.SeaIceStrength * (1 + sett.tensileStrFac)) / deltaCreg
