@@ -39,7 +39,7 @@ def ocean_drag_coeffs(state, uIce, vIce):
     dv = (vIce - vs.vOcean) * vs.maskInV
 
     # calculate total velocity difference at c-point
-    tmpVar = 0.25 * ((du + npx.roll(du, -1, 0)) ** 2 + (dv + npx.roll(dv, -1, 1)) ** 2)
+    tmpVar = 0.25 * ((du + npx.roll(du, -1, 1)) ** 2 + (dv + npx.roll(dv, -1, 0)) ** 2)
 
     # calculate linear drag coefficient and apply mask
     cDrag = npx.where(
@@ -65,9 +65,9 @@ def basal_drag_coeffs(state, uIce, vIce):
     # absolute value of the ice velocity at c-points
     tmpFld = 0.25 * (
         (uIce * vs.maskInU) ** 2
-        + npx.roll(uIce * vs.maskInU, -1, 0) ** 2
+        + npx.roll(uIce * vs.maskInU, -1, 1) ** 2
         + (vIce * vs.maskInV) ** 2
-        + npx.roll(vIce * vs.maskInV, -1, 1) ** 2
+        + npx.roll(vIce * vs.maskInV, -1, 0) ** 2
     )
 
     # include velocity parameter U0 to avoid singularities
@@ -108,12 +108,12 @@ def side_drag(state, uIce, vIce):
 
     # calculate total ice speed at c-points
     iceSpeed = 0.5 * npx.sqrt(
-        (uIce + npx.roll(uIce, -1, 0)) ** 2 + (vIce + npx.roll(vIce, -1, 1)) ** 2
+        (uIce + npx.roll(uIce, -1, 1)) ** 2 + (vIce + npx.roll(vIce, -1, 0)) ** 2
     )
 
     # interpolate total ice speed to u- and v-points
-    iceSpeedU = npx.where(vs.AreaW > 0, 0.5 * (iceSpeed + npx.roll(iceSpeed, 1, 0)), 0)
-    iceSpeedV = npx.where(vs.AreaS > 0, 0.5 * (iceSpeed + npx.roll(iceSpeed, 1, 1)), 0)
+    iceSpeedU = npx.where(vs.AreaW > 0, 0.5 * (iceSpeed + npx.roll(iceSpeed, 1, 1)), 0)
+    iceSpeedV = npx.where(vs.AreaS > 0, 0.5 * (iceSpeed + npx.roll(iceSpeed, 1, 0)), 0)
 
     # these masks give the number of neighbouring land cells in u- and v-direction
     # (can only be non-zero for ocean cells)
