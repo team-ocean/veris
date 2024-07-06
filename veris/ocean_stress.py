@@ -24,16 +24,16 @@ def OceanStressUV(state):
     dv = vs.vIce - vs.vOcean
 
     # interpolate to c-points
-    duAtC = 0.5 * (du + npx.roll(du, -1, 0))
-    dvAtC = 0.5 * (dv + npx.roll(dv, -1, 1))
+    duAtC = 0.5 * (du + npx.roll(du, -1, 1))
+    dvAtC = 0.5 * (dv + npx.roll(dv, -1, 0))
 
     # calculate forcing on ocean surface in u- and v-direction
-    OceanStressU = 0.5 * (cDrag + npx.roll(cDrag, 1, 0)) * cosWat * du - npx.sign(
+    OceanStressU = 0.5 * (cDrag + npx.roll(cDrag, 1, 1)) * cosWat * du - npx.sign(
         vs.fCori
-    ) * sinWat * 0.5 * (cDrag * dvAtC + npx.roll(cDrag * dvAtC, 1, 1))
-    OceanStressV = 0.5 * (cDrag + npx.roll(cDrag, 1, 1)) * cosWat * dv + npx.sign(
+    ) * sinWat * 0.5 * (cDrag * dvAtC + npx.roll(cDrag * dvAtC, 1, 0))
+    OceanStressV = 0.5 * (cDrag + npx.roll(cDrag, 1, 0)) * cosWat * dv + npx.sign(
         vs.fCori
-    ) * sinWat * 0.5 * (cDrag * duAtC + npx.roll(cDrag * duAtC, 1, 0))
+    ) * sinWat * 0.5 * (cDrag * duAtC + npx.roll(cDrag * duAtC, 1, 1))
 
     # fill overlaps
     OceanStressU, OceanStressV = fill_overlap_uv(state, OceanStressU, OceanStressV)
