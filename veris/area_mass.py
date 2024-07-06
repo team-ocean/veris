@@ -8,8 +8,8 @@ def AreaWS(state):
 
     vs = state.variables
 
-    AreaW = 0.5 * (vs.Area + npx.roll(vs.Area, 1, 0))
-    AreaS = 0.5 * (vs.Area + npx.roll(vs.Area, 1, 1))
+    AreaW = 0.5 * (vs.Area + npx.roll(vs.Area, 1, 1))
+    AreaS = 0.5 * (vs.Area + npx.roll(vs.Area, 1, 0))
 
     return AreaW, AreaS
 
@@ -22,7 +22,7 @@ def SeaIceMass(state):
     sett = state.settings
 
     SeaIceMassC = sett.rhoIce * vs.hIceMean + sett.rhoSnow * vs.hSnowMean
-    SeaIceMassU = 0.5 * (SeaIceMassC + npx.roll(SeaIceMassC, 1, 0))
-    SeaIceMassV = 0.5 * (SeaIceMassC + npx.roll(SeaIceMassC, 1, 1))
+    SeaIceMassU = 0.5 * (SeaIceMassC + npx.roll(SeaIceMassC, 1, 1))
+    SeaIceMassV = 0.5 * (SeaIceMassC + npx.roll(SeaIceMassC, 1, 0))
 
     return SeaIceMassC, SeaIceMassU, SeaIceMassV
