@@ -15,8 +15,8 @@ def tauXY(state):
     cosWin = npx.cos(npx.deg2rad(sett.airTurnAngle))
 
     # calculate relative wind at c-points
-    urel = vs.uWind - 0.5 * (vs.uIce + npx.roll(vs.uIce, -1, 0))
-    vrel = vs.vWind - 0.5 * (vs.vIce + npx.roll(vs.vIce, -1, 1))
+    urel = vs.uWind - 0.5 * (vs.uIce + npx.roll(vs.uIce, -1, 1))
+    vrel = vs.vWind - 0.5 * (vs.vIce + npx.roll(vs.vIce, -1, 0))
 
     # calculate wind speed and set lower boundary
     windSpeed_sq = urel**2 + vrel**2
@@ -36,8 +36,8 @@ def tauXY(state):
     tauY = CDAir * (cosWin * vrel + npx.sign(vs.fCori) * sinWin * urel)
 
     # interpolate to u- and v-points
-    tauX = 0.5 * (tauX + npx.roll(tauX, 1, 0)) * vs.iceMaskU
-    tauY = 0.5 * (tauY + npx.roll(tauY, 1, 1)) * vs.iceMaskV
+    tauX = 0.5 * (tauX + npx.roll(tauX, 1, 1)) * vs.iceMaskU
+    tauY = 0.5 * (tauY + npx.roll(tauY, 1, 0)) * vs.iceMaskV
 
     return tauX, tauY
 
@@ -70,10 +70,10 @@ def WindForcingXY(state):
 
     # add in tilt
     WindForcingX = WindForcingX - vs.SeaIceMassU * vs.recip_dxC * (
-        phiSurf - npx.roll(phiSurf, 1, 0)
+        phiSurf - npx.roll(phiSurf, 1, 1)
     )
     WindForcingY = WindForcingY - vs.SeaIceMassV * vs.recip_dyC * (
-        phiSurf - npx.roll(phiSurf, 1, 1)
+        phiSurf - npx.roll(phiSurf, 1, 0)
     )
 
     return WindForcingX, WindForcingY
