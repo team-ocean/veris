@@ -257,7 +257,7 @@ def viscosities(state, e11, e22, e12):
 
     # calculate ice pressure
     press = (
-        0.5
+        1
         * (
             vs.SeaIceStrength * (1 - sett.pressReplFac)
             + 2.0 * zeta * deltaC * sett.pressReplFac / (1 + sett.tensileStrFac)
@@ -274,8 +274,8 @@ def stress(state, e11, e22, e12, zeta, eta, press):
 
     from veris.averaging import c_point_to_z_point
 
-    sig11 = zeta * (e11 + e22) + eta * (e11 - e22) - press
-    sig22 = zeta * (e11 + e22) - eta * (e11 - e22) - press
+    sig11 = 0.5 * (2 * zeta * (e11 + e22) + 2 * eta * (e11 - e22) - press)
+    sig22 = 0.5 * (2 * zeta * (e11 + e22) - 2 * eta * (e11 - e22) - press)
     sig12 = 2.0 * e12 * c_point_to_z_point(state, eta)
 
     return sig11, sig22, sig12
