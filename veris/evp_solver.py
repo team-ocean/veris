@@ -3,7 +3,6 @@ from veros.core.operators import update, at, for_loop
 from veros import veros_kernel
 
 from veris.averaging import c_point_to_z_point
-
 from veris.dynamics_routines import (
     strainrates,
     viscosities,
@@ -16,10 +15,8 @@ from veris.dynamics_routines import (
 from veris.global_sum import global_sum
 from veris.fill_overlap import fill_overlap_uv
 
-
 printEvpResidual = False
 plotEvpResidual = False
-
 
 @veros_kernel
 def evp_solver_body(iEVP, arg_body):
@@ -35,8 +32,8 @@ def evp_solver_body(iEVP, arg_body):
         vIce,
         uIceNm1,
         vIceNm1,
-        sigma11,
-        sigma22,
+        sigma1,
+        sigma2,
         sigma12,
         denom1,
         denom2,
@@ -59,11 +56,10 @@ def evp_solver_body(iEVP, arg_body):
         sig12Pm1 = sigma12
         uIcePm1 = uIce
         vIcePm1 = vIce
-
-    # calculate components of the strain rate and stress tensor
+    
     e11, e22, e12 = strainrates(state, uIce, vIce)
     zeta, eta, press = viscosities(state, e11, e22, e12)
-    sig11, sig22, sig12 = stress(state, e11, e22, e12, zeta, eta, press)
+    #sig11, sig22, sig12 = stress(state, e11, e22, e12, zeta, eta, press)
 
     # calculate adaptive relaxation parameters
     if sett.useAdaptiveEVP:
@@ -71,66 +67,76 @@ def evp_solver_body(iEVP, arg_body):
             npx.sqrt(zeta * EVPcFac / npx.maximum(vs.SeaIceMassC, 1e-4) * vs.recip_rA)
             * vs.iceMask
         )
+        
         evpAlphaC = npx.maximum(evpAlphaC, sett.aEVPalphaMin)
         denom1 = 1.0 / evpAlphaC
         denom2 = denom1
 
-    # step stress equations
-    sigma11 = sigma11 + (sig11 - sigma11) * denom1 * vs.iceMask
-    sigma22 = sigma22 + (sig22 - sigma22) * denom2 * vs.iceMask
+    # copied from the MITgcm
+    evpRevFac = 1
+    recip_evpRevFac = 0.25
 
-    # calculate adaptive relaxation parameter on z-points and step sigma12
+    # define principle strain rate components
+    ep = e11 + e22
+    em = e11 - e22
+
+    # used to calculate the components of the stress tensor
+    divergence = 2 * zeta * ep - press
+    tension    = 2 * zeta * em
+    shear      = 2 * c_point_to_z_point(state, zeta) * e12 
+
+    # step principal stress components
+    sigma1 = ( sigma1 * ( evpAlphaC - evpRevFac ) + divergence ) * denom1 * vs.iceMask
+    sigma2 = ( sigma2 * ( evpAlphaC - evpRevFac ) + tension * recip_evpRevFac ) * denom2 * vs.iceMask
+
+    # recover components of the stress tensor
+    sig11 = 0.5 * ( sigma1 + sigma2 )
+    sig22 = 0.5 * ( sigma1 - sigma2 )
+
+    # calculate adaptive relaxation parameter on z-points
     if sett.useAdaptiveEVP:
         evpAlphaZ = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 1))
         evpAlphaZ = 0.5 * (evpAlphaZ + npx.roll(evpAlphaZ, 1, 0))
         denom2 = 1.0 / evpAlphaZ
 
-    sigma12 = sigma12 + (sig12 - sigma12) * denom2
+    # step sigma12
+    sigma12 = ( sigma12 * ( evpAlphaZ - evpRevFac ) + shear * recip_evpRevFac ) * denom2
 
     # calculate divergence of stress tensor
-    stressDivX, stressDivY = stressdiv(state, sigma11, sigma22, sigma12)
+    stressDivX, stressDivY = stressdiv(state, sig11, sig22, sigma12)
 
     # calculate drag coefficients
     cDrag = ocean_drag_coeffs(state, uIce, vIce)
     cBotC = basal_drag_coeffs(state, uIce, vIce)
-
+    
     # over open ocean..., see comments in MITgcm: pkg/seaice/seaice_evp.F
     locMaskU = vs.SeaIceMassU
     locMaskV = vs.SeaIceMassV
     locMaskU = npx.where(locMaskU != 0, 1, locMaskU)
     locMaskV = npx.where(locMaskV != 0, 1, locMaskV)
 
-    # calculate velocity of ice relative to ocean surface
-    # and interpolate to c-points
-    duAtC = 0.5 * (vs.uOcean - uIce + npx.roll(vs.uOcean - uIce, -1, 1))
-    dvAtC = 0.5 * (vs.vOcean - vIce + npx.roll(vs.vOcean - vIce, -1, 0))
+    # calculate total ocean and wind forcing
+    ForcingX = vs.WindForcingX + \
+        ( 0.5 * ( cDrag + npx.roll(cDrag, 1, 1) ) * sett.cosWat * vs.uOcean
+         - npx.sign(vs.fCori) * sett.sinWat * 0.5 * (
+             cDrag * 0.5 * (
+                 vs.uOcean - uIce
+                 + npx.roll(vs.uOcean - uIce, -1, 0) )
+             + npx.roll(cDrag, 1, 1) * 0.5 * (
+                 npx.roll(vs.uOcean - uIce, 1, 1)
+                 + npx.roll(npx.roll(vs.uOcean - uIce, 1, 1), -1, 0) )
+             ) * locMaskU ) * vs.AreaW
 
-    # add ice-ocean stress  to the forcing
-    # (still without ice velocity, added through drag coefficients)
-    ForcingX = (
-        vs.WindForcingX
-        + (
-            0.5 * (cDrag + npx.roll(cDrag, 1, 1)) * sett.cosWat * vs.uOcean
-            - npx.sign(vs.fCori)
-            * sett.sinWat
-            * 0.5
-            * (cDrag * dvAtC + npx.roll(cDrag * dvAtC, 1, 1))
-            * locMaskU
-        )
-        * vs.AreaW
-    )
-    ForcingY = (
-        vs.WindForcingY
-        + (
-            0.5 * (cDrag + npx.roll(cDrag, 1, 0)) * sett.cosWat * vs.vOcean
-            + npx.sign(vs.fCori)
-            * sett.sinWat
-            * 0.5
-            * (cDrag * duAtC + npx.roll(cDrag * duAtC, 1, 0))
-            * locMaskV
-        )
-        * vs.AreaS
-    )
+    ForcingY = vs.WindForcingY + \
+        ( 0.5 * ( cDrag + npx.roll(cDrag, 1, 0) ) * sett.cosWat * vs.vOcean
+         + npx.sign(vs.fCori) * sett.sinWat * 0.5 * (
+             cDrag * 0.5 * (
+                 vs.vOcean - vIce
+                 + npx.roll(vs.vOcean - vIce, -1, 1) )
+             + npx.roll(cDrag, 1, 0) * 0.5 * (
+                 npx.roll(vs.vOcean - vIce, 1, 0)
+                 + npx.roll(npx.roll(vs.vOcean - vIce, 1, 0), -1, 1) )
+             ) * locMaskV ) * vs.AreaS
 
     # add coriolis term
     fvAtC = vs.SeaIceMassC * vs.fCori * 0.5 * (vIce + npx.roll(vIce, -1, 0))
@@ -143,58 +149,39 @@ def evp_solver_body(iEVP, arg_body):
         evpBetaU = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 1))
         evpBetaV = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 0))
 
-    # calculate ice-water drag coefficient at velocity points
-    rMassU = 1.0 / npx.where(vs.SeaIceMassU == 0, npx.inf, vs.SeaIceMassU)
-    rMassV = 1.0 / npx.where(vs.SeaIceMassV == 0, npx.inf, vs.SeaIceMassV)
-    dragU = (
-        0.5 * (cDrag + npx.roll(cDrag, 1, 1)) * sett.cosWat * vs.AreaW
-        + 0.5 * (cBotC + npx.roll(cBotC, 1, 1)) * vs.AreaW
-    )
-    dragV = (
-        0.5 * (cDrag + npx.roll(cDrag, 1, 0)) * sett.cosWat * vs.AreaS
-        + 0.5 * (cBotC + npx.roll(cBotC, 1, 0)) * vs.AreaS
-    )
-
+    betaFacU = evpBetaU * sett.recip_deltatDyn
+    betaFacV = evpBetaV * sett.recip_deltatDyn
+    betaFacP1U = betaFacU + sett.recip_deltatDyn
+    betaFacP1V = betaFacV + sett.recip_deltatDyn
+    
+    denomU = vs.SeaIceMassU * betaFacP1U + 0.5 * (cDrag + npx.roll(cDrag, 1, 1)) * sett.cosWat * vs.AreaW
+    denomV = vs.SeaIceMassV * betaFacP1V + 0.5 * (cDrag + npx.roll(cDrag, 1, 0)) * sett.cosWat * vs.AreaS
+    
+    denomU = denomU + vs.AreaW * 0.5 * (cBotC + npx.roll(cBotC, 1, 1))
+    denomV = denomV + vs.AreaS * 0.5 * (cBotC + npx.roll(cBotC, 1, 0))
+    
+    denomU = npx.where(denomU==0,1,denomU)
+    denomV = npx.where(denomV==0,1,denomV)
+    
     # add lateral drag
-    SideDragU, SideDragV = side_drag(state, uIce, vIce)
-
-    # the side drag coefficients are not multiplied by the area because they are calculated from
-    # SeaIceMass which is calculated from hIceMean which is includes the area
     if sett.noSlip == False:
-        dragU = dragU + SideDragU
-        dragV = dragV + SideDragV
+        SideDragU, SideDragV = side_drag(state, uIce, vIce)
+        
+        # the side drag coefficients are not multiplied by the area because they are calculated from
+        # SeaIceMass which is calculated from hIceMean which includes the area
+        denomU = denomU + SideDragU
+        denomV = denomV + SideDragV
 
-    # step momentum equations with ice-ocean stress treated ...
-    if sett.explicitDrag:
-        # ... explicitly
-        ForcingX = ForcingX - uIce * dragU
-        ForcingY = ForcingY - vIce * dragV
-        denomU = 1.0
-        denomV = 1.0
-    else:
-        # ... or implicitly
-        denomU = 1.0 + dragU * sett.deltatDyn * rMassU / evpBetaU
-        denomV = 1.0 + dragV * sett.deltatDyn * rMassV / evpBetaV
-
-    # step momentum equations
-    uIce = (
-        vs.iceMaskU
-        * (
-            uIce
-            + (sett.deltatDyn * rMassU * (ForcingX + stressDivX) + (uIceNm1 - uIce))
-            / evpBetaU
-        )
-        / denomU
-    )
-    vIce = (
-        vs.iceMaskV
-        * (
-            vIce
-            + (sett.deltatDyn * rMassV * (ForcingY + stressDivY) + (vIceNm1 - vIce))
-            / evpBetaV
-        )
-        / denomV
-    )
+    uIce = vs.iceMaskU * (
+        betaFacU * vs.SeaIceMassU * uIce
+        + vs.SeaIceMassU * sett.recip_deltatDyn * uIceNm1
+        + ForcingX + stressDivX
+    ) / denomU
+    vIce = vs.iceMaskV * (
+        betaFacV * vs.SeaIceMassV * vIce
+        + vs.SeaIceMassV * sett.recip_deltatDyn * vIceNm1
+        + ForcingY + stressDivY
+    ) / denomV
 
     # fill overlaps
     uIce, vIce = fill_overlap_uv(state, uIce, vIce)
@@ -249,8 +236,8 @@ def evp_solver_body(iEVP, arg_body):
         vIce,
         uIceNm1,
         vIceNm1,
-        sigma11,
-        sigma22,
+        sigma1,
+        sigma2,
         sigma12,
         denom1,
         denom2,
@@ -283,15 +270,14 @@ def evp_solver(state):
     denom1 = npx.ones_like(vs.iceMask) / settings.evpAlpha
     denom2 = denom1
 
-    # copy previous time step (n-1) of uIce, vIce
+    # copy previous time step (n-1) of ice velocities and stress tensor
     uIceNm1 = vs.uIce
     vIceNm1 = vs.vIce
-
     uIce = vs.uIce
     vIce = vs.vIce
-    sigma11 = npx.zeros_like(vs.iceMask)
-    sigma22 = npx.zeros_like(vs.iceMask)
-    sigma12 = npx.zeros_like(vs.iceMask)
+    sigma1 = vs.sigma1
+    sigma2 = vs.sigma2
+    sigma12 = vs.sigma12
 
     # initialize adaptive EVP specific fields
     evpAlphaC = npx.ones_like(vs.iceMask) * settings.evpAlpha
@@ -309,8 +295,8 @@ def evp_solver(state):
         vIce,
         uIceNm1,
         vIceNm1,
-        sigma11,
-        sigma22,
+        sigma1,
+        sigma2,
         sigma12,
         denom1,
         denom2,
@@ -326,4 +312,10 @@ def evp_solver(state):
     # calculate u^n, sigma^n and residuals
     arg_body = for_loop(0, settings.nEVPsteps, evp_solver_body, arg_body)
 
-    return arg_body[1], arg_body[2]
+    # return uIce, vIce, sigma1, sigma2, sigma12
+    return arg_body[1], arg_body[2], arg_body[5], arg_body[6], arg_body[7]
+
+
+
+    
+    
