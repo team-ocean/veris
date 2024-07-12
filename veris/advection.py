@@ -117,7 +117,7 @@ def calc_ZonalFlux(state, field, uTrans):
     Cr = limiter(Cr)
 
     # zonal advective flux for the given field
-    ZonalFlux = npx.zeros_like(vs.iceMask)
+    ZonalFlux = npx.zeros(vs.iceMask.shape)
     ZonalFlux = update(
         ZonalFlux,
         at[2:-1, :],
@@ -155,7 +155,7 @@ def calc_MeridionalFlux(state, field, vTrans):
     Cr = limiter(Cr)
 
     # meridional advective flux for the given field
-    MeridionalFlux = npx.zeros_like(vs.iceMask)
+    MeridionalFlux = npx.zeros(vs.iceMask.shape)
     MeridionalFlux = update(
         MeridionalFlux,
         at[:, 2:-1],
