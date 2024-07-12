@@ -5,12 +5,15 @@ SETTINGS = dict(
     deltatTherm=Setting(86400, float, "Timestep for thermodynamic equations [s]"),
     recip_deltatTherm=Setting(1 / 86400, float, "1 / deltatTherm [1/s]"),
     deltatDyn=Setting(86400, float, "Timestep for dynamic equations [s]"),
+    recip_deltatDyn=Setting(1 / 86400, float, "1 / deltatTDyn [s]"),
     olx=Setting(2, int, "Grid points in zonal overlap"),
     oly=Setting(2, int, "Grid points in meridional overlap"),
     gridcellWidth=Setting(444709.893408, float, "Grid cell width [m]"),
     nITC=Setting(5, int, "Number of ice thickness categories"),
     recip_nITC=Setting(1 / 5, float, "1 / nITC"),
     noSlip=Setting(True, bool, "flag for using the no-slip condition"),
+    useRelativeWind=Setting(True, bool, '''flag for using the wind-ice velocity
+        difference or just the wind velocity for the wind stress acting on the ice'''),
     secondOrderBC=Setting(
         False,
         bool,
@@ -24,12 +27,13 @@ SETTINGS = dict(
     ),
     useFreedrift=Setting(False, bool, "flag for using the freedrift solver"),
     useEVP=Setting(True, bool, "flag for using the EVP solver"),
-    evpAlpha=Setting(123456.7, float, "EVP parameter"),
-    evpBeta=Setting(123456.7, float, "EVP parameter"),
+    evpAlpha=Setting(500, float, "EVP parameter"),
+    evpBeta=Setting(500, float, "EVP parameter"),
     useAdaptiveEVP=Setting(False, bool, "flag for using adaptive relaxation parameters"),
     aEVPalphaMin=Setting(5, float, "lower limit of alpha and beta"),
     aEvpCoeff=Setting(0.5, float, "largest stabilized frequency for adaptive EVP"),
-    explicitDrag=Setting(False, bool, "-"),
+    explicitDrag=Setting(True, bool,
+        "flag for stepping the momentum equation in a explicit or implicit way"),
     nEVPsteps=Setting(400, int, "number of subcycling iterations of the EVP solver"),
     computeEvpResidual=Setting(
         False, bool, "flag for computing the residual of stress and velocity in the EVP loop"
