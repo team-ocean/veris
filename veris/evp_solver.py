@@ -270,7 +270,7 @@ def evp_solver(state):
     else:
         EVPcFac = 0
 
-    denom1 = npx.ones_like(vs.iceMask) / sett.evpAlpha
+    denom1 = npx.full(vs.iceMask.shape, 1 / sett.evpAlpha)
     denom2 = denom1
 
     # copy previous time step (n-1) of ice velocities and stress tensor
@@ -283,10 +283,10 @@ def evp_solver(state):
     sigma12 = vs.sigma12
 
     # initialize adaptive EVP specific fields
-    evpAlphaC = npx.ones_like(vs.iceMask) * sett.evpAlpha
-    evpAlphaZ = npx.ones_like(vs.iceMask) * sett.evpAlpha
-    evpBetaU = npx.ones_like(vs.iceMask) * sett.evpBeta
-    evpBetaV = npx.ones_like(vs.iceMask) * sett.evpBeta
+    evpAlphaC = npx.full(vs.iceMask.shape, sett.evpAlpha)
+    evpAlphaZ = npx.full(vs.iceMask.shape, sett.evpAlpha)
+    evpBetaU = npx.full(vs.iceMask.shape, sett.evpBeta)
+    evpBetaV = npx.full(vs.iceMask.shape, sett.evpBeta)
 
     resSig = npx.zeros(sett.nEVPsteps)
     resU = npx.zeros(sett.nEVPsteps)
