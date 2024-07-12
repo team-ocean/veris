@@ -14,11 +14,12 @@ def tauXY(state):
     sinWin = npx.sin(npx.deg2rad(sett.airTurnAngle))
     cosWin = npx.cos(npx.deg2rad(sett.airTurnAngle))
 
-    # calculate relative wind at c-points
     if sett.useRelativeWind:
+        # calculate relative wind at c-points
         urel = vs.uWind - 0.5 * (vs.uIce + npx.roll(vs.uIce, -1, 1))
         vrel = vs.vWind - 0.5 * (vs.vIce + npx.roll(vs.vIce, -1, 0))
     else:
+        # only use wind for the wind stress calculation
         urel = vs.uWind
         vrel = vs.vWind
 
