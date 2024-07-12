@@ -154,11 +154,14 @@ def evp_solver_body(iEVP, arg_body):
     betaFacP1U = betaFacU + sett.recip_deltatDyn
     betaFacP1V = betaFacV + sett.recip_deltatDyn
     
-    denomU = vs.SeaIceMassU * betaFacP1U + 0.5 * (cDrag + npx.roll(cDrag, 1, 1)) * sett.cosWat * vs.AreaW
-    denomV = vs.SeaIceMassV * betaFacP1V + 0.5 * (cDrag + npx.roll(cDrag, 1, 0)) * sett.cosWat * vs.AreaS
-    
-    denomU = denomU + vs.AreaW * 0.5 * (cBotC + npx.roll(cBotC, 1, 1))
-    denomV = denomV + vs.AreaS * 0.5 * (cBotC + npx.roll(cBotC, 1, 0))
+    denomU = vs.SeaIceMassU * betaFacP1U + vs.AreaW * (
+        0.5 * (cDrag + npx.roll(cDrag, 1, 1)) * sett.cosWat
+        + 0.5 * (cBotC + npx.roll(cBotC, 1, 1))
+    )
+    denomV = vs.SeaIceMassV * betaFacP1V + vs.AreaS * (
+        0.5 * (cDrag + npx.roll(cDrag, 1, 0)) * sett.cosWat
+        + 0.5 * (cBotC + npx.roll(cBotC, 1, 0))
+    )
     
     denomU = npx.where(denomU==0,1,denomU)
     denomV = npx.where(denomV==0,1,denomV)
