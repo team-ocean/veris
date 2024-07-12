@@ -34,7 +34,7 @@ SETTINGS = dict(
     aEvpCoeff=Setting(0.5, float, "largest stabilized frequency for adaptive EVP"),
     explicitDrag=Setting(True, bool,
         "flag for stepping the momentum equation in a explicit or implicit way"),
-    nEVPsteps=Setting(400, int, "number of subcycling iterations of the EVP solver"),
+    nEVPsteps=Setting(400, int, "number of sub-cycling iterations of the EVP solver"),
     computeEvpResidual=Setting(
         False, bool, "flag for computing the residual of stress and velocity in the EVP loop"
     ),
