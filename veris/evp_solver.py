@@ -261,16 +261,16 @@ def evp_solver(state):
     """
 
     vs = state.variables
-    settings = state.settings
+    sett = state.settings
 
     # calculate parameter used for adaptive relaxation parameters
-    if settings.useAdaptiveEVP:
+    if sett.useAdaptiveEVP:
         aEVPcStar = 4
-        EVPcFac = state.settings.deltatDyn * aEVPcStar * (npx.pi * settings.aEvpCoeff) ** 2
+        EVPcFac = sett.deltatDyn * aEVPcStar * (npx.pi * sett.aEvpCoeff) ** 2
     else:
         EVPcFac = 0
 
-    denom1 = npx.ones_like(vs.iceMask) / settings.evpAlpha
+    denom1 = npx.ones_like(vs.iceMask) / sett.evpAlpha
     denom2 = denom1
 
     # copy previous time step (n-1) of ice velocities and stress tensor
@@ -283,13 +283,13 @@ def evp_solver(state):
     sigma12 = vs.sigma12
 
     # initialize adaptive EVP specific fields
-    evpAlphaC = npx.ones_like(vs.iceMask) * settings.evpAlpha
-    evpAlphaZ = npx.ones_like(vs.iceMask) * settings.evpAlpha
-    evpBetaU = npx.ones_like(vs.iceMask) * settings.evpBeta
-    evpBetaV = npx.ones_like(vs.iceMask) * settings.evpBeta
+    evpAlphaC = npx.ones_like(vs.iceMask) * sett.evpAlpha
+    evpAlphaZ = npx.ones_like(vs.iceMask) * sett.evpAlpha
+    evpBetaU = npx.ones_like(vs.iceMask) * sett.evpBeta
+    evpBetaV = npx.ones_like(vs.iceMask) * sett.evpBeta
 
-    resSig = npx.zeros(settings.nEVPsteps)
-    resU = npx.zeros(settings.nEVPsteps)
+    resSig = npx.zeros(sett.nEVPsteps)
+    resU = npx.zeros(sett.nEVPsteps)
 
     # set argument for the loop (the for_loop of jax can only take one argument)
     arg_body = (
@@ -313,7 +313,7 @@ def evp_solver(state):
     )
 
     # calculate u^n, sigma^n and residuals
-    arg_body = for_loop(0, settings.nEVPsteps, evp_solver_body, arg_body)
+    arg_body = for_loop(0, sett.nEVPsteps, evp_solver_body, arg_body)
 
     # return uIce, vIce, sigma1, sigma2, sigma12
     return arg_body[1], arg_body[2], arg_body[5], arg_body[6], arg_body[7]
