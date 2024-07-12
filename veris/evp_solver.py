@@ -117,37 +117,37 @@ def evp_solver_body(iEVP, arg_body):
 
     # calculate total ocean and wind forcing
     ForcingX = vs.WindForcingX + \
-        ( 0.5 * ( cDrag + npx.roll(cDrag, 1, 1) ) * sett.cosWat * vs.uOcean
+        ( 0.5 * ( cDrag + npx.roll(cDrag, 1, 0) ) * sett.cosWat * vs.uOcean
          - npx.sign(vs.fCori) * sett.sinWat * 0.5 * (
              cDrag * 0.5 * (
                  vs.uOcean - uIce
-                 + npx.roll(vs.uOcean - uIce, -1, 0) )
-             + npx.roll(cDrag, 1, 1) * 0.5 * (
-                 npx.roll(vs.uOcean - uIce, 1, 1)
-                 + npx.roll(npx.roll(vs.uOcean - uIce, 1, 1), -1, 0) )
+                 + npx.roll(vs.uOcean - uIce, -1, 1) )
+             + npx.roll(cDrag, 1, 0) * 0.5 * (
+                 npx.roll(vs.uOcean - uIce, 1, 0)
+                 + npx.roll(npx.roll(vs.uOcean - uIce, 1, 0), -1, 1) )
              ) * locMaskU ) * vs.AreaW
 
     ForcingY = vs.WindForcingY + \
-        ( 0.5 * ( cDrag + npx.roll(cDrag, 1, 0) ) * sett.cosWat * vs.vOcean
+        ( 0.5 * ( cDrag + npx.roll(cDrag, 1, 1) ) * sett.cosWat * vs.vOcean
          + npx.sign(vs.fCori) * sett.sinWat * 0.5 * (
              cDrag * 0.5 * (
                  vs.vOcean - vIce
-                 + npx.roll(vs.vOcean - vIce, -1, 1) )
-             + npx.roll(cDrag, 1, 0) * 0.5 * (
-                 npx.roll(vs.vOcean - vIce, 1, 0)
-                 + npx.roll(npx.roll(vs.vOcean - vIce, 1, 0), -1, 1) )
+                 + npx.roll(vs.vOcean - vIce, -1, 0) )
+             + npx.roll(cDrag, 1, 1) * 0.5 * (
+                 npx.roll(vs.vOcean - vIce, 1, 1)
+                 + npx.roll(npx.roll(vs.vOcean - vIce, 1, 1), -1, 0) )
              ) * locMaskV ) * vs.AreaS
 
     # add coriolis term
-    fvAtC = vs.SeaIceMassC * vs.fCori * 0.5 * (vIce + npx.roll(vIce, -1, 0))
-    fuAtC = vs.SeaIceMassC * vs.fCori * 0.5 * (uIce + npx.roll(uIce, -1, 1))
-    ForcingX = ForcingX + 0.5 * (fvAtC + npx.roll(fvAtC, 1, 1))
-    ForcingY = ForcingY - 0.5 * (fuAtC + npx.roll(fuAtC, 1, 0))
+    fvAtC = vs.SeaIceMassC * vs.fCori * 0.5 * (vIce + npx.roll(vIce, -1, 1))
+    fuAtC = vs.SeaIceMassC * vs.fCori * 0.5 * (uIce + npx.roll(uIce, -1, 0))
+    ForcingX = ForcingX + 0.5 * (fvAtC + npx.roll(fvAtC, 1, 0))
+    ForcingY = ForcingY - 0.5 * (fuAtC + npx.roll(fuAtC, 1, 1))
 
     # interpolate relaxation parameters to velocity points
     if sett.useAdaptiveEVP:
-        evpBetaU = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 1))
-        evpBetaV = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 0))
+        evpBetaU = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 0))
+        evpBetaV = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 1))
 
     betaFacU = evpBetaU * sett.recip_deltatDyn
     betaFacV = evpBetaV * sett.recip_deltatDyn
@@ -155,12 +155,12 @@ def evp_solver_body(iEVP, arg_body):
     betaFacP1V = betaFacV + sett.recip_deltatDyn
     
     denomU = vs.SeaIceMassU * betaFacP1U + vs.AreaW * (
-        0.5 * (cDrag + npx.roll(cDrag, 1, 1)) * sett.cosWat
-        + 0.5 * (cBotC + npx.roll(cBotC, 1, 1))
-    )
-    denomV = vs.SeaIceMassV * betaFacP1V + vs.AreaS * (
         0.5 * (cDrag + npx.roll(cDrag, 1, 0)) * sett.cosWat
         + 0.5 * (cBotC + npx.roll(cBotC, 1, 0))
+    )
+    denomV = vs.SeaIceMassV * betaFacP1V + vs.AreaS * (
+        0.5 * (cDrag + npx.roll(cDrag, 1, 1)) * sett.cosWat
+        + 0.5 * (cBotC + npx.roll(cBotC, 1, 1))
     )
     
     denomU = npx.where(denomU==0,1,denomU)
