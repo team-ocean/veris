@@ -118,10 +118,10 @@ def side_drag(state, uIce, vIce):
     # these masks give the number of neighbouring land cells in u- and v-direction
     # (can only be non-zero for ocean cells)
     maskU = (
-        2 - npx.roll(vs.iceMaskU, 1, 1) - npx.roll(vs.iceMaskU, -1, 1)
+        2 - npx.roll(vs.iceMaskU, 1, 0) - npx.roll(vs.iceMaskU, -1, 0)
     ) * vs.iceMaskU
     maskV = (
-        2 - npx.roll(vs.iceMaskV, 1, 0) - npx.roll(vs.iceMaskV, -1, 0)
+        2 - npx.roll(vs.iceMaskV, 1, 1) - npx.roll(vs.iceMaskV, -1, 1)
     ) * vs.iceMaskV
 
     # use the coastline to determine the form factor
@@ -162,7 +162,7 @@ def strainrates(state, uIce, vIce):
     uave = (uIce + npx.roll(uIce, 1, axis=1)) * 0.5
     dvdx = (vIce - npx.roll(vIce, 1, axis=0)) * vs.recip_dxV
     vave = (vIce + npx.roll(vIce, 1, axis=0)) * 0.5
-
+    
     # calculate strain rate at z-points
     mskZ = vs.iceMask * npx.roll(vs.iceMask, 1, axis=0)
     mskZ = mskZ * npx.roll(mskZ, 1, axis=1)
@@ -175,15 +175,15 @@ def strainrates(state, uIce, vIce):
         )
 
     if sett.noSlip and sett.secondOrderBC:
-        hFacU = (vs.iceMaskU - npx.roll(vs.iceMaskU, 1, 1)) / 3.0
-        hFacV = (vs.iceMaskV - npx.roll(vs.iceMaskV, 1, 0)) / 3.0
+        hFacU = (vs.iceMaskU - npx.roll(vs.iceMaskU, 1, 0)) / 3.0
+        hFacV = (vs.iceMaskV - npx.roll(vs.iceMaskV, 1, 1)) / 3.0
         hFacU = hFacU * (
-            npx.roll(vs.iceMaskU, 2, 1) * npx.roll(vs.iceMaskU, 1, 1)
-            + npx.roll(vs.iceMaskU, -1, 1) * vs.iceMaskU
+            npx.roll(vs.iceMaskU, 2, 0) * npx.roll(vs.iceMaskU, 1, 0)
+            + npx.roll(vs.iceMaskU, -1, 0) * vs.iceMaskU
         )
         hFacV = hFacV * (
-            npx.roll(vs.iceMaskV, 2, 0) * npx.roll(vs.iceMaskV, 1, 0)
-            + npx.roll(vs.iceMaskV, -1, 0) * vs.iceMaskV
+            npx.roll(vs.iceMaskV, 2, 1) * npx.roll(vs.iceMaskV, 1, 1)
+            + npx.roll(vs.iceMaskV, -1, 1) * vs.iceMaskV
         )
         # right hand sided dv/dx = (9*v(i,j)-v(i+1,j))/(4*dxv(i,j)-dxv(i+1,j))
         # according to a Taylor expansion to 2nd order. We assume that dxv
@@ -201,15 +201,15 @@ def strainrates(state, uIce, vIce):
             vs.recip_dyU
             * (
                 6.0 * uave
-                - npx.roll(uIce, 2, 1) * npx.roll(vs.iceMaskU, 1, 1)
-                - npx.roll(uIce, -1, 1) * vs.iceMaskU
+                - npx.roll(uIce, 2, 0) * npx.roll(vs.iceMaskU, 1, 0)
+                - npx.roll(uIce, -1, 0) * vs.iceMaskU
             )
             * hFacU
             + vs.recip_dxV
             * (
                 6.0 * vave
-                - npx.roll(vIce, 2, 0) * npx.roll(vs.iceMaskV, 1, 0)
-                - npx.roll(vIce, -1, 0) * vs.iceMaskV
+                - npx.roll(vIce, 2, 1) * npx.roll(vs.iceMaskV, 1, 1)
+                - npx.roll(vIce, -1, 1) * vs.iceMaskV
             )
             * hFacV
         )
@@ -235,8 +235,8 @@ def viscosities(state, e11, e22, e12):
     # interpolate squares of e12 to c-points after weighting them with the
     # area centered around z-points
     e12Csq = vs.rAz * e12**2
-    e12Csq = e12Csq + npx.roll(e12Csq, -1, 1)
-    e12Csq = 0.25 * vs.recip_rA * (e12Csq + npx.roll(e12Csq, -1, 0))
+    e12Csq = e12Csq + npx.roll(e12Csq, -1, 0)
+    e12Csq = 0.25 * vs.recip_rA * (e12Csq + npx.roll(e12Csq, -1, 1))
 
     # calculate Delta from the normal strain rate (e11+e22)
     # and the shear strain rate sqrt( (e11-e22)**2 + 4 * e12**2) )
@@ -246,11 +246,10 @@ def viscosities(state, e11, e22, e12):
     deltaC = npx.sqrt(deltaSq)
 
     # use regularization to avoid singularies of zeta
+    deltaCreg = deltaC + sett.deltaMin
     # TODO implement smooth regularization after comparing with the MITgcm
     # smooth regularization of delta for better differentiability
-    # deltaCreg = deltaC + deltaMin
     # deltaCreg = npx.sqrt( deltaSq + deltaMin**2 )
-    deltaCreg = npx.maximum(deltaC, sett.deltaMin)
 
     # calculate viscosities
     zeta = 0.5 * (vs.SeaIceStrength * (1 + sett.tensileStrFac)) / deltaCreg
@@ -258,7 +257,7 @@ def viscosities(state, e11, e22, e12):
 
     # calculate ice pressure
     press = (
-        0.5
+        1
         * (
             vs.SeaIceStrength * (1 - sett.pressReplFac)
             + 2.0 * zeta * deltaC * sett.pressReplFac / (1 + sett.tensileStrFac)
@@ -275,8 +274,8 @@ def stress(state, e11, e22, e12, zeta, eta, press):
 
     from veris.averaging import c_point_to_z_point
 
-    sig11 = zeta * (e11 + e22) + eta * (e11 - e22) - press
-    sig22 = zeta * (e11 + e22) - eta * (e11 - e22) - press
+    sig11 = 0.5 * (2 * zeta * (e11 + e22) + 2 * eta * (e11 - e22) - press)
+    sig22 = 0.5 * (2 * zeta * (e11 + e22) - 2 * eta * (e11 - e22) - press)
     sig12 = 2.0 * e12 * c_point_to_z_point(state, eta)
 
     return sig11, sig22, sig12

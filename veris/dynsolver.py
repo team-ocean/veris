@@ -14,9 +14,14 @@ def tauXY(state):
     sinWin = npx.sin(npx.deg2rad(sett.airTurnAngle))
     cosWin = npx.cos(npx.deg2rad(sett.airTurnAngle))
 
-    # calculate relative wind at c-points
-    urel = vs.uWind - 0.5 * (vs.uIce + npx.roll(vs.uIce, -1, 0))
-    vrel = vs.vWind - 0.5 * (vs.vIce + npx.roll(vs.vIce, -1, 1))
+    if sett.useRelativeWind:
+        # calculate relative wind at c-points
+        urel = vs.uWind - 0.5 * (vs.uIce + npx.roll(vs.uIce, -1, 0))
+        vrel = vs.vWind - 0.5 * (vs.vIce + npx.roll(vs.vIce, -1, 1))
+    else:
+        # only use wind for the wind stress calculation
+        urel = vs.uWind
+        vrel = vs.vWind
 
     # calculate wind speed and set lower boundary
     windSpeed_sq = urel**2 + vrel**2
@@ -87,8 +92,11 @@ def IceVelocities(state):
 
     if sett.useFreedrift:
         uIce, vIce = freedrift_solver(state)
+        sigma1 = vs.sigma1
+        sigma2 = vs.sigma2
+        sigma12 = vs.sigma12
 
     if sett.useEVP:
-        uIce, vIce = evp_solver(state)
+        uIce, vIce, sigma1, sigma2, sigma12 = evp_solver(state)
 
-    return uIce, vIce
+    return uIce, vIce, sigma1, sigma2, sigma12
