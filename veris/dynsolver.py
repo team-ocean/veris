@@ -89,6 +89,7 @@ def IceVelocities(state):
     """calculate ice velocities from surface and ocean forcing"""
 
     sett = state.settings
+    vs = state.variables
 
     if sett.useFreedrift:
         uIce, vIce = freedrift_solver(state)
