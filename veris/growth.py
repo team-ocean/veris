@@ -1,3 +1,4 @@
+import jax
 import jax.numpy as jnp
 from functools import partial
 from veris.solve4temp import solve4temp

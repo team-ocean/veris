@@ -1,3 +1,4 @@
+import jax
 import jax.numpy as jnp
 from functools import partial
 from veris.fill_overlap import fill_overlap

@@ -1,3 +1,4 @@
+import jax
 import jax.numpy as jnp
 from functools import partial
 from veris.averaging import c_point_to_z_point
