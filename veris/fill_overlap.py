@@ -1,23 +1,17 @@
-from veros.core.operators import update, at
-from veros import veros_kernel
-from veros.core.utilities import enforce_boundaries
+import jax
+import jaxdecomp
 
+@jax.jit
+def fill_overlap(var):
+    return jaxdecomp.halo_exchange(
+            var[:,:,jnp.newaxis], # the jaxdecomp.halo_exchange only works on 3D arrays
+            halo_extents=(2, 2), # total halo size in each dimension
+            halo_periods=(True, True)
+            # True -> periodic/ cyclic halo exchange, the halo values at the left edge
+            # of one partition are exchanged with the halo values at the right edge of
+            # the adjacent partition. this can be visualized as overlap between partitionings
+        )[:,:,0] # remove third axis
 
-@veros_kernel
-def fill_overlap(state, A):
-    sett = state.settings
-
-    if sett.veros_fill:
-        return enforce_boundaries(A, sett.enable_cyclic_x)
-    else:
-        A = update(A, at[: sett.olx, :], A[-2 * sett.olx : -sett.olx, :])
-        A = update(A, at[-sett.olx :, :], A[sett.olx : 2 * sett.olx, :])
-        A = update(A, at[:, : sett.oly], A[:, -2 * sett.oly : -sett.oly])
-        A = update(A, at[:, -sett.oly :], A[:, sett.oly : 2 * sett.oly])
-
-        return A
-
-
-@veros_kernel
-def fill_overlap_uv(state, U, V):
-    return fill_overlap(state, U), fill_overlap(state, V)
+@jax.jit
+def fill_overlap_uv(u, v):
+    return fill_overlap(u), fill_overlap(v)

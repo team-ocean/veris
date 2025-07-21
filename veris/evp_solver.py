@@ -1,7 +1,5 @@
-from veros.core.operators import numpy as npx
-from veros.core.operators import update, at, for_loop
-from veros import veros_kernel
-
+import jax.numpy as jnp
+from functools import partial
 from veris.averaging import c_point_to_z_point
 from veris.dynamics_routines import (
     strainrates,
@@ -15,10 +13,11 @@ from veris.dynamics_routines import (
 from veris.global_sum import global_sum
 from veris.fill_overlap import fill_overlap_uv
 
+
 printEvpResidual = False
 plotEvpResidual = False
 
-@veros_kernel
+@partial(jax.jit)
 def evp_solver_body(iEVP, arg_body):
     """loop body of the elastic-viscous-plastic solver
     the components of the strain rate tensor and stress tensor are calculated
@@ -27,7 +26,8 @@ def evp_solver_body(iEVP, arg_body):
     """
 
     (
-        state,
+        vs,
+        sett,
         uIce,
         vIce,
         uIceNm1,
@@ -46,9 +46,6 @@ def evp_solver_body(iEVP, arg_body):
         resU,
     ) = arg_body
 
-    vs = state.variables
-    sett = state.settings
-
     if sett.computeEvpResidual:
         # save previous (p-1) iteration for residual computation
         sig11Pm1 = sigma11
@@ -57,18 +54,18 @@ def evp_solver_body(iEVP, arg_body):
         uIcePm1 = uIce
         vIcePm1 = vIce
     
-    e11, e22, e12 = strainrates(state, uIce, vIce)
-    zeta, eta, press = viscosities(state, e11, e22, e12)
-    #sig11, sig22, sig12 = stress(state, e11, e22, e12, zeta, eta, press)
+    e11, e22, e12 = strainrates(vs, sett, uIce, vIce)
+    zeta, eta, press = viscosities(vs, sett, e11, e22, e12)
+    #sig11, sig22, sig12 = stress(vs, sett, e11, e22, e12, zeta, eta, press)
 
     # calculate adaptive relaxation parameters
     if sett.useAdaptiveEVP:
         evpAlphaC = (
-            npx.sqrt(zeta * EVPcFac / npx.maximum(vs.SeaIceMassC, 1e-4) * vs.recip_rA)
+            jnp.sqrt(zeta * EVPcFac / jnp.maximum(vs.SeaIceMassC, 1e-4) * vs.recip_rA)
             * vs.iceMask
         )
         
-        evpAlphaC = npx.maximum(evpAlphaC, sett.aEVPalphaMin)
+        evpAlphaC = jnp.maximum(evpAlphaC, sett.aEVPalphaMin)
         denom1 = 1.0 / evpAlphaC
         denom2 = denom1
 
@@ -83,7 +80,7 @@ def evp_solver_body(iEVP, arg_body):
     # used to calculate the components of the stress tensor
     divergence = 2 * zeta * ep - press
     tension    = 2 * zeta * em
-    shear      = 2 * c_point_to_z_point(state, zeta) * e12 
+    shear      = 2 * c_point_to_z_point(vs, sett, zeta) * e12 
 
     # step principal stress components
     sigma1 = ( sigma1 * ( evpAlphaC - evpRevFac ) + divergence ) * denom1 * vs.iceMask
@@ -95,59 +92,59 @@ def evp_solver_body(iEVP, arg_body):
 
     # calculate adaptive relaxation parameter on z-points
     if sett.useAdaptiveEVP:
-        evpAlphaZ = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 1))
-        evpAlphaZ = 0.5 * (evpAlphaZ + npx.roll(evpAlphaZ, 1, 0))
+        evpAlphaZ = 0.5 * (evpAlphaC + jnp.roll(evpAlphaC, 1, 1))
+        evpAlphaZ = 0.5 * (evpAlphaZ + jnp.roll(evpAlphaZ, 1, 0))
         denom2 = 1.0 / evpAlphaZ
 
     # step sigma12
     sigma12 = ( sigma12 * ( evpAlphaZ - evpRevFac ) + shear * recip_evpRevFac ) * denom2
 
     # calculate divergence of stress tensor
-    stressDivX, stressDivY = stressdiv(state, sig11, sig22, sigma12)
+    stressDivX, stressDivY = stressdiv(vs, sett, sig11, sig22, sigma12)
 
     # calculate drag coefficients
-    cDrag = ocean_drag_coeffs(state, uIce, vIce)
-    cBotC = basal_drag_coeffs(state, uIce, vIce)
+    cDrag = ocean_drag_coeffs(vs, sett, uIce, vIce)
+    cBotC = basal_drag_coeffs(vs, sett, uIce, vIce)
     
     # over open ocean..., see comments in MITgcm: pkg/seaice/seaice_evp.F
     locMaskU = vs.SeaIceMassU
     locMaskV = vs.SeaIceMassV
-    locMaskU = npx.where(locMaskU != 0, 1, locMaskU)
-    locMaskV = npx.where(locMaskV != 0, 1, locMaskV)
+    locMaskU = jnp.where(locMaskU != 0, 1, locMaskU)
+    locMaskV = jnp.where(locMaskV != 0, 1, locMaskV)
 
     # calculate total ocean and wind forcing
     ForcingX = vs.WindForcingX + \
-        ( 0.5 * ( cDrag + npx.roll(cDrag, 1, 0) ) * sett.cosWat * vs.uOcean
-         - npx.sign(vs.fCori) * sett.sinWat * 0.5 * (
-             cDrag * 0.5 * (
-                 vs.uOcean - uIce
-                 + npx.roll(vs.uOcean - uIce, -1, 1) )
-             + npx.roll(cDrag, 1, 0) * 0.5 * (
-                 npx.roll(vs.uOcean - uIce, 1, 0)
-                 + npx.roll(npx.roll(vs.uOcean - uIce, 1, 0), -1, 1) )
-             ) * locMaskU ) * vs.AreaW
+        ( 0.5 * ( cDrag + jnp.roll(cDrag, 1, 0) ) * sett.cosWat * vs.uOcean
+        - jnp.sign(vs.fCori) * sett.sinWat * 0.5 * (
+            cDrag * 0.5 * (
+                vs.uOcean - uIce
+                + jnp.roll(vs.uOcean - uIce, -1, 1) )
+            + jnp.roll(cDrag, 1, 0) * 0.5 * (
+                jnp.roll(vs.uOcean - uIce, 1, 0)
+                + jnp.roll(jnp.roll(vs.uOcean - uIce, 1, 0), -1, 1) )
+            ) * locMaskU ) * vs.AreaW
 
     ForcingY = vs.WindForcingY + \
-        ( 0.5 * ( cDrag + npx.roll(cDrag, 1, 1) ) * sett.cosWat * vs.vOcean
-         + npx.sign(vs.fCori) * sett.sinWat * 0.5 * (
-             cDrag * 0.5 * (
-                 vs.vOcean - vIce
-                 + npx.roll(vs.vOcean - vIce, -1, 0) )
-             + npx.roll(cDrag, 1, 1) * 0.5 * (
-                 npx.roll(vs.vOcean - vIce, 1, 1)
-                 + npx.roll(npx.roll(vs.vOcean - vIce, 1, 1), -1, 0) )
-             ) * locMaskV ) * vs.AreaS
+        ( 0.5 * ( cDrag + jnp.roll(cDrag, 1, 1) ) * sett.cosWat * vs.vOcean
+        + jnp.sign(vs.fCori) * sett.sinWat * 0.5 * (
+            cDrag * 0.5 * (
+                vs.vOcean - vIce
+                + jnp.roll(vs.vOcean - vIce, -1, 0) )
+            + jnp.roll(cDrag, 1, 1) * 0.5 * (
+                jnp.roll(vs.vOcean - vIce, 1, 1)
+                + jnp.roll(jnp.roll(vs.vOcean - vIce, 1, 1), -1, 0) )
+            ) * locMaskV ) * vs.AreaS
 
     # add coriolis term
-    fvAtC = vs.SeaIceMassC * vs.fCori * 0.5 * (vIce + npx.roll(vIce, -1, 1))
-    fuAtC = vs.SeaIceMassC * vs.fCori * 0.5 * (uIce + npx.roll(uIce, -1, 0))
-    ForcingX = ForcingX + 0.5 * (fvAtC + npx.roll(fvAtC, 1, 0))
-    ForcingY = ForcingY - 0.5 * (fuAtC + npx.roll(fuAtC, 1, 1))
+    fvAtC = vs.SeaIceMassC * vs.fCori * 0.5 * (vIce + jnp.roll(vIce, -1, 1))
+    fuAtC = vs.SeaIceMassC * vs.fCori * 0.5 * (uIce + jnp.roll(uIce, -1, 0))
+    ForcingX = ForcingX + 0.5 * (fvAtC + jnp.roll(fvAtC, 1, 0))
+    ForcingY = ForcingY - 0.5 * (fuAtC + jnp.roll(fuAtC, 1, 1))
 
     # interpolate relaxation parameters to velocity points
     if sett.useAdaptiveEVP:
-        evpBetaU = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 0))
-        evpBetaV = 0.5 * (evpAlphaC + npx.roll(evpAlphaC, 1, 1))
+        evpBetaU = 0.5 * (evpAlphaC + jnp.roll(evpAlphaC, 1, 0))
+        evpBetaV = 0.5 * (evpAlphaC + jnp.roll(evpAlphaC, 1, 1))
 
     betaFacU = evpBetaU * sett.recip_deltatDyn
     betaFacV = evpBetaV * sett.recip_deltatDyn
@@ -155,16 +152,16 @@ def evp_solver_body(iEVP, arg_body):
     betaFacP1V = betaFacV + sett.recip_deltatDyn
     
     denomU = vs.SeaIceMassU * betaFacP1U + vs.AreaW * (
-        0.5 * (cDrag + npx.roll(cDrag, 1, 0)) * sett.cosWat
-        + 0.5 * (cBotC + npx.roll(cBotC, 1, 0))
+        0.5 * (cDrag + jnp.roll(cDrag, 1, 0)) * sett.cosWat
+        + 0.5 * (cBotC + jnp.roll(cBotC, 1, 0))
     )
     denomV = vs.SeaIceMassV * betaFacP1V + vs.AreaS * (
-        0.5 * (cDrag + npx.roll(cDrag, 1, 1)) * sett.cosWat
-        + 0.5 * (cBotC + npx.roll(cBotC, 1, 1))
+        0.5 * (cDrag + jnp.roll(cDrag, 1, 1)) * sett.cosWat
+        + 0.5 * (cBotC + jnp.roll(cBotC, 1, 1))
     )
     
-    denomU = npx.where(denomU==0,1,denomU)
-    denomV = npx.where(denomV==0,1,denomV)
+    denomU = jnp.where(denomU==0,1,denomU)
+    denomV = jnp.where(denomV==0,1,denomV)
     
     # add lateral drag
     if sett.noSlip == False:
@@ -187,7 +184,7 @@ def evp_solver_body(iEVP, arg_body):
     ) / denomV
 
     # fill overlaps
-    uIce, vIce = fill_overlap_uv(state, uIce, vIce)
+    uIce, vIce = fill_overlap_uv(uIce, vIce)
 
     # residual computation
     if sett.computeEvpResidual:
@@ -234,7 +231,8 @@ def evp_solver_body(iEVP, arg_body):
             print("evp resU, resSigma: %i %e %e" % (iEVP, resU[iEVP], resSig[iEVP]))
 
     return (
-        state,
+        vs,
+        sett,
         uIce,
         vIce,
         uIceNm1,
@@ -253,15 +251,11 @@ def evp_solver_body(iEVP, arg_body):
         resU,
     )
 
-
-@veros_kernel
-def evp_solver(state):
+@partial(jax.jit, static_argnames=['sett'])
+def evp_solver(vs, sett):
     """solve the momentum equation and calculate u^n, sigma^n from u^(n-1), sigma^(n-1)
     using subcycling iterations of evp_solver_body
     """
-
-    vs = state.variables
-    sett = state.settings
 
     # calculate parameter used for adaptive relaxation parameters
     if sett.useAdaptiveEVP:
@@ -293,7 +287,8 @@ def evp_solver(state):
 
     # set argument for the loop (the for_loop of jax can only take one argument)
     arg_body = (
-        state,
+        vs,
+        sett,
         uIce,
         vIce,
         uIceNm1,
@@ -316,9 +311,4 @@ def evp_solver(state):
     arg_body = for_loop(0, sett.nEVPsteps, evp_solver_body, arg_body)
 
     # return uIce, vIce, sigma1, sigma2, sigma12
-    return arg_body[1], arg_body[2], arg_body[5], arg_body[6], arg_body[7]
-
-
-
-    
-    
+    return arg_body[2], arg_body[3], arg_body[6], arg_body[7], arg_body[8]
