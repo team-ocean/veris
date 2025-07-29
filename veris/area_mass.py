@@ -16,8 +16,6 @@ def AreaWS(vs, sett):
 def SeaIceMass(vs, sett):
     """calculate mass of the ice-snow system centered around c-, u-, and v-points"""
 
-    sett = state.settings
-
     SeaIceMassC = sett.rhoIce * vs.hIceMean + sett.rhoSnow * vs.hSnowMean
     SeaIceMassU = 0.5 * (SeaIceMassC + jnp.roll(SeaIceMassC, 1, 0))
     SeaIceMassV = 0.5 * (SeaIceMassC + jnp.roll(SeaIceMassC, 1, 1))
