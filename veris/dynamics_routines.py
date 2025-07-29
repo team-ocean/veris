@@ -221,13 +221,13 @@ def viscosities(vs, sett, e11, e22, e12):
     deltaSq = (e11 + e22) ** 2 + recip_PlasDefCoeffSq * (
         (e11 - e22) ** 2 + 4.0 * e12Csq
     )
-    deltaC = npx.sqrt(deltaSq)
+    deltaC = jnp.sqrt(deltaSq)
 
     # use regularization to avoid singularies of zeta
     deltaCreg = deltaC + sett.deltaMin
     # TODO implement smooth regularization after comparing with the MITgcm
     # smooth regularization of delta for better differentiability
-    # deltaCreg = npx.sqrt( deltaSq + deltaMin**2 )
+    # deltaCreg = jnp.sqrt( deltaSq + deltaMin**2 )
 
     # calculate viscosities
     zeta = 0.5 * (vs.SeaIceStrength * (1 + sett.tensileStrFac)) / deltaCreg
