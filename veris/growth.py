@@ -245,7 +245,7 @@ def Growth(vs, sett):
     # (if the ocean is warmer than the ice: IceGrowthRateMixedLayer > 0.
     # the supercooled state of the ocean is ignored/ does not lead to ice
     # growth. ice growth is only due to fluxes calculated by solve4temp)
-    dArea_oiFlux = npx.where(
+    dArea_oiFlux = jnp.where(
         IceGrowthRateMixedLayer <= 0, tmpscal0 * IceGrowthRateMixedLayer, 0
     )
 
