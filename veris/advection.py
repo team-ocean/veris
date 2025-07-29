@@ -111,7 +111,7 @@ def calc_ZonalFlux(vs, sett, field, uTrans):
         uTrans[2:-1, :] * (field[2:-1, :] + field[1:-2, :]) * 0.5
         - jnp.abs(uTrans[2:-1, :]) * ((1 - Cr) + uCFL[2:-1, :] * Cr) * Rj * 0.5,
     )
-    ZonalFlux = fill_overlap(ZonalFlux)
+    ZonalFlux = fill_overlap(sett, ZonalFlux)
 
     return ZonalFlux
 
@@ -143,7 +143,7 @@ def calc_MeridionalFlux(vs, sett, field, vTrans):
         vTrans[:, 2:-1] * (field[:, 2:-1] + field[:, 1:-2]) * 0.5
         - jnp.abs(vTrans[:, 2:-1]) * ((1 - Cr) + vCFL[:, 2:-1] * Cr) * Rj * 0.5,
     )
-    MeridionalFlux = fill_overlap(MeridionalFlux)
+    MeridionalFlux = fill_overlap(sett, MeridionalFlux)
 
     return MeridionalFlux
 

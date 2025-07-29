@@ -33,6 +33,6 @@ def OceanStressUV(vs, sett):
     ) * sinWat * 0.5 * (cDrag * duAtC + jnp.roll(cDrag * duAtC, 1, 0))
 
     # fill overlaps
-    OceanStressU, OceanStressV = fill_overlap_uv(OceanStressU, OceanStressV)
+    OceanStressU, OceanStressV = fill_overlap_uv(sett, OceanStressU, OceanStressV)
 
     return OceanStressU, OceanStressV
