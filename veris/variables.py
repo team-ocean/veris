@@ -1,6 +1,7 @@
 
 variables = dict(
-    # sea ice
+    ##### sea ice #####
+    
     hIceMean = None, # mean ice thickness /m
     hSnowMean = None, # mean snow thickness /m
     Area = None, # sea ice cover fraction
@@ -23,7 +24,10 @@ variables = dict(
     recip_hIceMean = None, # 1 / hIceMean /1/m
     SeaIceLoad = None, # load of sea ice on ocean surface /kg/m2
     IcePenetSW = None, # shortwave radiation that penetrates through the ice /W/m2
-    # ocean
+    
+    
+    ##### ocean, wind, surface forcing #####
+    
     uOcean = None, # zonal ocean surface velocity /m/s
     vOcean = None, # meridional ocean surface velocity /m/s
     theta = None, # ocean surface temperature /K
@@ -49,7 +53,10 @@ variables = dict(
     evap = None, # evaporation rate over open ocean (freshwater flux, <0 increases salinity) /m/s
     runoff = None, # runoff into ocean /m/s
     EmPmR = None, # evaporation minus precipitation minus runoff /kg/m2 s
-    # masks
+
+    
+    ##### masks #####
+    
     maskInC = None, # mask at c-points, used for open boundaries
     maskInU = None, # mask at u-points, used for open boundaries
     maskInV = None, # mask at v-points, used for open boundaries
@@ -62,7 +69,10 @@ variables = dict(
     k2AtZ = None, # 
     Fu = None, # u-component of form factor
     Fv = None, # v-component of form factor
-    # grid
+
+    
+    ##### grid #####
+    
     fCori = None, # coriolis parameter /1/s
     dxC = None, # zonal spacing of cell centers across western cell wall /m
     dyC = None, # meridional spacing of cell centers across southern cell wall /m
