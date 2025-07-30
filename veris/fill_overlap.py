@@ -3,6 +3,7 @@ import jax.numpy as jnp
 import jaxdecomp
 from functools import partial
 
+
 @jax.jit
 def fill_circular_overlap(A):
         A = A.at[:2, :].set(A[-4:-2, :])
