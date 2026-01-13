@@ -189,7 +189,7 @@ def evp_solver(vs, sett):
         ) / denomV
     
         # fill overlaps
-        uIce, vIce = fill_overlap_uv(sett, uIce, vIce)
+        uIce, vIce = fill_overlap_uv(uIce, vIce)
     
         # residual computation
         if sett.computeEvpResidual:
