@@ -4,7 +4,6 @@ settings = dict(
     recip_deltatTherm = 1 / 86400, # 1 / deltatTherm /s
     deltatDyn = 86400, # timestep for dynamic equations /s
     recip_deltatDyn = 1 / 86400, # 1 / deltatTDyn /s
-    gridcellWidth = 444709.893408, # grid cell width /m
     nITC = 5, # number of ice thickness categories /-
     recip_nITC = 1 / 5, # 1 / nITC /-
     noSlip = True, # flag for using the no-slip condition
@@ -25,8 +24,7 @@ settings = dict(
     computeEvpResidual = False, # flag for computing the residual of stress and velocity in the EVP loop
     veros_fill = True, # flag for using the fill overlap function of Veros
     use_coastline = False, # flag for using the coastline data for lateral drag
-    use_circular_overlap = False, # flag for using a circular fill-overlap-function
-        # which loops around the edges. use this only for single-process simulations
+    use_sharding = True, # flag for using parallel execution via sharded arrays
     rhoIce = 900, # density of ice /kg/m3
     rhoFresh = 1000, # density of fresh water /kg/m3
     rhoSea = 1026, # density of sea water /kg/m3
