@@ -1,18 +1,8 @@
 # Veris
-Sea ice plugin for Veros, based on SEAICE package of MITgcm model
 
-## Quick usage
-In order to start using the sea ice plugin you need to [install Veros](https://veros.readthedocs.io/en/latest/introduction/get-started.html).
-Then follow the steps below to install and use Veris: 
-```bash
-$ pip install veris
-$ veros copy-setup seaice_global_4deg --to /tmp/seaice_4deg
-$ cd /tmp/seaice_4deg
-$ veros run seaice_global_4deg.py
-```
+This branch contains the redesigned version of Veris, which uses JAX's sharded arrays to enable parallel execution.
 
-## Credits
 
-Veris is based on [SEAICE package](https://mitgcm.readthedocs.io/en/latest/phys_pkgs/seaice.html) by [Martin Losch et al.](https://www.awi.de/ueber-uns/organisation/mitarbeiter/detailseite/martin-losch.html), Alfred Wegener institute.
+### How to use
 
-[Jan Philipp Gärtner](https://github.com/jpgaertner) created Veris plugin as a part of his Master's thesis.
+Veris can be installed from this repository via ```pip install -e .```. To run Veris as a standalone model, see the scripts provided [here](https://github.com/jpgaertner/veris_minimum_working_example/tree/jax_halo_exchange) [![DOI](https://zenodo.org/badge/953970891.svg)](https://doi.org/10.5281/zenodo.20642360).
