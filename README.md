@@ -13,7 +13,7 @@ $ cd /tmp/seaice_4deg
 $ veros run seaice_global_4deg.py
 ```
 
-To use Veris as a standalone model, see the scripts provided [here](https://github.com/jpgaertner/veris_minimum_working_example) [![DOI](https://zenodo.org/badge/953970891.svg)](https://doi.org/10.5281/zenodo.20642020).
+To use Veris as a standalone model, see the scripts provided [here](https://github.com/jpgaertner/veris_minimum_working_example) [![DOI](https://zenodo.org/badge/953970891.svg)](https://doi.org/10.5281/zenodo.20642250).
 
 
 ### Credits
