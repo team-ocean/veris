@@ -18,4 +18,4 @@ To use Veris as a standalone model, see the scripts provided [here](https://gith
 
 ### Credits
 
-Veris was created by [Jan P. Gärtner](https://github.com/jpgaertner) and is based on the [MITgcm sea ice component](https://mitgcm.readthedocs.io/en/latest/phys_pkgs/seaice.html), developed by [Martin Losch](https://www.awi.de/ueber-uns/organisation/mitarbeiter/detailseite/martin-losch.html) and collaborators.
+Veris was created by [Jan P. Gärtner](https://github.com/jpgaertner) and is based on the [MITgcm sea ice component](https://mitgcm.readthedocs.io/en/latest/phys_pkgs/seaice.html), developed by [Martin Losch](https://www.awi.de/ueber-uns/organisation/mitarbeiter/detailseite/martin-losch.html) et al.
