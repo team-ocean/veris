@@ -13,7 +13,7 @@ authors:
     given-names: Markus
   - family-names: Nuterman
     given-names: Roman
-url: "https://github.com/jpgaertner/veris"
+url: "https://github.com/jpgaertner/veris/tree/jax-only"
 preferred-citation:
   type: article
   title: "Veris: fast & efficient sea-ice modeling in Python with GPU acceleration"

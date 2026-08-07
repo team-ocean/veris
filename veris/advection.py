@@ -1,7 +1,6 @@
-from veros.core.operators import numpy as npx
-from veros.core.operators import update, at
-from veros import veros_kernel
-
+import jax
+import jax.numpy as jnp
+from functools import partial
 from veris.fill_overlap import fill_overlap
 
 # in this routine, the thermodynamic time step is used instead of the dynamic one.
@@ -12,25 +11,19 @@ from veris.fill_overlap import fill_overlap
 # thickness changes inbetween dynamics timesteps.
 
 
-@veros_kernel
-def Advection(state):
+@partial(jax.jit, static_argnames=['sett'])
+def Advection(vs, sett):
     """retrieve changes in sea ice fields"""
 
-    vs = state.variables
-
-    hIceMean = calc_Advection(state, vs.hIceMean)
-    hSnowMean = calc_Advection(state, vs.hSnowMean)
-    Area = calc_Advection(state, vs.Area)
+    hIceMean = calc_Advection(vs, sett, vs.hIceMean)
+    hSnowMean = calc_Advection(vs, sett, vs.hSnowMean)
+    Area = calc_Advection(vs, sett, vs.Area)
 
     return hIceMean, hSnowMean, Area
 
-
-@veros_kernel
-def calc_Advection(state, field):
+@partial(jax.jit, static_argnames=['sett'])
+def calc_Advection(vs, sett, field):
     """calculate change in sea ice field due to advection"""
-
-    vs = state.variables
-    sett = state.settings
 
     # retrieve cell faces
     xA = vs.dyG * vs.iceMaskU
@@ -44,12 +37,12 @@ def calc_Advection(state, field):
     fieldLoc = field
 
     # calculate zonal advective fluxes
-    ZonalFlux = calc_ZonalFlux(state, fieldLoc, uTrans)
+    ZonalFlux = calc_ZonalFlux(vs, sett, fieldLoc, uTrans)
 
     # update field according to zonal fluxes
     if sett.extensiveFld:
         fieldLoc = fieldLoc - sett.deltatTherm * vs.maskInC * vs.recip_rA * (
-            npx.roll(ZonalFlux, -1, 0) - ZonalFlux
+            jnp.roll(ZonalFlux, -1, 0) - ZonalFlux
         )
     else:
         fieldLoc = (
@@ -59,18 +52,18 @@ def calc_Advection(state, field):
             * vs.recip_rA
             * vs.recip_hIceMean
             * (
-                (npx.roll(ZonalFlux, -1, 1) - ZonalFlux)
-                - (npx.roll(vs.uTrans, -1, 0) - vs.uTrans) * field
+                (jnp.roll(ZonalFlux, -1, 1) - ZonalFlux)
+                - (jnp.roll(vs.uTrans, -1, 0) - vs.uTrans) * field
             )
         )
 
     # calculate meridional advective fluxes
-    MeridionalFlux = calc_MeridionalFlux(state, fieldLoc, vTrans)
+    MeridionalFlux = calc_MeridionalFlux(vs, sett, fieldLoc, vTrans)
 
     # update field according to meridional fluxes
     if sett.extensiveFld:
         fieldLoc = fieldLoc - sett.deltatTherm * vs.maskInC * vs.recip_rA * (
-            npx.roll(MeridionalFlux, -1, 1) - MeridionalFlux
+            jnp.roll(MeridionalFlux, -1, 1) - MeridionalFlux
         )
     else:
         fieldLoc = (
@@ -80,8 +73,8 @@ def calc_Advection(state, field):
             * vs.recip_rA
             * vs.recip_hIceMean
             * (
-                (npx.roll(MeridionalFlux, -1, 0) - MeridionalFlux)
-                - (npx.roll(vs.vTrans, -1, 1) - vs.vTrans) * field
+                (jnp.roll(MeridionalFlux, -1, 0) - MeridionalFlux)
+                - (jnp.roll(vs.vTrans, -1, 1) - vs.vTrans) * field
             )
         )
 
@@ -90,86 +83,73 @@ def calc_Advection(state, field):
 
     return fieldLoc
 
-
-@veros_kernel
-def calc_ZonalFlux(state, field, uTrans):
+@partial(jax.jit, static_argnames=['sett'])
+def calc_ZonalFlux(vs, sett, field, uTrans):
     """calculate the zonal advective flux using the second order flux limiter method"""
-
-    vs = state.variables
-    sett = state.settings
 
     maskLocW = vs.iceMaskU * vs.maskInU
 
     # CFL number of zonal flow
-    uCFL = npx.abs(vs.uIce * sett.deltatTherm * vs.recip_dxC)
+    uCFL = jnp.abs(vs.uIce * sett.deltatTherm * vs.recip_dxC)
 
     # calculate slope ratio Cr
     Rjp = (field[3:, :] - field[2:-1, :]) * maskLocW[3:, :]
     Rj = (field[2:-1, :] - field[1:-2, :]) * maskLocW[2:-1, :]
     Rjm = (field[1:-2, :] - field[:-3, :]) * maskLocW[1:-2, :]
 
-    Cr = npx.where(uTrans[2:-1, :] > 0, Rjm, Rjp)
-    Cr = npx.where(
-        npx.abs(Rj) * sett.CrMax > npx.abs(Cr),
+    Cr = jnp.where(uTrans[2:-1, :] > 0, Rjm, Rjp)
+    Cr = jnp.where(
+        jnp.abs(Rj) * sett.CrMax > jnp.abs(Cr),
         Cr / Rj,
-        npx.sign(Cr) * sett.CrMax * npx.sign(Rj),
+        jnp.sign(Cr) * sett.CrMax * jnp.sign(Rj),
     )
     Cr = limiter(Cr)
 
     # zonal advective flux for the given field
-    ZonalFlux = npx.zeros(vs.iceMask.shape)
-    ZonalFlux = update(
-        ZonalFlux,
-        at[2:-1, :],
+    ZonalFlux = jnp.zeros(vs.iceMask.shape)
+    ZonalFlux = ZonalFlux.at[2:-1, :].set(
         uTrans[2:-1, :] * (field[2:-1, :] + field[1:-2, :]) * 0.5
-        - npx.abs(uTrans[2:-1, :]) * ((1 - Cr) + uCFL[2:-1, :] * Cr) * Rj * 0.5,
+        - jnp.abs(uTrans[2:-1, :]) * ((1 - Cr) + uCFL[2:-1, :] * Cr) * Rj * 0.5,
     )
-    ZonalFlux = fill_overlap(state, ZonalFlux)
+    ZonalFlux = fill_overlap(ZonalFlux)
 
     return ZonalFlux
 
-
-@veros_kernel
-def calc_MeridionalFlux(state, field, vTrans):
+@partial(jax.jit, static_argnames=['sett'])
+def calc_MeridionalFlux(vs, sett, field, vTrans):
     """calculate the meridional advective flux using the second order flux limiter method"""
-
-    vs = state.variables
-    sett = state.settings
 
     maskLocS = vs.iceMaskV * vs.maskInV
 
     # CFL number of meridional flow
-    vCFL = npx.abs(vs.vIce * sett.deltatTherm * vs.recip_dyC)
+    vCFL = jnp.abs(vs.vIce * sett.deltatTherm * vs.recip_dyC)
 
     # calculate slope ratio Cr
     Rjp = (field[:, 3:] - field[:, 2:-1]) * maskLocS[:, 3:]
     Rj = (field[:, 2:-1] - field[:, 1:-2]) * maskLocS[:, 2:-1]
     Rjm = (field[:, 1:-2] - field[:, :-3]) * maskLocS[:, 1:-2]
 
-    Cr = npx.where(vTrans[:, 2:-1] > 0, Rjm, Rjp)
-    Cr = npx.where(
-        npx.abs(Rj) * sett.CrMax > npx.abs(Cr),
+    Cr = jnp.where(vTrans[:, 2:-1] > 0, Rjm, Rjp)
+    Cr = jnp.where(
+        jnp.abs(Rj) * sett.CrMax > jnp.abs(Cr),
         Cr / Rj,
-        npx.sign(Cr) * sett.CrMax * npx.sign(Rj),
+        jnp.sign(Cr) * sett.CrMax * jnp.sign(Rj),
     )
     Cr = limiter(Cr)
 
     # meridional advective flux for the given field
-    MeridionalFlux = npx.zeros(vs.iceMask.shape)
-    MeridionalFlux = update(
-        MeridionalFlux,
-        at[:, 2:-1],
+    MeridionalFlux = jnp.zeros(vs.iceMask.shape)
+    MeridionalFlux = MeridionalFlux.at[:, 2:-1].set(
         vTrans[:, 2:-1] * (field[:, 2:-1] + field[:, 1:-2]) * 0.5
-        - npx.abs(vTrans[:, 2:-1]) * ((1 - Cr) + vCFL[:, 2:-1] * Cr) * Rj * 0.5,
+        - jnp.abs(vTrans[:, 2:-1]) * ((1 - Cr) + vCFL[:, 2:-1] * Cr) * Rj * 0.5,
     )
-    MeridionalFlux = fill_overlap(state, MeridionalFlux)
+    MeridionalFlux = fill_overlap(MeridionalFlux)
 
     return MeridionalFlux
 
-
-@veros_kernel
+@partial(jax.jit)
 def limiter(Cr):
     # return 0       (upwind)
     # return 1       (Lax-Wendroff)
     # return np.max((0, np.min((1, Cr))))    (Min-Mod)
-    return npx.maximum(0, npx.maximum(npx.minimum(1, 2 * Cr), npx.minimum(2, Cr)))
+    return jnp.maximum(0, jnp.maximum(jnp.minimum(1, 2 * Cr), jnp.minimum(2, Cr)))
