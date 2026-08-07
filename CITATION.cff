@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the article from preferred-citation."
+title: "Veris"
+type: software
+authors:
+  - family-names: Gärtner
+    given-names: Jan P.
+  - family-names: Losch
+    given-names: Martin
+  - family-names: Cheedela
+    given-names: Suvarchal K.
+  - family-names: Jochum
+    given-names: Markus
+  - family-names: Nuterman
+    given-names: Roman
+url: "https://github.com/jpgaertner/veris/tree/jax-only"
+preferred-citation:
+  type: article
+  title: "Veris: fast & efficient sea-ice modeling in Python with GPU acceleration"
+  authors:
+    - family-names: Gärtner
+      given-names: Jan P.
+    - family-names: Losch
+      given-names: Martin
+    - family-names: Cheedela
+      given-names: Suvarchal K.
+    - family-names: Jochum
+      given-names: Markus
+    - family-names: Nuterman
+      given-names: Roman
+  journal: "Geoscientific Model Development"
+  volume: 19
+  issue: 12
+  start: 5225
+  end: 5236
+  year: 2026
+  doi: "10.5194/gmd-19-5225-2026"
+  url: "https://gmd.copernicus.org/articles/19/5225/2026/"
