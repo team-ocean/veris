@@ -318,8 +318,13 @@
 - Raw whole-repository reports improved from 175 to 131 Ruff findings and from
   39 to 24 typing diagnostics; remaining findings are generated/vendor code and
   the two preserved public module names, not claims of a clean raw repository.
-- IN PROGRESS: final CPU correctness/coverage, small commits, GitHub CI.
+- [x] Final CPU correctness/coverage and four focused commits completed;
+  pushed to jax-only through 9539162.
 - [x] Final CPU suite: **457/457 passed**, no skipped/xfail cases. Maintained
   coverage **895/904 = 99.00%**; whole package **895/1257 = 71.20%**. Approved
   80% gate passes, with XML/JSON whole-package artifacts retained. Maintained
   Ruff/format/ty checks pass. Existing remote baseline CI is green.
+- [x] GitHub Actions run **34228786922** passed on **9539162**, including
+  full correctness, maintained lint/type checks and the coverage gate.
+  Expanded validation objective is complete within the documented local-machine
+  scope; raw vendor/generated diagnostics remain explicitly reported above.
