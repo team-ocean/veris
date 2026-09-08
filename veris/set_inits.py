@@ -1,9 +1,16 @@
-from veros import veros_routine
-from veros.core.operators import numpy as npx
+"""Initialize sea-ice staggered grid fields from surface ocean geometry.
+
+This host routine updates a mutable state.variables container with JAX arrays.
+Input ocean masks have shape (nx, ny, nz); horizontal metrics are 1-D or 2-D.
+The last vertical mask level is the ocean surface. Periodic neighbor averages
+follow the original Veris set_inits routine.
+"""
+
+import jax.numpy as npx
 
 
-@veros_routine
 def set_inits(state):
+    """Populate surface masks, staggered areas/metrics and their reciprocals."""
 
     vs = state.variables
 
@@ -31,7 +38,7 @@ def set_inits(state):
     vs.rAu = vs.area_u
     vs.rAv = vs.area_v
     vs.rAz = vs.rA + npx.roll(vs.rA, 1, 0)
-    vs.rAz = 0.25 * npx.roll(vs.rAz, 1, 1)
+    vs.rAz = 0.25 * (vs.rAz + npx.roll(vs.rAz, 1, 1))
 
     vs.recip_dxC = 1 / vs.dxC
     vs.recip_dyC = 1 / vs.dyC
@@ -48,5 +55,4 @@ def set_inits(state):
 
     vs.TSurf = npx.ones_like(vs.maskInC) * 273
 
-    # all other variables are either set in the veros setup file
-    # or have 0 as initial value
+    # The caller initializes physical ice, ocean, and atmospheric fields.
