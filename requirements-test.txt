@@ -5,7 +5,8 @@ contourpy==1.3.3
 coverage==7.16.0
 cycler==0.12.1
 diffrax==0.7.2
-docutils==0.23
+# Sphinx 9.1 requires Docutils <0.23; latest compatible release.
+docutils==0.22.4
 equinox==0.13.8
 execnet==2.1.2
 flit==4.0.2
