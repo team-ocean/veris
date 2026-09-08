@@ -48,3 +48,4 @@ typing-extensions==4.16.0
 urllib3==2.7.0
 wadler-lindig==0.1.7
 setuptools==84.0.0
+sphinx==9.1.0

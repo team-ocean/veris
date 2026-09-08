@@ -368,4 +368,8 @@
   Maintained coverage is **1037/1046 = 99.14%**. Strict Sphinx, final wheel
   and sdist, packaged consumer checks, Ruff/format/annotation gate and ty pass.
   Reviewer confirmed both final follow-ups; no remaining correctness blocker.
-- GitHub commit/push and CI verification pending.
+- [x] Committed/pushed refactor as 0c99dcd. First CI run 34233828681 exposed
+  missing Sphinx in requirements-test.txt: the newly typed docs hook requires
+  sphinx.application during static checking. Local Sphinx 9.1.0 had masked that
+  dependency omission. Added that validated version to CI requirements; no
+  source/runtime changes. Remote revalidation pending.
