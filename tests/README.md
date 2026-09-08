@@ -11,26 +11,30 @@ Run `pytest tests/ --fast` during development. `VERIS_TEST_SEED` varies the stab
 
 ```sh
 pytest tests/ --cov=veris --cov-report=term:skip-covered
+coverage report --omit=veris/_version.py --fail-under=80
 ruff check tests
 ruff format --check tests
 ty check tests
 ```
 
-Tests use actual compiled float64 JAX functions on small rectangular grids.
+Tests execute actual compiled JAX functions on small rectangular grids,
+primarily in float64 with additional float32 stability and communication checks.
 Expected results come from explicit neighborhood indexing, scalar threshold
 rules, momentum balance, and finite differences. Gradients at nonsmooth
 thresholds are not covered by the initial mass checks.
 
-Coverage includes generated version metadata. The old geographic setup and
-its ocean-model dependencies were removed at the user’s request. The current 70% CI floor prevents loss of the established baseline; it is
-not the project target of 80%. Raise the floor as coverage expands. CPU CI is
-configured; GPU and distributed execution are still unverified.
+Whole-package reports include generated version metadata. With user approval,
+CI enforces at least 80% coverage of maintained code by excluding only
+`veris/_version.py` from the gate. XML/JSON artifacts retain whole-package data.
+The old geographic setup and its ocean-model dependencies were removed at the
+user’s request. CPU CI is configured; GPU hardware remains unverified.
 
 Current physical coverage includes periodic transport, rheology, wind and ocean
 stress, EVP momentum limits, and thermodynamic energy/water budgets. Serial
 mode initializes with `settings["use_sharding"] = False` before importing halo
-consumers. A real one-device mesh checks collective halo execution; it does not
-verify multiple processors or GPU execution.
+consumers. Fresh-process tests verify real four-CPU-device halo exchange and
+reverse-mode sensitivities on 2x2, 1x4 and 4x1 meshes. They do not establish
+multi-process/MPI or GPU correctness.
 
 Run the standalone artificial-island example in a fresh Python process after
 activating `.venv-latest`:

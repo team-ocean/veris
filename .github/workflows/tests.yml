@@ -11,10 +11,13 @@ jobs:
       - run: python -m pip install -r requirements-test.txt
       - run: ruff check tests && ruff format --check tests
       - run: ty check tests
-      - run: pytest tests/ --cov=veris --cov-report=xml --cov-report=term:skip-covered --cov-fail-under=70
+      - run: pytest tests/ --cov=veris --cov-report=xml --cov-report=term:skip-covered --cov-report=json:test_logs/coverage.json
         env:
           JAX_PLATFORMS: cpu
+      - run: coverage report --omit=veris/_version.py --fail-under=80
       - uses: actions/upload-artifact@v4
         with:
           name: coverage
-          path: coverage.xml
+          path: |
+            coverage.xml
+            test_logs/coverage.json

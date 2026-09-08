@@ -232,3 +232,31 @@
 - Remaining coverage gaps: generated version metadata (353 statements) and halo
   backend factory (10). Continue physical/gradient and distributed validation;
   the overall unit-test objective remains active.
+
+## 2026-09-08 — final unit-test goal verification
+
+- [x] User approved excluding generated `_version.py` from the 80% CI target,
+  while retaining whole-package reporting. CI now saves full XML/JSON reports
+  and separately runs `coverage report --omit=veris/_version.py --fail-under=80`.
+- [x] Real four-CPU-device halo values and reverse-mode gradients passed for
+  2x2, 1x4 and 4x1 meshes. The independent reference indexes global periodic
+  coordinates and counts each input cell's copies for the adjoint. The initial
+  gradient probe required entering JAX's explicit mesh context; no production
+  change was needed. This does not certify multi-process/MPI or GPU execution.
+- [x] Four nonlinear thermal sensitivity cases pass both central differences
+  and the analytic implicit surface energy-balance derivative, away from caps.
+- [x] Final full suite: **436/436 passed in 63.95 s**, no skipped/xfail cases.
+- [x] Approved CI coverage gate passes: **886/896 maintained statements = 98.88%**.
+  Whole-package coverage remains **886/1249 = 70.94%**, including generated code.
+- [x] Tests pass Ruff, formatting, and ty. Whole-repository checks still report
+  175 pre-existing/style findings and 39 typing diagnostics outside the clean
+  test scope; logs saved in test_logs/ruff-final.log and test_logs/ty-final.log.
+- [x] Independent final audit found no remaining test-harness/design/CI blocker.
+  Earlier wheel integration and strict documentation checks passed after removal
+  of all geographic setup code and Veros dependencies. Remote CI was not run.
+- [x] Unit-test objective achieved: meaningful equation/conservation/reference,
+  edge-case, gradient and coupled integration tests; deterministic fast mode;
+  latest tested JAX environment; enforced >=80% maintained-code coverage.
+- Future model work (not claims of this test deliverable): MITgcm bulk mask
+  semantics, additional nonsmooth AD behavior, full multi-process reductions,
+  GPU hardware verification, and broader repository style/type cleanup.

@@ -13,8 +13,9 @@ integration boundary. Test CPU by default; support GPU through JAX configuration
 
 Pytest `--fast` selects a stable approximately 10% sample at collection, keyed by
 `VERIS_TEST_SEED` and node ID. Full correctness and coverage checks precede any
-commit. Measure the entire remaining package, including generated metadata,
-and work toward at least 80% coverage. The old geographic setup is removed
+commit. Report whole-package coverage including generated metadata. Per user
+approval, enforce the 80% CI target on maintained code by omitting only generated
+`veris/_version.py` from that gate. The old geographic setup is removed
 from scope and source per the user’s explicit instruction. Add CI once the harness is executable.
 
 Implementation sequence: establish fixtures and elementary numerical tests;
