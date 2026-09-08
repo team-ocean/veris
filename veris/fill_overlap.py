@@ -3,8 +3,6 @@ from jax import shard_map, numpy as jnp
 from jax.lax import ppermute
 from jax.sharding import PartitionSpec as P
 from functools import partial
-import sys, os
-import initialize_mesh_sharding
 from veris.settings import settings
 
 
@@ -47,6 +45,8 @@ def fill_overlap_shard(var):
 def make_sharded_fill_overlap():
     '''return a shard_map-wrapped version of fill_overlap for the initialized mesh
     '''
+    import initialize_mesh_sharding
+
     mesh = initialize_mesh_sharding.mesh
     if mesh is None:
         raise RuntimeError('mesh and sharding not initialized')
