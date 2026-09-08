@@ -109,3 +109,34 @@
 - Existing tests and all new physical-budget regressions pass without skips or
   xfails. Goal remains incomplete: target >=80%, further gradient validation,
   known branch failures, legacy dependencies, and actual distributed/GPU gates.
+
+## 2026-09-08 — intensive transport and EVP diagnostics
+
+- [x] Intensive transport regressions first failed 6/6 on missing `vs.uTrans`.
+  Using the already computed local transports exposed 6/6 numerical failures
+  from swapped divergence axes. Correcting axes passed all six. A seventh
+  cross-flow test exposed use of the pre-zonal tracer in the meridional sweep;
+  that compensation now uses the field entering the meridional sweep.
+- [x] Adaptive EVP scalar momentum cases passed 8/8 without production changes.
+  Residual cases failed 4/4 on undefined sigma11, then 4/4 on legacy update.
+  Reconstruct previous physical stresses from principal components, use native
+  JAX indexed updates, and exclude the actual fixed two-cell halo width.
+- [x] Residual printing failed 2/2 with tracer formatting TypeError; replaced
+  host formatting with jax.debug.print. Added direct numerical norm checks,
+  including nonzero initial stresses, plus diagnostic-on/off solution parity.
+- [x] Intermediate transport/EVP suite: 50/50 passed before two extra nonzero
+  stress cases. Independent review found no must-fix defects in either fix.
+- IN PROGRESS (@root): final full correctness/coverage run and checks.
+- Limits: intensive tests currently use unit thickness; multi-device residual
+  reductions are unverified and global_sum remains an identity. No GPU available
+  in the checked local environment. These are not claimed as completed.
+
+- [x] Final full suite: **282/282 passed in 23.91 s**; fast selection: 29
+  passed, 253 deselected. All test lint, formatting, and ty checks pass.
+- Coverage **607/1517 statements (40.01%)**, including generated and legacy
+  files. CI floor increased to 40%. Statement count fell when obsolete residual
+  update/unused ratio statements were removed. EVP reaches 100% statements,
+  but the distributed and nonuniform-strain limits above remain unverified.
+- Next: meaningful legacy heat-flux/setup tests, basal-drag numerical stability,
+  multi-device validation, additional smooth-region gradient checks; 80% target
+  and full objective are still incomplete.

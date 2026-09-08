@@ -22,7 +22,7 @@ rules, momentum balance, and finite differences. Gradients at nonsmooth
 thresholds are not covered by the initial mass checks.
 
 Coverage currently includes generated version metadata and the legacy Veros
-setup. The current 37% CI floor prevents loss of the established baseline; it is
+setup. The current 40% CI floor prevents loss of the established baseline; it is
 not the project target of 80%. Raise the floor as coverage expands. CPU CI is
 configured; GPU and distributed execution are still unverified.
 
