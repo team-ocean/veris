@@ -1,11 +1,13 @@
+from functools import partial
+
 import jax
 import jax.numpy as jnp
-from functools import partial
-from veris.freedrift_solver import freedrift_solver
+
 from veris.evp_solver import evp_solver
+from veris.freedrift_solver import freedrift_solver
 
 
-@partial(jax.jit, static_argnames=['sett'])
+@partial(jax.jit, static_argnames=["sett"])
 def tauXY(vs, sett):
     """calculate surface stress from wind and ice velocities"""
 
@@ -44,7 +46,8 @@ def tauXY(vs, sett):
 
     return tauX, tauY
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def WindForcingXY(vs, sett):
     """calculate surface forcing due to wind and ocean surface tilt"""
 
@@ -77,9 +80,10 @@ def WindForcingXY(vs, sett):
 
     return WindForcingX, WindForcingY
 
-@partial(jax.jit, static_argnames=['sett'])
-def IceVelocities(vs, sett):
-    """calculate ice velocities from surface and ocean forcing"""
+
+@partial(jax.jit, static_argnames=["sett", "axis_names"])
+def IceVelocities(vs, sett, *, axis_names: tuple[str, ...] = ()):
+    """Calculate ice velocities, reducing EVP diagnostics over supplied mesh axes."""
 
     if sett.useFreedrift:
         uIce, vIce = freedrift_solver(vs, sett)
@@ -88,6 +92,8 @@ def IceVelocities(vs, sett):
         sigma12 = vs.sigma12
 
     if sett.useEVP:
-        uIce, vIce, sigma1, sigma2, sigma12 = evp_solver(vs, sett)
+        uIce, vIce, sigma1, sigma2, sigma12 = evp_solver(
+            vs, sett, axis_names=axis_names
+        )
 
     return uIce, vIce, sigma1, sigma2, sigma12

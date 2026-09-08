@@ -201,3 +201,74 @@ def test_printed_evp_residual_matches_interior_velocity_norm(
         )
     finally:
         jax.clear_caches()
+
+
+@pytest.mark.parametrize("partition_axis", [0, 1], ids=["zonal", "meridional"])
+@pytest.mark.parametrize("entry_point", ["direct", "dispatcher"])
+def test_sharded_evp_residual_sums_all_device_interiors(
+    halo, evp_state, sett, monkeypatch, capsys, partition_axis, entry_point
+):
+    """Global diagnostics count each device interior once in either mesh direction."""
+    import re
+
+    import jax
+    import jax.numpy as jnp
+    from jax.sharding import NamedSharding
+    from jax.sharding import PartitionSpec as P
+
+    module = importlib.import_module("veris.evp_solver")
+    count = jax.local_device_count()
+    dimensions = (count, 1) if partition_axis == 0 else (1, count)
+    mesh = jax.make_mesh(dimensions, ("x", "y"))
+    sharding = NamedSharding(mesh, P("x", "y"))
+    wind = 0.1
+    sett = sett._replace(
+        nEVPsteps=1,
+        computeEvpResidual=True,
+        basalDragK2=0,
+        cosWat=1.0,
+        sinWat=0.0,
+    )
+    vs = evp_state(wind)
+    vs = vs._replace(sigma1=vs.sigma1 + 4, sigma2=vs.sigma2 + 2, sigma12=vs.sigma12 + 3)
+    # Each shard owns a full 8x11 local array, including its two-cell halos.
+    # Uniform fields make serial and exchanged halos identical in this oracle.
+    distributed = jax.tree.map(
+        lambda field: jax.device_put(jnp.tile(field, dimensions), sharding), vs
+    )
+    jax.clear_caches()
+    try:
+        with monkeypatch.context() as patch:
+            patch.setattr(module, "printEvpResidual", True)
+            solver = (
+                module.evp_solver
+                if entry_point == "direct"
+                else importlib.import_module("veris.dynsolver").IceVelocities
+            )
+            solve = jax.shard_map(
+                lambda local: solver(local, sett, axis_names=("x", "y")),
+                mesh=mesh,
+                in_specs=P("x", "y"),
+                out_specs=P("x", "y"),
+            )
+            result = solve(distributed)
+            jax.block_until_ready(result)
+            jax.effects_barrier()
+        output = capsys.readouterr().out
+        matches = re.findall(r"evp resU, resSigma: 0 (\S+) (\S+)", output)
+        assert matches, f"ERROR missing distributed residual diagnostic: {output!r}"
+        u, v, *_ = uniform_momentum_subcycles(sett, wind, 1, sett.evpBeta)
+        expected_velocity = count * 4 * 7 * sett.evpBeta**2 * (u * u + v * v)
+        # Principal stresses (4,2) give physical stresses (3,1); shear is 3.
+        expected_stress = count * 4 * 7 * (3**2 + 1**2 + 3**2)
+        for velocity_norm, stress_norm in matches:
+            np.testing.assert_allclose(
+                [float(velocity_norm), float(stress_norm)],
+                [expected_velocity, expected_stress],
+                rtol=1e-6,
+                atol=1e-14,
+            )
+        np.testing.assert_allclose(result[0], u, atol=1e-14)
+        np.testing.assert_allclose(result[1], v, atol=1e-14)
+    finally:
+        jax.clear_caches()

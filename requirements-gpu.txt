@@ -1,0 +1,3 @@
+# CUDA 12 supports the local Tesla P100 GPUs; CUDA 13 drops Pascal support.
+-r requirements-test.txt
+jax[cuda12]==0.11.1
