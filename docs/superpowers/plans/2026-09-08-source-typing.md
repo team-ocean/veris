@@ -13,7 +13,7 @@ interfaces to generated/vendor dependencies and unchanged numerical behavior.
   hooks and packaging; provide interfaces without editing excluded internals.
 - [x] Publish typing metadata in wheel; verify runtime imports, JIT/AD and typing
   with valid/invalid usage examples, annotation coverage audit and ty.
-- [ ] Run full CPU correctness and affected GPU checks, lint/format, wheel and
+- [x] Run full CPU correctness and affected GPU checks, lint/format, wheel and
   strict docs build; review, update changelog, commit to jax-only and verify CI.
 
 No blanket Any or catch-all attribute protocol in numerical source. Dynamic

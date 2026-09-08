@@ -372,10 +372,15 @@
   missing Sphinx in requirements-test.txt: the newly typed docs hook requires
   sphinx.application during static checking. Local Sphinx 9.1.0 had masked that
   dependency omission. Added that validated version to CI requirements; no
-  source/runtime changes. Remote revalidation pending.
+  source/runtime changes. Remote revalidation completed below.
 
 - Dependency follow-up: Sphinx 9.1.0 requires Docutils <0.23. The local docs
   environment already uses 0.22.4, while the old test requirements pinned 0.23.
   CI 34234136636 failed resolution; aligned the pin to latest compatible 0.22.4.
   Package-index checks confirm Sphinx 9.1.0 is latest; local validated numerical
   and docs environments already contain this compatible pair.
+
+- [x] GitHub Actions **34234265030** passed on **bce3b18**, including dependency
+  installation, maintained lint/format/annotation coverage, ty, full correctness,
+  coverage gate and artifact upload. Typing objective complete; generated/vendor
+  internals remain unchanged. Local untracked AGENTS.md and test_logs preserved.
