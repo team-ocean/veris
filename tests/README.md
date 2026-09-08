@@ -22,7 +22,7 @@ rules, momentum balance, and finite differences. Gradients at nonsmooth
 thresholds are not covered by the initial mass checks.
 
 Coverage currently includes generated version metadata and the legacy Veros
-setup. The current 52% CI floor prevents loss of the established baseline; it is
+setup. The current 56% CI floor prevents loss of the established baseline; it is
 not the project target of 80%. Raise the floor as coverage expands. CPU CI is
 configured; GPU and distributed execution are still unverified.
 
@@ -31,3 +31,21 @@ stress, EVP momentum limits, and thermodynamic energy/water budgets. Serial
 mode initializes with `settings["use_sharding"] = False` before importing halo
 consumers. A real one-device mesh checks collective halo execution; it does not
 verify multiple processors or GPU execution.
+
+Run the standalone artificial-island example in a fresh Python process after
+activating `.venv-latest`:
+
+```python
+import jax
+from veris.setup.artificial import initialize, step
+
+jax.config.update("jax_enable_x64", True)
+state, settings = initialize()
+for _ in range(3):
+    state = step(state, settings, cooling=100.0)
+jax.block_until_ready(state)
+```
+
+This uses prescribed atmospheric and ocean fields; it demonstrates coupled
+dynamics and growth with land masks, rather than an evolving ocean simulation.
+Five EVP substeps are for demonstration, not a convergence guarantee.

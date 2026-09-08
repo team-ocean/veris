@@ -178,3 +178,34 @@
   integration with artificial ocean masks, remaining boundary/gradient gaps,
   multi-device/GPU verification. Generated version metadata is still included
   in the reported whole-package denominator.
+
+## 2026-09-08 — geometry and standalone coupled integration
+
+- [x] Initialization tests first failed importing Veros. Native JAX arrays in
+  the host initialization routine remove that unnecessary dependency.
+- [x] Independent corner-area tests then failed 2/3: rAz used two neighbors
+  divided by four. Restored the four-neighbor average; uniform grid area and
+  nonuniform explicit-index geometry checks now pass.
+- [x] Added tests before the new `veris.setup.artificial` example. An artificial
+  central island blocks both staggered face directions. The host driver uses
+  immutable state, full dynamic stress carryover, transport/cleanup and Growth,
+  prescribed heat-forcing restoration, and periodic halo refresh.
+- [x] Initial geometry/integration suite passed 8/8. Added forcing reset,
+  nonzero stress, and fresh-process import checks following independent review.
+- This is a serial demonstration with five EVP substeps, not a converged
+  solution benchmark. Call initialize before distributed halo imports; the
+  fresh-process test checks the supported standalone launch path.
+- IN PROGRESS (@root): full correctness/coverage check and final lint checks.
+- Legacy geographic Veros setup remains available but still unported/untested;
+  the artificial example supplies the requested standalone coupled path without
+  claiming equivalence to a full ocean simulation.
+
+- [x] Full suite **431/431 passed in 52.43 s**; whole-package coverage
+  **886/1567 statements (56.54%)**. Initialization 3/3 and artificial integration
+  7/7 passed. New example, initializer, and tests pass Ruff/format/ty checks.
+- CI floor raised to 56%. Advection and solver dispatch now reach 100% statement
+  coverage through the coupled example. No coverage exclusions added.
+- Remaining uncovered sources: generated version metadata (353 statements),
+  legacy geographic setup (316), halo backend factory (10), model stub (2).
+  More physical/gradient/distributed validation remains even for covered lines;
+  the 80% goal and full objective remain active.
