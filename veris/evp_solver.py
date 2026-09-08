@@ -128,6 +128,17 @@ def evp_solver(
         cDrag = ocean_drag_coeffs(vs, sett, uIce, vIce)
         cBotC = basal_drag_coeffs(vs, sett, uIce, vIce)
 
+        # Materialize shared stencil inputs on CUDA: this improves the measured
+        # 256x256 P100 case, at a modest cost for small grids. Native CPU coupled
+        # benchmarks did not support the same barrier, so keep CPU fusion intact.
+        # JAX selects by the actual compilation target, not the host default;
+        # this identity changes neither equations nor AD. See benchmarks/.
+        cDrag, cBotC, stressDivX, stressDivY = jax.lax.platform_dependent(
+            (cDrag, cBotC, stressDivX, stressDivY),
+            cuda=jax.lax.optimization_barrier,
+            default=lambda values: values,
+        )
+
         # over open ocean..., see comments in MITgcm: pkg/seaice/seaice_evp.F
         locMaskU = vs.SeaIceMassU
         locMaskV = vs.SeaIceMassV

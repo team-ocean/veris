@@ -1,0 +1,49 @@
+{
+  "git_commit": "76bf8bcb3186cf133572b884ac64c87a9e6c53b8",
+  "jax": "0.11.1",
+  "backend": "cpu",
+  "precision": "float64",
+  "initialize_sha256": "2a036b428d853f3e11ef127443f77f40edc53dc2070187234a58384da380f4d1",
+  "cases": [
+    [
+      false,
+      false,
+      1
+    ],
+    [
+      false,
+      true,
+      4
+    ],
+    [
+      true,
+      false,
+      4
+    ],
+    [
+      true,
+      true,
+      4
+    ],
+    [
+      false,
+      false,
+      400
+    ],
+    [
+      true,
+      false,
+      400
+    ]
+  ],
+  "source_sha256": {
+    "veris/evp_solver.py": "a605098a6758418f77fd8b13a1414587ac8fbe9c7a591f728bac9a8f6ea41ab7",
+    "veris/dynamics_routines.py": "ad5b56d2f1b2cb9caecc2d8100c7cef6c1d124f0289f310c814c522c0554e19b",
+    "veris/area_mass.py": "2a61017f66d7b63ffc135bbcf4593f0c0543ad7a46c96fcf52f62d392f2ecddd",
+    "veris/settings.py": "5055a81d9fcd4bf44a0f8858be07802d4958cab0649ceef9cc98df2c3034a2fe",
+    "veris/fill_overlap.py": "95383b155f0c25f4f4327e479b0d5f6b1f4639a76afab933d31039b78eac8296",
+    "veris/averaging.py": "4a95e58d66c76f1068c0f1fe263ae808e9b4b19d7bc489a3057ee4afb1ccae07",
+    "veris/global_sum.py": "fe290f375a8948de70d772861ef9f200c150a8a713b17cdcda1db2b5c1a96b43",
+    "veris/_typing.py": "e6c9d64aa40181514db3517bfa697d3a936ab21508b77949788f91ccf9369f19"
+  }
+}
