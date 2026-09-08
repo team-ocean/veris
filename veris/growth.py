@@ -220,7 +220,8 @@ def Growth(vs, sett):
         + IceGrowthRateOpenWater * (1 - AreapreTH)
         + IceGrowthRateMixedLayer
     )
-    dhSnowMean_dt = (SnowAccRateOverIce - SnowMeltRateFromSurface) * AreapreTH
+    # Accumulation is per ice area; the melt flux is already per grid-cell area.
+    dhSnowMean_dt = SnowAccRateOverIce * AreapreTH - SnowMeltRateFromSurface
 
     tmpscal0 = 0.5 * recip_hIceActual
 
@@ -290,7 +291,8 @@ def Growth(vs, sett):
     ##### calculate output to ocean #####
 
     # effective shortwave heating rate
-    Qsw = IcePenetSW * AreapreTH + vs.Qsw * (1 - AreapreTH)
+    # IcePenetSW was converted to a grid-cell mean after category averaging.
+    Qsw = IcePenetSW + vs.Qsw * (1 - AreapreTH)
 
     # the actual ice volume change over the time step [m3/m2]
     hIceMeanChange = hIceMean - hIceMeanpreTH
@@ -304,7 +306,7 @@ def Growth(vs, sett):
 
     # the net energy flux out of the ocean [J/m2]
     NetEnergyFluxOutOfOcean = (
-        AreapreTH * (F_ia_net + F_io_net + IcePenetSW) + (1 - AreapreTH) * vs.Qnet
+        F_ia_net + F_io_net + IcePenetSW + (1 - AreapreTH) * vs.Qnet
     ) * sett.deltatTherm
 
     # energy taken out of the ocean which is not used for sea ice growth [J].
