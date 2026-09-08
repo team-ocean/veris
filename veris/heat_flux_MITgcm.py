@@ -29,7 +29,10 @@ def bulkf_formula_lanl(state, uw, vw, ta, qa, tsf, ocn_mask):
         ta (:obj:`ndarray`): air temperature   [K]     at height ht
         qa (:obj:`ndarray`): specific humidity [kg/kg] at heigth ht
         tsf(:obj:`ndarray`): sea surface temperature [K]
-        ocn_mask (:obj:`ndarray`): 0=land, 1=ocean
+        ocn_mask (:obj:`ndarray`): 0=land, nonzero=ocean (not an area weight).
+            Land diagnostics and input sensitivities are zero, including when
+            land inputs contain missing values. MITgcm bulkf_forcing.F gates
+            calls to the scalar LANL formula on nonzero maskC.
 
     Returns:
         flwupa (:obj:`ndarray`): upward long wave radiation (>0 upward) [W/m2]
@@ -44,6 +47,15 @@ def bulkf_formula_lanl(state, uw, vw, ta, qa, tsf, ocn_mask):
     """
 
     settings = state.settings
+
+    # Evaluate inactive cells at a regular finite state before masking outputs.
+    # Masking outputs alone would leave NaNs in the reverse differentiation pass.
+    wet = ocn_mask != 0
+    uw = npx.where(wet, uw, 1.0)
+    vw = npx.where(wet, vw, 1.0)
+    ta = npx.where(wet, ta, 275.0)
+    qa = npx.where(wet, qa, 0.003)
+    tsf = npx.where(wet, tsf, 280.0)
 
     # Compute turbulent surface fluxes
     ht = 2.0
@@ -128,4 +140,7 @@ def bulkf_formula_lanl(state, uw, vw, ta, qa, tsf, ocn_mask):
     ust = settings.rhoAir * bulkf_cdn * us[...] * uw[...]
     vst = settings.rhoAir * bulkf_cdn * us[...] * vw[...]
 
-    return (flwupa, flha, fsha, df0dt, ust, vst, evp, ssq, devdt)
+    return tuple(
+        npx.where(wet, value, 0.0)
+        for value in (flwupa, flha, fsha, df0dt, ust, vst, evp, ssq, devdt)
+    )

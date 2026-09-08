@@ -52,3 +52,37 @@ def test_lanl_radiation_drag_and_saturated_equilibrium(
     np.testing.assert_allclose(qsat, humidity, rtol=1e-13)
     assert np.all(np.asarray(derivative) < 0)
     assert np.all(np.asarray(devdt) >= 0)
+
+
+@pytest.mark.parametrize("land_value", [280.0, float("nan"), 0.0])
+def test_lanl_mask_preserves_ocean_and_zeros_land_and_sensitivities(sett, land_value):
+    """MITgcm's caller gates LANL evaluation on wet cells; land is inactive."""
+    import jax
+
+    module = importlib.import_module("veris.heat_flux_MITgcm")
+    values = dict(sett._asdict(), grav=sett.gravity)
+    settings = namedtuple("MaskedBulkSettings", values)(**values)
+    state = namedtuple("MaskedBulkState", ["settings"])(settings)
+    mask = jnp.array([[1, 0, 1], [0, 1, 0]])
+    wet = np.asarray(mask, dtype=bool)
+    inputs = tuple(
+        jnp.full(mask.shape, value) for value in (4.0, 2.0, 275.0, 0.003, 280.0)
+    )
+    reference = module.bulkf_formula_lanl(state, *inputs, jnp.ones_like(mask))
+    masked_inputs = tuple(jnp.where(mask, value, land_value) for value in inputs)
+    actual = module.bulkf_formula_lanl(state, *masked_inputs, mask)
+    for result, expected in zip(actual, reference):
+        np.testing.assert_allclose(np.asarray(result)[wet], np.asarray(expected)[wet])
+        np.testing.assert_array_equal(np.asarray(result)[~wet], 0)
+
+    def total(*fields):
+        return sum(
+            jnp.sum(value) for value in module.bulkf_formula_lanl(state, *fields, mask)
+        )
+
+    gradients = jax.grad(total, argnums=(0, 1, 2, 3, 4))(*masked_inputs)
+    for derivative in gradients:
+        assert np.isfinite(np.asarray(derivative)).all(), (
+            "ERROR nonfinite masked gradient"
+        )
+        np.testing.assert_array_equal(np.asarray(derivative)[~wet], 0)

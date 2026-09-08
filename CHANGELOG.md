@@ -260,3 +260,66 @@
 - Future model work (not claims of this test deliverable): MITgcm bulk mask
   semantics, additional nonsmooth AD behavior, full multi-process reductions,
   GPU hardware verification, and broader repository style/type cleanup.
+
+## 2026-09-08 — expanded validation (in progress)
+
+- IN PROGRESS (@root): MITgcm masks, distributed reductions, and GPU validation.
+  @nonsmooth owns additional gradient tests; @style_audit audits quality read-only.
+- Verified two Tesla P100 16 GB GPUs with NVIDIA driver 580.173.02 outside
+  sandbox. Sandboxed nvidia-smi cannot access driver. CUDA 12 is required for
+  P100 architecture; JAX 0.11.1 CUDA dependencies are installing.
+- Upstream MITgcm bulkf_forcing.F gates LANL calls with nonzero maskC;
+  Veris currently ignores mask values. Plan records zero land diagnostics and
+  safe inactive inputs, with unchanged wet-cell calculations.
+
+### MITgcm masks and nonsmooth derivatives
+
+- [x] Three land-mask regression cases first failed (finite, zero, and NaN land
+  inputs). Safe inactive inputs and zero land diagnostics now pass, preserving
+  wet-cell values and giving finite gradients with zero land sensitivity.
+  The nonzero mask is a wet-cell selector, not an area weight. Upstream evidence:
+  https://github.com/MITgcm/MITgcm/blob/master/pkg/bulk_force/bulkf_forcing.F
+- [x] Ten nonsmooth cases check Superbee/ridging/clipping/floor selected AD
+  linearizations, JVP/VJP adjoints, one-sided slopes, and the discontinuous
+  thin-ice removal jump. Fixed an initial test collection error by selecting
+  the serial halo backend before importing advection.
+
+### Distributed reductions and hardware
+
+- [x] Explicit mesh axes added to global_sum, EVP, and IceVelocities. Local
+  totals exclude halos before psum; serial component dimensions are preserved.
+  New API tests failed first, including dispatcher forwarding found in review.
+- [x] Two real CPU processes pass sums/squared norms, JVP/VJP and poisoned-halo
+  exclusion in 2x1/1x2 meshes and in 4x1/1x4/2x2 with two devices per process.
+- [x] Two GPU processes (one P100 each) pass reduction and derivative oracles.
+  Review fixed allocation handling to preserve inherited CUDA_VISIBLE_DEVICES;
+  rerun with allocation 1,0 passes. GPU halo values/adjoints pass 2x1 and 1x2.
+- [x] Full GPU suite: 455/455 cases passed with asserted GPU default backend.
+  Later dispatcher addition: 4/4 direct/dispatcher sharded GPU cases passed.
+  The initial CUDA-only run failed four print tests because JAX host callbacks
+  require a CPU backend; corrected to JAX_PLATFORMS=cuda,cpu, with no numerical
+  tolerance relaxation. requirements-gpu.txt records the P100-compatible extra.
+- GPU worker shutdown emits JAX WatchTasksAsync connection-refused warnings
+  after both workers report verified results; both processes exit zero. Logs
+  retained in test_logs/gpu-halo-reductions-final.log. Multi-node networking/MPI
+  launchers and a full distributed coupled integration are not certified here.
+
+### Maintained code quality
+
+- [x] Sorted/formatted maintained source, replaced dict constructors, removed
+  unused bindings/imports, and made optional external mesh import explicit.
+  Independent AST review found no hidden numerical changes in formatting.
+- [x] Modernized doc/conf.py and setup.py, removed unused Click directive,
+  corrected docutils error construction; strict Sphinx build and wheel build
+  pass. Installed setuptools 84.0.0 for packaging checks.
+- [x] Expanded CI Ruff/format/ty gate to maintained model, tests, documentation
+  configuration and packaging. Those checks pass; public CESM/MITgcm names are
+  retained. Generated version metadata and vendored sources remain untouched.
+- Raw whole-repository reports improved from 175 to 131 Ruff findings and from
+  39 to 24 typing diagnostics; remaining findings are generated/vendor code and
+  the two preserved public module names, not claims of a clean raw repository.
+- IN PROGRESS: final CPU correctness/coverage, small commits, GitHub CI.
+- [x] Final CPU suite: **457/457 passed**, no skipped/xfail cases. Maintained
+  coverage **895/904 = 99.00%**; whole package **895/1257 = 71.20%**. Approved
+  80% gate passes, with XML/JSON whole-package artifacts retained. Maintained
+  Ruff/format/ty checks pass. Existing remote baseline CI is green.
