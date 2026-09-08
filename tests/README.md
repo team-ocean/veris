@@ -21,8 +21,8 @@ Expected results come from explicit neighborhood indexing, scalar threshold
 rules, momentum balance, and finite differences. Gradients at nonsmooth
 thresholds are not covered by the initial mass checks.
 
-Coverage currently includes generated version metadata and the legacy Veros
-setup. The current 56% CI floor prevents loss of the established baseline; it is
+Coverage includes generated version metadata. The old geographic setup and
+its ocean-model dependencies were removed at the user’s request. The current 70% CI floor prevents loss of the established baseline; it is
 not the project target of 80%. Raise the floor as coverage expands. CPU CI is
 configured; GPU and distributed execution are still unverified.
 

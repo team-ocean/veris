@@ -1,69 +1,38 @@
 .. _variables:
 
-Available variables
--------------------
+State fields
+============
 
-There are two kinds of variables in Veros/Veris. Main variables are always present in a
-simulation, while conditional variables are only available if their respective
-condition is :obj:`True` at the time of variable allocation.
+``veris.variables.variables`` is a dictionary of field names with ``None``
+placeholders. It does not allocate arrays or carry restart, dimension, or unit
+metadata. The artificial example allocates every field as a two-dimensional
+JAX array and adds ``forc_salt_surface`` for the growth salt-flux output.
 
-.. _flag_legend:
+For an interior of ``nx`` by ``ny`` cells, example arrays have shape
+``(nx + 4, ny + 4)``. The interior is ``field[2:-2, 2:-2]``. Axis zero is zonal;
+axis one is meridional. Fields use staggered cell-center and face locations.
 
-Attributes:
-  | :fa:`clock-o`: Time-dependent
-  | :fa:`question-circle`: Conditional
-  | :fa:`repeat`: Written to restart files by default
+Key fields
+----------
+
+* ``hIceMean``, ``hSnowMean``: grid-cell mean thicknesses in metres.
+* ``Area``: ice-covered fraction; ``AreaW`` and ``AreaS`` are face averages.
+* ``uIce``, ``vIce``: face-centered ice velocities in m/s.
+* ``sigma1``, ``sigma2``, ``sigma12``: stress fields retained between steps.
+* ``TSurf``, ``theta``, ``ATemp``: surface, ocean, and air temperatures in kelvin.
+* ``iceMask``, ``iceMaskU``, ``iceMaskV``: ocean cell and face masks.
+* ``Qnet``, ``Qsw``: heat fluxes in W/m², positive upward. Growth replaces the
+  supplied forcing values with ocean-coupling output fluxes.
+
+Field comments in ``veris/variables.py`` and kernel docstrings describe the
+remaining fields. State updates return a new named tuple in the artificial
+example; use ``state._replace(field_name=array)`` for prescribed changes.
+
+Registry names
+--------------
 
 .. exec::
-  from veris.variables import VARIABLES
 
-  def format_field(val):
-      import inspect
-
-      if isinstance(val, (tuple, list)):
-          return "(" + ", ".join(map(str, val)) + ")"
-
-      if not callable(val):
-          return val
-
-      src = inspect.getsource(val)
-      src = src.strip().rstrip(",")
-      return f"``{src}``"
-
-  seen = set()
-
-  for key, var in VARIABLES.items():
-      is_conditional = callable(var.active)
-
-      flags = ""
-      if var.time_dependent:
-          flags += ":fa:`clock-o` "
-      if is_conditional:
-          flags += ":fa:`question-circle` "
-      if var.write_to_restart:
-          flags += ":fa:`repeat` "
-
-      print(f".. py:attribute:: VerosVariables.{key}")
-      if key in seen:
-          print("  :noindex:")
-
-      print("")
-      print(f"  :units: {format_field(var.units)}")
-
-      if var.dims is not None:
-          print(f"  :dimensions: {format_field(var.dims)}")
-      else:
-          print(f"  :dimensions: scalar")
-
-      print(f"  :type: :py:class:`{format_field(var.dtype) or 'float'}`")
-
-      if is_conditional:
-          condition = format_field(var.active).replace("active=", "")
-          print(f"  :condition: {condition}")
-
-      print(f"  :attributes: {flags}")
-
-      print("")
-      print(f"  {format_field(var.long_description)}")
-      print("")
-      seen.add(key)
+   from veris.variables import variables
+   for name in variables:
+       print(f"* ``{name}``")

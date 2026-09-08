@@ -209,3 +209,26 @@
   legacy geographic setup (316), halo backend factory (10), model stub (2).
   More physical/gradient/distributed validation remains even for covered lines;
   the 80% goal and full objective remain active.
+
+## 2026-09-08 — remove geographic setup and ocean-model dependency
+
+- [x] User explicitly excludes the old geographic setup from testing and requests
+  complete removal. Deleted its code, package initializer, asset manifest,
+  documentation page/gallery image, unused plugin hook, and veros_fill setting.
+- [x] Removed the Veros install requirement and setup discovery entry point.
+  Package metadata now declares JAX >=0.11.1, NumPy >=2, Python >=3.12, matching
+  the installed JAX minimum Python version. No Veros imports remain in veris.
+- [x] Standalone documentation replaces plugin/copy-setup instructions; old
+  documentation dependency removed. Historical author/copyright credit retained.
+- [x] Built wheel and checked its file list, metadata and absent plugin entry
+  points. Its requirements are only JAX and NumPy. Extracted-wheel integration
+  passed in a temporary working directory outside the source tree.
+- [x] Documentation build with latest compatible Sphinx/furo passes with warnings
+  treated as errors. Repaired one title underline after the first strict build
+  failed. Read the Docs now selects supported Python 3.14 and installs the package.
+- [x] Full suite **431/431 passed in 52.03 s**. Coverage **886/1249 (70.94%)**
+  after the user-requested deletions; this rise reflects removed obsolete code,
+  not added test cases. CI floor raised to 70%, with no coverage exclusions.
+- Remaining coverage gaps: generated version metadata (353 statements) and halo
+  backend factory (10). Continue physical/gradient and distributed validation;
+  the overall unit-test objective remains active.

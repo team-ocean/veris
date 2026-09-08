@@ -22,7 +22,6 @@ settings = dict(
     explicitDrag = True, # flag for stepping the momentum equation in a explicit or implicit way
     nEVPsteps = 400, # number of sub-cycling iterations of the EVP solver
     computeEvpResidual = False, # flag for computing the residual of stress and velocity in the EVP loop
-    veros_fill = True, # flag for using the fill overlap function of Veros
     use_coastline = False, # flag for using the coastline data for lateral drag
     use_sharding = True, # flag for using parallel execution via sharded arrays
     rhoIce = 900, # density of ice /kg/m3

@@ -1,32 +1,49 @@
 Basic usage
 ===========
 
-Assuming that you have already `installed Veros <https://veros.readthedocs.io/en/latest/introduction/get-started.html>`_, the following command is required to install the sea ice plugin Veris:
+Install the current checkout into an activated Python environment::
 
-::
+   python -m pip install -e .
 
-   $ pip install veris
+Run this example in a fresh Python process. Initialize before importing transport
+or dynamics modules so the example can select its serial periodic halo backend::
 
-To get started with a new setup, you can use :obj:`seaice_global_4deg` as a template:
+   import jax
+   jax.config.update("jax_enable_x64", True)
 
-::
+   from veris.setup.artificial import initialize, step
 
-   $ veros copy-setup seaice_global_4deg
+   state, settings = initialize(nx=8, ny=12, wind=5.0)
+   for _ in range(3):
+       state = step(state, settings, cooling=100.0)
+   jax.block_until_ready(state)
+   print(float(state.hIceMean[2:-2, 2:-2].mean()))
 
+The example uses a periodic Cartesian grid with a central island. Each time step
+updates ice velocities and stresses, transports ice and snow, then computes
+thermodynamic growth and ocean heat/salt exchange. Cooling is prescribed in
+W/m², positive upward. Ocean fields remain prescribed.
 
-To enable Veris on a completely new setup, you will have to register it as a Veris plugin.
-Add the following to your setup definition:
+State and settings are immutable named tuples. Update them with ``_replace``;
+keep timestep reciprocals consistent when changing a timestep::
 
-::
+   settings = settings._replace(
+       deltatTherm=300, recip_deltatTherm=1 / 300,
+       deltatDyn=300, recip_deltatDyn=1 / 300,
+   )
 
-   import veris
+The default five EVP subcycles demonstrate the integration sequence; they do not
+establish a converged dynamics solution. See :doc:`/reference/setups/artificial`
+for the example API and :doc:`/reference/settings` for kernel defaults.
 
-   class MyVerosSetup(VerosSetup):
-       __veros_plugins__ = (veris,)
+Development checks
+------------------
 
-This registers the plugin for use with Veros.
-Then, you can use :doc:`the Veris settings </reference/settings>` to configure Veris.
+From the repository root, run the full correctness suite or a deterministic
+collection-time sample::
 
-.. seealso::
+   pytest tests/ -q
+   pytest tests/ -q --fast
 
-   All new :doc:`settings </reference/settings>` and :doc:`variables </reference/variables>` defined by Veris in their respective sections.
+``VERIS_TEST_SEED`` changes the stable approximately 10% sample. CPU execution is
+the default test target; selecting a GPU requires a compatible JAX installation.
