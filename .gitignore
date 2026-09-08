@@ -108,3 +108,9 @@ ENV/
 
 # VS Code
 .vscode/
+# Local test environment
+.venv/
+.ruff_cache/
+
+.venv-latest/
+.venv-jax/
