@@ -66,18 +66,14 @@ def basal_drag_coeffs(vs, sett, uIce, vIce):
     # critical ice height that allows for the formation of landfast ice
     hCrit = jnp.abs(vs.R_low) * vs.Area / sett.basalDragK1
 
-    # soft maximum for better differentiability:
-    # max(a,b;k) = ln(exp(k*a)+exp(k*b))/k
-    # In our case, b=0, so exp(k*b) = 1.
-    # max(a,0;k) = ln(exp(k*a)+1)/k
-    # If k*a gets too large, EXP will overflow, but for the anticipated
-    # values of hActual < 100m, and k=10, this should be very unlikely
+    # Smooth positive keel excess. logaddexp evaluates log(1 + exp(x))
+    # without overflow, including derivatives and masked/disabled drag.
     fac = 10.0
     recip_fac = 1.0 / fac
     cBot = jnp.where(
         vs.Area > 0.01,
         tmpFld
-        * jnp.log(jnp.exp(fac * (vs.hIceMean - hCrit)) + 1.0)
+        * jnp.logaddexp(0.0, fac * (vs.hIceMean - hCrit))
         * recip_fac
         * jnp.exp(-sett.cBasalStar * (1.0 - vs.Area)),
         0.0,
