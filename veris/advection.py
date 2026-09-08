@@ -52,8 +52,8 @@ def calc_Advection(vs, sett, field):
             * vs.recip_rA
             * vs.recip_hIceMean
             * (
-                (jnp.roll(ZonalFlux, -1, 1) - ZonalFlux)
-                - (jnp.roll(vs.uTrans, -1, 0) - vs.uTrans) * field
+                (jnp.roll(ZonalFlux, -1, 0) - ZonalFlux)
+                - (jnp.roll(uTrans, -1, 0) - uTrans) * field
             )
         )
 
@@ -73,8 +73,8 @@ def calc_Advection(vs, sett, field):
             * vs.recip_rA
             * vs.recip_hIceMean
             * (
-                (jnp.roll(MeridionalFlux, -1, 0) - MeridionalFlux)
-                - (jnp.roll(vs.vTrans, -1, 1) - vs.vTrans) * field
+                (jnp.roll(MeridionalFlux, -1, 1) - MeridionalFlux)
+                - (jnp.roll(vTrans, -1, 1) - vTrans) * fieldLoc
             )
         )
 
