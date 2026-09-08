@@ -1,11 +1,18 @@
+"""Solve the local ice momentum balance without internal stress."""
+
 from functools import partial
 
-import jax
 import jax.numpy as jnp
+from jax import Array
+
+from veris._dynamics_types import FreeDriftSettings, FreeDriftState
+from veris._typing import jit
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def freedrift_solver(vs, sett):
+@partial(jit, static_argnames=["sett"])
+def freedrift_solver(
+    vs: FreeDriftState, sett: FreeDriftSettings
+) -> tuple[Array, Array]:
     """calculate ice velocities without taking into account internal ice stress"""
 
     # air-ice stress at c-point

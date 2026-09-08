@@ -7,13 +7,15 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris.state import Settings
+
 
 @pytest.mark.parametrize("humidity_ratio", [0.5, 1.0, 1.5])
 @pytest.mark.parametrize("temperature", [260.0, 280.0, 300.0])
 @pytest.mark.parametrize("wind", [0.0, 3.0, -7.0])
 def test_lanl_radiation_drag_and_saturated_equilibrium(
-    sett, temperature, wind, humidity_ratio
-):
+    sett: Settings, temperature: float, wind: float, humidity_ratio: float
+) -> None:
     module = importlib.import_module("veris.heat_flux_MITgcm")
     values = dict(sett._asdict(), grav=sett.gravity)
     settings = namedtuple("BulkSettings", values)(**values)
@@ -55,7 +57,9 @@ def test_lanl_radiation_drag_and_saturated_equilibrium(
 
 
 @pytest.mark.parametrize("land_value", [280.0, float("nan"), 0.0])
-def test_lanl_mask_preserves_ocean_and_zeros_land_and_sensitivities(sett, land_value):
+def test_lanl_mask_preserves_ocean_and_zeros_land_and_sensitivities(
+    sett: Settings, land_value: float
+) -> None:
     """MITgcm's caller gates LANL evaluation on wet cells; land is inactive."""
     import jax
 
@@ -65,19 +69,27 @@ def test_lanl_mask_preserves_ocean_and_zeros_land_and_sensitivities(sett, land_v
     state = namedtuple("MaskedBulkState", ["settings"])(settings)
     mask = jnp.array([[1, 0, 1], [0, 1, 0]])
     wet = np.asarray(mask, dtype=bool)
-    inputs = tuple(
+    uw, vw, ta, qa, tsf = (
         jnp.full(mask.shape, value) for value in (4.0, 2.0, 275.0, 0.003, 280.0)
     )
+    inputs = (uw, vw, ta, qa, tsf)
     reference = module.bulkf_formula_lanl(state, *inputs, jnp.ones_like(mask))
-    masked_inputs = tuple(jnp.where(mask, value, land_value) for value in inputs)
+    uw, vw, ta, qa, tsf = (jnp.where(mask, value, land_value) for value in inputs)
+    masked_inputs = (uw, vw, ta, qa, tsf)
     actual = module.bulkf_formula_lanl(state, *masked_inputs, mask)
     for result, expected in zip(actual, reference):
         np.testing.assert_allclose(np.asarray(result)[wet], np.asarray(expected)[wet])
         np.testing.assert_array_equal(np.asarray(result)[~wet], 0)
 
-    def total(*fields):
+    def total(
+        uw: jax.Array, vw: jax.Array, ta: jax.Array, qa: jax.Array, tsf: jax.Array
+    ) -> jax.Array:
         return sum(
-            jnp.sum(value) for value in module.bulkf_formula_lanl(state, *fields, mask)
+            (
+                jnp.sum(value)
+                for value in module.bulkf_formula_lanl(state, uw, vw, ta, qa, tsf, mask)
+            ),
+            start=jnp.asarray(0.0),
         )
 
     gradients = jax.grad(total, argnums=(0, 1, 2, 3, 4))(*masked_inputs)

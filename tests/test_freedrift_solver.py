@@ -2,16 +2,22 @@
 
 import numpy as np
 import pytest
+from conftest import StateFactory
 
 from veris.freedrift_solver import freedrift_solver
+from veris.state import Settings
 
 
 @pytest.mark.parametrize("coriolis", [-1e-4, 0, 1e-4])
 @pytest.mark.parametrize("wind", [0, 0.05, 0.3])
 @pytest.mark.parametrize("ocean_velocity", [(0, 0), (0.15, -0.08), (-0.1, 0.2)])
 def test_uniform_free_drift_momentum_balance(
-    state, sett, coriolis, wind, ocean_velocity
-):
+    state: StateFactory,
+    sett: Settings,
+    coriolis: float,
+    wind: float,
+    ocean_velocity: tuple[float, float],
+) -> None:
     ones = np.ones((4, 7))
     vs = state(
         WindForcingX=wind * ones,

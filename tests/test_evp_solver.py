@@ -1,16 +1,30 @@
 """Uniform EVP momentum limits isolate time stepping from spatial stresses."""
 
 import importlib
+from types import ModuleType
+from typing import Any, Protocol
 
 import numpy as np
 import pytest
+from conftest import StateFactory
+
+from veris.state import Settings
+
+
+class EVPStateFactory(Protocol):
+    """Construct dynamically selected fixture fields with optional uniform wind.
+
+    Any is restricted to the varying-field StateFactory result.
+    """
+
+    def __call__(self, wind: float = 0) -> Any: ...
 
 
 @pytest.fixture
-def evp_state(state):
+def evp_state(state: StateFactory) -> EVPStateFactory:
     """A periodic unit grid with a spatially uniform 900 kg/m² ice column."""
 
-    def build(wind=0):
+    def build(wind: float = 0) -> Any:
         ones = np.ones((8, 11))
         fields = {
             name: ones
@@ -74,7 +88,13 @@ def evp_state(state):
 
 @pytest.mark.parametrize("no_slip", [False, True])
 @pytest.mark.parametrize("steps", [1, 4])
-def test_unforced_rest_is_exact_evp_fixed_point(halo, evp_state, sett, no_slip, steps):
+def test_unforced_rest_is_exact_evp_fixed_point(
+    halo: ModuleType,
+    evp_state: EVPStateFactory,
+    sett: Settings,
+    no_slip: bool,
+    steps: int,
+) -> None:
     solver = importlib.import_module("veris.evp_solver").evp_solver
     vs = evp_state()
     result = solver(vs, sett._replace(noSlip=no_slip, nEVPsteps=steps))
@@ -86,8 +106,8 @@ def test_unforced_rest_is_exact_evp_fixed_point(halo, evp_state, sett, no_slip, 
 
 @pytest.mark.parametrize("wind", [0.01, 0.1, -0.1])
 def test_one_evp_step_uniform_force_matches_mass_drag_balance(
-    halo, evp_state, sett, wind
-):
+    halo: ModuleType, evp_state: EVPStateFactory, sett: Settings, wind: float
+) -> None:
     solver = importlib.import_module("veris.evp_solver").evp_solver
     sett = sett._replace(nEVPsteps=1, basalDragK2=0, cosWat=1.0, sinWat=0.0)
     vs = evp_state(wind)
@@ -99,7 +119,9 @@ def test_one_evp_step_uniform_force_matches_mass_drag_balance(
         np.testing.assert_allclose(field, expected, atol=1e-14)
 
 
-def uniform_momentum_subcycles(sett, wind, steps, beta):
+def uniform_momentum_subcycles(
+    sett: Settings, wind: float, steps: int, beta: float
+) -> tuple[float, float, float, float, float]:
     """Solve uniform scalar momentum updates without invoking model kernels.
 
     Initial velocity and ice strength are zero, so pressure and stress divergence
@@ -117,7 +139,13 @@ def uniform_momentum_subcycles(sett, wind, steps, beta):
 
 @pytest.mark.parametrize("steps", [1, 4])
 @pytest.mark.parametrize("wind", [0, 0.01, 0.1, -0.1])
-def test_adaptive_evp_uniform_momentum_balance(halo, evp_state, sett, steps, wind):
+def test_adaptive_evp_uniform_momentum_balance(
+    halo: ModuleType,
+    evp_state: EVPStateFactory,
+    sett: Settings,
+    steps: int,
+    wind: float,
+) -> None:
     solver = importlib.import_module("veris.evp_solver").evp_solver
     sett = sett._replace(
         nEVPsteps=steps,
@@ -137,8 +165,12 @@ def test_adaptive_evp_uniform_momentum_balance(halo, evp_state, sett, steps, win
 @pytest.mark.parametrize("adaptive", [False, True])
 @pytest.mark.parametrize("wind", [0, 0.1])
 def test_evp_residual_diagnostics_preserve_uniform_solution(
-    halo, evp_state, sett, adaptive, wind
-):
+    halo: ModuleType,
+    evp_state: EVPStateFactory,
+    sett: Settings,
+    adaptive: bool,
+    wind: float,
+) -> None:
     solver = importlib.import_module("veris.evp_solver").evp_solver
     sett = sett._replace(
         nEVPsteps=3,
@@ -163,8 +195,14 @@ def test_evp_residual_diagnostics_preserve_uniform_solution(
 @pytest.mark.parametrize("principal_stress", [(0, 0, 0), (4, 2, 3)])
 @pytest.mark.parametrize("wind", [0.0, 0.1])
 def test_printed_evp_residual_matches_interior_velocity_norm(
-    halo, evp_state, sett, monkeypatch, capsys, wind, principal_stress
-):
+    halo: ModuleType,
+    evp_state: EVPStateFactory,
+    sett: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    wind: float,
+    principal_stress: tuple[int, int, int],
+) -> None:
     """Diagnostics must report the actual norm, excluding duplicate halos."""
     import re
 
@@ -206,8 +244,14 @@ def test_printed_evp_residual_matches_interior_velocity_norm(
 @pytest.mark.parametrize("partition_axis", [0, 1], ids=["zonal", "meridional"])
 @pytest.mark.parametrize("entry_point", ["direct", "dispatcher"])
 def test_sharded_evp_residual_sums_all_device_interiors(
-    halo, evp_state, sett, monkeypatch, capsys, partition_axis, entry_point
-):
+    halo: ModuleType,
+    evp_state: EVPStateFactory,
+    sett: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    partition_axis: int,
+    entry_point: str,
+) -> None:
     """Global diagnostics count each device interior once in either mesh direction."""
     import re
 

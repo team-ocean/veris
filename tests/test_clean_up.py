@@ -2,13 +2,17 @@
 
 import numpy as np
 import pytest
+from conftest import StateFactory
 
 from veris.clean_up import clean_up_advection, ridging
+from veris.state import Settings
 
 
 @pytest.mark.parametrize("ice", [-0.2, 0, 0.5, 1, 2])
 @pytest.mark.parametrize("snow", [-0.1, 0, 0.3])
-def test_cleanup_thresholds_and_overshoots(state, sett, ice, snow):
+def test_cleanup_thresholds_and_overshoots(
+    state: StateFactory, sett: Settings, ice: float, snow: float
+) -> None:
     sett = sett._replace(hIce_min=0.5, Area_min=0.01)
     vs = state(hIceMean=[[ice]], hSnowMean=[[snow]], Area=[[-0.2]], TSurf=[[260]])
     result = clean_up_advection(vs, sett)
@@ -21,7 +25,9 @@ def test_cleanup_thresholds_and_overshoots(state, sett, ice, snow):
         np.testing.assert_allclose(value, reference)
 
 
-def test_cleanup_preserves_positive_area_above_minimum(state, sett):
+def test_cleanup_preserves_positive_area_above_minimum(
+    state: StateFactory, sett: Settings
+) -> None:
     sett = sett._replace(hIce_min=0.5, Area_min=0.01)
     area = np.array([[0.005, 0.01, 0.4], [0.8, 1.0, 1.2]])
     ice = np.full_like(area, 2.0)
@@ -38,7 +44,7 @@ def test_cleanup_preserves_positive_area_above_minimum(state, sett):
         np.testing.assert_array_equal(value, reference)
 
 
-def test_ridging_caps_only_area(state, sett):
+def test_ridging_caps_only_area(state: StateFactory, sett: Settings) -> None:
     vs = state(Area=[[-0.1, 0, 0.7, 1, 1.5]])
     result = ridging(vs, sett)
     assert result.shape == vs.Area.shape

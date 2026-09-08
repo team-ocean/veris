@@ -7,20 +7,17 @@ The host driver selects serial halos; state is an immutable namedtuple PyTree.
 Five EVP substeps keep this example small; they are not a convergence criterion.
 """
 
-from collections import namedtuple
-
 import jax
 import jax.numpy as jnp
 import numpy as np
 
 from veris.settings import settings
-from veris.variables import variables
-
-State = namedtuple("State", (*variables, "forc_salt_surface"))
-Settings = namedtuple("Settings", settings)
+from veris.state import Settings, State
 
 
-def initialize(nx=8, ny=12, wind=5.0, air_temperature=260.0):
+def initialize(
+    nx: int = 8, ny: int = 12, wind: float = 5.0, air_temperature: float = 260.0
+) -> tuple[State, Settings]:
     """Return an artificial masked state and settings for 600-second steps.
 
     Call in a fresh process before importing distributed halo consumers.
@@ -79,10 +76,10 @@ def initialize(nx=8, ny=12, wind=5.0, air_temperature=260.0):
         LWdown=sett.stefBoltz * air_temperature**4 * ones,
         aqh=0.622 * vapor / (100000 - 0.378 * vapor) * ones,
     )
-    return State(**fields), sett
+    return State._make(fields[name] for name in State._fields), sett
 
 
-def step(vs, sett, cooling=100.0):
+def step(vs: State, sett: Settings, cooling: float = 100.0) -> State:
     """Advance dynamics, transport, cleanup, and growth with prescribed forcing.
 
     Cooling is the upward open-water net heat flux in W/m². It is restored on
@@ -98,7 +95,7 @@ def step(vs, sett, cooling=100.0):
     from veris.growth import Growth
     from veris.ocean_stress import OceanStressUV
 
-    def assign(state, names, values):
+    def assign(state: State, names: str, values: tuple[jax.Array, ...]) -> State:
         return state._replace(**dict(zip(names.split(), values, strict=True)))
 
     vs = vs._replace(Qnet=jnp.full_like(vs.Qnet, cooling), Qsw=jnp.zeros_like(vs.Qsw))

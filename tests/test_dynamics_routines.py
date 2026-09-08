@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+from conftest import StateFactory
 
 from veris.dynamics_routines import (
     SeaIceStrength,
@@ -13,9 +14,12 @@ from veris.dynamics_routines import (
     stressdiv,
     viscosities,
 )
+from veris.state import Settings
 
 
-def test_ice_strength_concentration_and_land(state, sett):
+def test_ice_strength_concentration_and_land(
+    state: StateFactory, sett: Settings
+) -> None:
     ice = np.array([[0, 1, 2], [3, 1, 2]], dtype=float)
     area = np.array([[0, 0.5, 1], [0.8, 1, 0.9]])
     mask = np.array([[1, 1, 1], [1, 0, 0]])
@@ -32,7 +36,9 @@ def test_ice_strength_concentration_and_land(state, sett):
 
 @pytest.mark.parametrize("coriolis", [-1e-4, 0, 1e-4])
 @pytest.mark.parametrize("velocity", [(0, 0), (0.03, 0.04), (0.3, -0.4)])
-def test_ocean_drag_relative_speed_floor_and_land(state, sett, coriolis, velocity):
+def test_ocean_drag_relative_speed_floor_and_land(
+    state: StateFactory, sett: Settings, coriolis: float, velocity: tuple[float, float]
+) -> None:
     sett = sett._replace(waterIceDrag=0.004, waterIceDrag_south=0.008)
     ones = np.ones((3, 5))
     mask = ones.copy()
@@ -56,7 +62,9 @@ def test_ocean_drag_relative_speed_floor_and_land(state, sett, coriolis, velocit
 
 @pytest.mark.parametrize("area", [0, 0.01, 0.02, 0.8, 1])
 @pytest.mark.parametrize("velocity", [(0, 0), (0.3, -0.4)])
-def test_basal_drag_regularized_keel_threshold(state, sett, area, velocity):
+def test_basal_drag_regularized_keel_threshold(
+    state: StateFactory, sett: Settings, area: float, velocity: tuple[float, float]
+) -> None:
     sett = sett._replace(basalDragK2=0.7)
     ones = np.ones((3, 5))
     vs = state(
@@ -84,7 +92,9 @@ def test_basal_drag_regularized_keel_threshold(state, sett, area, velocity):
 
 @pytest.mark.parametrize("coastline", [False, True])
 @pytest.mark.parametrize("velocity", [(0, 0), (0.3, 0.4)])
-def test_side_drag_coastline_and_neighbor_counts(state, sett, coastline, velocity):
+def test_side_drag_coastline_and_neighbor_counts(
+    state: StateFactory, sett: Settings, coastline: bool, velocity: tuple[float, float]
+) -> None:
     sett = sett._replace(use_coastline=coastline)
     ones = np.ones((4, 7))
     mask_u, mask_v = ones.copy(), ones.copy()
@@ -116,7 +126,12 @@ def test_side_drag_coastline_and_neighbor_counts(state, sett, coastline, velocit
 
 @pytest.mark.parametrize("boundary", [(False, False), (True, False), (True, True)])
 @pytest.mark.parametrize("coefficients", [(0, 0, 0, 0), (2, 3, 4, -1), (0, -2, 2, 0)])
-def test_affine_cartesian_strain_tensor(state, sett, boundary, coefficients):
+def test_affine_cartesian_strain_tensor(
+    state: StateFactory,
+    sett: Settings,
+    boundary: tuple[bool, bool],
+    coefficients: tuple[int, int, int, int],
+) -> None:
     sett = sett._replace(noSlip=boundary[0], secondOrderBC=boundary[1])
     x, y = np.indices((6, 8), dtype=float)
     ones = np.ones_like(x)
@@ -145,8 +160,12 @@ def test_affine_cartesian_strain_tensor(state, sett, boundary, coefficients):
 @pytest.mark.parametrize("replacement", [0, 1])
 @pytest.mark.parametrize("tensile", [0, 0.2])
 def test_uniform_viscosity_and_stress_scalar_equations(
-    state, sett, strain, replacement, tensile
-):
+    state: StateFactory,
+    sett: Settings,
+    strain: tuple[float, float, float],
+    replacement: int,
+    tensile: float,
+) -> None:
     sett = sett._replace(pressReplFac=replacement, tensileStrFac=tensile)
     ones = np.ones((3, 5))
     strength = 1500.0
@@ -178,7 +197,9 @@ def test_uniform_viscosity_and_stress_scalar_equations(
 
 
 @pytest.mark.parametrize("constant", [False, True])
-def test_stress_divergence_affine_cartesian_tensor(state, sett, constant):
+def test_stress_divergence_affine_cartesian_tensor(
+    state: StateFactory, sett: Settings, constant: bool
+) -> None:
     x, y = np.indices((6, 8), dtype=float)
     dx, dy = 2.0, 3.0
     ones = np.ones_like(x)

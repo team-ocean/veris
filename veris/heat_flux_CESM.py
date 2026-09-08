@@ -2,12 +2,28 @@
 
 Array inputs preserve the original shapes and units documented per function.
 Settings are supplied through an immutable, hashable state.settings object.
+The return casts describe JIT's array outputs for formulas whose eager NumPy
+or Python inputs would otherwise infer NumPy arrays or scalars. They perform no
+conversion and leave the original equations unchanged.
 """
 
 from functools import partial
+from typing import cast
 
-import jax
 import jax.numpy as npx
+from jax import Array
+from jax.typing import ArrayLike
+
+from veris._bulk_types import (
+    BulkState,
+    CESMFluxes,
+    CESMFluxSettings,
+    HeatFluxes,
+    HeightSettings,
+    LongwaveSettings,
+    SimpleFluxSettings,
+)
+from veris._typing import ArrayInput, MaskInput, jit
 
 _cc = npx.array(
     [
@@ -62,8 +78,8 @@ _clat = npx.array(
 )
 
 
-@jax.jit
-def qsat(tk):
+@jit
+def qsat(tk: ArrayLike) -> Array:
     """The saturation humidity of air (kg/m^3)
 
     Argument:
@@ -72,8 +88,8 @@ def qsat(tk):
     return 640380.0 / npx.exp(5107.4 / tk)
 
 
-@jax.jit
-def qsat_august_eqn(ps, tk):
+@jit
+def qsat_august_eqn(ps: ArrayLike, tk: ArrayLike) -> Array:
     """Saturated specific humidity (kg/kg)
 
     Arguments:
@@ -89,11 +105,11 @@ def qsat_august_eqn(ps, tk):
         using a three-year climatology of ECMWF analyses,
         Journal of Marine Systems, 6, p. 363-380.
     """
-    return 0.622 / ps * 10 ** (9.4051 - 2353.0 / tk) * 133.322
+    return cast(Array, 0.622 / ps * 10 ** (9.4051 - 2353.0 / tk) * 133.322)
 
 
-@jax.jit
-def get_press_levs(sp, hya, hyb):
+@jit
+def get_press_levs(sp: ArrayInput, hya: ArrayInput, hyb: ArrayInput) -> Array:
     """Compute pressure levels
 
     Arguments:
@@ -105,13 +121,16 @@ def get_press_levs(sp, hya, hyb):
         :obj:`ndarray`
     """
 
-    return (
+    return cast(
+        Array,
         hya[npx.newaxis, npx.newaxis, :]
-        + hyb[npx.newaxis, npx.newaxis, :] * sp[:, :, npx.newaxis]
+        + hyb[npx.newaxis, npx.newaxis, :] * sp[:, :, npx.newaxis],
     )
 
 
-def compute_z_level(settings, t, q, ph):
+def compute_z_level(
+    settings: HeightSettings, t: ArrayInput, q: ArrayInput, ph: ArrayInput
+) -> Array:
     """Computes the altitudes at ECMWF Integrated Forecasting System
     (ECMWF-IFS) model half- and full-levels (for 137 levels model reanalysis: L137)
 
@@ -157,8 +176,18 @@ def compute_z_level(settings, t, q, ph):
     return alt[:, :, -1]
 
 
-@partial(jax.jit, static_argnames=["state"])
-def dqnetdt(state, mask, ps, rbot, sst, ubot, vbot, us, vs):
+@partial(jit, static_argnames=["state"])
+def dqnetdt(
+    state: BulkState[SimpleFluxSettings],
+    mask: MaskInput,
+    ps: ArrayInput,
+    rbot: ArrayInput,
+    sst: ArrayInput,
+    ubot: ArrayInput,
+    vbot: ArrayInput,
+    us: ArrayInput,
+    vs: ArrayInput,
+) -> HeatFluxes:
     """Calculates correction term of net ocean heat flux (W/m^2)
 
     Arguments:
@@ -204,11 +233,19 @@ def dqnetdt(state, mask, ps, rbot, sst, ubot, vbot, us, vs):
         * mask
     )
 
-    return (dqir_dt, dqh_dt, dqe_dt)
+    return cast(Array, dqir_dt), cast(Array, dqh_dt), cast(Array, dqe_dt)
 
 
-@partial(jax.jit, static_argnames=["state"])
-def net_lw_ocn(state, mask, lat, qbot, sst, tbot, tcc):
+@partial(jit, static_argnames=["state"])
+def net_lw_ocn(
+    state: BulkState[LongwaveSettings],
+    mask: MaskInput,
+    lat: ArrayInput,
+    qbot: ArrayInput,
+    sst: ArrayInput,
+    tbot: ArrayInput,
+    tcc: ArrayInput,
+) -> Array:
     """Compute net downward LW radiation at the ocean surface (W/m^2)
 
     Arguments:
@@ -236,7 +273,8 @@ def net_lw_ocn(state, mask, lat, qbot, sst, tbot, tcc):
     frac_cloud_cover = 1.0 - ccint[npx.newaxis, :] * tcc[...] ** 2
     rtea = npx.sqrt(1000.0 * qbot[...] / (0.622 + 0.378 * qbot[...]) + settings.eps2)
 
-    return (
+    return cast(
+        Array,
         -settings.emissivity
         * settings.stefBoltz
         * tbot[...] ** 3
@@ -244,22 +282,22 @@ def net_lw_ocn(state, mask, lat, qbot, sst, tbot, tcc):
             tbot[...] * (0.39 - 0.05 * rtea[...]) * frac_cloud_cover
             + 4.0 * (sst[...] - tbot[...])
         )
-        * mask[...]
+        * mask[...],
     )
 
 
-@jax.jit
-def cdn(umps):
+@jit
+def cdn(umps: ArrayLike) -> Array:
     """Neutral drag coeff at 10m
 
     Argument:
         umps (:obj:`ndarray`): wind speed (m/s)
     """
-    return 0.0027 / umps + 0.000142 + 0.0000764 * umps
+    return cast(Array, 0.0027 / umps + 0.000142 + 0.0000764 * umps)
 
 
-@jax.jit
-def psimhu(xd):
+@jit
+def psimhu(xd: ArrayLike) -> Array:
     """Unstable part of psimh
 
     Argument:
@@ -272,8 +310,8 @@ def psimhu(xd):
     )
 
 
-@jax.jit
-def psixhu(xd):
+@jit
+def psixhu(xd: ArrayLike) -> Array:
     """Unstable part of psimx
 
     Argument:
@@ -282,8 +320,21 @@ def psixhu(xd):
     return 2.0 * npx.log((1.0 + xd * xd) / 2.0)
 
 
-@partial(jax.jit, static_argnames=["state"])
-def flux_atmOcn(state, mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, ts):
+@partial(jit, static_argnames=["state"])
+def flux_atmOcn(
+    state: BulkState[CESMFluxSettings],
+    mask: MaskInput,
+    rbot: ArrayInput,
+    zbot: ArrayInput,
+    ubot: ArrayInput,
+    vbot: ArrayInput,
+    qbot: ArrayInput,
+    tbot: ArrayInput,
+    thbot: ArrayInput,
+    us: ArrayInput,
+    vs: ArrayInput,
+    ts: ArrayInput,
+) -> CESMFluxes:
     """atm/ocn fluxes calculation
 
     Arguments:
@@ -463,11 +514,36 @@ def flux_atmOcn(state, mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, 
     # 10m wind speed squared
     duu10n = u10n[...] * u10n[...] * mask[...]
 
-    return (sen, lat, lwup, evap, taux, tauy, tref, qref, duu10n, ustar, tstar, qstar)
+    return (
+        sen,
+        lat,
+        cast(Array, lwup),
+        evap,
+        taux,
+        tauy,
+        cast(Array, tref),
+        cast(Array, qref),
+        duu10n,
+        ustar,
+        tstar,
+        qstar,
+    )
 
 
-@partial(jax.jit, static_argnames=["state"])
-def flux_atmOcn_simple(state, mask, ps, qbot, rbot, ubot, vbot, tbot, us, vs, ts):
+@partial(jit, static_argnames=["state"])
+def flux_atmOcn_simple(
+    state: BulkState[SimpleFluxSettings],
+    mask: MaskInput,
+    ps: ArrayInput,
+    qbot: ArrayInput,
+    rbot: ArrayInput,
+    ubot: ArrayInput,
+    vbot: ArrayInput,
+    tbot: ArrayInput,
+    us: ArrayInput,
+    vs: ArrayInput,
+    ts: ArrayInput,
+) -> HeatFluxes:
     """Calculates bulk net heat flux
 
     Arguments:
@@ -523,4 +599,4 @@ def flux_atmOcn_simple(state, mask, ps, qbot, rbot, ubot, vbot, tbot, us, vs, ts
         * mask[...]
     )
 
-    return (qir, qh, qe)
+    return cast(Array, qir), cast(Array, qh), cast(Array, qe)

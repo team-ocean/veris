@@ -5,11 +5,16 @@ one unpartitioned global interior modulo its dimensions; it never exchanges
 neighbor buffers using the production algorithm.
 """
 
+from collections.abc import Callable
+from typing import cast
+
 import jax
 import jax.numpy as jnp
 import numpy as np
+from jax import Array
 from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
+from numpy.typing import NDArray
 
 from veris.settings import settings
 
@@ -17,13 +22,13 @@ settings["use_sharding"] = False
 from veris.fill_overlap import fill_overlap_shard
 
 
-def check_layout(px, py):
+def check_layout(px: int, py: int) -> None:
     """Compare every interior/edge/corner of each shard with global coordinates."""
     nx, ny = 3, 5
     gx, gy = px * nx, py * ny
-    global_field = np.arange(gx * gy, dtype=float).reshape(gx, gy)
-    packed = np.full((px * (nx + 4), py * (ny + 4)), -999.0)
-    expected = np.empty_like(packed)
+    global_field: NDArray[np.float64] = np.arange(gx * gy, dtype=float).reshape(gx, gy)
+    packed: NDArray[np.float64] = np.full((px * (nx + 4), py * (ny + 4)), -999.0)
+    expected: NDArray[np.float64] = np.empty_like(packed)
     for rank_x in range(px):
         for rank_y in range(py):
             block_x, block_y = rank_x * (nx + 4), rank_y * (ny + 4)
@@ -38,11 +43,15 @@ def check_layout(px, py):
                 ]
     mesh = jax.make_mesh((px, py), ("x", "y"))
     sharding = NamedSharding(mesh, P("x", "y"))
-    data = jax.device_put(jnp.asarray(packed), sharding)
-    fill = jax.shard_map(
-        fill_overlap_shard, mesh=mesh, in_specs=P("x", "y"), out_specs=P("x", "y")
+    data: Array = jax.device_put(jnp.asarray(packed), sharding)
+    # shard_map preserves this array-to-array callback despite its broad stubs.
+    fill = cast(
+        Callable[[Array], Array],
+        jax.shard_map(
+            fill_overlap_shard, mesh=mesh, in_specs=P("x", "y"), out_specs=P("x", "y")
+        ),
     )
-    actual = np.asarray(fill(data))
+    actual: NDArray[np.float64] = np.asarray(fill(data))
     if not np.array_equal(actual, expected):
         location = np.unravel_index(np.argmax(np.abs(actual - expected)), actual.shape)
         raise AssertionError(
@@ -51,9 +60,14 @@ def check_layout(px, py):
     # A halo refresh is an idempotent projection, including the reverse pass.
     refreshed = fill(data)
     np.testing.assert_array_equal(fill(refreshed), expected)
+
+    def filled_sum(value: Array) -> Array:
+        """Differentiate the sum of the refreshed interior and halo cells."""
+        return jnp.sum(fill(value))
+
     with jax.set_mesh(mesh):
-        gradient = jax.grad(lambda value: jnp.sum(fill(value)))(data)
-    counts = np.zeros_like(packed)
+        gradient: Array = jax.grad(filled_sum)(data)
+    counts: NDArray[np.float64] = np.zeros_like(packed)
     for rank_x in range(px):
         for rank_y in range(py):
             for i, j in np.ndindex((nx + 4, ny + 4)):

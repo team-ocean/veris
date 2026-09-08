@@ -1,6 +1,7 @@
 """Standalone coupled integration with an artificial island and no ocean model."""
 
 import importlib
+from types import ModuleType
 
 import jax
 import numpy as np
@@ -8,11 +9,11 @@ import pytest
 
 
 @pytest.fixture
-def example(halo):
+def example(halo: ModuleType) -> ModuleType:
     return importlib.import_module("veris.setup.artificial")
 
 
-def test_artificial_masks_block_both_sides_of_coast(example):
+def test_artificial_masks_block_both_sides_of_coast(example: ModuleType) -> None:
     vs, _ = example.initialize()
     mask = np.asarray(vs.iceMask)
     assert mask.shape == (12, 16)
@@ -24,7 +25,7 @@ def test_artificial_masks_block_both_sides_of_coast(example):
         assert np.all(np.asarray(getattr(vs, name))[mask == 0] == 0)
 
 
-def test_coupled_rest_equilibrium_is_preserved(example):
+def test_coupled_rest_equilibrium_is_preserved(example: ModuleType) -> None:
     from veris.settings import settings
 
     vs, sett = example.initialize(
@@ -39,7 +40,9 @@ def test_coupled_rest_equilibrium_is_preserved(example):
         )
 
 
-def test_coupled_forced_steps_keep_land_empty_and_halos_periodic(example):
+def test_coupled_forced_steps_keep_land_empty_and_halos_periodic(
+    example: ModuleType,
+) -> None:
     vs, sett = example.initialize()
     initial_ice = np.asarray(vs.hIceMean)
     for _ in range(3):
@@ -70,12 +73,14 @@ def test_coupled_forced_steps_keep_land_empty_and_halos_periodic(example):
 
 
 @pytest.mark.parametrize("nx, ny", [(1, 12), (8, 1)])
-def test_too_small_grid_has_clear_error(example, nx, ny):
+def test_too_small_grid_has_clear_error(example: ModuleType, nx: int, ny: int) -> None:
     with pytest.raises(ValueError, match="at least"):
         example.initialize(nx=nx, ny=ny)
 
 
-def test_prescribed_forcing_replaces_previous_ocean_flux_outputs(example):
+def test_prescribed_forcing_replaces_previous_ocean_flux_outputs(
+    example: ModuleType,
+) -> None:
     """Ocean coupling outputs must not become next-step atmospheric forcing."""
     import jax.numpy as jnp
 
@@ -89,7 +94,7 @@ def test_prescribed_forcing_replaces_previous_ocean_flux_outputs(example):
         np.testing.assert_array_equal(first, second)
 
 
-def test_example_runs_in_fresh_process_without_mesh_helper():
+def test_example_runs_in_fresh_process_without_mesh_helper() -> None:
     """Verify standalone import order without the serial pytest halo fixture."""
     import subprocess
     import sys

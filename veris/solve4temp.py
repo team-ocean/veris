@@ -1,11 +1,29 @@
+"""Solve the original Veris conductive and atmospheric ice/snow heat balance.
+
+Horizontal thickness, temperature, and forcing arrays produce surface
+temperature, two net heat fluxes, penetrating shortwave radiation, and
+sublimation. Six Newton iterations retain the reference melting-temperature
+cap and albedo switches; gradients follow their selected smooth branches.
+"""
+
 from functools import partial
 
-import jax
 import jax.numpy as jnp
+from jax import Array
+
+from veris._thermodynamic_types import SurfaceFluxResult, SurfaceSettings, SurfaceState
+from veris._typing import ArrayInput, jit
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def solve4temp(vs, sett, hIceActual, hSnowActual, TSurfIn, TempFrz):
+@partial(jit, static_argnames=["sett"])
+def solve4temp(
+    vs: SurfaceState,
+    sett: SurfaceSettings,
+    hIceActual: ArrayInput,
+    hSnowActual: ArrayInput,
+    TSurfIn: ArrayInput,
+    TempFrz: ArrayInput,
+) -> SurfaceFluxResult:
     """calculate heat fluxes through the ice and ice surface temperature"""
 
     ##### define local constants used for calculations #####
@@ -104,7 +122,8 @@ def solve4temp(vs, sett, hIceActual, hSnowActual, TSurfIn, TempFrz):
 
     ##### calculate the heat fluxes #####
 
-    def fluxes(t1):
+    def fluxes(t1: ArrayInput) -> tuple[Array, Array, Array, Array]:
+        """Evaluate conductive/latent/net atmospheric flux and its derivative."""
         t2 = t1 * t1
         t3 = t2 * t1
         t4 = t2 * t2

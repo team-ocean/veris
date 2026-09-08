@@ -1,3 +1,7 @@
+"""Configure Sphinx and render trusted repository snippets as documentation."""
+
+from __future__ import annotations
+
 #
 # Veris documentation build configuration file, created by
 # sphinx-quickstart on Tue Mar  7 23:56:46 2017.
@@ -10,19 +14,21 @@
 #
 # All configuration values have a default; values that are commented out
 # serve to show the default.
-
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-
 import os
 import sys
 from io import StringIO
 from os.path import basename
+from typing import TYPE_CHECKING
 
 from docutils import nodes, statemachine
 from docutils.parsers.rst import Directive
+
+if TYPE_CHECKING:
+    from sphinx.application import Sphinx
 
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("_3rdparty"))
@@ -37,7 +43,7 @@ sys.path.insert(0, os.path.abspath("_3rdparty"))
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 
-extensions = [
+extensions: list[str] = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.coverage",
@@ -51,7 +57,7 @@ extensions = [
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ["_templates"]
+templates_path: list[str] = ["_templates"]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -77,7 +83,7 @@ language = "en"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "_generated"]
+exclude_patterns: list[str] = ["_build", "Thumbs.db", ".DS_Store", "_generated"]
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
@@ -104,7 +110,7 @@ html_theme = "furo"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = []
+html_static_path: list[str] = []
 
 
 # -- Options for HTMLHelp output ------------------------------------------
@@ -115,7 +121,7 @@ htmlhelp_basename = "veris_doc"
 
 # -- Options for LaTeX output ---------------------------------------------
 
-latex_elements = {
+latex_elements: dict[str, str] = {
     # The paper size ('letterpaper' or 'a4paper').
     #
     # 'papersize': 'letterpaper',
@@ -133,7 +139,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
-latex_documents = [
+latex_documents: list[tuple[str, str, str, str, str]] = [
     (master_doc, "veris.tex", "Veris Documentation", "The Veros Team", "manual"),
 ]
 
@@ -142,7 +148,9 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "Veris", "Veris Documentation", [author], 1)]
+man_pages: list[tuple[str, str, str, list[str], int]] = [
+    (master_doc, "Veris", "Veris Documentation", [author], 1)
+]
 
 
 # -- Options for Texinfo output -------------------------------------------
@@ -150,7 +158,7 @@ man_pages = [(master_doc, "Veris", "Veris Documentation", [author], 1)]
 # Grouping the document tree into Texinfo files. List of tuples
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
-texinfo_documents = [
+texinfo_documents: list[tuple[str, str, str, str, str, str, str]] = [
     (
         master_doc,
         "Veris",
@@ -164,11 +172,13 @@ texinfo_documents = [
 
 # -- Options for autodoc --------------------------------------------------
 autodoc_member_order = "bysource"
-autodoc_default_options = {"show-inheritance": None}
+autodoc_default_options: dict[str, str | bool | None] = {"show-inheritance": None}
 # autodoc_mock_imports = ["loguru", "numpy", "h5netcdf", "scipy"]
 
 # -- Options for intersphinx ----------------------------------------------
-intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
+intersphinx_mapping: dict[str, tuple[str, str | None]] = {
+    "python": ("https://docs.python.org/3", None)
+}
 
 # -- Custom directives ----------------------------------------------------
 
@@ -178,7 +188,7 @@ class ExecDirective(Directive):
 
     has_content = True
 
-    def run(self):
+    def run(self) -> list[nodes.Node]:
         """Render snippet output, reporting execution failures through Sphinx."""
         old_stdout, sys.stdout = sys.stdout, StringIO()
 
@@ -213,6 +223,6 @@ class ExecDirective(Directive):
             sys.stdout = old_stdout
 
 
-def setup(app):
+def setup(app: Sphinx) -> None:
     """Register the directive used to render model configuration tables."""
     app.add_directive("exec", ExecDirective)

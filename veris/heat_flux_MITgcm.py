@@ -6,12 +6,23 @@ Settings are supplied through an immutable, hashable state.settings object.
 
 from functools import partial
 
-import jax
 import jax.numpy as npx
+from jax.typing import ArrayLike
+
+from veris._bulk_types import BulkState, LANLFluxes, LANLFluxSettings
+from veris._typing import jit
 
 
-@partial(jax.jit, static_argnames=["state"])
-def bulkf_formula_lanl(state, uw, vw, ta, qa, tsf, ocn_mask):
+@partial(jit, static_argnames=["state"])
+def bulkf_formula_lanl(
+    state: BulkState[LANLFluxSettings],
+    uw: ArrayLike,
+    vw: ArrayLike,
+    ta: ArrayLike,
+    qa: ArrayLike,
+    tsf: ArrayLike,
+    ocn_mask: ArrayLike,
+) -> LANLFluxes:
     """Calculate bulk formula fluxes over open ocean
 
         wind stress = (ust,vst) = rhoA * Cd * Ws * (del.u,del.v)
@@ -140,7 +151,14 @@ def bulkf_formula_lanl(state, uw, vw, ta, qa, tsf, ocn_mask):
     ust = settings.rhoAir * bulkf_cdn * us[...] * uw[...]
     vst = settings.rhoAir * bulkf_cdn * us[...] * vw[...]
 
-    return tuple(
-        npx.where(wet, value, 0.0)
-        for value in (flwupa, flha, fsha, df0dt, ust, vst, evp, ssq, devdt)
+    return (
+        npx.where(wet, flwupa, 0.0),
+        npx.where(wet, flha, 0.0),
+        npx.where(wet, fsha, 0.0),
+        npx.where(wet, df0dt, 0.0),
+        npx.where(wet, ust, 0.0),
+        npx.where(wet, vst, 0.0),
+        npx.where(wet, evp, 0.0),
+        npx.where(wet, ssq, 0.0),
+        npx.where(wet, devdt, 0.0),
     )

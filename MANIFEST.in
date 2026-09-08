@@ -1,0 +1,2 @@
+include versioneer.py versioneer.pyi
+recursive-include veris *.pyi py.typed

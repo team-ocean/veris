@@ -1,11 +1,32 @@
+"""Ice strength, drag, strain, viscosity and stress on the staggered grid."""
+
+from collections.abc import Hashable
 from functools import partial
+from typing import cast
 
-import jax
 import jax.numpy as jnp
+from jax import Array
+
+from veris._dynamics_types import (
+    BasalDragSettings,
+    BasalDragState,
+    OceanDragSettings,
+    OceanDragState,
+    SideDragSettings,
+    SideDragState,
+    StrainSettings,
+    StrainState,
+    StrengthSettings,
+    StrengthState,
+    StressDivergenceState,
+    ViscositySettings,
+    ViscosityState,
+)
+from veris._typing import ArrayInput, BoundarySettings, MaskState, jit
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def SeaIceStrength(vs, sett):
+@partial(jit, static_argnames=["sett"])
+def SeaIceStrength(vs: StrengthState, sett: StrengthSettings) -> Array:
     """calculate ice strength (= maximum compressive stress)
     from ice thickness and ice cover fraction
     """
@@ -17,8 +38,10 @@ def SeaIceStrength(vs, sett):
     return SeaIceStrength
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def ocean_drag_coeffs(vs, sett, uIce, vIce):
+@partial(jit, static_argnames=["sett"])
+def ocean_drag_coeffs(
+    vs: OceanDragState, sett: OceanDragSettings, uIce: ArrayInput, vIce: ArrayInput
+) -> Array:
     """calculate linear ice-water drag coefficient from ice and ocean velocities
     (this coefficient creates a linear relationship between
     ice-ocean stress difference and ice-ocean velocity difference)
@@ -48,8 +71,10 @@ def ocean_drag_coeffs(vs, sett, uIce, vIce):
     return cDrag
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def basal_drag_coeffs(vs, sett, uIce, vIce):
+@partial(jit, static_argnames=["sett"])
+def basal_drag_coeffs(
+    vs: BasalDragState, sett: BasalDragSettings, uIce: ArrayInput, vIce: ArrayInput
+) -> Array:
     """calculate basal drag coefficient to account for the formation of
     landfast ice in shallow waters due to the formation of ice keels
     (Lemieux et al., 2015)
@@ -85,8 +110,10 @@ def basal_drag_coeffs(vs, sett, uIce, vIce):
     return cBot
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def side_drag(vs, sett, uIce, vIce):
+@partial(jit, static_argnames=["sett"])
+def side_drag(
+    vs: SideDragState, sett: SideDragSettings, uIce: ArrayInput, vIce: ArrayInput
+) -> tuple[Array, Array]:
     """calculate the lateral drag coefficient to simulate landfast ice
     (Liu et al. 2022, A new parameterization of coastal drag to simulate landfast
     ice in deep marginal seas in the Arctic)
@@ -126,8 +153,10 @@ def side_drag(vs, sett, uIce, vIce):
     return SideDragU, SideDragV
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def strainrates(vs, sett, uIce, vIce):
+@partial(jit, static_argnames=["sett"])
+def strainrates(
+    vs: StrainState, sett: StrainSettings, uIce: ArrayInput, vIce: ArrayInput
+) -> tuple[Array, Array, Array]:
     """calculate strain rate tensor components from ice velocities"""
 
     # some abbreviations at c-points
@@ -197,11 +226,18 @@ def strainrates(vs, sett, uIce, vIce):
             * hFacV
         )
 
-    return e11, e22, e12
+    # JIT promotes NumPy inputs to JAX tracers before the stencil runs.
+    return e11, e22, cast(Array, e12)
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def viscosities(vs, sett, e11, e22, e12):
+@partial(jit, static_argnames=["sett"])
+def viscosities(
+    vs: ViscosityState,
+    sett: ViscositySettings,
+    e11: ArrayInput,
+    e22: ArrayInput,
+    e12: ArrayInput,
+) -> tuple[Array, Array, Array]:
     """calculate bulk viscosity zeta, shear viscosity eta, and ice pressure
     from strain rate tensor components and ice strength.
     if pressReplFac = 1, a replacement pressure is used to avoid
@@ -248,8 +284,17 @@ def viscosities(vs, sett, e11, e22, e12):
     return zeta, eta, press
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def stress(vs, sett, e11, e22, e12, zeta, eta, press):
+@partial(jit, static_argnames=["sett"])
+def stress(
+    vs: MaskState,
+    sett: BoundarySettings,
+    e11: ArrayInput,
+    e22: ArrayInput,
+    e12: ArrayInput,
+    zeta: ArrayInput,
+    eta: ArrayInput,
+    press: ArrayInput,
+) -> tuple[Array, Array, Array]:
     """calculate stress tensor components"""
 
     from veris.averaging import c_point_to_z_point
@@ -258,11 +303,18 @@ def stress(vs, sett, e11, e22, e12, zeta, eta, press):
     sig22 = 0.5 * (2 * zeta * (e11 + e22) - 2 * eta * (e11 - e22) - press)
     sig12 = 2.0 * e12 * c_point_to_z_point(vs, sett, eta)
 
-    return sig11, sig22, sig12
+    # NumPy inputs become JAX tracers at this compiled boundary.
+    return cast(tuple[Array, Array, Array], (sig11, sig22, sig12))
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def stressdiv(vs, sett, sig11, sig22, sig12):
+@partial(jit, static_argnames=["sett"])
+def stressdiv(
+    vs: StressDivergenceState,
+    sett: Hashable,
+    sig11: ArrayInput,
+    sig22: ArrayInput,
+    sig12: ArrayInput,
+) -> tuple[Array, Array]:
     """calculate divergence of stress tensor"""
 
     stressDivX = (
@@ -278,4 +330,5 @@ def stressdiv(vs, sett, sig11, sig22, sig12):
         + jnp.roll(sig12 * vs.dyU, -1, axis=0)
     ) * vs.recip_rAv
 
-    return stressDivX, stressDivY
+    # NumPy inputs become JAX tracers at this compiled boundary.
+    return cast(tuple[Array, Array], (stressDivX, stressDivY))

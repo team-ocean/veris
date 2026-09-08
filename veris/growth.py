@@ -1,13 +1,22 @@
+"""Update ice/snow thickness, concentration, and ocean thermodynamic fluxes.
+
+The original Veris Growth equations average surface fluxes over nITC thickness
+categories and combine ice/snow melt, mixed-layer exchange, precipitation, and
+salt/freshwater coupling. Inputs and all eleven outputs are horizontal arrays;
+the internal category axis is last. Surface temperatures come from solve4temp.
+"""
+
 from functools import partial
 
-import jax
 import jax.numpy as jnp
 
+from veris._thermodynamic_types import GrowthResult, GrowthSettings, GrowthState
+from veris._typing import jit
 from veris.solve4temp import solve4temp
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def Growth(vs, sett):
+@partial(jit, static_argnames=["sett"])
+def Growth(vs: GrowthState, sett: GrowthSettings) -> GrowthResult:
     """calculate thermodynamic change of ice and snow thickness and ice cover fraction
     due to atmospheric and ocean surface forcing"""
 

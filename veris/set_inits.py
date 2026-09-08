@@ -6,10 +6,99 @@ The last vertical mask level is the ocean surface. Periodic neighbor averages
 follow the original Veris set_inits routine.
 """
 
+from typing import Protocol
+
 import jax.numpy as npx
+from jax import Array
 
 
-def set_inits(state):
+class MutableGeometry(Protocol):
+    """Ocean geometry inputs and writable output slots populated by set_inits.
+
+    Output slots may be uninitialized on entry; every output is assigned before
+    use. Inputs are surface/volume JAX arrays with the dimensions in set_inits.
+    """
+
+    @property
+    def area_t(self) -> Array: ...
+
+    @property
+    def area_u(self) -> Array: ...
+
+    @property
+    def area_v(self) -> Array: ...
+
+    @property
+    def coriolis_t(self) -> Array: ...
+
+    @property
+    def dxt(self) -> Array: ...
+
+    @property
+    def dxu(self) -> Array: ...
+
+    @property
+    def dyt(self) -> Array: ...
+
+    @property
+    def dyu(self) -> Array: ...
+
+    @property
+    def ht(self) -> Array: ...
+
+    @property
+    def maskT(self) -> Array: ...
+
+    @property
+    def maskU(self) -> Array: ...
+
+    @property
+    def maskV(self) -> Array: ...
+
+    # Mutable horizontal outputs created by initialization.
+    R_low: Array
+    TSurf: Array
+    dxC: Array
+    dxG: Array
+    dxU: Array
+    dxV: Array
+    dyC: Array
+    dyG: Array
+    dyU: Array
+    dyV: Array
+    fCori: Array
+    iceMask: Array
+    iceMaskU: Array
+    iceMaskV: Array
+    maskInC: Array
+    maskInU: Array
+    maskInV: Array
+    rA: Array
+    rAu: Array
+    rAv: Array
+    rAz: Array
+    recip_dxC: Array
+    recip_dxG: Array
+    recip_dxU: Array
+    recip_dxV: Array
+    recip_dyC: Array
+    recip_dyG: Array
+    recip_dyU: Array
+    recip_dyV: Array
+    recip_rA: Array
+    recip_rAu: Array
+    recip_rAv: Array
+    recip_rAz: Array
+
+
+class GeometryState(Protocol):
+    """Host container exposing geometry storage, distinct from immutable ice state."""
+
+    @property
+    def variables(self) -> MutableGeometry: ...
+
+
+def set_inits(state: GeometryState) -> None:
     """Populate surface masks, staggered areas/metrics and their reciprocals."""
 
     vs = state.variables

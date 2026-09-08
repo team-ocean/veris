@@ -1,15 +1,26 @@
 """Ice-ocean stresses must oppose relative motion and rotate by turning angle."""
 
 import importlib
+from types import ModuleType
 
 import numpy as np
 import pytest
+from conftest import StateFactory
+
+from veris.state import Settings
 
 
 @pytest.mark.parametrize("hemisphere", [-1, 1])
 @pytest.mark.parametrize("angle", [0, 25])
 @pytest.mark.parametrize("relative", [(0, 0), (0.2, -0.1)])
-def test_uniform_ocean_stress_rotation(halo, state, sett, hemisphere, angle, relative):
+def test_uniform_ocean_stress_rotation(
+    halo: ModuleType,
+    state: StateFactory,
+    sett: Settings,
+    hemisphere: int,
+    angle: int,
+    relative: tuple[float, float],
+) -> None:
     ocean = importlib.import_module("veris.ocean_stress")
     sett = sett._replace(waterTurnAngle=angle, waterIceDrag_south=0.007)
     ones = np.ones((8, 11))

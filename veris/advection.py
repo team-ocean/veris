@@ -1,8 +1,20 @@
+"""Flux-limited directional transport of horizontal sea-ice fields."""
+
 from functools import partial
+from typing import cast
 
-import jax
 import jax.numpy as jnp
+from jax import Array
 
+from veris._transport_types import (
+    AdvectionSettings,
+    AdvectionState,
+    FluxSettings,
+    MeridionalFluxState,
+    TransportState,
+    ZonalFluxState,
+)
+from veris._typing import ArrayInput, jit
 from veris.fill_overlap import fill_overlap
 
 # in this routine, the thermodynamic time step is used instead of the dynamic one.
@@ -13,8 +25,10 @@ from veris.fill_overlap import fill_overlap
 # thickness changes inbetween dynamics timesteps.
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def Advection(vs, sett):
+@partial(jit, static_argnames=["sett"])
+def Advection(
+    vs: AdvectionState, sett: AdvectionSettings
+) -> tuple[Array, Array, Array]:
     """retrieve changes in sea ice fields"""
 
     hIceMean = calc_Advection(vs, sett, vs.hIceMean)
@@ -24,8 +38,10 @@ def Advection(vs, sett):
     return hIceMean, hSnowMean, Area
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def calc_Advection(vs, sett, field):
+@partial(jit, static_argnames=["sett"])
+def calc_Advection(
+    vs: TransportState, sett: AdvectionSettings, field: ArrayInput
+) -> Array:
     """calculate change in sea ice field due to advection"""
 
     # retrieve cell faces
@@ -84,11 +100,17 @@ def calc_Advection(vs, sett, field):
     # apply mask
     fieldLoc = fieldLoc * vs.iceMask
 
-    return fieldLoc
+    # JIT converts NumPy field inputs to JAX tracers before these sweeps.
+    return cast(Array, fieldLoc)
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def calc_ZonalFlux(vs, sett, field, uTrans):
+@partial(jit, static_argnames=["sett"])
+def calc_ZonalFlux(
+    vs: ZonalFluxState,
+    sett: FluxSettings,
+    field: ArrayInput,
+    uTrans: ArrayInput,
+) -> Array:
     """calculate the zonal advective flux using the second order flux limiter method"""
 
     maskLocW = vs.iceMaskU * vs.maskInU
@@ -120,8 +142,13 @@ def calc_ZonalFlux(vs, sett, field, uTrans):
     return ZonalFlux
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def calc_MeridionalFlux(vs, sett, field, vTrans):
+@partial(jit, static_argnames=["sett"])
+def calc_MeridionalFlux(
+    vs: MeridionalFluxState,
+    sett: FluxSettings,
+    field: ArrayInput,
+    vTrans: ArrayInput,
+) -> Array:
     """calculate the meridional advective flux using the second order flux limiter method"""
 
     maskLocS = vs.iceMaskV * vs.maskInV
@@ -153,8 +180,9 @@ def calc_MeridionalFlux(vs, sett, field, vTrans):
     return MeridionalFlux
 
 
-@partial(jax.jit)
-def limiter(Cr):
+@partial(jit)
+def limiter(Cr: ArrayInput | float) -> Array:
+    """Apply the Superbee slope limiter to a scalar or horizontal slope ratio."""
     # return 0       (upwind)
     # return 1       (Lax-Wendroff)
     # return np.max((0, np.min((1, Cr))))    (Min-Mod)

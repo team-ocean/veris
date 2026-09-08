@@ -1,13 +1,17 @@
 """Check wind momentum transfer, hydrostatic tilt, and free-drift dispatch."""
 
 import importlib
+from types import ModuleType
 
 import numpy as np
 import pytest
+from conftest import StateFactory
+
+from veris.state import Settings
 
 
 @pytest.fixture
-def dynamics(halo):
+def dynamics(halo: ModuleType) -> ModuleType:
     """Import dynamics after selecting the standalone periodic halo backend."""
     return importlib.import_module("veris.dynsolver")
 
@@ -16,8 +20,13 @@ def dynamics(halo):
 @pytest.mark.parametrize("hemisphere", [-1, 0, 1])
 @pytest.mark.parametrize("angle", [0, 30, 90])
 def test_wind_stress_rotation_staggering_and_masks(
-    state, sett, dynamics, relative, hemisphere, angle
-):
+    state: StateFactory,
+    sett: Settings,
+    dynamics: ModuleType,
+    relative: bool,
+    hemisphere: int,
+    angle: int,
+) -> None:
     sett = sett._replace(
         useRelativeWind=relative,
         airTurnAngle=angle,
@@ -62,7 +71,9 @@ def test_wind_stress_rotation_staggering_and_masks(
 
 
 @pytest.mark.parametrize("speed", [0, 0.5, 2])
-def test_wind_speed_floor_preserves_zero_stress_at_rest(state, sett, dynamics, speed):
+def test_wind_speed_floor_preserves_zero_stress_at_rest(
+    state: StateFactory, sett: Settings, dynamics: ModuleType, speed: float
+) -> None:
     sett = sett._replace(useRelativeWind=False, wSpeedMin=1)
     ones = np.ones((3, 5))
     vs = state(
@@ -83,8 +94,12 @@ def test_wind_speed_floor_preserves_zero_stress_at_rest(state, sett, dynamics, s
 @pytest.mark.parametrize("real_freshwater", [False, True])
 @pytest.mark.parametrize("source", ["elevation", "pressure", "load"])
 def test_affine_hydrostatic_tilt_and_wind_force(
-    state, sett, dynamics, real_freshwater, source
-):
+    state: StateFactory,
+    sett: Settings,
+    dynamics: ModuleType,
+    real_freshwater: bool,
+    source: str,
+) -> None:
     sett = sett._replace(useRelativeWind=False, useRealFreshWaterFlux=real_freshwater)
     x, y = np.indices((4, 7), dtype=float)
     ones = np.ones_like(x)
@@ -126,8 +141,8 @@ def test_affine_hydrostatic_tilt_and_wind_force(
 
 @pytest.mark.parametrize("forcing", [0, 0.05, 0.3])
 def test_free_drift_dispatch_preserves_internal_stresses(
-    state, sett, dynamics, forcing
-):
+    state: StateFactory, sett: Settings, dynamics: ModuleType, forcing: float
+) -> None:
     sett = sett._replace(useFreedrift=True, useEVP=False)
     ones = np.ones((3, 5))
     sigma = np.arange(15, dtype=float).reshape(ones.shape)

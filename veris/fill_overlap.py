@@ -1,16 +1,30 @@
+"""Periodic two-cell halo exchange for local and mesh-sharded JAX arrays."""
+
+from collections.abc import Callable
 from functools import partial
 from importlib import import_module
+from typing import Protocol, cast
 
 import jax
+from jax import Array, shard_map
 from jax import numpy as jnp
-from jax import shard_map
 from jax.lax import ppermute
+from jax.sharding import Mesh
 from jax.sharding import PartitionSpec as P
 
+from veris._typing import MaskInput, jit
 from veris.settings import settings
 
 
-def fill_circular_overlap(A):
+class _InitializedMeshModule(Protocol):
+    """Mesh supplied by the external application initialization module."""
+
+    @property
+    def mesh(self) -> Mesh | None: ...
+
+
+def fill_circular_overlap(A: Array) -> Array:
+    """Copy periodic edges into both horizontal halo regions."""
     A = A.at[:2, :].set(A[-4:-2, :])
     A = A.at[-2:, :].set(A[2:4, :])
     A = A.at[:, :2].set(A[:, -4:-2])
@@ -19,7 +33,7 @@ def fill_circular_overlap(A):
     return A
 
 
-def fill_overlap_shard(var):
+def fill_overlap_shard(var: MaskInput) -> Array:
     """runs on each shard, must be inside shard_map"""
     # halo size
     olx, oly = 2, 2
@@ -67,9 +81,9 @@ def fill_overlap_shard(var):
     return var
 
 
-def make_sharded_fill_overlap():
+def make_sharded_fill_overlap() -> Callable[[MaskInput], Array]:
     """return a shard_map-wrapped version of fill_overlap for the initialized mesh"""
-    mesh = import_module("initialize_mesh_sharding").mesh
+    mesh = cast(_InitializedMeshModule, import_module("initialize_mesh_sharding")).mesh
     if mesh is None:
         raise RuntimeError("mesh and sharding not initialized")
     return shard_map(
@@ -83,16 +97,20 @@ if settings["use_sharding"]:
     """
     sharded_fill_overlap = make_sharded_fill_overlap()
 
-    @partial(jax.jit)
-    def fill_overlap(var):
+    @partial(jit)
+    def fill_overlap(var: MaskInput) -> Array:
+        """Fill periodic halos using the configured local or sharded exchange."""
         return sharded_fill_overlap(var)
 else:
 
-    @partial(jax.jit)
-    def fill_overlap(var):
-        return fill_circular_overlap(var)
+    @partial(jit)
+    def fill_overlap(var: MaskInput) -> Array:
+        """Fill periodic halos using the configured local or sharded exchange."""
+        # JIT converts NumPy inputs to JAX tracers before this body runs.
+        return fill_circular_overlap(cast(Array, var))
 
 
-@partial(jax.jit)
-def fill_overlap_uv(u, v):
+@partial(jit)
+def fill_overlap_uv(u: MaskInput, v: MaskInput) -> tuple[Array, Array]:
+    """Fill both horizontal velocity components independently."""
     return fill_overlap(u), fill_overlap(v)

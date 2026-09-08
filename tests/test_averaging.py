@@ -2,13 +2,17 @@
 
 import numpy as np
 import pytest
+from conftest import StateFactory
 
 from veris.averaging import c_point_to_z_point
+from veris.state import Settings
 
 
 @pytest.mark.parametrize("no_slip", [True, False])
 @pytest.mark.parametrize("seed", range(6))
-def test_corner_average_with_land(state, sett, no_slip, seed):
+def test_corner_average_with_land(
+    state: StateFactory, sett: Settings, no_slip: bool, seed: int
+) -> None:
     rng = np.random.default_rng(seed)
     mask = rng.integers(0, 2, (4, 7))
     field = rng.normal(size=mask.shape) * mask
@@ -27,7 +31,9 @@ def test_corner_average_with_land(state, sett, no_slip, seed):
 
 @pytest.mark.parametrize("no_slip", [True, False])
 @pytest.mark.parametrize("ocean", [False, True])
-def test_corner_average_uniform_masks(state, sett, no_slip, ocean):
+def test_corner_average_uniform_masks(
+    state: StateFactory, sett: Settings, no_slip: bool, ocean: bool
+) -> None:
     mask = np.full((3, 5), float(ocean))
     field = np.arange(15, dtype=float).reshape(mask.shape) * mask
     result = c_point_to_z_point(

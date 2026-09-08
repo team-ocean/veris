@@ -328,3 +328,44 @@
   full correctness, maintained lint/type checks and the coverage gate.
   Expanded validation objective is complete within the documented local-machine
   scope; raw vendor/generated diagnostics remain explicitly reported above.
+
+## 2026-09-08 — source typing
+
+- [x] Annotated all project-owned code with explicit array,
+  settings, state and return contracts; preserve numerical execution and PyTrees.
+- User explicitly excludes generated _version.py and vendored Versioneer/Font
+  Awesome internals. Use typed interfaces at their project-owned boundaries.
+- @typing_audit reviews structural state/settings design read-only. Initial
+  audit found nearly all model function parameters/returns unannotated;
+  clean ty output currently reflects inference/dynamic boundaries, not complete
+  public contracts. Mutable geometry initialization and immutable JAX state
+  require distinct types; loop counts must remain integer settings.
+
+- [x] Annotated every project-owned function signature: 435 definitions audited,
+  including tests, probes, documentation hooks and packaging. Structural read-only
+  domain protocols support caller-owned immutable state; explicit State/Settings
+  named tuples preserve field order, replacement and JAX PyTree behavior.
+- [x] Added typed JIT boundary retaining call signatures and lowering APIs. Direct
+  JAX decorators erased signatures in the initial negative static test; a narrow
+  cast of the same compiled object fixes this without a runtime call wrapper.
+- [x] Review caught static settings lacking hashability, rejected boolean NumPy
+  masks, and an unnecessary hashability constraint on uncompiled height constants.
+  Positive/negative static checks now cover each; no blanket Any in model code.
+- [x] Ship py.typed and generated-version interface; Versioneer is consumed through
+  a project-owned stub. Wheel/sdist metadata and out-of-checkout valid/invalid
+  consumer checks passed. Generated _version.py, Versioneer and Font Awesome
+  internals are unchanged. CI enforces annotations only in maintained targets.
+- [x] First full CPU run: 485/485 passed, maintained coverage 1038/1047 = 99.14%,
+  whole-package coverage 1038/1400 = 74.14%. One later static regression verifies
+  mutable height constants; final full CPU/GPU validation pending below.
+- [x] Maintained Ruff, formatting and ty passed. Strict docs initially failed only
+  because sandbox DNS blocked the Python intersphinx inventory; retry with network
+  access requested. Numerical review found unchanged equations/indexing; the
+  MITgcm output tuple is explicitly enumerated to retain its fixed return arity.
+
+- [x] Final CPU correctness: **486/486 passed**; full GPU: **485/485 passed**
+  before the final noncompiled-height static regression (then verified on CPU).
+  Maintained coverage is **1037/1046 = 99.14%**. Strict Sphinx, final wheel
+  and sdist, packaged consumer checks, Ruff/format/annotation gate and ty pass.
+  Reviewer confirmed both final follow-ups; no remaining correctness blocker.
+- GitHub commit/push and CI verification pending.

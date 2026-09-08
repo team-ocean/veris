@@ -9,7 +9,7 @@ import pytest
 
 
 @pytest.fixture
-def ocean_grid():
+def ocean_grid() -> SimpleNamespace:
     """Mutable host state with distinguishable surface and subsurface masks."""
     x, y = np.indices((4, 7))
     surface = ((x + y) % 3 != 0).astype(float)
@@ -30,7 +30,9 @@ def ocean_grid():
     return SimpleNamespace(variables=vs)
 
 
-def test_initialization_surface_masks_and_reciprocals(ocean_grid):
+def test_initialization_surface_masks_and_reciprocals(
+    ocean_grid: SimpleNamespace,
+) -> None:
     initialize = importlib.import_module("veris.set_inits").set_inits
     initialize(ocean_grid)
     vs = ocean_grid.variables
@@ -86,7 +88,7 @@ def test_initialization_surface_masks_and_reciprocals(ocean_grid):
     np.testing.assert_array_equal(vs.TSurf, np.full((4, 7), 273))
 
 
-def test_corner_area_is_four_cell_mean(ocean_grid):
+def test_corner_area_is_four_cell_mean(ocean_grid: SimpleNamespace) -> None:
     initialize = importlib.import_module("veris.set_inits").set_inits
     initialize(ocean_grid)
     vs = ocean_grid.variables
@@ -99,7 +101,7 @@ def test_corner_area_is_four_cell_mean(ocean_grid):
     np.testing.assert_allclose(vs.rAz, expected, rtol=1e-14)
 
 
-def test_uniform_grid_preserves_cell_area(ocean_grid):
+def test_uniform_grid_preserves_cell_area(ocean_grid: SimpleNamespace) -> None:
     vs = ocean_grid.variables
     vs.area_t = jnp.full((4, 7), 12.0)
     importlib.import_module("veris.set_inits").set_inits(ocean_grid)

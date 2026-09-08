@@ -1,11 +1,18 @@
+"""Interpolate cell-centered JAX fields to staggered grid corners."""
+
 from functools import partial
 
-import jax
 import jax.numpy as jnp
+from jax import Array
+from jax.typing import ArrayLike
+
+from veris._typing import BoundarySettings, MaskState, jit
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def c_point_to_z_point(vs, sett, Cfield):
+@partial(jit, static_argnames=["sett"])
+def c_point_to_z_point(
+    vs: MaskState, sett: BoundarySettings, Cfield: ArrayLike
+) -> Array:
     """calculates value at z-point by averaging c-point values"""
 
     sumNorm = vs.iceMask + jnp.roll(vs.iceMask, 1, 0)

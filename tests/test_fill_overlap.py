@@ -1,12 +1,16 @@
 """Periodic halos must reproduce wrapped interior values, including corners."""
 
+from types import ModuleType
+
 import jax.numpy as jnp
 import numpy as np
 import pytest
 
 
 @pytest.mark.parametrize("shape", [(2, 3), (4, 7), (6, 4)])
-def test_periodic_halo_matches_numpy_wrap(halo, shape):
+def test_periodic_halo_matches_numpy_wrap(
+    halo: ModuleType, shape: tuple[int, int]
+) -> None:
     interior = np.arange(np.prod(shape), dtype=float).reshape(shape)
     initial = np.pad(interior, 2, constant_values=-999)
     expected = np.pad(interior, 2, mode="wrap")
@@ -19,7 +23,7 @@ def test_periodic_halo_matches_numpy_wrap(halo, shape):
     np.testing.assert_array_equal(v, -expected)
 
 
-def test_shard_map_halo_matches_serial_on_one_device(halo):
+def test_shard_map_halo_matches_serial_on_one_device(halo: ModuleType) -> None:
     """Execute actual collective halo code on the available single-device mesh."""
     import jax
     from jax.sharding import NamedSharding
@@ -35,7 +39,7 @@ def test_shard_map_halo_matches_serial_on_one_device(halo):
     np.testing.assert_array_equal(fill(initial), np.pad(interior, 2, mode="wrap"))
 
 
-def test_four_cpu_halo_exchange_and_adjoint_in_fresh_process():
+def test_four_cpu_halo_exchange_and_adjoint_in_fresh_process() -> None:
     """Exercise real cross-device communication in all rectangular mesh layouts."""
     import os
     import subprocess

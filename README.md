@@ -27,3 +27,19 @@ jax.block_until_ready(state)
 
 Use a fresh process for this serial example. See `tests/README.md` for the
 validated environment and numerical test commands.
+
+### Typed interfaces
+
+The standalone initializer returns `veris.state.State` and `Settings`, immutable
+named tuples that retain JAX PyTree behavior. Kernels accept structural protocols:
+caller-defined state containers only need the fields required by that kernel.
+Settings passed as JIT static arguments must be hashable, with integer solver
+iteration counts. Array shapes and physical units are described by each kernel;
+annotations do not add runtime shape checks.
+
+Compiled functions retain their parameter and return types through a typed JAX
+boundary, including their lowering interface. The wheel ships `py.typed` and a
+stub for generated version metadata. Project-owned packaging uses a Versioneer
+stub; generated `_version.py` and vendored Versioneer/Font Awesome internals are
+excluded from annotation work and the maintained lint/type targets. CI checks
+function annotation coverage as well as type consistency.

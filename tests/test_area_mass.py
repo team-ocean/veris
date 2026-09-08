@@ -2,13 +2,17 @@
 
 import numpy as np
 import pytest
+from conftest import StateFactory
 
 from veris.area_mass import AreaWS, SeaIceMass
+from veris.state import Settings
 
 
 @pytest.mark.parametrize("shape", [(3, 5), (6, 4), (1, 3)])
 @pytest.mark.parametrize("seed", range(4))
-def test_area_and_mass_staggering(state, sett, shape, seed):
+def test_area_and_mass_staggering(
+    state: StateFactory, sett: Settings, shape: tuple[int, int], seed: int
+) -> None:
     rng = np.random.default_rng(seed)
     area, ice, snow = rng.random((3, *shape))
     vs = state(Area=area, hIceMean=ice, hSnowMean=snow)

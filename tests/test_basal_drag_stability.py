@@ -5,16 +5,30 @@ large thickness, without overflowing its exponential in either JAX precision.
 Independent NumPy logaddexp and its analytic derivative define the reference.
 """
 
+from typing import Any
+
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
+from conftest import StateFactory
+from jax import Array
+from jax.typing import ArrayLike
 
 from veris.dynamics_routines import basal_drag_coeffs
+from veris.state import Settings
 
 
-def basal_case(state, dtype, area, thickness):
-    """Retype fixture PyTree leaves explicitly to exercise actual float32 kernels."""
+def basal_case(
+    state: StateFactory,
+    dtype: type[np.float32] | type[np.float64],
+    area: float,
+    thickness: float,
+) -> Any:
+    """Retype fixture PyTree leaves explicitly to exercise actual float32 kernels.
+
+    The partial state retains the dynamic field contract of StateFactory.
+    """
     ones = np.ones((3, 5))
     vs = state(
         hIceMean=thickness * ones,
@@ -26,7 +40,9 @@ def basal_case(state, dtype, area, thickness):
     return jax.tree.map(lambda value: jnp.asarray(value, dtype=dtype), vs)
 
 
-def stable_reference(sett, thickness, area, u, v):
+def stable_reference(
+    sett: Settings, thickness: float, area: float, u: float, v: float
+) -> tuple[np.float64, np.float64, np.float64]:
     """Return coefficient and uniform-thickness/velocity derivatives in float64."""
     speed_squared = 0.5 * (u**2 + v**2) + sett.basalDragU0**2
     scale = sett.basalDragK2 / np.sqrt(speed_squared)
@@ -42,8 +58,12 @@ def stable_reference(sett, thickness, area, u, v):
 @pytest.mark.parametrize("area", [0.0, 0.01, 0.0101, 0.5, 1.0])
 @pytest.mark.parametrize("thickness", [1.0, 10.0, 90.0])
 def test_basal_drag_finite_and_matches_stable_keel_law(
-    state, sett, dtype, area, thickness
-):
+    state: StateFactory,
+    sett: Settings,
+    dtype: type[np.float32] | type[np.float64],
+    area: float,
+    thickness: float,
+) -> None:
     sett = sett._replace(basalDragK2=0.7)
     vs = basal_case(state, dtype, area, thickness)
     u = jnp.full(vs.Area.shape, 0.03, dtype=dtype)
@@ -68,12 +88,16 @@ def test_basal_drag_finite_and_matches_stable_keel_law(
 @pytest.mark.parametrize("area", [0.0, 0.01, 0.0101, 0.5, 1.0])
 @pytest.mark.parametrize("thickness", [1.0, 10.0, 90.0])
 def test_basal_drag_gradients_are_finite_and_match_analytic_law(
-    state, sett, dtype, area, thickness
-):
+    state: StateFactory,
+    sett: Settings,
+    dtype: type[np.float32] | type[np.float64],
+    area: float,
+    thickness: float,
+) -> None:
     sett = sett._replace(basalDragK2=0.7)
     vs = basal_case(state, dtype, area, thickness)
 
-    def mean_drag(height, velocity):
+    def mean_drag(height: ArrayLike, velocity: ArrayLike) -> Array:
         current = vs._replace(hIceMean=jnp.full_like(vs.hIceMean, height))
         return jnp.mean(
             basal_drag_coeffs(
@@ -103,13 +127,16 @@ def test_basal_drag_gradients_are_finite_and_match_analytic_law(
 @pytest.mark.parametrize("dtype", [np.float32, np.float64], ids=["float32", "float64"])
 @pytest.mark.parametrize("thickness", [1.0, 10.0, 90.0])
 def test_disabled_basal_drag_is_zero_with_zero_thickness_sensitivity(
-    state, sett, dtype, thickness
-):
+    state: StateFactory,
+    sett: Settings,
+    dtype: type[np.float32] | type[np.float64],
+    thickness: float,
+) -> None:
     sett = sett._replace(basalDragK2=0)
     vs = basal_case(state, dtype, 1, thickness)
     velocity = jnp.full_like(vs.Area, 0.03)
 
-    def mean_drag(height):
+    def mean_drag(height: ArrayLike) -> Array:
         current = vs._replace(hIceMean=jnp.full_like(vs.hIceMean, height))
         return jnp.mean(basal_drag_coeffs(current, sett, velocity, velocity))
 

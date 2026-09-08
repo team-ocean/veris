@@ -4,14 +4,20 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
+from conftest import StateFactory
+from jax import Array
+from jax.typing import ArrayLike
 
 from veris.area_mass import SeaIceMass
+from veris.state import Settings
 
 
 @pytest.mark.parametrize("snow", [False, True])
 @pytest.mark.parametrize("thickness", [0.1, 0.5, 2.0])
-def test_mass_gradient(state, sett, snow, thickness):
-    def total(value):
+def test_mass_gradient(
+    state: StateFactory, sett: Settings, snow: bool, thickness: float
+) -> None:
+    def total(value: ArrayLike) -> Array:
         vs = state(
             hIceMean=jnp.ones((3, 5)) * (1 if snow else value),
             hSnowMean=jnp.ones((3, 5)) * (value if snow else 0.2),
@@ -27,11 +33,13 @@ def test_mass_gradient(state, sett, snow, thickness):
 
 
 @pytest.mark.parametrize("area", [0.3, 0.7, 0.95])
-def test_strength_area_sensitivity_matches_constitutive_law(state, sett, area):
+def test_strength_area_sensitivity_matches_constitutive_law(
+    state: StateFactory, sett: Settings, area: float
+) -> None:
     """Smooth Hibler strength has dP/dA = cStar P at positive ice thickness."""
     from veris.dynamics_routines import SeaIceStrength
 
-    def total(value):
+    def total(value: ArrayLike) -> Array:
         vs = state(
             Area=value * jnp.ones((3, 5)),
             hIceMean=1.2 * jnp.ones((3, 5)),
@@ -48,7 +56,9 @@ def test_strength_area_sensitivity_matches_constitutive_law(state, sett, area):
 
 @pytest.mark.parametrize("ice", [1.0, 2.0])
 @pytest.mark.parametrize("snow", [0.0, 0.2])
-def test_surface_temperature_longwave_sensitivity(state, sett, ice, snow):
+def test_surface_temperature_longwave_sensitivity(
+    state: StateFactory, sett: Settings, ice: float, snow: float
+) -> None:
     """Differentiate the thermal iteration at a smooth, subfreezing equilibrium."""
     from veris.solve4temp import solve4temp
 
@@ -72,7 +82,7 @@ def test_surface_temperature_longwave_sensitivity(state, sett, ice, snow):
         fCori=1e-4 * ones,
     )
 
-    def surface(radiation):
+    def surface(radiation: ArrayLike) -> Array:
         current = vs._replace(LWdown=radiation * ones)
         return jnp.mean(
             solve4temp(

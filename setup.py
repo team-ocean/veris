@@ -2,14 +2,15 @@
 
 import os
 import sys
+from typing import Final
 
 from setuptools import find_packages, setup
 
-here = os.path.abspath(os.path.dirname(__file__))
+here: str = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(here)
 import versioneer
 
-CLASSIFIERS = """
+CLASSIFIERS: Final[str] = """
 Development Status :: 3 - Alpha
 Intended Audience :: Science/Research
 License :: OSI Approved :: MIT License
@@ -24,10 +25,10 @@ Operating System :: Unix
 Operating System :: MacOS
 """
 
-INSTALL_REQUIRES = ["jax>=0.11.1", "numpy>=2.0"]
+INSTALL_REQUIRES: Final[list[str]] = ["jax>=0.11.1", "numpy>=2.0"]
 
 with open(os.path.join(here, "README.md"), encoding="utf-8") as f:
-    long_description = f.read()
+    long_description: str = f.read()
 
 
 setup(
@@ -44,6 +45,7 @@ setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     packages=find_packages(),
+    package_data={"veris": ["py.typed", "*.pyi"]},
     install_requires=INSTALL_REQUIRES,
     classifiers=[c for c in CLASSIFIERS.split("\n") if c],
 )

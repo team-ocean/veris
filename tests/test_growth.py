@@ -5,14 +5,21 @@ and mixed-layer exchange. Thicknesses are grid-cell means in metres; heat fluxes
 are positive upward. Partial-cover cases catch accidental repeated area weights.
 """
 
+from typing import Any
+
 import numpy as np
 import pytest
+from conftest import StateFactory
 
 from veris.growth import Growth
+from veris.state import Settings
 
 
-def equilibrium_state(state, sett, **changes):
-    """Build saturated, isothermal atmosphere/ice/ocean with zero net forcing."""
+def equilibrium_state(state: StateFactory, sett: Settings, **changes: float) -> Any:
+    """Build saturated, isothermal atmosphere/ice/ocean with zero net forcing.
+
+    The result inherits StateFactory's intentionally dynamic partial-state type.
+    """
     temperature = sett.celsius2K + sett.tempFrz
     vapor_pressure = 10 ** (12.537 - 2663.5 / temperature)
     humidity = 0.622 * vapor_pressure / (100000 - 0.378 * vapor_pressure)
@@ -47,7 +54,9 @@ def equilibrium_state(state, sett, **changes):
 
 @pytest.mark.parametrize("area", [0.0, 0.3, 1.0])
 @pytest.mark.parametrize("categories", [1, 5])
-def test_zero_forcing_preserves_equilibrium(state, sett, area, categories):
+def test_zero_forcing_preserves_equilibrium(
+    state: StateFactory, sett: Settings, area: float, categories: int
+) -> None:
     sett = sett._replace(nITC=categories, recip_nITC=1 / categories)
     vs = equilibrium_state(state, sett, Area=area, hIceMean=area)
     result = Growth(vs, sett)
@@ -72,8 +81,8 @@ def test_zero_forcing_preserves_equilibrium(state, sett, area, categories):
 @pytest.mark.parametrize("cooling", [10.0, 100.0, 500.0])
 @pytest.mark.parametrize("south", [False, True])
 def test_open_water_freezing_conserves_latent_heat_and_freshwater(
-    state, sett, cooling, south
-):
+    state: StateFactory, sett: Settings, cooling: float, south: bool
+) -> None:
     sett = sett._replace(
         deltatTherm=600,
         recip_deltatTherm=1 / 600,
@@ -101,7 +110,9 @@ def test_open_water_freezing_conserves_latent_heat_and_freshwater(
 
 
 @pytest.mark.parametrize("heating", [0.0, 100.0, 500.0])
-def test_ice_free_heating_and_shortwave_pass_to_ocean(state, sett, heating):
+def test_ice_free_heating_and_shortwave_pass_to_ocean(
+    state: StateFactory, sett: Settings, heating: float
+) -> None:
     vs = equilibrium_state(state, sett, hIceMean=0, Area=0, Qnet=-heating, Qsw=-80)
     result = Growth(vs, sett)
     for index in (0, 1, 2, 4, 5, 8, 9):
@@ -113,8 +124,8 @@ def test_ice_free_heating_and_shortwave_pass_to_ocean(state, sett, heating):
 @pytest.mark.parametrize("area", [0.2, 0.7, 1.0])
 @pytest.mark.parametrize("precip", [0.0, 2e-7])
 def test_cold_snowfall_stores_water_on_ice_and_rain_reaches_leads(
-    state, sett, area, precip
-):
+    state: StateFactory, sett: Settings, area: float, precip: float
+) -> None:
     snowfall = 1e-7
     vs = equilibrium_state(state, sett, Area=area, snowfall=snowfall, precip=precip)
     result = Growth(vs, sett)
@@ -128,7 +139,9 @@ def test_cold_snowfall_stores_water_on_ice_and_rain_reaches_leads(
 
 
 @pytest.mark.parametrize("snow", [0.1, 0.3, 0.5])
-def test_flooding_converts_submerged_snow_and_preserves_column_mass(state, sett, snow):
+def test_flooding_converts_submerged_snow_and_preserves_column_mass(
+    state: StateFactory, sett: Settings, snow: float
+) -> None:
     ice = 0.5
     vs = equilibrium_state(state, sett, hIceMean=ice, hSnowMean=snow)
     result = Growth(vs, sett)
@@ -143,7 +156,9 @@ def test_flooding_converts_submerged_snow_and_preserves_column_mass(state, sett,
 
 
 @pytest.mark.parametrize("warming", [-0.1, 0.0, 0.02])
-def test_mixed_layer_melt_uses_ocean_heat_and_returns_freshwater(state, sett, warming):
+def test_mixed_layer_melt_uses_ocean_heat_and_returns_freshwater(
+    state: StateFactory, sett: Settings, warming: float
+) -> None:
     sett = sett._replace(deltatTherm=600, recip_deltatTherm=1 / 600)
     vs = equilibrium_state(state, sett, theta=sett.celsius2K + sett.tempFrz + warming)
     result = Growth(vs, sett)
@@ -159,7 +174,9 @@ def test_mixed_layer_melt_uses_ocean_heat_and_returns_freshwater(state, sett, wa
 
 
 @pytest.mark.parametrize("area", [0.25, 0.7])
-def test_partial_cover_conduction_closes_latent_heat_budget(state, sett, area):
+def test_partial_cover_conduction_closes_latent_heat_budget(
+    state: StateFactory, sett: Settings, area: float
+) -> None:
     # Remove concentration regularization to isolate pure energy accounting.
     sett = sett._replace(nITC=1, recip_nITC=1, Area_reg=0)
     surface_temperature = 260.0
@@ -186,7 +203,9 @@ def test_partial_cover_conduction_closes_latent_heat_budget(state, sett, area):
 
 
 @pytest.mark.parametrize("area", [0.25, 0.7])
-def test_partial_cover_shortwave_is_weighted_once(state, sett, area):
+def test_partial_cover_shortwave_is_weighted_once(
+    state: StateFactory, sett: Settings, area: float
+) -> None:
     sett = sett._replace(nITC=1, recip_nITC=1)
     thickness = 1.5
     sunlight = 100.0
@@ -209,7 +228,9 @@ def test_partial_cover_shortwave_is_weighted_once(state, sett, area):
 
 
 @pytest.mark.parametrize("area", [0.25, 0.7])
-def test_partial_cover_surface_heat_melts_snow_with_one_area_weight(state, sett, area):
+def test_partial_cover_surface_heat_melts_snow_with_one_area_weight(
+    state: StateFactory, sett: Settings, area: float
+) -> None:
     sett = sett._replace(
         nITC=1,
         recip_nITC=1,
@@ -237,8 +258,8 @@ def test_partial_cover_surface_heat_melts_snow_with_one_area_weight(state, sett,
 @pytest.mark.parametrize("area", [0.25, 0.7])
 @pytest.mark.parametrize("heat_multiple", [1.0, 3.0])
 def test_complete_snow_melt_and_excess_ice_melt_close_energy(
-    state, sett, area, heat_multiple
-):
+    state: StateFactory, sett: Settings, area: float, heat_multiple: float
+) -> None:
     """Surface heat first melts all snow; excess consumes ice latent heat."""
     sett = sett._replace(
         nITC=1,

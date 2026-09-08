@@ -1,8 +1,13 @@
+"""Elastic-viscous-plastic subcycling of ice velocity and stress tensors."""
+
 from functools import partial
 
 import jax
 import jax.numpy as jnp
+from jax import Array
 
+from veris._solver_types import EVPCarry, EVPSettings, EVPState
+from veris._typing import jit
 from veris.averaging import c_point_to_z_point
 from veris.dynamics_routines import (
     basal_drag_coeffs,
@@ -19,8 +24,10 @@ printEvpResidual = False
 plotEvpResidual = False
 
 
-@partial(jax.jit, static_argnames=["sett", "axis_names"])
-def evp_solver(vs, sett, *, axis_names: tuple[str, ...] = ()):
+@partial(jit, static_argnames=["sett", "axis_names"])
+def evp_solver(
+    vs: EVPState, sett: EVPSettings, *, axis_names: tuple[str, ...] = ()
+) -> tuple[Array, Array, Array, Array, Array]:
     """solve the momentum equation and calculate u^n, sigma^n from u^(n-1), sigma^(n-1)
     using subcycling iterations of evp_solver_body.
 
@@ -28,7 +35,7 @@ def evp_solver(vs, sett, *, axis_names: tuple[str, ...] = ()):
     over all devices/processes. The default reports the serial interior norm.
     """
 
-    def evp_solver_body(iEVP, arg_body):
+    def evp_solver_body(iEVP: int | Array, arg_body: EVPCarry) -> EVPCarry:
         """loop body of the elastic-viscous-plastic solver
         the components of the strain rate tensor and stress tensor are calculated
         following Hibler (1979). the time stepping of the stress and velocity
@@ -315,7 +322,7 @@ def evp_solver(vs, sett, *, axis_names: tuple[str, ...] = ()):
     resU = jnp.zeros(sett.nEVPsteps)
 
     # set argument for the loop (the for_loop of jax can only take one argument)
-    arg_body = (
+    arg_body: EVPCarry = (
         vs,
         uIce,
         vIce,

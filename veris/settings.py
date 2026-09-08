@@ -1,4 +1,8 @@
-settings = {
+"""Mutable default configuration with statically checked per-key scalar types."""
+
+from veris.state import SettingsDict
+
+settings: SettingsDict = {
     "deltatTherm": 86400,  # timestep for thermodynamic equations /s
     "recip_deltatTherm": 1 / 86400,  # 1 / deltatTherm /s
     "deltatDyn": 86400,  # timestep for dynamic equations /s

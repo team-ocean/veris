@@ -1,14 +1,25 @@
+"""Wind forcing and dispatch of the free-drift or EVP momentum solver."""
+
 from functools import partial
 
-import jax
 import jax.numpy as jnp
+from jax import Array
 
+from veris._solver_types import (
+    IceVelocitySettings,
+    IceVelocityState,
+    WindForcingSettings,
+    WindForcingState,
+    WindStressSettings,
+    WindStressState,
+)
+from veris._typing import jit
 from veris.evp_solver import evp_solver
 from veris.freedrift_solver import freedrift_solver
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def tauXY(vs, sett):
+@partial(jit, static_argnames=["sett"])
+def tauXY(vs: WindStressState, sett: WindStressSettings) -> tuple[Array, Array]:
     """calculate surface stress from wind and ice velocities"""
 
     sinWin = jnp.sin(jnp.deg2rad(sett.airTurnAngle))
@@ -47,8 +58,10 @@ def tauXY(vs, sett):
     return tauX, tauY
 
 
-@partial(jax.jit, static_argnames=["sett"])
-def WindForcingXY(vs, sett):
+@partial(jit, static_argnames=["sett"])
+def WindForcingXY(
+    vs: WindForcingState, sett: WindForcingSettings
+) -> tuple[Array, Array]:
     """calculate surface forcing due to wind and ocean surface tilt"""
 
     # calculate surface stresses from wind and ice velocities
@@ -81,8 +94,10 @@ def WindForcingXY(vs, sett):
     return WindForcingX, WindForcingY
 
 
-@partial(jax.jit, static_argnames=["sett", "axis_names"])
-def IceVelocities(vs, sett, *, axis_names: tuple[str, ...] = ()):
+@partial(jit, static_argnames=["sett", "axis_names"])
+def IceVelocities(
+    vs: IceVelocityState, sett: IceVelocitySettings, *, axis_names: tuple[str, ...] = ()
+) -> tuple[Array, Array, Array, Array, Array]:
     """Calculate ice velocities, reducing EVP diagnostics over supplied mesh axes."""
 
     if sett.useFreedrift:

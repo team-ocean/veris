@@ -1,4 +1,6 @@
-variables = {
+"""Registry of horizontal state fields; initialization supplies JAX arrays."""
+
+variables: dict[str, None] = {
     ##### sea ice #####
     "hIceMean": None,  # mean ice thickness /m
     "hSnowMean": None,  # mean snow thickness /m

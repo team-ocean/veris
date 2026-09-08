@@ -2,28 +2,52 @@
 
 import importlib
 from collections import namedtuple
+from types import ModuleType
+from typing import Protocol, cast
 
 import jax.numpy as jnp
 import numpy as np
 import pytest
+from jax import Array
+
+from veris._bulk_types import (
+    BulkState,
+    CESMFluxSettings,
+    HeightSettings,
+    LongwaveSettings,
+    SimpleFluxSettings,
+)
+from veris.state import Settings
+
+
+class AtmosphereSettings(
+    HeightSettings, SimpleFluxSettings, LongwaveSettings, CESMFluxSettings, Protocol
+):
+    """Combined constants consumed by this module's CESM reference equations."""
 
 
 @pytest.fixture
-def atmosphere(sett):
+def atmosphere(sett: Settings) -> BulkState[AtmosphereSettings]:
     """Legacy state interface with explicit gravity and Earth radius constants."""
     values = dict(sett._asdict(), grav=sett.gravity, radius=6371000.0)
     constants = namedtuple("AtmosphereSettings", values)(**values)
-    return namedtuple("AtmosphereState", ["settings"])(constants)
+    # The fixture extends source constants with explicit bulk-only geometry.
+    return cast(
+        BulkState[AtmosphereSettings],
+        namedtuple("AtmosphereState", ["settings"])(constants),
+    )
 
 
 @pytest.fixture
-def cesm():
+def cesm() -> ModuleType:
     """Import actual kernels; no fake Veros modules or numerical substitutes."""
     return importlib.import_module("veris.heat_flux_CESM")
 
 
 @pytest.mark.parametrize("temperature", [250.0, 273.15, 300.0])
-def test_saturated_specific_humidity_pressure_scaling(cesm, temperature):
+def test_saturated_specific_humidity_pressure_scaling(
+    cesm: ModuleType, temperature: float
+) -> None:
     pressure = jnp.array([80000.0, 100000.0, 120000.0])
     actual = cesm.qsat_august_eqn(pressure, temperature)
     vapor_pressure = 133.322 * 10 ** (9.4051 - 2353 / temperature)
@@ -36,15 +60,18 @@ def test_saturated_specific_humidity_pressure_scaling(cesm, temperature):
 @pytest.mark.parametrize("wind", [0.0, 2.0, 10.0])
 @pytest.mark.parametrize("temperature", [260.0, 280.0, 300.0])
 def test_simple_flux_equilibrium_and_temperature_derivative(
-    cesm, atmosphere, wind, temperature
-):
+    cesm: ModuleType,
+    atmosphere: BulkState[AtmosphereSettings],
+    wind: float,
+    temperature: float,
+) -> None:
     s = atmosphere.settings
     ones = jnp.ones((3, 5))
     mask = ones.at[0, 0].set(0)
     pressure = 100000 * ones
     humidity = 0.622 / 100000 * 10 ** (9.4051 - 2353 / temperature) * 133.322 * ones
 
-    def flux(surface):
+    def flux(surface: float) -> tuple[Array, Array, Array]:
         return cesm.flux_atmOcn_simple(
             atmosphere,
             mask,
@@ -86,7 +113,7 @@ def test_simple_flux_equilibrium_and_temperature_derivative(
         assert np.all(np.asarray(derivative) <= 0)
 
 
-def test_hybrid_pressure_levels(cesm):
+def test_hybrid_pressure_levels(cesm: ModuleType) -> None:
     surface = jnp.array([[90000.0, 100000.0], [95000.0, 102000.0]])
     a = jnp.array([1000.0, 500.0, 0.0])
     b = jnp.array([0.0, 0.5, 1.0])
@@ -99,7 +126,7 @@ def test_hybrid_pressure_levels(cesm):
 
 
 @pytest.mark.parametrize("wind", [0.5, 3.0, 12.0])
-def test_drag_and_neutral_stability_functions(cesm, wind):
+def test_drag_and_neutral_stability_functions(cesm: ModuleType, wind: float) -> None:
     assert float(cesm.cdn(wind)) == pytest.approx(
         0.0027 / wind + 0.000142 + 0.0000764 * wind
     )
@@ -112,8 +139,12 @@ def test_drag_and_neutral_stability_functions(cesm, wind):
 @pytest.mark.parametrize("difference", [-3.0, 0.0, 3.0])
 @pytest.mark.parametrize("wind", [0.0, 5.0, -10.0])
 def test_iterative_flux_heat_water_closure_and_stress_direction(
-    cesm, atmosphere, difference, wind, humidity_ratio
-):
+    cesm: ModuleType,
+    atmosphere: BulkState[AtmosphereSettings],
+    difference: float,
+    wind: float,
+    humidity_ratio: float,
+) -> None:
     s = atmosphere.settings
     ones = jnp.ones((3, 5))
     mask = ones.at[0, 0].set(0)
@@ -153,7 +184,9 @@ def test_iterative_flux_heat_water_closure_and_stress_direction(
         assert float(value[0, 0]) == 0
 
 
-def test_one_layer_hydrostatic_height(cesm, atmosphere):
+def test_one_layer_hydrostatic_height(
+    cesm: ModuleType, atmosphere: BulkState[AtmosphereSettings]
+) -> None:
     s = atmosphere.settings
     t = jnp.full((2, 3, 1), 280.0)
     q = jnp.full_like(t, 0.005)
@@ -169,7 +202,9 @@ def test_one_layer_hydrostatic_height(cesm, atmosphere):
 
 
 @pytest.mark.parametrize("reverse", [False, True])
-def test_cloud_coefficients_at_knots_and_midpoints(cesm, atmosphere, reverse):
+def test_cloud_coefficients_at_knots_and_midpoints(
+    cesm: ModuleType, atmosphere: BulkState[AtmosphereSettings], reverse: bool
+) -> None:
     s = atmosphere.settings
     latitudes = np.array([-90.0, -45.0, 0.0, 45.0, 90.0])
     coefficient = np.array([0.88, 0.70, 0.50, 0.70, 0.88])
