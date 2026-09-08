@@ -11,6 +11,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+from veris._typing import jit
 from veris.settings import settings
 from veris.state import Settings, State
 
@@ -79,12 +80,15 @@ def initialize(
     return State._make(fields[name] for name in State._fields), sett
 
 
-def step(vs: State, sett: Settings, cooling: float = 100.0) -> State:
+def step(vs: State, sett: Settings, cooling: float | jax.Array = 100.0) -> State:
     """Advance dynamics, transport, cleanup, and growth with prescribed forcing.
 
     Cooling is the upward open-water net heat flux in W/m². It is restored on
     every call because Growth returns ocean-coupling Qnet/Qsw in those fields.
-    This example uses the serial halo backend selected by initialize().
+    This example uses the serial halo backend selected by initialize(). Use
+    compiled_step to compile the entire sequence when measurements favor fewer
+    host dispatches, as on the tested GPU. The Python driver is retained because
+    whole-step compilation can be slower on CPU. Both paths support AD.
     """
     from veris.advection import Advection
     from veris.area_mass import AreaWS, SeaIceMass
@@ -119,3 +123,12 @@ def step(vs: State, sett: Settings, cooling: float = 100.0) -> State:
         Growth(vs, sett),
     )
     return jax.tree.map(fill_overlap, vs)
+
+
+compiled_step = jit(step, static_argnames=["sett"])
+"""Whole-step compiled driver; settings are static and cooling stays dynamic.
+
+Shares the exact physics sequence with step. Choose this callable once outside
+the integration loop for workloads where reduced host dispatch is beneficial;
+see benchmarks/README.md for CPU/GPU measurements and their limits.
+"""
