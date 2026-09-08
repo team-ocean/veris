@@ -1,9 +1,10 @@
-import jax
-import jax.numpy as jnp
 from functools import partial
 
+import jax
+import jax.numpy as jnp
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def AreaWS(vs, sett):
     """calculate sea ice cover fraction centered around velocity points"""
 
@@ -12,7 +13,8 @@ def AreaWS(vs, sett):
 
     return AreaW, AreaS
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def SeaIceMass(vs, sett):
     """calculate mass of the ice-snow system centered around c-, u-, and v-points"""
 

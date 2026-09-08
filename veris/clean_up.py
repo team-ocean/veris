@@ -1,9 +1,10 @@
-import jax
-import jax.numpy as jnp
 from functools import partial
 
+import jax
+import jax.numpy as jnp
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def clean_up_advection(vs, sett):
     """clean up overshoots and other pathological cases after advection"""
 
@@ -36,7 +37,8 @@ def clean_up_advection(vs, sett):
 
     return hIceMean, hSnowMean, Area, TSurf, os_hIceMean, os_hSnowMean
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def ridging(vs, sett):
     """cut off ice cover fraction at 1 after advection to account for ridging"""
     Area = jnp.minimum(vs.Area, 1)

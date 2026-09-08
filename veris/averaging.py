@@ -1,9 +1,10 @@
-import jax
-import jax.numpy as jnp
 from functools import partial
 
+import jax
+import jax.numpy as jnp
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def c_point_to_z_point(vs, sett, Cfield):
     """calculates value at z-point by averaging c-point values"""
 

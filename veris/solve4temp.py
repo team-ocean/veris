@@ -1,9 +1,10 @@
-import jax
-import jax.numpy as jnp
 from functools import partial
 
+import jax
+import jax.numpy as jnp
 
-@partial(jax.jit, static_argnames=["sett"]) 
+
+@partial(jax.jit, static_argnames=["sett"])
 def solve4temp(vs, sett, hIceActual, hSnowActual, TSurfIn, TempFrz):
     """calculate heat fluxes through the ice and ice surface temperature"""
 

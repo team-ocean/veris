@@ -1,16 +1,13 @@
-#!/usr/bin/env python
-# coding=utf-8
+"""Package the standalone JAX sea-ice model."""
 
-from setuptools import setup, find_packages
-from codecs import open
-import sys
 import os
+import sys
 
+from setuptools import find_packages, setup
 
 here = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(here)
-import versioneer  # noqa: E402
-
+import versioneer
 
 CLASSIFIERS = """
 Development Status :: 3 - Alpha
@@ -27,10 +24,7 @@ Operating System :: Unix
 Operating System :: MacOS
 """
 
-INSTALL_REQUIRES = [
-    "jax>=0.11.1",
-    "numpy>=2.0"
-]
+INSTALL_REQUIRES = ["jax>=0.11.1", "numpy>=2.0"]
 
 with open(os.path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
@@ -45,7 +39,7 @@ setup(
     description="Standalone differentiable sea-ice model in JAX",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url='https://veris.readthedocs.io',
+    url="https://veris.readthedocs.io",
     python_requires=">=3.12",
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),

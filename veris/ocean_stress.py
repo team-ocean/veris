@@ -1,11 +1,13 @@
+from functools import partial
+
 import jax
 import jax.numpy as jnp
-from functools import partial
-from veris.fill_overlap import fill_overlap_uv
+
 from veris.dynamics_routines import ocean_drag_coeffs
+from veris.fill_overlap import fill_overlap_uv
 
 
-@partial(jax.jit, static_argnames=["sett"]) 
+@partial(jax.jit, static_argnames=["sett"])
 def OceanStressUV(vs, sett):
     """calculate stresses on ocean surface from ocean and ice velocities"""
 

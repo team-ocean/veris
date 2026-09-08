@@ -1,9 +1,10 @@
-import jax
-import jax.numpy as jnp
 from functools import partial
 
+import jax
+import jax.numpy as jnp
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def freedrift_solver(vs, sett):
     """calculate ice velocities without taking into account internal ice stress"""
 

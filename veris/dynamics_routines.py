@@ -1,9 +1,10 @@
-import jax
-import jax.numpy as jnp
 from functools import partial
 
+import jax
+import jax.numpy as jnp
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def SeaIceStrength(vs, sett):
     """calculate ice strength (= maximum compressive stress)
     from ice thickness and ice cover fraction
@@ -15,7 +16,8 @@ def SeaIceStrength(vs, sett):
 
     return SeaIceStrength
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def ocean_drag_coeffs(vs, sett, uIce, vIce):
     """calculate linear ice-water drag coefficient from ice and ocean velocities
     (this coefficient creates a linear relationship between
@@ -45,7 +47,8 @@ def ocean_drag_coeffs(vs, sett, uIce, vIce):
 
     return cDrag
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def basal_drag_coeffs(vs, sett, uIce, vIce):
     """calculate basal drag coefficient to account for the formation of
     landfast ice in shallow waters due to the formation of ice keels
@@ -81,7 +84,8 @@ def basal_drag_coeffs(vs, sett, uIce, vIce):
 
     return cBot
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def side_drag(vs, sett, uIce, vIce):
     """calculate the lateral drag coefficient to simulate landfast ice
     (Liu et al. 2022, A new parameterization of coastal drag to simulate landfast
@@ -121,7 +125,8 @@ def side_drag(vs, sett, uIce, vIce):
 
     return SideDragU, SideDragV
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def strainrates(vs, sett, uIce, vIce):
     """calculate strain rate tensor components from ice velocities"""
 
@@ -140,7 +145,7 @@ def strainrates(vs, sett, uIce, vIce):
     uave = (uIce + jnp.roll(uIce, 1, axis=1)) * 0.5
     dvdx = (vIce - jnp.roll(vIce, 1, axis=0)) * vs.recip_dxV
     vave = (vIce + jnp.roll(vIce, 1, axis=0)) * 0.5
-    
+
     # calculate strain rate at z-points
     mskZ = vs.iceMask * jnp.roll(vs.iceMask, 1, axis=0)
     mskZ = mskZ * jnp.roll(mskZ, 1, axis=1)
@@ -194,7 +199,8 @@ def strainrates(vs, sett, uIce, vIce):
 
     return e11, e22, e12
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def viscosities(vs, sett, e11, e22, e12):
     """calculate bulk viscosity zeta, shear viscosity eta, and ice pressure
     from strain rate tensor components and ice strength.
@@ -241,7 +247,8 @@ def viscosities(vs, sett, e11, e22, e12):
 
     return zeta, eta, press
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def stress(vs, sett, e11, e22, e12, zeta, eta, press):
     """calculate stress tensor components"""
 
@@ -253,7 +260,8 @@ def stress(vs, sett, e11, e22, e12, zeta, eta, press):
 
     return sig11, sig22, sig12
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def stressdiv(vs, sett, sig11, sig22, sig12):
     """calculate divergence of stress tensor"""
 

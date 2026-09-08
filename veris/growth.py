@@ -1,10 +1,12 @@
+from functools import partial
+
 import jax
 import jax.numpy as jnp
-from functools import partial
+
 from veris.solve4temp import solve4temp
 
 
-@partial(jax.jit, static_argnames=['sett'])
+@partial(jax.jit, static_argnames=["sett"])
 def Growth(vs, sett):
     """calculate thermodynamic change of ice and snow thickness and ice cover fraction
     due to atmospheric and ocean surface forcing"""
@@ -56,7 +58,7 @@ def Growth(vs, sett):
     # set ice and snow thickness categories to account for thicknes variations in one grid cell
     TIce_mult = ones3d * 1
 
-    for l in range(0, sett.nITC):
+    for l in range(sett.nITC):
         # the ice categories all have the same initial temperature
         TIce_mult = TIce_mult.at[:, :, l].set(vs.TSurf)
 

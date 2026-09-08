@@ -1,6 +1,8 @@
+from functools import partial
+
 import jax
 import jax.numpy as jnp
-from functools import partial
+
 from veris.fill_overlap import fill_overlap
 
 # in this routine, the thermodynamic time step is used instead of the dynamic one.
@@ -11,7 +13,7 @@ from veris.fill_overlap import fill_overlap
 # thickness changes inbetween dynamics timesteps.
 
 
-@partial(jax.jit, static_argnames=['sett'])
+@partial(jax.jit, static_argnames=["sett"])
 def Advection(vs, sett):
     """retrieve changes in sea ice fields"""
 
@@ -21,7 +23,8 @@ def Advection(vs, sett):
 
     return hIceMean, hSnowMean, Area
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def calc_Advection(vs, sett, field):
     """calculate change in sea ice field due to advection"""
 
@@ -83,7 +86,8 @@ def calc_Advection(vs, sett, field):
 
     return fieldLoc
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def calc_ZonalFlux(vs, sett, field, uTrans):
     """calculate the zonal advective flux using the second order flux limiter method"""
 
@@ -115,7 +119,8 @@ def calc_ZonalFlux(vs, sett, field, uTrans):
 
     return ZonalFlux
 
-@partial(jax.jit, static_argnames=['sett'])
+
+@partial(jax.jit, static_argnames=["sett"])
 def calc_MeridionalFlux(vs, sett, field, vTrans):
     """calculate the meridional advective flux using the second order flux limiter method"""
 
@@ -146,6 +151,7 @@ def calc_MeridionalFlux(vs, sett, field, vTrans):
     MeridionalFlux = fill_overlap(MeridionalFlux)
 
     return MeridionalFlux
+
 
 @partial(jax.jit)
 def limiter(Cr):

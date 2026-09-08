@@ -181,18 +181,15 @@ def dqnetdt(state, mask, ps, rbot, sst, ubot, vbot, us, vs):
     settings = state.settings
 
     vmag = npx.maximum(
-        settings.umin_o, npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2)
+        settings.umin_o,
+        npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2),
     )
 
     # long-wave radiation correction (IR)
-    dqir_dt = (
-        -settings.stefBoltz * 4.0 * sst[...] ** 3 * mask
-    )
+    dqir_dt = -settings.stefBoltz * 4.0 * sst[...] ** 3 * mask
 
     # sensible heat flux correction
-    dqh_dt = (
-        -rbot[...] * settings.cpdair * settings.ch * vmag[...] * mask
-    )
+    dqh_dt = -rbot[...] * settings.cpdair * settings.ch * vmag[...] * mask
 
     # latent heat flux correction
     dqe_dt = (
@@ -331,7 +328,8 @@ def flux_atmOcn(state, mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, 
     al2 = npx.log(settings.zref / settings.ztref)
 
     vmag = npx.maximum(
-        settings.umin_o, npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2)
+        settings.umin_o,
+        npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2),
     )
 
     # sea surface humidity (kg/kg)
@@ -455,7 +453,11 @@ def flux_atmOcn(state, mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, 
 
     # pot. temp to temp correction
     tref = (tref[...] - 0.01 * settings.ztref) * mask[...]
-    fac = (re[...] / settings.karman) * (alz[...] + al2 - psixh[...] + psix2[...]) * mask[...]
+    fac = (
+        (re[...] / settings.karman)
+        * (alz[...] + al2 - psixh[...] + psix2[...])
+        * mask[...]
+    )
     qref = (qbot[...] - delq[...] * fac[...]) * mask[...]
 
     # 10m wind speed squared
@@ -494,14 +496,22 @@ def flux_atmOcn_simple(state, mask, ps, qbot, rbot, ubot, vbot, tbot, us, vs, ts
     settings = state.settings
 
     vmag = npx.maximum(
-        settings.umin_o, npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2)
+        settings.umin_o,
+        npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2),
     )
 
     # long-wave radiation (IR)
     qir = -settings.stefBoltz * ts[...] ** 4 * mask[...]
 
     # sensible heat flux
-    qh = rbot[...] * settings.cpdair * settings.ch * vmag[...] * (tbot[...] - ts[...]) * mask[...]
+    qh = (
+        rbot[...]
+        * settings.cpdair
+        * settings.ch
+        * vmag[...]
+        * (tbot[...] - ts[...])
+        * mask[...]
+    )
 
     # latent heat flux
     qe = (
