@@ -384,3 +384,156 @@
   installation, maintained lint/format/annotation coverage, ty, full correctness,
   coverage gate and artifact upload. Typing objective complete; generated/vendor
   internals remain unchanged. Local untracked AGENTS.md and test_logs preserved.
+
+## 2026-09-08 — CPU/GPU profiling (in progress)
+
+- [x] Oriented on jax-only at bce3b18. No previous profiling harness/results
+  were present. Installed TensorBoard 2.21.0 and XProf 2.23.1 in .venv-latest;
+  JAX/jaxlib remain 0.11.1 and pip check passes.
+- [x] Verified two P100 16 GB GPUs, driver 580.173.02. Captured real CPU and
+  single-GPU XPlane/Perfetto traces for a 64x64 artificial coupled step with
+  400 EVP iterations. Twelve synchronized, unprofiled calls give baseline
+  medians 186.404 ms CPU and 27.900 ms GPU; compilation is recorded separately
+  as first-call elapsed time. Raw artifacts: test_logs/profiling/.
+- [x] Exploratory whole-step JIT gives 183.739 ms CPU and 20.701 ms GPU;
+  all 84 output fields match exactly at this input. No production code changed.
+  GPU baseline has 98 executable dispatches per step. CPU host trace waits
+  prevent attributing the large fill_overlap host duration to halo kernel cost.
+  CPU speedup is unproven; GPU result requires larger/paired trials and AD checks.
+- [x] TensorBoard localhost:6006 loads XProf and discovers all four traces;
+  response saved in test_logs/profiling/xprof-runs.json. Live server tool session
+  79737 (revalidate handle next turn). TensorFlow absent: some remote capture
+  features disabled, local capture works. No browser rendering claim.
+- Failed environment attempts: sandbox cannot resolve PyPI, access NVIDIA,
+  or open TensorBoard sockets; approved external retries succeeded. Initial
+  curl emitted gzip bytes; decoded response now saved as JSON.
+- Next work and methodology: docs/superpowers/plans/2026-09-08-profiling.md.
+  Need reproducible harness, larger/evolving workloads, actual CPU optimization,
+  reviewed production changes, gradient/full CPU+GPU checks, and CI. Goal active.
+- [x] Fresh CPU fast selection passes all 49 selected cases after installing
+  profiler dependencies; git diff --check passes. No commit made this turn.
+- IN PROGRESS (@benchmark_harness): test-first standalone paired benchmark CLI
+  in benchmarks/ and tests/test_benchmark*.py. @root investigates CPU EVP and
+  owns coupled-step production optimization/tests. Only one pytest runs at once.
+- [x] Revalidated TensorBoard session 79737 live and converted all four XPlane
+  captures through XProf: GPU kernel_stats and CPU hlo_stats JSON now saved
+  beside the timing artifacts. This proves analysis conversion, beyond discovery.
+- CPU affinity probe: pinning to one core increased whole-step time to 241 ms;
+  reject as an optimization. CPU HLO partitions the large EVP velocity-update
+  fusion across five tasks on this 48-logical-CPU host. Fusion-boundary and halo
+  probes are exploratory; no numerical production change is accepted yet.
+- [x] @benchmark_harness added paired fixed/evolving CLI, validation off-clock,
+  per-variant XProf/Perfetto captures and metadata. Twelve focused tests passed;
+  reviewed caveats documented in benchmarks/README.md. Baseline always means
+  current Python step body, not historical kernels; artifacts need source patch.
+- [x] Whole-step JIT tests first failed on missing compiled interface; typed JIT
+  added to artificial.step with dynamic cooling. Three CPU tests pass: all-field
+  evolving nonuniform/masked fixed+adaptive EVP equivalence, cooling JVP/VJP and
+  central differences. Focused lint/format/ty pass. Full suite pending.
+- [x] Paired 256x256 evolving GPU benchmark (12 calls, 400 EVP substeps) gives
+  75.493 ms Python driver versus 69.372 ms compiled driver, paired ratio 1.090;
+  exact equality of every field through all steps. Trace capture succeeded.
+- CPU EVP probes: concatenate halos gave no convincing gain (190→188 ms);
+  barrier on forcing worsened 190→203 ms. Barrier on drag plus stress divergence
+  gave 190→118 ms at 64x64, but only 1.502→1.469 s at 256x256. Maximum absolute
+  rounding difference 5.25e-11 after 400 steps; first strict exploratory comparison
+  flagged a 1.15e-11 near-zero stress difference, not an accepted tolerance change.
+- GPU EVP barrier probe (isolated after coupled benchmark ended): 17.924→18.492 ms
+  at 64x64 and 66.058→54.451 ms at 256x256, exact output equality. Small-grid
+  regression requires assessing combined benefit; do not claim universal gain.
+- @evp_oracle captured pristine values/JVP/VJP for eight nonuniform rectangular
+  fixed/adaptive/coastline cases with source hashes, before any EVP edit.
+  @optimization_review performs independent read-only correctness/performance audit.
+- [x] Inserted EVP drag/stress-divergence identity barrier after baseline oracles
+  passed. All 11 focused CPU oracle/coupled tests still pass, including independent
+  finite differences. No existing tolerance or iteration count was changed.
+- [x] Independent review found no production correctness blocker. Fixed missing
+  benchmark-test annotations; extended CI maintained checks to benchmarks/.
+  Full maintained Ruff/format/annotation/ty checks pass. Reviewer suggested an
+  np.savez allow_pickle change based on older NumPy; installed 2.5.3 signature
+  explicitly supports it and fixture has exactly 16 expected keys, so retained it.
+- Added requirements-profile.txt pinning validated optional visualization tools.
+  IN PROGRESS: full CPU coverage suite, then GPU suite and final profiles.
+- [x] Full CPU suite 509/509 passed outside sandbox; maintained coverage
+  1041/1050 = 99.14%, whole package 1041/1403 = 74.20%. Initial sandbox run
+  failed only because the existing two-process reduction test needs sockets.
+- Artifact audit correction: XProf CPU hlo_stats conversion returns a valid
+  but empty table for these host traces. CPU cost attribution uses Perfetto
+  runtime fusion events and compiled HLO, not an empty XProf HLO statistics table.
+  GPU kernel_stats contain nonempty kernel names/counts/timings.
+- [x] Full GPU suite 509/509 passed with asserted GPU default backend
+  (CPU-specific harness/reduction checks retain their intentional CPU target).
+  No numerical tolerances were relaxed. No pytest remains running.
+- IN PROGRESS: serial final original/optimized 64x64/256x256 CPU/GPU evolving
+  matrix in tool session 30185. Original source archived from remote-matching
+  76bf8bc; current source hashes and patch retained in test_logs/profiling/.
+- Installed optional Perfetto Python API 0.58.2 for SQL analysis of final traces;
+  existing JAX/numerical dependencies were unchanged.
+- User explicitly requires this local node without scheduler; no jobs were
+  submitted. A read-only scheduler query found this host unregistered; no more
+  scheduler actions. Native host snapshot showed load 0.76 on 48 logical CPUs,
+  both GPUs idle with no compute allocations. This is not historical load proof.
+- Monitored native repeats (53 vmstat samples) showed median 95% idle,
+  minimum 83% idle, no I/O wait/steal. Original64 CPU Python/JIT medians:
+  134.9/163.1 ms and 137.5/164.8 ms. Current barrier CPU Python/JIT medians:
+  158.3/151.9 ms and 165.5/148.9 ms. Thus default whole-step JIT would regress
+  evolving CPU performance despite earlier fixed-state results. Acceptance held.
+  Shared-node contention can affect timings but heavy host-wide contention was
+  not present in these monitored repeats; frequency/cache effects remain possible.
+- Do not conflate earlier sandbox/executed-source EVP probes with native final
+  full-driver results. Shared cgroup/CPU limits match, but compiled fusion/launch
+  contexts and workload differ. Hoisting basal keel/area factors alone gave no
+  useful improvement in a further exploratory coupled probe; not implemented.
+- Plan adjustment after performance evidence/review: preserve original Python
+  step API and expose opt-in compiled_step for measured beneficial workloads.
+  New interface tests updated first; production API change not yet made.
+  @benchmark_harness investigates native same-process CPU barrier placements;
+  root holds pytest while timing runs. Goal remains active; no commit yet.
+- Native canonical (normally imported) uninterrupted CPU loops confirm the
+  measurement method also matters, not just exploratory cloning. All48-core
+  original driver: 211.78/171.15 ms across fresh reversed-order runs; one NUMA
+  node's six physical cores: 133.76/134.65 ms; one socket's twelve physical cores:
+  124.35/124.29 ms. All 84 final fields match exactly across all six runs.
+  Topology/raw samples/NPZ outputs retained under native-affinity-*; these are
+  local child-only affinity changes, never scheduler allocations or host changes.
+- [x] Revised interface tests failed on missing compiled_step before adding the
+  typed alias. Original Python step remains the default. CUDA-only EVP barrier
+  uses jax.lax.platform_dependent selected by actual lowering target; CPU retains
+  original fusion. Independent review found no AD/shard_map/type blocker.
+- [x] Expanded EVP oracle to fixed/adaptive 400-step cases from hash-verified
+  original snapshot, with unchanged FD/tolerances. All 27 focused CPU tests pass
+  (12 EVP, 3 coupled, 12 then-current harness cases) after revised production code.
+- [x] Added --validation final to avoid host validation between timed pairs;
+  default each retains intermediate checks. New tests failed on missing API,
+  then 18 harness tests passed including final-only mismatch/NaN and validation
+  schedule coverage. Documentation states per-call synchronization remains.
+- [x] Perfetto API 0.58.2 with SHA-verified v57.2 binary in .venv-latest/bin
+  parsed saved traces and executed SQL. GPU256 original Python vs compiled
+  barrier trace: 294 versus 3 executable dispatches over 3 steps. CPU trace
+  analysis did not support the rejected blanket whole-step JIT default.
+- IN PROGRESS: final revised full CPU suite (session72055), then GPU suite and
+  final-source native measurements with matched validation schedules. No commits
+  yet; previous 509-case validation predates the final API/per-backend revision.
+- [x] 2026-09-08: Final revised full CPU and GPU suites both pass 519/519;
+  maintained coverage 1041/1050 (99.14%), whole package 74.20%. Maintained
+  Ruff/format/annotations/ty and pip dependency checks pass. No test remains live.
+- [x] Final serial local matrix completed without scheduler use. GPU64 original
+  Python/current compiled: 26.35/20.91 ms; GPU256: 74.67/57.48 ms. CUDA-only
+  barrier has a small GPU64 cost but improves GPU256; compiled dispatch reduction
+  gives net gains at both measured grids. All checked paired outputs are exact.
+- CPU256 Python socket-local medians 1492.68/1460.65 ms versus all-affinity
+  1618.25/1583.20 ms. CPU64 all-affinity varies 126.87 to 200.16 ms, while socket
+  stays 168.42/171.36 ms. No universal small-grid gain or causal contention claim.
+  Final 540 vmstat intervals: median idle95%, minimum76%, max I/O wait1%, steal0%.
+  Standalone/paired CPU methods disagree; default_device context, resident JIT
+  variants and interleaving remain possible causes, not established diagnoses.
+  Follow-up for any CPU tuning: control those variables on the actual target loop.
+- [x] Recorded accepted results, rejected approaches, provenance and limitations
+  in benchmarks/RESULTS.md. Retained original CPU fusion/Python default; no
+  speculative CPU optimization accepted. Final source hashes and patch retained
+  alongside raw traces. Profiling code and reviewed CUDA/API changes are ready.
+- [x] Independent final report review verified all twelve result rows and trace
+  counts without blockers. Committed on jax-only: b286ce1 (profiling harness),
+  b6aeb44 (opt-in compiled driver), 7aad88a (CUDA EVP/oracles). Source remained
+  unchanged after final full-suite validation. Large local artifacts and the
+  user-provided AGENTS.md remain untracked. No remote push performed.
