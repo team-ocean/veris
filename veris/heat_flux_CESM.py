@@ -1,6 +1,13 @@
-from veros import veros_kernel
-from veros.core.operators import numpy as npx, update, at
+"""Standalone JAX bulk heat-flux kernels, retaining the original CESM equations.
 
+Array inputs preserve the original shapes and units documented per function.
+Settings are supplied through an immutable, hashable state.settings object.
+"""
+
+from functools import partial
+
+import jax
+import jax.numpy as npx
 
 _cc = npx.array(
     [
@@ -55,7 +62,7 @@ _clat = npx.array(
 )
 
 
-@veros_kernel
+@jax.jit
 def qsat(tk):
     """The saturation humidity of air (kg/m^3)
 
@@ -65,7 +72,7 @@ def qsat(tk):
     return 640380.0 / npx.exp(5107.4 / tk)
 
 
-@veros_kernel
+@jax.jit
 def qsat_august_eqn(ps, tk):
     """Saturated specific humidity (kg/kg)
 
@@ -85,7 +92,7 @@ def qsat_august_eqn(ps, tk):
     return 0.622 / ps * 10 ** (9.4051 - 2353.0 / tk) * 133.322
 
 
-@veros_kernel
+@jax.jit
 def get_press_levs(sp, hya, hyb):
     """Compute pressure levels
 
@@ -150,7 +157,7 @@ def compute_z_level(settings, t, q, ph):
     return alt[:, :, -1]
 
 
-@veros_kernel
+@partial(jax.jit, static_argnames=["state"])
 def dqnetdt(state, mask, ps, rbot, sst, ubot, vbot, us, vs):
     """Calculates correction term of net ocean heat flux (W/m^2)
 
@@ -203,9 +210,9 @@ def dqnetdt(state, mask, ps, rbot, sst, ubot, vbot, us, vs):
     return (dqir_dt, dqh_dt, dqe_dt)
 
 
-@veros_kernel
+@partial(jax.jit, static_argnames=["state"])
 def net_lw_ocn(state, mask, lat, qbot, sst, tbot, tcc):
-    """Compute net LW (upward - downward) radiation at the ocean surface (W/m^2)
+    """Compute net downward LW radiation at the ocean surface (W/m^2)
 
     Arguments:
         mask (:obj:`ndarray`): ocn domain mask        0 <=> out of domain
@@ -226,21 +233,8 @@ def net_lw_ocn(state, mask, lat, qbot, sst, tbot, tcc):
 
     settings = state.settings
 
-    ccint = npx.zeros(lat.shape)
-    idx_num = npx.arange(lat.size)
-    # ccint = allocate(state.dimensions, ("yt",))
-
-    for i in range(20):
-        # idx = npx.squeeze(npx.argwhere((lat[:] > _clat[i]) & (lat[:] <= _clat[i+1])))
-        idx = npx.where(
-            (lat[:] > _clat[i]) & (lat[:] <= _clat[i + 1]), idx_num, 0
-        )  # to make it work with JAX
-        ccint = update(
-            ccint,
-            at[idx],
-            _cc[i]
-            + (_cc[i + 1] - _cc[i]) * (lat[idx] - _clat[i]) / (_clat[i + 1] - _clat[i]),
-        )
+    # Interpolate each latitude independently, including both polar endpoints.
+    ccint = npx.interp(lat, _clat, _cc)
 
     frac_cloud_cover = 1.0 - ccint[npx.newaxis, :] * tcc[...] ** 2
     rtea = npx.sqrt(1000.0 * qbot[...] / (0.622 + 0.378 * qbot[...]) + settings.eps2)
@@ -257,7 +251,7 @@ def net_lw_ocn(state, mask, lat, qbot, sst, tbot, tcc):
     )
 
 
-@veros_kernel
+@jax.jit
 def cdn(umps):
     """Neutral drag coeff at 10m
 
@@ -267,7 +261,7 @@ def cdn(umps):
     return 0.0027 / umps + 0.000142 + 0.0000764 * umps
 
 
-@veros_kernel
+@jax.jit
 def psimhu(xd):
     """Unstable part of psimh
 
@@ -281,7 +275,7 @@ def psimhu(xd):
     )
 
 
-@veros_kernel
+@jax.jit
 def psixhu(xd):
     """Unstable part of psimx
 
@@ -291,7 +285,7 @@ def psixhu(xd):
     return 2.0 * npx.log((1.0 + xd * xd) / 2.0)
 
 
-@veros_kernel
+@partial(jax.jit, static_argnames=["state"])
 def flux_atmOcn(state, mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, ts):
     """atm/ocn fluxes calculation
 
@@ -470,7 +464,7 @@ def flux_atmOcn(state, mask, rbot, zbot, ubot, vbot, qbot, tbot, thbot, us, vs, 
     return (sen, lat, lwup, evap, taux, tauy, tref, qref, duu10n, ustar, tstar, qstar)
 
 
-@veros_kernel
+@partial(jax.jit, static_argnames=["state"])
 def flux_atmOcn_simple(state, mask, ps, qbot, rbot, ubot, vbot, tbot, us, vs, ts):
     """Calculates bulk net heat flux
 

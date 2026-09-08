@@ -1,8 +1,16 @@
-from veros import veros_kernel
-from veros.core.operators import numpy as npx
+"""Standalone JAX bulk heat-flux kernels, retaining the original MITgcm LANL equations.
+
+Array inputs preserve the original shapes and units documented per function.
+Settings are supplied through an immutable, hashable state.settings object.
+"""
+
+from functools import partial
+
+import jax
+import jax.numpy as npx
 
 
-@veros_kernel
+@partial(jax.jit, static_argnames=["state"])
 def bulkf_formula_lanl(state, uw, vw, ta, qa, tsf, ocn_mask):
     """Calculate bulk formula fluxes over open ocean
 

@@ -140,3 +140,41 @@
 - Next: meaningful legacy heat-flux/setup tests, basal-drag numerical stability,
   multi-device validation, additional smooth-region gradient checks; 80% target
   and full objective are still incomplete.
+
+## 2026-09-08 — standalone bulk heat fluxes and stable basal drag
+
+- IN PROGRESS (@root): final correctness/coverage run, then separate commits.
+- [x] Added heat-flux tests before changing source. Initial collection sample
+  failed 3/3 imports on missing Veros; native JAX decorators/arrays preserve
+  the existing immutable `state.settings` interface without fake dependencies.
+  Initial scalar radiation/humidity/transfer checks then passed 25/25.
+- [x] Extended CESM tests to hybrid pressure levels, isothermal hydrostatic
+  height, iterative stable/unstable bulk exchange, masks and finite-difference
+  temperature derivatives. Added dry/saturated/humid cases in both modules to
+  verify nonzero latent-heat/water closure and exchange direction.
+- [x] Latitude knot/midpoint checks failed 2/2: legacy scatter interpolation
+  overwrote index zero for unmatched latitudes. Independent jnp.interp fixes
+  both; net longwave docstring now matches its unchanged downward-positive law.
+- [x] Basal drag stability/gradient tests: 27 failed, 39 passed before the fix.
+  Replace log(exp(x)+1) with algebraically equivalent logaddexp(0,x); all
+  66 cases then passed, including float32/float64, thresholds, disabled drag,
+  and analytic thickness/velocity derivatives up to 90 m keel thickness.
+- [x] Independent numerical review found no unintended changes. The review's
+  saturated-only moisture gap was addressed before the final run.
+- [x] Fast suite: 43 passed, 378 deselected. Tests pass Ruff and ty.
+- Remaining limits: MITgcm ocean mask is currently unused by production fluxes;
+  its diagnostic derivatives hold transfer coefficients fixed, so unrestricted
+  AD is not their oracle. Legacy heat callers supply grav/radius; tests provide
+  those constants explicitly because the current registry lacks them. Legacy
+  setup/init still need removal of Veros dependencies and integration tests.
+
+- [x] Full correctness suite: **421/421 passed in 43.40 s** on JAX 0.11.1.
+  Basal stability 66/66, CESM heat flux 46/46, MITgcm bulk flux 27/27.
+- Whole-package coverage **788/1515 statements (52.01%)**; both bulk heat-flux
+  modules reach 100% statements. CI floor raised to 52%; no exclusions added.
+- Test Ruff/format/ty checks pass. Source import sorting passes; the two legacy
+  mixed-case heat-flux module names still trigger N999, retained for API stability.
+- Target 80% remains incomplete. Next priority: standalone initialization and
+  integration with artificial ocean masks, remaining boundary/gradient gaps,
+  multi-device/GPU verification. Generated version metadata is still included
+  in the reported whole-package denominator.
