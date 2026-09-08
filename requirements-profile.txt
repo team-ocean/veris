@@ -1,0 +1,4 @@
+# Optional visualization tools validated with .venv-latest / JAX 0.11.1.
+tensorboard==2.21.0
+xprof==2.23.1
+perfetto==0.58.2
