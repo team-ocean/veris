@@ -1,5 +1,27 @@
 # Development log
 
+## 2026-09-09 — registry/dataclass migration design
+
+- IN PROGRESS (@root): implement the AGENTS.md Goal; branch is `jax-only`.
+  User-provided AGENTS.md is present and must be committed with this work.
+- [x] Read DESIGN.md, current schemas, initialization, halo selection, tests,
+  and documentation. Wrote proposed architecture in
+  `docs/superpowers/specs/2026-09-09-dataclass-initialization-design.md`.
+  Production implementation awaits the brainstorming skill's design review.
+- [x] Independent registry audit (@registry_audit), verified with a separate
+  AST scan: 84 State fields, 14 with no direct kernel read. Preserve useful
+  coupling diagnostics separately; remove dead aliases and unused metrics.
+- Additional required migration: local empirical coefficients in surface/bulk
+  flux kernels, missing bulk defaults for grav/radius, dependent defaults,
+  mutable import-time halo selection, geometry initialization, actual h5netcdf
+  metadata round trip and registry-generated Sphinx references.
+- Baseline full CPU run completed with one sandbox-only failure: local sockets
+  are denied in the two-process reduction test. No production changes made.
+  Full CPU rerun outside sandbox passed all 519 tests (exit 0); log:
+  `test_logs/dataclass-baseline-cpu.log`. Session 56631 is terminal; no pytest
+  remains live. This verifies the pre-migration baseline, not the proposed
+  implementation. Instructions/design commit follows; no remote push.
+
 ## 2026-09-08 — initial test harness
 
 - [x] Inspected `jax-only`; no existing tests, DESIGN.md, or CHANGELOG.md.
