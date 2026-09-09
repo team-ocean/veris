@@ -81,35 +81,26 @@ def wrong_length(sett: Settings, phys: PhysicalConstants, field: Array) -> tuple
     "case", ["immutable", "wrong-atmosphere", "wrong-category-count", "wrong-arity"]
 )
 def test_thermodynamic_heat_flux_contract(tmp_path: Path, case: str) -> None:
-    """Keep minimal array protocols and concrete configuration type checks."""
-    fields = ["ATemp", "LWdown", "SWdown", "aqh", "fCori", "wSpeed"]
-    atmosphere = "\n".join(
-        f"    {name}: {'str' if case == 'wrong-atmosphere' and name == 'aqh' else 'Array'}"
-        for name in fields
-    )
-    source = f"""from dataclasses import dataclass
-import numpy as np
+    """Check concrete State, configuration, and thermodynamic result types."""
+    source = f"""import numpy as np
 from jax import Array
 from veris.configuration import Settings
 from veris.physical_constants import PhysicalConstants
-from veris._thermodynamic_types import GrowthState, GrowthResult
+from veris._thermodynamic_types import GrowthResult
+from veris.state import State
 from veris.growth import Growth
 from veris.solve4temp import solve4temp
 
-@dataclass(frozen=True)
-class Atmosphere:
-{atmosphere}
-
-def surface_fluxes(state: Atmosphere, sett: Settings, phys: PhysicalConstants) -> tuple[Array, Array, Array, Array, Array]:
+def surface_fluxes(state: {"str" if case == "wrong-atmosphere" else "State"}, sett: Settings, phys: PhysicalConstants) -> tuple[Array, Array, Array, Array, Array]:
     field = np.ones((2, 3))
     return solve4temp(state, sett, phys, field, field, field, field)
 
-def growth(state: GrowthState, sett: Settings, phys: PhysicalConstants) -> {"tuple[Array, Array]" if case == "wrong-arity" else "GrowthResult"}:
+def growth(state: State, sett: Settings, phys: PhysicalConstants) -> {"tuple[Array, Array]" if case == "wrong-arity" else "GrowthResult"}:
     return Growth(state, sett, phys)
 """
     expected = None
     if case == "wrong-atmosphere":
-        expected = ("invalid-argument-type", "member `aqh` is incompatible")
+        expected = ("invalid-argument-type", "State")
     elif case == "wrong-category-count":
         source += "\nsettings = Settings(nITC=1.5)\n"
         expected = ("invalid-argument-type", "int")

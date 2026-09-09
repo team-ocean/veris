@@ -1,22 +1,18 @@
 """Flux-limited directional transport of horizontal sea-ice fields."""
 
+from __future__ import annotations
+
 from functools import partial
 from typing import cast
 
 import jax.numpy as jnp
 from jax import Array
 
-from veris._transport_types import (
-    AdvectionSettings,
-    AdvectionState,
-    FluxSettings,
-    MeridionalFluxState,
-    TransportState,
-    ZonalFluxState,
-)
 from veris._typing import ArrayInput, jit
+from veris.configuration import Settings
 from veris.fill_overlap import fill_overlap
 from veris.physical_constants import PhysicalConstants
+from veris.state import State
 
 # in this routine, the thermodynamic time step is used instead of the dynamic one.
 # this has historical reasons as with lower resolutions, the dynamics change much
@@ -28,7 +24,7 @@ from veris.physical_constants import PhysicalConstants
 
 @partial(jit, static_argnames=["sett", "phys"])
 def Advection(
-    vs: AdvectionState, sett: AdvectionSettings, phys: PhysicalConstants
+    vs: State, sett: Settings, phys: PhysicalConstants
 ) -> tuple[Array, Array, Array]:
     """retrieve changes in sea ice fields"""
 
@@ -41,8 +37,8 @@ def Advection(
 
 @partial(jit, static_argnames=["sett", "phys"])
 def calc_Advection(
-    vs: TransportState,
-    sett: AdvectionSettings,
+    vs: State,
+    sett: Settings,
     phys: PhysicalConstants,
     field: ArrayInput,
 ) -> Array:
@@ -110,8 +106,8 @@ def calc_Advection(
 
 @partial(jit, static_argnames=["sett", "phys"])
 def calc_ZonalFlux(
-    vs: ZonalFluxState,
-    sett: FluxSettings,
+    vs: State,
+    sett: Settings,
     phys: PhysicalConstants,
     field: ArrayInput,
     uTrans: ArrayInput,
@@ -149,8 +145,8 @@ def calc_ZonalFlux(
 
 @partial(jit, static_argnames=["sett", "phys"])
 def calc_MeridionalFlux(
-    vs: MeridionalFluxState,
-    sett: FluxSettings,
+    vs: State,
+    sett: Settings,
     phys: PhysicalConstants,
     field: ArrayInput,
     vTrans: ArrayInput,

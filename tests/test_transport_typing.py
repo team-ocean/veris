@@ -1,4 +1,4 @@
-"""Directional flux contracts retain structural inputs through compilation."""
+"""Directional flux contracts accept concrete inputs through compilation."""
 
 import os
 import subprocess
@@ -7,35 +7,21 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize("valid", [True, False], ids=["immutable", "wrong-mask"])
+@pytest.mark.parametrize("valid", [True, False], ids=["immutable", "wrong-state"])
 @pytest.mark.parametrize("direction", ["Zonal", "Meridional"])
 def test_directional_transport_contract(
     tmp_path: Path, valid: bool, direction: str
 ) -> None:
-    """Accept NumPy fields and immutable geometry, but reject a non-array mask."""
-    component = "U" if direction == "Zonal" else "V"
-    coordinate = "x" if direction == "Zonal" else "y"
-    velocity = component.lower()
-    source = f"""from typing import NamedTuple
+    """Accept NumPy fields and concrete State, but reject invalid state arguments."""
+    source = f"""from veris.state import State
+from veris.configuration import Settings
 from jax import Array
 from numpy import float64
 from numpy.typing import NDArray
 from veris.advection import calc_{direction}Flux
 from veris.physical_constants import PhysicalConstants
 
-class Geometry(NamedTuple):
-    iceMask: Array
-    iceMask{component}: {"Array" if valid else "str"}
-    maskIn{component}: Array
-    {velocity}Ice: Array
-    recip_d{coordinate}C: Array
-
-class Constants(NamedTuple):
-    deltatTherm: float
-    CrMax: float
-    use_sharding: bool
-
-def evaluate(state: Geometry, constants: Constants, field: NDArray[float64]) -> Array:
+def evaluate(state: {"State" if valid else "str"}, constants: Settings, field: NDArray[float64]) -> Array:
     return calc_{direction}Flux(state, constants, PhysicalConstants(), field, field)
 """
     root = Path(__file__).resolve().parents[1]
@@ -54,7 +40,7 @@ def evaluate(state: Geometry, constants: Constants, field: NDArray[float64]) -> 
     if valid:
         assert result.returncode == 0, diagnostic[-2000:]
     else:
-        assert result.returncode != 0, "ERROR non-array face mask accepted"
+        assert result.returncode != 0, "ERROR invalid transport state accepted"
         assert "invalid-argument-type" in diagnostic, diagnostic[-2000:]
 
 

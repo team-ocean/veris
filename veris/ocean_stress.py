@@ -1,20 +1,23 @@
 """Compute ice-ocean stress with drag and a water turning angle."""
 
+from __future__ import annotations
+
 from functools import partial
 
 import jax.numpy as jnp
 from jax import Array
 
-from veris._dynamics_types import OceanStressSettings, OceanStressState
 from veris._typing import jit
+from veris.configuration import Settings
 from veris.dynamics_routines import ocean_drag_coeffs
 from veris.fill_overlap import fill_overlap_uv
 from veris.physical_constants import PhysicalConstants
+from veris.state import State
 
 
 @partial(jit, static_argnames=["sett", "phys"])
 def OceanStressUV(
-    vs: OceanStressState, sett: OceanStressSettings, phys: PhysicalConstants
+    vs: State, sett: Settings, phys: PhysicalConstants
 ) -> tuple[Array, Array]:
     """calculate stresses on ocean surface from ocean and ice velocities"""
 

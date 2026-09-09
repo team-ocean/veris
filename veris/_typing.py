@@ -1,10 +1,4 @@
-"""Structural inputs for kernels accepting immutable or mutable JAX PyTrees.
-
-Array properties describe horizontal fields, including halos when required by
-an individual kernel. These protocols have no runtime validation or storage.
-Read-only properties allow frozen dataclasses without requiring inheritance.
-Physical coefficients are floats even when their defaults are integer literals.
-"""
+"""Array inputs and signature-preserving JAX compiled callables."""
 
 from collections.abc import Callable, Sequence
 from typing import ParamSpec, Protocol, TypeVar, cast
@@ -21,64 +15,6 @@ type ArrayInput = Array | NDArray[np.number]
 
 type MaskInput = ArrayInput | NDArray[np.bool_]
 """Indexable masks and halo fields may use NumPy boolean arrays as well."""
-
-
-class StaticSettings(Protocol):
-    """JIT-static configuration must expose a valid hash implementation."""
-
-    def __hash__(self) -> int: ...
-
-
-class AreaState(Protocol):
-    """Ice concentration on cell centers."""
-
-    @property
-    def Area(self) -> Array: ...
-
-
-class ThicknessState(Protocol):
-    """Grid-cell mean ice and snow thickness in meters."""
-
-    @property
-    def hIceMean(self) -> Array: ...
-
-    @property
-    def hSnowMean(self) -> Array: ...
-
-
-class IceThermodynamicState(AreaState, ThicknessState, Protocol):
-    """Transported thickness/concentration with surface temperature in kelvin."""
-
-    @property
-    def TSurf(self) -> Array: ...
-
-
-class MaskState(Protocol):
-    """Cell-center ocean mask used by corner interpolation."""
-
-    @property
-    def iceMask(self) -> Array: ...
-
-
-class MassSettings(StaticSettings, Protocol):
-    """Static mass-kernel configuration; material densities are passed separately."""
-
-
-class BoundarySettings(StaticSettings, Protocol):
-    """Lateral boundary condition for corner averages."""
-
-    @property
-    def noSlip(self) -> bool: ...
-
-
-class CleanupSettings(StaticSettings, Protocol):
-    """Transport cleanup thresholds; physical conversion constants are separate."""
-
-    @property
-    def hIce_min(self) -> float: ...
-
-    @property
-    def Area_min(self) -> float: ...
 
 
 # JAX 0.11.1's JitWrapped signature erases parameter types. This boundary

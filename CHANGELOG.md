@@ -1,5 +1,39 @@
 # Development log
 
+## 2026-09-09 — simplify registry defaults and kernel annotations
+
+- [x] Implemented registry-default and zero-default cleanup on `jax-only`.
+  @simplify_types replaced State/Settings protocol variants with concrete types,
+  removed two obsolete modules, and updated static contract tests.
+- Added tests first for registry-populated constructor defaults, derived fields,
+  frozen replacement and schema drift; confirmed three expected missing-helper
+  failures before implementation. A shared `registry_defaults` decorator now
+  fills Settings/PhysicalConstants defaults before standard dataclass creation.
+  `FROM_REGISTRY` preserves optional typed constructor parameters without repeated
+  key lookups/casts. Existing validation and derived computations are retained.
+- Removed redundant zero defaults from VARIABLES; explicit nonzero defaults are
+  retained. Updated initialization/interface documentation.
+- [x] 49 configuration/initialization tests and 39 focused typing tests pass.
+  Maintained Ruff, formatting, annotation coverage and ty checks pass; Sphinx
+  documentation builds with warnings as errors and remote inventories disabled.
+- [x] Independent review confirmed registry values, field order, validation and
+  numerical bodies are preserved. Review caught runtime annotation resolution
+  failing with TYPE_CHECKING-only imports; switched to ordinary concrete imports
+  and strengthened the regression to call get_type_hints without injected names.
+  Direct regression failed first and now passes all twelve kernel modules.
+- Initial full CPU run: 645 tests pass; only two-process reduction fails because
+  the sandbox denies socket creation. That run overlapped the annotation-import
+  revision, so its coverage line mapping is stale and is not final evidence.
+- [x] Final-source full CPU suite outside sandbox: 646/646 pass, including
+  two-process collectives, gradients and concrete annotation introspection.
+  Maintained coverage 1411/1426 (98.95%); whole package 1411/1779 (79.31%).
+  The established 80% maintained-code gate passes. Logs and JSON coverage:
+  `test_logs/simplify-final-cpu.log`, `test_logs/simplify-final-coverage.json`.
+- [x] Final maintained Ruff/format/annotation/ty checks and Sphinx build pass.
+  Independent fresh-process review confirms all thirteen affected modules
+  import without cycles and resolve annotations. No physics, AD formulas or
+  numerical tolerances changed. No remote push requested.
+
 ## 2026-09-09 — registry/dataclass initialization migration
 
 - [x] User approved the design; working on `jax-only`. Instructions and design

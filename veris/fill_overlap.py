@@ -1,8 +1,10 @@
 """Periodic two-cell halo exchange for local and mesh-sharded JAX arrays."""
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from functools import partial
-from typing import Protocol, cast
+from typing import cast
 
 import jax
 from jax import Array, shard_map
@@ -12,13 +14,7 @@ from jax.sharding import AbstractMesh, Mesh
 from jax.sharding import PartitionSpec as P
 
 from veris._typing import MaskInput, jit
-
-
-class HaloSettings(Protocol):
-    """Static configuration needed to choose a periodic halo exchange."""
-
-    @property
-    def use_sharding(self) -> bool: ...
+from veris.configuration import Settings
 
 
 def fill_circular_overlap(A: Array) -> Array:
@@ -94,7 +90,7 @@ def make_sharded_fill_overlap(mesh: Mesh) -> Callable[[MaskInput], Array]:
 
 
 @partial(jit, static_argnames=["sett"])
-def fill_overlap(var: MaskInput, sett: HaloSettings) -> Array:
+def fill_overlap(var: MaskInput, sett: Settings) -> Array:
     """Fill periodic halos using initialized settings and the caller's mesh.
 
     Serial inputs store a single interior with two halo cells on each edge.
@@ -118,8 +114,6 @@ def fill_overlap(var: MaskInput, sett: HaloSettings) -> Array:
 
 
 @partial(jit, static_argnames=["sett"])
-def fill_overlap_uv(
-    u: MaskInput, v: MaskInput, sett: HaloSettings
-) -> tuple[Array, Array]:
+def fill_overlap_uv(u: MaskInput, v: MaskInput, sett: Settings) -> tuple[Array, Array]:
     """Fill both horizontal velocity components with the same initialized settings."""
     return fill_overlap(u, sett), fill_overlap(v, sett)

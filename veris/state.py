@@ -1,7 +1,7 @@
 """Concrete immutable PyTrees used by the standalone integration example.
 
-Kernel arguments use structural domain protocols, so other PyTree containers
-remain supported. These schemas preserve the order of the public registries.
+Kernels consume this concrete State and the initialized Settings.
+These schemas preserve the order of the public registries.
 Physical constants accept floats even when a default happens to be an integer.
 Horizontal state fields include the two-cell periodic halos.
 """

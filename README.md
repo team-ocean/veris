@@ -19,9 +19,9 @@ import jax
 from veris.setup.artificial import initialize, step
 
 jax.config.update("jax_enable_x64", True)
-state, settings = initialize()
+state, settings, constants = initialize()
 for _ in range(3):
-    state = step(state, settings, cooling=100.0)
+    state = step(state, settings, constants, cooling=100.0)
 jax.block_until_ready(state)
 ```
 
@@ -30,9 +30,9 @@ validated environment and numerical test commands.
 
 ### Typed interfaces
 
-The standalone initializer returns `veris.state.State` and `Settings`, immutable
-named tuples that retain JAX PyTree behavior. Kernels accept structural protocols:
-caller-defined state containers only need the fields required by that kernel.
+The standalone initializer returns frozen dataclasses: `veris.state.State`,
+`Settings`, and `PhysicalConstants`. Kernels use these concrete types directly.
+State is a JAX PyTree containing only calculation arrays.
 Settings passed as JIT static arguments must be hashable, with integer solver
 iteration counts. Array shapes and physical units are described by each kernel;
 annotations do not add runtime shape checks.

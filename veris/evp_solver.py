@@ -1,14 +1,17 @@
 """Elastic-viscous-plastic subcycling of ice velocity and stress tensors."""
 
+from __future__ import annotations
+
 from functools import partial
 
 import jax
 import jax.numpy as jnp
 from jax import Array
 
-from veris._solver_types import EVPCarry, EVPSettings, EVPState
+from veris._solver_types import EVPCarry
 from veris._typing import jit
 from veris.averaging import c_point_to_z_point
+from veris.configuration import Settings
 from veris.dynamics_routines import (
     basal_drag_coeffs,
     ocean_drag_coeffs,
@@ -20,12 +23,13 @@ from veris.dynamics_routines import (
 from veris.fill_overlap import fill_overlap_uv
 from veris.global_sum import global_sum
 from veris.physical_constants import PhysicalConstants
+from veris.state import State
 
 
 @partial(jit, static_argnames=["sett", "phys", "axis_names"])
 def evp_solver(
-    vs: EVPState,
-    sett: EVPSettings,
+    vs: State,
+    sett: Settings,
     phys: PhysicalConstants,
     *,
     axis_names: tuple[str, ...] = (),

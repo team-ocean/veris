@@ -7,9 +7,14 @@ construction and dataclasses.replace; instances are hashable static JAX argument
 
 import math
 from dataclasses import dataclass, field
-from typing import cast
 
-from veris._metadata import PhysicalConstant, validate_derived, validate_scalars
+from veris._metadata import (
+    FROM_REGISTRY,
+    PhysicalConstant,
+    registry_defaults,
+    validate_derived,
+    validate_scalars,
+)
 
 PHYSICALCONSTANTS: dict[str, PhysicalConstant] = {
     "hCut": PhysicalConstant(
@@ -374,215 +379,134 @@ PHYSICALCONSTANTS: dict[str, PhysicalConstant] = {
 
 
 @dataclass(frozen=True)
+@registry_defaults(PHYSICALCONSTANTS)
 class PhysicalConstants:
     """Validated immutable physical constants initialized from the registry."""
 
-    rhoIce: float = cast(float, PHYSICALCONSTANTS["rhoIce"].default)
-    rhoFresh: float = cast(float, PHYSICALCONSTANTS["rhoFresh"].default)
-    rhoSea: float = cast(float, PHYSICALCONSTANTS["rhoSea"].default)
-    rhoAir: float = cast(float, PHYSICALCONSTANTS["rhoAir"].default)
-    rhoSnow: float = cast(float, PHYSICALCONSTANTS["rhoSnow"].default)
-    recip_rhoFresh: float = field(
-        default=cast(float, PHYSICALCONSTANTS["recip_rhoFresh"].default), init=False
-    )
-    recip_rhoSea: float = field(
-        default=cast(float, PHYSICALCONSTANTS["recip_rhoSea"].default), init=False
-    )
-    rhoIce2rhoSnow: float = field(
-        default=cast(float, PHYSICALCONSTANTS["rhoIce2rhoSnow"].default), init=False
-    )
-    rhoIce2rhoFresh: float = field(
-        default=cast(float, PHYSICALCONSTANTS["rhoIce2rhoFresh"].default), init=False
-    )
-    rhoFresh2rhoSnow: float = field(
-        default=cast(float, PHYSICALCONSTANTS["rhoFresh2rhoSnow"].default), init=False
-    )
-    dryIceAlb: float = cast(float, PHYSICALCONSTANTS["dryIceAlb"].default)
-    dryIceAlb_south: float = cast(float, PHYSICALCONSTANTS["dryIceAlb_south"].default)
-    wetIceAlb: float = cast(float, PHYSICALCONSTANTS["wetIceAlb"].default)
-    wetIceAlb_south: float = cast(float, PHYSICALCONSTANTS["wetIceAlb_south"].default)
-    drySnowAlb: float = cast(float, PHYSICALCONSTANTS["drySnowAlb"].default)
-    drySnowAlb_south: float = cast(float, PHYSICALCONSTANTS["drySnowAlb_south"].default)
-    wetSnowAlb: float = cast(float, PHYSICALCONSTANTS["wetSnowAlb"].default)
-    wetSnowAlb_south: float = cast(float, PHYSICALCONSTANTS["wetSnowAlb_south"].default)
-    wetAlbTemp: float = cast(float, PHYSICALCONSTANTS["wetAlbTemp"].default)
-    lhFusion: float = cast(float, PHYSICALCONSTANTS["lhFusion"].default)
-    lhEvap: float = cast(float, PHYSICALCONSTANTS["lhEvap"].default)
-    lhSublim: float = field(
-        default=cast(float, PHYSICALCONSTANTS["lhSublim"].default), init=False
-    )
-    cpAir: float = cast(float, PHYSICALCONSTANTS["cpAir"].default)
-    cpWater: float = cast(float, PHYSICALCONSTANTS["cpWater"].default)
-    stefBoltz: float = cast(float, PHYSICALCONSTANTS["stefBoltz"].default)
-    iceEmiss: float = cast(float, PHYSICALCONSTANTS["iceEmiss"].default)
-    snowEmiss: float = cast(float, PHYSICALCONSTANTS["snowEmiss"].default)
-    iceConduct: float = cast(float, PHYSICALCONSTANTS["iceConduct"].default)
-    snowConduct: float = cast(float, PHYSICALCONSTANTS["snowConduct"].default)
-    shortwave: float = cast(float, PHYSICALCONSTANTS["shortwave"].default)
-    tempFrz: float = cast(float, PHYSICALCONSTANTS["tempFrz"].default)
-    dtempFrz_dS: float = cast(float, PHYSICALCONSTANTS["dtempFrz_dS"].default)
-    saltIce_ref: float = cast(float, PHYSICALCONSTANTS["saltIce_ref"].default)
-    saltOcn_ref: float = cast(float, PHYSICALCONSTANTS["saltOcn_ref"].default)
-    dalton: float = cast(float, PHYSICALCONSTANTS["dalton"].default)
-    celsius2K: float = cast(float, PHYSICALCONSTANTS["celsius2K"].default)
-    stantonNr: float = cast(float, PHYSICALCONSTANTS["stantonNr"].default)
-    uStarBase: float = cast(float, PHYSICALCONSTANTS["uStarBase"].default)
-    McPheeTaperFac: float = cast(float, PHYSICALCONSTANTS["McPheeTaperFac"].default)
-    h0: float = cast(float, PHYSICALCONSTANTS["h0"].default)
-    recip_h0: float = field(
-        default=cast(float, PHYSICALCONSTANTS["recip_h0"].default), init=False
-    )
-    h0_south: float = cast(float, PHYSICALCONSTANTS["h0_south"].default)
-    recip_h0_south: float = field(
-        default=cast(float, PHYSICALCONSTANTS["recip_h0_south"].default), init=False
-    )
-    airTurnAngle: float = cast(float, PHYSICALCONSTANTS["airTurnAngle"].default)
-    waterTurnAngle: float = cast(float, PHYSICALCONSTANTS["waterTurnAngle"].default)
-    sinWat: float = field(
-        default=cast(float, PHYSICALCONSTANTS["sinWat"].default), init=False
-    )
-    cosWat: float = field(
-        default=cast(float, PHYSICALCONSTANTS["cosWat"].default), init=False
-    )
-    airIceDrag: float = cast(float, PHYSICALCONSTANTS["airIceDrag"].default)
-    airIceDrag_south: float = cast(float, PHYSICALCONSTANTS["airIceDrag_south"].default)
-    waterIceDrag: float = cast(float, PHYSICALCONSTANTS["waterIceDrag"].default)
-    waterIceDrag_south: float = cast(
-        float, PHYSICALCONSTANTS["waterIceDrag_south"].default
-    )
-    gravity: float = cast(float, PHYSICALCONSTANTS["gravity"].default)
-    PlasDefCoeff: float = cast(float, PHYSICALCONSTANTS["PlasDefCoeff"].default)
-    pStar: float = cast(float, PHYSICALCONSTANTS["pStar"].default)
-    cStar: float = cast(float, PHYSICALCONSTANTS["cStar"].default)
-    basalDragU0: float = cast(float, PHYSICALCONSTANTS["basalDragU0"].default)
-    basalDragK1: float = cast(float, PHYSICALCONSTANTS["basalDragK1"].default)
-    basalDragK2: float = cast(float, PHYSICALCONSTANTS["basalDragK2"].default)
-    cBasalStar: float = cast(float, PHYSICALCONSTANTS["cBasalStar"].default)
-    tensileStrFac: float = cast(float, PHYSICALCONSTANTS["tensileStrFac"].default)
-    sideDragCoeff: float = cast(float, PHYSICALCONSTANTS["sideDragCoeff"].default)
-    sideDragU0: float = cast(float, PHYSICALCONSTANTS["sideDragU0"].default)
-    bolzc: float = cast(float, PHYSICALCONSTANTS["bolzc"].default)
-    avogad: float = cast(float, PHYSICALCONSTANTS["avogad"].default)
-    rgas: float = cast(float, PHYSICALCONSTANTS["rgas"].default)
-    mwdair: float = cast(float, PHYSICALCONSTANTS["mwdair"].default)
-    mwwv: float = cast(float, PHYSICALCONSTANTS["mwwv"].default)
-    rdair: float = cast(float, PHYSICALCONSTANTS["rdair"].default)
-    rwv: float = cast(float, PHYSICALCONSTANTS["rwv"].default)
-    zvir: float = cast(float, PHYSICALCONSTANTS["zvir"].default)
-    cpdair: float = cast(float, PHYSICALCONSTANTS["cpdair"].default)
-    cpwv: float = cast(float, PHYSICALCONSTANTS["cpwv"].default)
-    cpvir: float = cast(float, PHYSICALCONSTANTS["cpvir"].default)
-    karman: float = cast(float, PHYSICALCONSTANTS["karman"].default)
-    latvap: float = cast(float, PHYSICALCONSTANTS["latvap"].default)
-    p0: float = cast(float, PHYSICALCONSTANTS["p0"].default)
-    cappa: float = cast(float, PHYSICALCONSTANTS["cappa"].default)
-    zzsice: float = cast(float, PHYSICALCONSTANTS["zzsice"].default)
-    ch: float = cast(float, PHYSICALCONSTANTS["ch"].default)
-    ce: float = cast(float, PHYSICALCONSTANTS["ce"].default)
-    emissivity: float = cast(float, PHYSICALCONSTANTS["emissivity"].default)
-    ocean_emissivity: float = cast(float, PHYSICALCONSTANTS["ocean_emissivity"].default)
-    snow_emissivity: float = cast(float, PHYSICALCONSTANTS["snow_emissivity"].default)
-    ice_emissivity: float = cast(float, PHYSICALCONSTANTS["ice_emissivity"].default)
-    tf0kel: float = cast(float, PHYSICALCONSTANTS["tf0kel"].default)
-    gamma_blk: float = cast(float, PHYSICALCONSTANTS["gamma_blk"].default)
-    ocean_albedo: float = cast(float, PHYSICALCONSTANTS["ocean_albedo"].default)
-    ice_albedo: float = cast(float, PHYSICALCONSTANTS["ice_albedo"].default)
-    radius: float = cast(float, PHYSICALCONSTANTS["radius"].default)
+    rhoIce: float = FROM_REGISTRY
+    rhoFresh: float = FROM_REGISTRY
+    rhoSea: float = FROM_REGISTRY
+    rhoAir: float = FROM_REGISTRY
+    rhoSnow: float = FROM_REGISTRY
+    recip_rhoFresh: float = field(init=False)
+    recip_rhoSea: float = field(init=False)
+    rhoIce2rhoSnow: float = field(init=False)
+    rhoIce2rhoFresh: float = field(init=False)
+    rhoFresh2rhoSnow: float = field(init=False)
+    dryIceAlb: float = FROM_REGISTRY
+    dryIceAlb_south: float = FROM_REGISTRY
+    wetIceAlb: float = FROM_REGISTRY
+    wetIceAlb_south: float = FROM_REGISTRY
+    drySnowAlb: float = FROM_REGISTRY
+    drySnowAlb_south: float = FROM_REGISTRY
+    wetSnowAlb: float = FROM_REGISTRY
+    wetSnowAlb_south: float = FROM_REGISTRY
+    wetAlbTemp: float = FROM_REGISTRY
+    lhFusion: float = FROM_REGISTRY
+    lhEvap: float = FROM_REGISTRY
+    lhSublim: float = field(init=False)
+    cpAir: float = FROM_REGISTRY
+    cpWater: float = FROM_REGISTRY
+    stefBoltz: float = FROM_REGISTRY
+    iceEmiss: float = FROM_REGISTRY
+    snowEmiss: float = FROM_REGISTRY
+    iceConduct: float = FROM_REGISTRY
+    snowConduct: float = FROM_REGISTRY
+    shortwave: float = FROM_REGISTRY
+    tempFrz: float = FROM_REGISTRY
+    dtempFrz_dS: float = FROM_REGISTRY
+    saltIce_ref: float = FROM_REGISTRY
+    saltOcn_ref: float = FROM_REGISTRY
+    dalton: float = FROM_REGISTRY
+    celsius2K: float = FROM_REGISTRY
+    stantonNr: float = FROM_REGISTRY
+    uStarBase: float = FROM_REGISTRY
+    McPheeTaperFac: float = FROM_REGISTRY
+    h0: float = FROM_REGISTRY
+    recip_h0: float = field(init=False)
+    h0_south: float = FROM_REGISTRY
+    recip_h0_south: float = field(init=False)
+    airTurnAngle: float = FROM_REGISTRY
+    waterTurnAngle: float = FROM_REGISTRY
+    sinWat: float = field(init=False)
+    cosWat: float = field(init=False)
+    airIceDrag: float = FROM_REGISTRY
+    airIceDrag_south: float = FROM_REGISTRY
+    waterIceDrag: float = FROM_REGISTRY
+    waterIceDrag_south: float = FROM_REGISTRY
+    gravity: float = FROM_REGISTRY
+    PlasDefCoeff: float = FROM_REGISTRY
+    pStar: float = FROM_REGISTRY
+    cStar: float = FROM_REGISTRY
+    basalDragU0: float = FROM_REGISTRY
+    basalDragK1: float = FROM_REGISTRY
+    basalDragK2: float = FROM_REGISTRY
+    cBasalStar: float = FROM_REGISTRY
+    tensileStrFac: float = FROM_REGISTRY
+    sideDragCoeff: float = FROM_REGISTRY
+    sideDragU0: float = FROM_REGISTRY
+    bolzc: float = FROM_REGISTRY
+    avogad: float = FROM_REGISTRY
+    rgas: float = FROM_REGISTRY
+    mwdair: float = FROM_REGISTRY
+    mwwv: float = FROM_REGISTRY
+    rdair: float = FROM_REGISTRY
+    rwv: float = FROM_REGISTRY
+    zvir: float = FROM_REGISTRY
+    cpdair: float = FROM_REGISTRY
+    cpwv: float = FROM_REGISTRY
+    cpvir: float = FROM_REGISTRY
+    karman: float = FROM_REGISTRY
+    latvap: float = FROM_REGISTRY
+    p0: float = FROM_REGISTRY
+    cappa: float = FROM_REGISTRY
+    zzsice: float = FROM_REGISTRY
+    ch: float = FROM_REGISTRY
+    ce: float = FROM_REGISTRY
+    emissivity: float = FROM_REGISTRY
+    ocean_emissivity: float = FROM_REGISTRY
+    snow_emissivity: float = FROM_REGISTRY
+    ice_emissivity: float = FROM_REGISTRY
+    tf0kel: float = FROM_REGISTRY
+    gamma_blk: float = FROM_REGISTRY
+    ocean_albedo: float = FROM_REGISTRY
+    ice_albedo: float = FROM_REGISTRY
+    radius: float = FROM_REGISTRY
 
-    iceVaporPressureTemperature: float = cast(
-        float, PHYSICALCONSTANTS["iceVaporPressureTemperature"].default
-    )
-    iceVaporPressureLog10Offset: float = cast(
-        float, PHYSICALCONSTANTS["iceVaporPressureLog10Offset"].default
-    )
-    waterVaporDryAirMassRatio: float = cast(
-        float, PHYSICALCONSTANTS["waterVaporDryAirMassRatio"].default
-    )
-    iceSurfacePressure: float = cast(
-        float, PHYSICALCONSTANTS["iceSurfacePressure"].default
-    )
-    iceShortwaveExtinction: float = cast(
-        float, PHYSICALCONSTANTS["iceShortwaveExtinction"].default
-    )
-    McPheeTaperArea: float = cast(float, PHYSICALCONSTANTS["McPheeTaperArea"].default)
-    McPheeTaperSteepness: float = cast(
-        float, PHYSICALCONSTANTS["McPheeTaperSteepness"].default
-    )
-    lateralMeltAreaFactor: float = cast(
-        float, PHYSICALCONSTANTS["lateralMeltAreaFactor"].default
-    )
-    cesmSaturationHumidityScale: float = cast(
-        float, PHYSICALCONSTANTS["cesmSaturationHumidityScale"].default
-    )
-    cesmSaturationHumidityTemperature: float = cast(
-        float, PHYSICALCONSTANTS["cesmSaturationHumidityTemperature"].default
-    )
-    augustVaporPressureLog10Offset: float = cast(
-        float, PHYSICALCONSTANTS["augustVaporPressureLog10Offset"].default
-    )
-    augustVaporPressureTemperature: float = cast(
-        float, PHYSICALCONSTANTS["augustVaporPressureTemperature"].default
-    )
-    mmHgToPa: float = cast(float, PHYSICALCONSTANTS["mmHgToPa"].default)
-    neutralDragInverseWind: float = cast(
-        float, PHYSICALCONSTANTS["neutralDragInverseWind"].default
-    )
-    neutralDragConstant: float = cast(
-        float, PHYSICALCONSTANTS["neutralDragConstant"].default
-    )
-    neutralDragLinearWind: float = cast(
-        float, PHYSICALCONSTANTS["neutralDragLinearWind"].default
-    )
-    cesmUnstableMomentumOffset: float = cast(
-        float, PHYSICALCONSTANTS["cesmUnstableMomentumOffset"].default
-    )
-    longwaveHumidityPressureScale: float = cast(
-        float, PHYSICALCONSTANTS["longwaveHumidityPressureScale"].default
-    )
-    longwaveClearSkyOffset: float = cast(
-        float, PHYSICALCONSTANTS["longwaveClearSkyOffset"].default
-    )
-    longwaveHumidityCoefficient: float = cast(
-        float, PHYSICALCONSTANTS["longwaveHumidityCoefficient"].default
-    )
-    seawaterHumidityFactor: float = cast(
-        float, PHYSICALCONSTANTS["seawaterHumidityFactor"].default
-    )
-    cesmNeutralHeatUnstable: float = cast(
-        float, PHYSICALCONSTANTS["cesmNeutralHeatUnstable"].default
-    )
-    cesmNeutralHeatStable: float = cast(
-        float, PHYSICALCONSTANTS["cesmNeutralHeatStable"].default
-    )
-    cesmNeutralMoisture: float = cast(
-        float, PHYSICALCONSTANTS["cesmNeutralMoisture"].default
-    )
-    bulkUnstableStabilityCoefficient: float = cast(
-        float, PHYSICALCONSTANTS["bulkUnstableStabilityCoefficient"].default
-    )
-    bulkStableStabilityCoefficient: float = cast(
-        float, PHYSICALCONSTANTS["bulkStableStabilityCoefficient"].default
-    )
-    lanlSaturationHumidityScale: float = cast(
-        float, PHYSICALCONSTANTS["lanlSaturationHumidityScale"].default
-    )
-    lanlSaturationExponentOffset: float = cast(
-        float, PHYSICALCONSTANTS["lanlSaturationExponentOffset"].default
-    )
-    lanlSaturationExponentTemperature: float = cast(
-        float, PHYSICALCONSTANTS["lanlSaturationExponentTemperature"].default
-    )
-    lanlReferencePressure: float = cast(
-        float, PHYSICALCONSTANTS["lanlReferencePressure"].default
-    )
-    longwaveCloudLatitudes: tuple[float, ...] = cast(
-        tuple[float, ...], PHYSICALCONSTANTS["longwaveCloudLatitudes"].default
-    )
-    longwaveCloudCoefficients: tuple[float, ...] = cast(
-        tuple[float, ...], PHYSICALCONSTANTS["longwaveCloudCoefficients"].default
-    )
+    iceVaporPressureTemperature: float = FROM_REGISTRY
+    iceVaporPressureLog10Offset: float = FROM_REGISTRY
+    waterVaporDryAirMassRatio: float = FROM_REGISTRY
+    iceSurfacePressure: float = FROM_REGISTRY
+    iceShortwaveExtinction: float = FROM_REGISTRY
+    McPheeTaperArea: float = FROM_REGISTRY
+    McPheeTaperSteepness: float = FROM_REGISTRY
+    lateralMeltAreaFactor: float = FROM_REGISTRY
+    cesmSaturationHumidityScale: float = FROM_REGISTRY
+    cesmSaturationHumidityTemperature: float = FROM_REGISTRY
+    augustVaporPressureLog10Offset: float = FROM_REGISTRY
+    augustVaporPressureTemperature: float = FROM_REGISTRY
+    mmHgToPa: float = FROM_REGISTRY
+    neutralDragInverseWind: float = FROM_REGISTRY
+    neutralDragConstant: float = FROM_REGISTRY
+    neutralDragLinearWind: float = FROM_REGISTRY
+    cesmUnstableMomentumOffset: float = FROM_REGISTRY
+    longwaveHumidityPressureScale: float = FROM_REGISTRY
+    longwaveClearSkyOffset: float = FROM_REGISTRY
+    longwaveHumidityCoefficient: float = FROM_REGISTRY
+    seawaterHumidityFactor: float = FROM_REGISTRY
+    cesmNeutralHeatUnstable: float = FROM_REGISTRY
+    cesmNeutralHeatStable: float = FROM_REGISTRY
+    cesmNeutralMoisture: float = FROM_REGISTRY
+    bulkUnstableStabilityCoefficient: float = FROM_REGISTRY
+    bulkStableStabilityCoefficient: float = FROM_REGISTRY
+    lanlSaturationHumidityScale: float = FROM_REGISTRY
+    lanlSaturationExponentOffset: float = FROM_REGISTRY
+    lanlSaturationExponentTemperature: float = FROM_REGISTRY
+    lanlReferencePressure: float = FROM_REGISTRY
+    longwaveCloudLatitudes: tuple[float, ...] = FROM_REGISTRY
+    longwaveCloudCoefficients: tuple[float, ...] = FROM_REGISTRY
 
-    hCut: float = cast(float, PHYSICALCONSTANTS["hCut"].default)
+    hCut: float = FROM_REGISTRY
 
     def __post_init__(self) -> None:
         """Validate host scalars and recompute exact dependent quantities."""

@@ -6,9 +6,14 @@ updates through dataclasses.replace.
 """
 
 from dataclasses import dataclass, field
-from typing import cast
 
-from veris._metadata import Setting, validate_derived, validate_scalars
+from veris._metadata import (
+    FROM_REGISTRY,
+    Setting,
+    registry_defaults,
+    validate_derived,
+    validate_scalars,
+)
 
 SETTINGS: dict[str, Setting] = {
     "nx": Setting(8, int, "Local interior grid extent along the x direction", "1"),
@@ -193,85 +198,80 @@ SETTINGS: dict[str, Setting] = {
 
 
 @dataclass(frozen=True)
+@registry_defaults(SETTINGS)
 class Settings:
     """Validated immutable model settings initialized from the registry."""
 
-    deltatTherm: float = SETTINGS["deltatTherm"].default
-    recip_deltatTherm: float = field(
-        default=SETTINGS["recip_deltatTherm"].default, init=False
-    )
-    deltatDyn: float = SETTINGS["deltatDyn"].default
-    recip_deltatDyn: float = field(
-        default=SETTINGS["recip_deltatDyn"].default, init=False
-    )
-    nITC: int = cast(int, SETTINGS["nITC"].default)
-    recip_nITC: float = field(default=SETTINGS["recip_nITC"].default, init=False)
-    noSlip: bool = cast(bool, SETTINGS["noSlip"].default)
-    useRelativeWind: bool = cast(bool, SETTINGS["useRelativeWind"].default)
-    secondOrderBC: bool = cast(bool, SETTINGS["secondOrderBC"].default)
-    extensiveFld: bool = cast(bool, SETTINGS["extensiveFld"].default)
-    useRealFreshWaterFlux: bool = cast(bool, SETTINGS["useRealFreshWaterFlux"].default)
-    useFreedrift: bool = cast(bool, SETTINGS["useFreedrift"].default)
-    useEVP: bool = cast(bool, SETTINGS["useEVP"].default)
-    evpAlpha: float = SETTINGS["evpAlpha"].default
-    evpBeta: float = SETTINGS["evpBeta"].default
-    useAdaptiveEVP: bool = cast(bool, SETTINGS["useAdaptiveEVP"].default)
-    aEVPalphaMin: float = SETTINGS["aEVPalphaMin"].default
-    aEvpCoeff: float = SETTINGS["aEvpCoeff"].default
-    explicitDrag: bool = cast(bool, SETTINGS["explicitDrag"].default)
-    nEVPsteps: int = cast(int, SETTINGS["nEVPsteps"].default)
-    computeEvpResidual: bool = cast(bool, SETTINGS["computeEvpResidual"].default)
-    printEvpResidual: bool = cast(bool, SETTINGS["printEvpResidual"].default)
-    geometrySurfaceTemperature: float = SETTINGS["geometrySurfaceTemperature"].default
-    use_coastline: bool = cast(bool, SETTINGS["use_coastline"].default)
-    use_sharding: bool = cast(bool, SETTINGS["use_sharding"].default)
-    minLWdown: float = SETTINGS["minLWdown"].default
-    maxTIce: float = SETTINGS["maxTIce"].default
-    minTIce: float = SETTINGS["minTIce"].default
-    minTAir: float = SETTINGS["minTAir"].default
-    Area_reg: float = SETTINGS["Area_reg"].default
-    hIce_reg: float = SETTINGS["hIce_reg"].default
-    wSpeedMin: float = SETTINGS["wSpeedMin"].default
-    hIce_min: float = SETTINGS["hIce_min"].default
-    Area_min: float = SETTINGS["Area_min"].default
-    cDragMin: float = SETTINGS["cDragMin"].default
-    seaIceLoadFac: float = SETTINGS["seaIceLoadFac"].default
-    deltaMin: float = SETTINGS["deltaMin"].default
-    pressReplFac: float = SETTINGS["pressReplFac"].default
-    CrMax: float = SETTINGS["CrMax"].default
-    umin_o: float = SETTINGS["umin_o"].default
-    umin_i: float = SETTINGS["umin_i"].default
-    zref: float = SETTINGS["zref"].default
-    ztref: float = SETTINGS["ztref"].default
-    eps2: float = SETTINGS["eps2"].default
+    deltatTherm: float = FROM_REGISTRY
+    recip_deltatTherm: float = field(init=False)
+    deltatDyn: float = FROM_REGISTRY
+    recip_deltatDyn: float = field(init=False)
+    nITC: int = FROM_REGISTRY
+    recip_nITC: float = field(init=False)
+    noSlip: bool = FROM_REGISTRY
+    useRelativeWind: bool = FROM_REGISTRY
+    secondOrderBC: bool = FROM_REGISTRY
+    extensiveFld: bool = FROM_REGISTRY
+    useRealFreshWaterFlux: bool = FROM_REGISTRY
+    useFreedrift: bool = FROM_REGISTRY
+    useEVP: bool = FROM_REGISTRY
+    evpAlpha: float = FROM_REGISTRY
+    evpBeta: float = FROM_REGISTRY
+    useAdaptiveEVP: bool = FROM_REGISTRY
+    aEVPalphaMin: float = FROM_REGISTRY
+    aEvpCoeff: float = FROM_REGISTRY
+    explicitDrag: bool = FROM_REGISTRY
+    nEVPsteps: int = FROM_REGISTRY
+    computeEvpResidual: bool = FROM_REGISTRY
+    printEvpResidual: bool = FROM_REGISTRY
+    geometrySurfaceTemperature: float = FROM_REGISTRY
+    use_coastline: bool = FROM_REGISTRY
+    use_sharding: bool = FROM_REGISTRY
+    minLWdown: float = FROM_REGISTRY
+    maxTIce: float = FROM_REGISTRY
+    minTIce: float = FROM_REGISTRY
+    minTAir: float = FROM_REGISTRY
+    Area_reg: float = FROM_REGISTRY
+    hIce_reg: float = FROM_REGISTRY
+    wSpeedMin: float = FROM_REGISTRY
+    hIce_min: float = FROM_REGISTRY
+    Area_min: float = FROM_REGISTRY
+    cDragMin: float = FROM_REGISTRY
+    seaIceLoadFac: float = FROM_REGISTRY
+    deltaMin: float = FROM_REGISTRY
+    pressReplFac: float = FROM_REGISTRY
+    CrMax: float = FROM_REGISTRY
+    umin_o: float = FROM_REGISTRY
+    umin_i: float = FROM_REGISTRY
+    zref: float = FROM_REGISTRY
+    ztref: float = FROM_REGISTRY
+    eps2: float = FROM_REGISTRY
 
-    surfaceTemperatureIterations: int = cast(
-        int, SETTINGS["surfaceTemperatureIterations"].default
-    )
-    minActualIceThickness: float = SETTINGS["minActualIceThickness"].default
-    basalDragSmoothing: float = SETTINGS["basalDragSmoothing"].default
-    basalDragMinArea: float = SETTINGS["basalDragMinArea"].default
-    aEVPmassMin: float = SETTINGS["aEVPmassMin"].default
-    aEVPcStar: float = SETTINGS["aEVPcStar"].default
-    evpStressRelaxation: float = SETTINGS["evpStressRelaxation"].default
-    evpShearRelaxation: float = SETTINGS["evpShearRelaxation"].default
-    bulkStabilityLimit: float = SETTINGS["bulkStabilityLimit"].default
-    lanlMinWindSpeed: float = SETTINGS["lanlMinWindSpeed"].default
-    lanlBulkIterations: int = cast(int, SETTINGS["lanlBulkIterations"].default)
+    surfaceTemperatureIterations: int = FROM_REGISTRY
+    minActualIceThickness: float = FROM_REGISTRY
+    basalDragSmoothing: float = FROM_REGISTRY
+    basalDragMinArea: float = FROM_REGISTRY
+    aEVPmassMin: float = FROM_REGISTRY
+    aEVPcStar: float = FROM_REGISTRY
+    evpStressRelaxation: float = FROM_REGISTRY
+    evpShearRelaxation: float = FROM_REGISTRY
+    bulkStabilityLimit: float = FROM_REGISTRY
+    lanlMinWindSpeed: float = FROM_REGISTRY
+    lanlBulkIterations: int = FROM_REGISTRY
 
-    nx: int = cast(int, SETTINGS["nx"].default)
-    ny: int = cast(int, SETTINGS["ny"].default)
-    artificialGridSpacing: float = SETTINGS["artificialGridSpacing"].default
-    artificialWindSpeed: float = SETTINGS["artificialWindSpeed"].default
-    artificialAirTemperature: float = SETTINGS["artificialAirTemperature"].default
-    artificialIceThickness: float = SETTINGS["artificialIceThickness"].default
-    artificialSnowThickness: float = SETTINGS["artificialSnowThickness"].default
-    artificialIceArea: float = SETTINGS["artificialIceArea"].default
-    artificialOceanDepth: float = SETTINGS["artificialOceanDepth"].default
-    artificialCoriolis: float = SETTINGS["artificialCoriolis"].default
-    artificialCooling: float = SETTINGS["artificialCooling"].default
-    artificialTimeStep: float = SETTINGS["artificialTimeStep"].default
-    artificialEVPsteps: int = cast(int, SETTINGS["artificialEVPsteps"].default)
+    nx: int = FROM_REGISTRY
+    ny: int = FROM_REGISTRY
+    artificialGridSpacing: float = FROM_REGISTRY
+    artificialWindSpeed: float = FROM_REGISTRY
+    artificialAirTemperature: float = FROM_REGISTRY
+    artificialIceThickness: float = FROM_REGISTRY
+    artificialSnowThickness: float = FROM_REGISTRY
+    artificialIceArea: float = FROM_REGISTRY
+    artificialOceanDepth: float = FROM_REGISTRY
+    artificialCoriolis: float = FROM_REGISTRY
+    artificialCooling: float = FROM_REGISTRY
+    artificialTimeStep: float = FROM_REGISTRY
+    artificialEVPsteps: int = FROM_REGISTRY
 
     def __post_init__(self) -> None:
         """Validate host scalars and recompute exact dependent quantities."""

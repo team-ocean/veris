@@ -6,20 +6,22 @@ salt/freshwater coupling. Inputs and all eleven outputs are horizontal arrays;
 the internal category axis is last. Surface temperatures come from solve4temp.
 """
 
+from __future__ import annotations
+
 from functools import partial
 
 import jax.numpy as jnp
 
-from veris._thermodynamic_types import GrowthResult, GrowthSettings, GrowthState
+from veris._thermodynamic_types import GrowthResult
 from veris._typing import jit
+from veris.configuration import Settings
 from veris.physical_constants import PhysicalConstants
 from veris.solve4temp import solve4temp
+from veris.state import State
 
 
 @partial(jit, static_argnames=["sett", "phys"])
-def Growth(
-    vs: GrowthState, sett: GrowthSettings, phys: PhysicalConstants
-) -> GrowthResult:
+def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
     """calculate thermodynamic change of ice and snow thickness and ice cover fraction
     due to atmospheric and ocean surface forcing"""
 

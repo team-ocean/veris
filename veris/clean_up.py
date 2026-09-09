@@ -1,18 +1,21 @@
 """Redistribute thin ice and bound transported concentration and thickness."""
 
-from collections.abc import Hashable
+from __future__ import annotations
+
 from functools import partial
 
 import jax.numpy as jnp
 from jax import Array
 
-from veris._typing import AreaState, CleanupSettings, IceThermodynamicState, jit
+from veris._typing import jit
+from veris.configuration import Settings
 from veris.physical_constants import PhysicalConstants
+from veris.state import State
 
 
 @partial(jit, static_argnames=["sett", "phys"])
 def clean_up_advection(
-    vs: IceThermodynamicState, sett: CleanupSettings, phys: PhysicalConstants
+    vs: State, sett: Settings, phys: PhysicalConstants
 ) -> tuple[Array, Array, Array, Array, Array, Array]:
     """clean up overshoots and other pathological cases after advection"""
 
@@ -47,7 +50,7 @@ def clean_up_advection(
 
 
 @partial(jit, static_argnames=["sett", "phys"])
-def ridging(vs: AreaState, sett: Hashable, phys: PhysicalConstants) -> Array:
+def ridging(vs: State, sett: Settings, phys: PhysicalConstants) -> Array:
     """cut off ice cover fraction at 1 after advection to account for ridging"""
     Area = jnp.minimum(vs.Area, 1)
 

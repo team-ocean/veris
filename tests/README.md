@@ -46,9 +46,9 @@ import jax
 from veris.setup.artificial import initialize, step
 
 jax.config.update("jax_enable_x64", True)
-state, settings = initialize()
+state, settings, constants = initialize()
 for _ in range(3):
-    state = step(state, settings, cooling=100.0)
+    state = step(state, settings, constants, cooling=100.0)
 jax.block_until_ready(state)
 ```
 

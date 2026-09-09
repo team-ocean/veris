@@ -1,18 +1,22 @@
 """Interpolate cell-centered JAX fields to staggered grid corners."""
 
+from __future__ import annotations
+
 from functools import partial
 
 import jax.numpy as jnp
 from jax import Array
 from jax.typing import ArrayLike
 
-from veris._typing import BoundarySettings, MaskState, jit
+from veris._typing import jit
+from veris.configuration import Settings
 from veris.physical_constants import PhysicalConstants
+from veris.state import State
 
 
 @partial(jit, static_argnames=["sett", "phys"])
 def c_point_to_z_point(
-    vs: MaskState, sett: BoundarySettings, phys: PhysicalConstants, Cfield: ArrayLike
+    vs: State, sett: Settings, phys: PhysicalConstants, Cfield: ArrayLike
 ) -> Array:
     """calculates value at z-point by averaging c-point values"""
 

@@ -148,3 +148,46 @@ def test_evp_print_control_is_instance_owned() -> None:
     assert "printEvpResidual" in SETTINGS
     assert Settings().printEvpResidual is False
     assert replace(Settings(), printEvpResidual=True).printEvpResidual is True
+
+
+def test_registry_defaults_populate_dataclass_fields() -> None:
+    """Registry values become constructor defaults, including derived fields."""
+    from dataclasses import dataclass, field
+    from inspect import signature
+
+    from veris._metadata import FROM_REGISTRY, Setting, registry_defaults
+
+    registry = {
+        "count": Setting(3, int, "Example count"),
+        "inverse": Setting(1 / 3, float, "Reciprocal count"),
+    }
+
+    @dataclass(frozen=True)
+    @registry_defaults(registry)
+    class Example:
+        count: int = FROM_REGISTRY
+        inverse: float = field(init=False)
+
+        def __post_init__(self) -> None:
+            object.__setattr__(self, "inverse", 1 / self.count)
+
+    assert Example().count == 3
+    assert signature(Example).parameters["count"].default == 3
+    assert "inverse" not in signature(Example).parameters
+    assert replace(Example(), count=4).inverse == 0.25
+    assert fields(Example)[1].default == 1 / 3
+    with pytest.raises(FrozenInstanceError):
+        Example().count = 4  # ty: ignore[invalid-assignment]
+
+
+@pytest.mark.parametrize("registry_names", [(), ("count", "extra")])
+def test_registry_defaults_reject_schema_drift(registry_names: tuple[str, ...]) -> None:
+    """A metadata entry and class field must always describe the same schema."""
+    from veris._metadata import FROM_REGISTRY, Setting, registry_defaults
+
+    class Example:
+        count: int = FROM_REGISTRY
+
+    registry = {name: Setting(3, int, "Example") for name in registry_names}
+    with pytest.raises(ValueError, match="registry.*fields"):
+        registry_defaults(registry)(Example)

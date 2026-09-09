@@ -1,18 +1,21 @@
 """Solve the local ice momentum balance without internal stress."""
 
+from __future__ import annotations
+
 from functools import partial
 
 import jax.numpy as jnp
 from jax import Array
 
-from veris._dynamics_types import FreeDriftSettings, FreeDriftState
 from veris._typing import jit
+from veris.configuration import Settings
 from veris.physical_constants import PhysicalConstants
+from veris.state import State
 
 
 @partial(jit, static_argnames=["sett", "phys"])
 def freedrift_solver(
-    vs: FreeDriftState, sett: FreeDriftSettings, phys: PhysicalConstants
+    vs: State, sett: Settings, phys: PhysicalConstants
 ) -> tuple[Array, Array]:
     """calculate ice velocities without taking into account internal ice stress"""
 

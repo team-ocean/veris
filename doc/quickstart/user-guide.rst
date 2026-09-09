@@ -56,6 +56,17 @@ Float64 metadata requires ``jax_enable_x64`` as enabled above. Array overrides
 do not recompute other arrays; experiment initialization must establish
 consistent geometry and intermediate fields before running kernels.
 
+``SETTINGS`` and ``PHYSICALCONSTANTS`` are the source of configuration defaults.
+Their classes mark regular fields with ``FROM_REGISTRY``; ``registry_defaults``
+copies the matching metadata defaults before the standard frozen dataclass is
+created. Derived fields retain ``field(init=False)`` and are recomputed during
+construction and replacement. This keeps typed constructor arguments without
+repeating registry keys or casts for each field.
+
+``VARIABLES`` entries inherit ``Variable.default = 0.0`` unless they explicitly
+declare a different value, such as one for masks or a temperature in kelvin.
+Allocation reads that effective default directly from each metadata object.
+
 For serial registry allocation, pass
 ``settings_overrides={"use_sharding": False}``. The artificial initializer already
 selects this mode and rejects sharded initialization. Grid extents are stored as

@@ -6,20 +6,24 @@ sublimation. Six Newton iterations retain the reference melting-temperature
 cap and albedo switches; gradients follow their selected smooth branches.
 """
 
+from __future__ import annotations
+
 from functools import partial
 
 import jax.numpy as jnp
 from jax import Array
 
-from veris._thermodynamic_types import SurfaceFluxResult, SurfaceSettings, SurfaceState
+from veris._thermodynamic_types import SurfaceFluxResult
 from veris._typing import ArrayInput, jit
+from veris.configuration import Settings
 from veris.physical_constants import PhysicalConstants
+from veris.state import State
 
 
 @partial(jit, static_argnames=["sett", "phys"])
 def solve4temp(
-    vs: SurfaceState,
-    sett: SurfaceSettings,
+    vs: State,
+    sett: Settings,
     phys: PhysicalConstants,
     hIceActual: ArrayInput,
     hSnowActual: ArrayInput,

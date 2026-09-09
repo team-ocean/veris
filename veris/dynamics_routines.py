@@ -1,35 +1,21 @@
 """Ice strength, drag, strain, viscosity and stress on the staggered grid."""
 
-from collections.abc import Hashable
+from __future__ import annotations
+
 from functools import partial
 from typing import cast
 
 import jax.numpy as jnp
 from jax import Array
 
-from veris._dynamics_types import (
-    BasalDragSettings,
-    BasalDragState,
-    OceanDragSettings,
-    OceanDragState,
-    SideDragSettings,
-    SideDragState,
-    StrainSettings,
-    StrainState,
-    StrengthSettings,
-    StrengthState,
-    StressDivergenceState,
-    ViscositySettings,
-    ViscosityState,
-)
-from veris._typing import ArrayInput, BoundarySettings, MaskState, jit
+from veris._typing import ArrayInput, jit
+from veris.configuration import Settings
 from veris.physical_constants import PhysicalConstants
+from veris.state import State
 
 
 @partial(jit, static_argnames=["sett", "phys"])
-def SeaIceStrength(
-    vs: StrengthState, sett: StrengthSettings, phys: PhysicalConstants
-) -> Array:
+def SeaIceStrength(vs: State, sett: Settings, phys: PhysicalConstants) -> Array:
     """calculate ice strength (= maximum compressive stress)
     from ice thickness and ice cover fraction
     """
@@ -43,8 +29,8 @@ def SeaIceStrength(
 
 @partial(jit, static_argnames=["sett", "phys"])
 def ocean_drag_coeffs(
-    vs: OceanDragState,
-    sett: OceanDragSettings,
+    vs: State,
+    sett: Settings,
     phys: PhysicalConstants,
     uIce: ArrayInput,
     vIce: ArrayInput,
@@ -80,8 +66,8 @@ def ocean_drag_coeffs(
 
 @partial(jit, static_argnames=["sett", "phys"])
 def basal_drag_coeffs(
-    vs: BasalDragState,
-    sett: BasalDragSettings,
+    vs: State,
+    sett: Settings,
     phys: PhysicalConstants,
     uIce: ArrayInput,
     vIce: ArrayInput,
@@ -123,8 +109,8 @@ def basal_drag_coeffs(
 
 @partial(jit, static_argnames=["sett", "phys"])
 def side_drag(
-    vs: SideDragState,
-    sett: SideDragSettings,
+    vs: State,
+    sett: Settings,
     phys: PhysicalConstants,
     uIce: ArrayInput,
     vIce: ArrayInput,
@@ -170,8 +156,8 @@ def side_drag(
 
 @partial(jit, static_argnames=["sett", "phys"])
 def strainrates(
-    vs: StrainState,
-    sett: StrainSettings,
+    vs: State,
+    sett: Settings,
     phys: PhysicalConstants,
     uIce: ArrayInput,
     vIce: ArrayInput,
@@ -251,8 +237,8 @@ def strainrates(
 
 @partial(jit, static_argnames=["sett", "phys"])
 def viscosities(
-    vs: ViscosityState,
-    sett: ViscositySettings,
+    vs: State,
+    sett: Settings,
     phys: PhysicalConstants,
     e11: ArrayInput,
     e22: ArrayInput,
@@ -306,8 +292,8 @@ def viscosities(
 
 @partial(jit, static_argnames=["sett", "phys"])
 def stress(
-    vs: MaskState,
-    sett: BoundarySettings,
+    vs: State,
+    sett: Settings,
     phys: PhysicalConstants,
     e11: ArrayInput,
     e22: ArrayInput,
@@ -330,8 +316,8 @@ def stress(
 
 @partial(jit, static_argnames=["sett", "phys"])
 def stressdiv(
-    vs: StressDivergenceState,
-    sett: Hashable,
+    vs: State,
+    sett: Settings,
     phys: PhysicalConstants,
     sig11: ArrayInput,
     sig22: ArrayInput,
