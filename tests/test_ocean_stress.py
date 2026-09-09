@@ -1,13 +1,15 @@
 """Ice-ocean stresses must oppose relative motion and rotate by turning angle."""
 
 import importlib
+from dataclasses import replace
 from types import ModuleType
 
 import numpy as np
 import pytest
 from conftest import StateFactory
 
-from veris.state import Settings
+from veris.configuration import Settings
+from veris.physical_constants import PhysicalConstants
 
 
 @pytest.mark.parametrize("hemisphere", [-1, 1])
@@ -17,12 +19,13 @@ def test_uniform_ocean_stress_rotation(
     halo: ModuleType,
     state: StateFactory,
     sett: Settings,
+    phys: PhysicalConstants,
     hemisphere: int,
     angle: int,
     relative: tuple[float, float],
 ) -> None:
     ocean = importlib.import_module("veris.ocean_stress")
-    sett = sett._replace(waterTurnAngle=angle, waterIceDrag_south=0.007)
+    phys = replace(phys, waterTurnAngle=angle, waterIceDrag_south=0.007)
     ones = np.ones((8, 11))
     du, dv = relative
     vs = state(
@@ -37,15 +40,15 @@ def test_uniform_ocean_stress_rotation(
     )
     drag = max(
         sett.cDragMin,
-        sett.rhoSea
+        phys.rhoSea
         * np.hypot(du, dv)
-        * (sett.waterIceDrag_south if hemisphere < 0 else sett.waterIceDrag),
+        * (phys.waterIceDrag_south if hemisphere < 0 else phys.waterIceDrag),
     )
     radians = np.deg2rad(angle)
     expected = (
         drag * (np.cos(radians) * du - hemisphere * np.sin(radians) * dv),
         drag * (np.cos(radians) * dv + hemisphere * np.sin(radians) * du),
     )
-    for actual, scalar in zip(ocean.OceanStressUV(vs, sett), expected):
+    for actual, scalar in zip(ocean.OceanStressUV(vs, sett, phys), expected):
         assert actual.shape == ones.shape
         np.testing.assert_allclose(actual, scalar, atol=1e-14)

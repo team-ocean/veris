@@ -1,31 +1,35 @@
 Model settings
 ==============
 
-``veris.settings.settings`` is a dictionary of plain default values. Compiled
-kernels accept a hashable settings object as their ``sett`` argument; the
-artificial example supplies an immutable named tuple with attribute access.
+``veris.configuration.SETTINGS`` defines defaults, scalar types and descriptions
+for the frozen ``Settings`` dataclass. Numerical controls and execution choices
+are separate from :doc:`physical-constants`.
 
-For example::
+Use immutable updates; dependent reciprocals are recomputed::
 
-   from veris.setup.artificial import initialize
-   state, settings = initialize()
-   settings = settings._replace(nEVPsteps=20)
+   from dataclasses import replace
+   from veris.configuration import Settings
+   settings = replace(Settings(), deltatDyn=600, nEVPsteps=20)
+   assert settings.recip_deltatDyn == 1 / 600
 
-The example overrides several registry defaults, including timesteps, halo mode,
-and EVP iteration count. A settings change may trigger JAX recompilation.
-Numerical meanings and units are recorded beside values in ``veris/settings.py``.
+Settings are static JIT arguments; changing a value may trigger compilation.
+The artificial example overrides timesteps and EVP iteration count.
 
 Registry defaults
 -----------------
 
 .. exec::
 
-   from veris.settings import settings
+   from veris.configuration import SETTINGS
    print(".. list-table::")
    print("   :header-rows: 1")
    print("")
    print("   * - Setting")
    print("     - Default")
-   for name, value in settings.items():
+   print("     - Type")
+   print("     - Description")
+   for name, metadata in SETTINGS.items():
        print(f"   * - ``{name}``")
-       print(f"     - ``{value!r}``")
+       print(f"     - ``{metadata.default!r}``")
+       print(f"     - ``{metadata.type.__name__}``")
+       print(f"     - {metadata.description}")

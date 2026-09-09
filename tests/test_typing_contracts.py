@@ -14,7 +14,9 @@ def test_structural_mass_contract(tmp_path: Path, valid: bool) -> None:
     source = """from typing import NamedTuple
 from jax import Array
 from veris.area_mass import SeaIceMass
-from veris._typing import ThicknessState, MassSettings
+from veris._typing import ThicknessState
+from veris.configuration import Settings
+from veris.physical_constants import PhysicalConstants
 
 class Ice(NamedTuple):
     hIceMean: Array
@@ -24,8 +26,8 @@ class Constants(NamedTuple):
     rhoIce: float
     rhoSnow: float
 
-def evaluate(ice: Ice, constants: Constants) -> tuple[Array, Array, Array]:
-    return SeaIceMass(ice, constants)
+def evaluate(ice: Ice, constants: PhysicalConstants) -> tuple[Array, Array, Array]:
+    return SeaIceMass(ice, Settings(), constants)
 """.replace("FIELD_TYPE", "Array" if valid else "str")
     path = tmp_path / "contract.py"
     path.write_text(source)
@@ -54,6 +56,8 @@ def test_mutable_static_settings_are_rejected(tmp_path: Path) -> None:
     path = tmp_path / "unhashable.py"
     path.write_text("""from dataclasses import dataclass
 from veris._typing import ThicknessState
+from veris.configuration import Settings
+from veris.physical_constants import PhysicalConstants
 from veris.area_mass import SeaIceMass
 
 @dataclass
@@ -62,7 +66,7 @@ class Constants:
     rhoSnow: float
 
 def invalid(state: ThicknessState) -> None:
-    SeaIceMass(state, Constants(900., 330.))
+    SeaIceMass(state, Constants(900., 330.), PhysicalConstants())
 """)
     result = subprocess.run(
         ["ty", "check", "--extra-search-path", str(root), str(path)],

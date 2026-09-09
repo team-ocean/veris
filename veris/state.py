@@ -6,13 +6,26 @@ Physical constants accept floats even when a default happens to be an integer.
 Horizontal state fields include the two-cell periodic halos.
 """
 
-from typing import NamedTuple, TypedDict
+from dataclasses import dataclass
 
+import jax
 from jax import Array
 
+from veris.configuration import Settings
 
-class State(NamedTuple):
-    """All standalone horizontal fields in registry order, including salt forcing."""
+__all__ = ["Settings", "State"]
+
+
+@jax.tree_util.register_dataclass
+@dataclass(frozen=True)
+class State:
+    """Calculation fields on the halo-inclusive C grid, in registry order.
+
+    Construct through :func:`veris.initialization.initialize` to allocate
+    defaults. All fields are dynamic array leaves for JAX differentiation;
+    settings, physical constants and output-only diagnostics live separately.
+    Use :func:`dataclasses.replace` for immutable numerical updates.
+    """
 
     hIceMean: Array
     hSnowMean: Array
@@ -35,15 +48,11 @@ class State(NamedTuple):
     WindForcingY: Array
     recip_hIceMean: Array
     SeaIceLoad: Array
-    IcePenetSW: Array
     uOcean: Array
     vOcean: Array
     theta: Array
     ocSalt: Array
     Qnet: Array
-    OceanStressU: Array
-    OceanStressV: Array
-    saltflux: Array
     R_low: Array
     ssh_an: Array
     Qsw: Array
@@ -59,7 +68,6 @@ class State(NamedTuple):
     snowfall: Array
     evap: Array
     runoff: Array
-    EmPmR: Array
     maskInC: Array
     maskInU: Array
     maskInV: Array
@@ -73,8 +81,6 @@ class State(NamedTuple):
     Fu: Array
     Fv: Array
     fCori: Array
-    dxC: Array
-    dyC: Array
     dxG: Array
     dyG: Array
     dxU: Array
@@ -83,290 +89,11 @@ class State(NamedTuple):
     dyV: Array
     recip_dxC: Array
     recip_dyC: Array
-    recip_dxG: Array
-    recip_dyG: Array
     recip_dxU: Array
     recip_dyU: Array
     recip_dxV: Array
     recip_dyV: Array
-    rA: Array
-    rAu: Array
-    rAv: Array
     rAz: Array
     recip_rA: Array
     recip_rAu: Array
     recip_rAv: Array
-    recip_rAz: Array
-    forc_salt_surface: Array
-
-
-class Settings(NamedTuple):
-    """Hashable model configuration; integer counts remain distinct from coefficients."""
-
-    deltatTherm: float
-    recip_deltatTherm: float
-    deltatDyn: float
-    recip_deltatDyn: float
-    nITC: int
-    recip_nITC: float
-    noSlip: bool
-    useRelativeWind: bool
-    secondOrderBC: bool
-    extensiveFld: bool
-    useRealFreshWaterFlux: bool
-    useFreedrift: bool
-    useEVP: bool
-    evpAlpha: float
-    evpBeta: float
-    useAdaptiveEVP: bool
-    aEVPalphaMin: float
-    aEvpCoeff: float
-    explicitDrag: bool
-    nEVPsteps: int
-    computeEvpResidual: bool
-    use_coastline: bool
-    use_sharding: bool
-    rhoIce: float
-    rhoFresh: float
-    rhoSea: float
-    rhoAir: float
-    rhoSnow: float
-    recip_rhoFresh: float
-    recip_rhoSea: float
-    rhoIce2rhoSnow: float
-    rhoIce2rhoFresh: float
-    rhoFresh2rhoSnow: float
-    dryIceAlb: float
-    dryIceAlb_south: float
-    wetIceAlb: float
-    wetIceAlb_south: float
-    drySnowAlb: float
-    drySnowAlb_south: float
-    wetSnowAlb: float
-    wetSnowAlb_south: float
-    wetAlbTemp: float
-    lhFusion: float
-    lhEvap: float
-    lhSublim: float
-    cpAir: float
-    cpWater: float
-    stefBoltz: float
-    iceEmiss: float
-    snowEmiss: float
-    iceConduct: float
-    snowConduct: float
-    hCut: float
-    shortwave: float
-    tempFrz: float
-    dtempFrz_dS: float
-    saltIce_ref: float
-    saltOcn_ref: float
-    minLWdown: float
-    maxTIce: float
-    minTIce: float
-    minTAir: float
-    dalton: float
-    Area_reg: float
-    hIce_reg: float
-    celsius2K: float
-    stantonNr: float
-    uStarBase: float
-    McPheeTaperFac: float
-    h0: float
-    recip_h0: float
-    h0_south: float
-    recip_h0_south: float
-    airTurnAngle: float
-    waterTurnAngle: float
-    sinWat: float
-    cosWat: float
-    wSpeedMin: float
-    hIce_min: float
-    Area_min: float
-    airIceDrag: float
-    airIceDrag_south: float
-    waterIceDrag: float
-    waterIceDrag_south: float
-    cDragMin: float
-    seaIceLoadFac: float
-    gravity: float
-    PlasDefCoeff: float
-    deltaMin: float
-    pressReplFac: float
-    pStar: float
-    cStar: float
-    basalDragU0: float
-    basalDragK1: float
-    basalDragK2: float
-    cBasalStar: float
-    tensileStrFac: float
-    CrMax: float
-    sideDragCoeff: float
-    sideDragU0: float
-    umin_o: float
-    umin_i: float
-    zref: float
-    ztref: float
-    bolzc: float
-    avogad: float
-    rgas: float
-    mwdair: float
-    mwwv: float
-    rdair: float
-    rwv: float
-    zvir: float
-    cpdair: float
-    cpwv: float
-    cpvir: float
-    karman: float
-    latvap: float
-    p0: float
-    cappa: float
-    zzsice: float
-    ch: float
-    ce: float
-    eps2: float
-    emissivity: float
-    ocean_emissivity: float
-    snow_emissivity: float
-    ice_emissivity: float
-    tf0kel: float
-    gamma_blk: float
-    ocean_albedo: float
-    ice_albedo: float
-
-
-class SettingsDict(TypedDict):
-    """Mutable configuration registry with per-key scalar types."""
-
-    deltatTherm: float
-    recip_deltatTherm: float
-    deltatDyn: float
-    recip_deltatDyn: float
-    nITC: int
-    recip_nITC: float
-    noSlip: bool
-    useRelativeWind: bool
-    secondOrderBC: bool
-    extensiveFld: bool
-    useRealFreshWaterFlux: bool
-    useFreedrift: bool
-    useEVP: bool
-    evpAlpha: float
-    evpBeta: float
-    useAdaptiveEVP: bool
-    aEVPalphaMin: float
-    aEvpCoeff: float
-    explicitDrag: bool
-    nEVPsteps: int
-    computeEvpResidual: bool
-    use_coastline: bool
-    use_sharding: bool
-    rhoIce: float
-    rhoFresh: float
-    rhoSea: float
-    rhoAir: float
-    rhoSnow: float
-    recip_rhoFresh: float
-    recip_rhoSea: float
-    rhoIce2rhoSnow: float
-    rhoIce2rhoFresh: float
-    rhoFresh2rhoSnow: float
-    dryIceAlb: float
-    dryIceAlb_south: float
-    wetIceAlb: float
-    wetIceAlb_south: float
-    drySnowAlb: float
-    drySnowAlb_south: float
-    wetSnowAlb: float
-    wetSnowAlb_south: float
-    wetAlbTemp: float
-    lhFusion: float
-    lhEvap: float
-    lhSublim: float
-    cpAir: float
-    cpWater: float
-    stefBoltz: float
-    iceEmiss: float
-    snowEmiss: float
-    iceConduct: float
-    snowConduct: float
-    hCut: float
-    shortwave: float
-    tempFrz: float
-    dtempFrz_dS: float
-    saltIce_ref: float
-    saltOcn_ref: float
-    minLWdown: float
-    maxTIce: float
-    minTIce: float
-    minTAir: float
-    dalton: float
-    Area_reg: float
-    hIce_reg: float
-    celsius2K: float
-    stantonNr: float
-    uStarBase: float
-    McPheeTaperFac: float
-    h0: float
-    recip_h0: float
-    h0_south: float
-    recip_h0_south: float
-    airTurnAngle: float
-    waterTurnAngle: float
-    sinWat: float
-    cosWat: float
-    wSpeedMin: float
-    hIce_min: float
-    Area_min: float
-    airIceDrag: float
-    airIceDrag_south: float
-    waterIceDrag: float
-    waterIceDrag_south: float
-    cDragMin: float
-    seaIceLoadFac: float
-    gravity: float
-    PlasDefCoeff: float
-    deltaMin: float
-    pressReplFac: float
-    pStar: float
-    cStar: float
-    basalDragU0: float
-    basalDragK1: float
-    basalDragK2: float
-    cBasalStar: float
-    tensileStrFac: float
-    CrMax: float
-    sideDragCoeff: float
-    sideDragU0: float
-    umin_o: float
-    umin_i: float
-    zref: float
-    ztref: float
-    bolzc: float
-    avogad: float
-    rgas: float
-    mwdair: float
-    mwwv: float
-    rdair: float
-    rwv: float
-    zvir: float
-    cpdair: float
-    cpwv: float
-    cpvir: float
-    karman: float
-    latvap: float
-    p0: float
-    cappa: float
-    zzsice: float
-    ch: float
-    ce: float
-    eps2: float
-    emissivity: float
-    ocean_emissivity: float
-    snow_emissivity: float
-    ice_emissivity: float
-    tf0kel: float
-    gamma_blk: float
-    ocean_albedo: float
-    ice_albedo: float

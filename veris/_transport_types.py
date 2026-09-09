@@ -16,6 +16,9 @@ class FluxSettings(StaticSettings, Protocol):
     """Thermodynamic timestep and bound on the flux-limiter slope ratio."""
 
     @property
+    def use_sharding(self) -> bool: ...
+
+    @property
     def deltatTherm(self) -> float: ...
 
     @property
@@ -23,7 +26,7 @@ class FluxSettings(StaticSettings, Protocol):
 
 
 class AdvectionSettings(FluxSettings, StaticSettings, Protocol):
-    """Select conservative extensive or intensive transport."""
+    """Select conservative extensive or intensive transport and halo execution."""
 
     @property
     def extensiveFld(self) -> bool: ...

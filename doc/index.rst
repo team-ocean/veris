@@ -22,6 +22,7 @@ implementation as part of his Master's thesis.
 
    reference/setup-gallery
    reference/settings
+   reference/physical-constants
    reference/variables
 
 Source code: `team-ocean/veris <https://github.com/team-ocean/veris>`_.

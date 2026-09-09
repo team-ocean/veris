@@ -2,8 +2,8 @@
 
 Surface flux inputs are horizontal JAX arrays; Growth also consumes transported
 ice/snow means and prescribed freshwater/ocean heat forcing. GrowthSettings
-includes solve4temp's constants because each thickness category calls that
-solver. nITC is an integer static loop/shape count. Properties preserve custom
+includes solve4temp's numerical controls because each thickness category calls
+that solver. Physical coefficients are passed in a separate PhysicalConstants. nITC is an integer static loop/shape count. Properties preserve custom
 immutable PyTrees, with no additional runtime state or numerical validation.
 """
 
@@ -42,40 +42,10 @@ class SurfaceState(Protocol):
 
 
 class SurfaceSettings(StaticSettings, Protocol):
-    """Albedos, conductivities, exchange coefficients, and temperature limits."""
+    """Surface iteration controls and numerical temperature bounds."""
 
     @property
-    def celsius2K(self) -> float: ...
-
-    @property
-    def cpAir(self) -> float: ...
-
-    @property
-    def dalton(self) -> float: ...
-
-    @property
-    def dryIceAlb(self) -> float: ...
-
-    @property
-    def dryIceAlb_south(self) -> float: ...
-
-    @property
-    def drySnowAlb(self) -> float: ...
-
-    @property
-    def drySnowAlb_south(self) -> float: ...
-
-    @property
-    def hCut(self) -> float: ...
-
-    @property
-    def iceConduct(self) -> float: ...
-
-    @property
-    def iceEmiss(self) -> float: ...
-
-    @property
-    def lhSublim(self) -> float: ...
+    def surfaceTemperatureIterations(self) -> int: ...
 
     @property
     def minLWdown(self) -> float: ...
@@ -87,37 +57,7 @@ class SurfaceSettings(StaticSettings, Protocol):
     def minTIce(self) -> float: ...
 
     @property
-    def rhoAir(self) -> float: ...
-
-    @property
-    def shortwave(self) -> float: ...
-
-    @property
-    def snowConduct(self) -> float: ...
-
-    @property
-    def snowEmiss(self) -> float: ...
-
-    @property
-    def stefBoltz(self) -> float: ...
-
-    @property
     def wSpeedMin(self) -> float: ...
-
-    @property
-    def wetAlbTemp(self) -> float: ...
-
-    @property
-    def wetIceAlb(self) -> float: ...
-
-    @property
-    def wetIceAlb_south(self) -> float: ...
-
-    @property
-    def wetSnowAlb(self) -> float: ...
-
-    @property
-    def wetSnowAlb_south(self) -> float: ...
 
 
 class GrowthState(IceThermodynamicState, MaskState, SurfaceState, Protocol):
@@ -155,28 +95,19 @@ class GrowthState(IceThermodynamicState, MaskState, SurfaceState, Protocol):
 
 
 class GrowthSettings(SurfaceSettings, MassSettings, StaticSettings, Protocol):
-    """Surface-solver constants plus growth, precipitation, and salt conversion."""
+    """Thickness category counts, regularization and timestep controls."""
+
+    @property
+    def minActualIceThickness(self) -> float: ...
 
     @property
     def Area_reg(self) -> float: ...
 
     @property
-    def McPheeTaperFac(self) -> float: ...
-
-    @property
-    def cpWater(self) -> float: ...
-
-    @property
     def deltatTherm(self) -> float: ...
 
     @property
-    def dtempFrz_dS(self) -> float: ...
-
-    @property
     def hIce_reg(self) -> float: ...
-
-    @property
-    def lhFusion(self) -> float: ...
 
     @property
     def nITC(self) -> int: ...
@@ -185,40 +116,4 @@ class GrowthSettings(SurfaceSettings, MassSettings, StaticSettings, Protocol):
     def recip_deltatTherm(self) -> float: ...
 
     @property
-    def recip_h0(self) -> float: ...
-
-    @property
-    def recip_h0_south(self) -> float: ...
-
-    @property
     def recip_nITC(self) -> float: ...
-
-    @property
-    def recip_rhoSea(self) -> float: ...
-
-    @property
-    def rhoFresh(self) -> float: ...
-
-    @property
-    def rhoFresh2rhoSnow(self) -> float: ...
-
-    @property
-    def rhoIce2rhoFresh(self) -> float: ...
-
-    @property
-    def rhoIce2rhoSnow(self) -> float: ...
-
-    @property
-    def rhoSea(self) -> float: ...
-
-    @property
-    def saltIce_ref(self) -> float: ...
-
-    @property
-    def stantonNr(self) -> float: ...
-
-    @property
-    def tempFrz(self) -> float: ...
-
-    @property
-    def uStarBase(self) -> float: ...

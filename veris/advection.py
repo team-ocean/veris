@@ -16,6 +16,7 @@ from veris._transport_types import (
 )
 from veris._typing import ArrayInput, jit
 from veris.fill_overlap import fill_overlap
+from veris.physical_constants import PhysicalConstants
 
 # in this routine, the thermodynamic time step is used instead of the dynamic one.
 # this has historical reasons as with lower resolutions, the dynamics change much
@@ -25,22 +26,25 @@ from veris.fill_overlap import fill_overlap
 # thickness changes inbetween dynamics timesteps.
 
 
-@partial(jit, static_argnames=["sett"])
+@partial(jit, static_argnames=["sett", "phys"])
 def Advection(
-    vs: AdvectionState, sett: AdvectionSettings
+    vs: AdvectionState, sett: AdvectionSettings, phys: PhysicalConstants
 ) -> tuple[Array, Array, Array]:
     """retrieve changes in sea ice fields"""
 
-    hIceMean = calc_Advection(vs, sett, vs.hIceMean)
-    hSnowMean = calc_Advection(vs, sett, vs.hSnowMean)
-    Area = calc_Advection(vs, sett, vs.Area)
+    hIceMean = calc_Advection(vs, sett, phys, vs.hIceMean)
+    hSnowMean = calc_Advection(vs, sett, phys, vs.hSnowMean)
+    Area = calc_Advection(vs, sett, phys, vs.Area)
 
     return hIceMean, hSnowMean, Area
 
 
-@partial(jit, static_argnames=["sett"])
+@partial(jit, static_argnames=["sett", "phys"])
 def calc_Advection(
-    vs: TransportState, sett: AdvectionSettings, field: ArrayInput
+    vs: TransportState,
+    sett: AdvectionSettings,
+    phys: PhysicalConstants,
+    field: ArrayInput,
 ) -> Array:
     """calculate change in sea ice field due to advection"""
 
@@ -56,7 +60,7 @@ def calc_Advection(
     fieldLoc = field
 
     # calculate zonal advective fluxes
-    ZonalFlux = calc_ZonalFlux(vs, sett, fieldLoc, uTrans)
+    ZonalFlux = calc_ZonalFlux(vs, sett, phys, fieldLoc, uTrans)
 
     # update field according to zonal fluxes
     if sett.extensiveFld:
@@ -77,7 +81,7 @@ def calc_Advection(
         )
 
     # calculate meridional advective fluxes
-    MeridionalFlux = calc_MeridionalFlux(vs, sett, fieldLoc, vTrans)
+    MeridionalFlux = calc_MeridionalFlux(vs, sett, phys, fieldLoc, vTrans)
 
     # update field according to meridional fluxes
     if sett.extensiveFld:
@@ -104,10 +108,11 @@ def calc_Advection(
     return cast(Array, fieldLoc)
 
 
-@partial(jit, static_argnames=["sett"])
+@partial(jit, static_argnames=["sett", "phys"])
 def calc_ZonalFlux(
     vs: ZonalFluxState,
     sett: FluxSettings,
+    phys: PhysicalConstants,
     field: ArrayInput,
     uTrans: ArrayInput,
 ) -> Array:
@@ -137,15 +142,16 @@ def calc_ZonalFlux(
         uTrans[2:-1, :] * (field[2:-1, :] + field[1:-2, :]) * 0.5
         - jnp.abs(uTrans[2:-1, :]) * ((1 - Cr) + uCFL[2:-1, :] * Cr) * Rj * 0.5,
     )
-    ZonalFlux = fill_overlap(ZonalFlux)
+    ZonalFlux = fill_overlap(ZonalFlux, sett)
 
     return ZonalFlux
 
 
-@partial(jit, static_argnames=["sett"])
+@partial(jit, static_argnames=["sett", "phys"])
 def calc_MeridionalFlux(
     vs: MeridionalFluxState,
     sett: FluxSettings,
+    phys: PhysicalConstants,
     field: ArrayInput,
     vTrans: ArrayInput,
 ) -> Array:
@@ -175,7 +181,7 @@ def calc_MeridionalFlux(
         vTrans[:, 2:-1] * (field[:, 2:-1] + field[:, 1:-2]) * 0.5
         - jnp.abs(vTrans[:, 2:-1]) * ((1 - Cr) + vCFL[:, 2:-1] * Cr) * Rj * 0.5,
     )
-    MeridionalFlux = fill_overlap(MeridionalFlux)
+    MeridionalFlux = fill_overlap(MeridionalFlux, sett)
 
     return MeridionalFlux
 

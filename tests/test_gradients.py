@@ -1,5 +1,7 @@
 """Compare smooth mass sensitivities with independent central differences."""
 
+from dataclasses import replace
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -9,32 +11,37 @@ from jax import Array
 from jax.typing import ArrayLike
 
 from veris.area_mass import SeaIceMass
-from veris.state import Settings
+from veris.configuration import Settings
+from veris.physical_constants import PhysicalConstants
 
 
 @pytest.mark.parametrize("snow", [False, True])
 @pytest.mark.parametrize("thickness", [0.1, 0.5, 2.0])
 def test_mass_gradient(
-    state: StateFactory, sett: Settings, snow: bool, thickness: float
+    state: StateFactory,
+    sett: Settings,
+    phys: PhysicalConstants,
+    snow: bool,
+    thickness: float,
 ) -> None:
     def total(value: ArrayLike) -> Array:
         vs = state(
             hIceMean=jnp.ones((3, 5)) * (1 if snow else value),
             hSnowMean=jnp.ones((3, 5)) * (value if snow else 0.2),
         )
-        return jnp.sum(SeaIceMass(vs, sett)[0])
+        return jnp.sum(SeaIceMass(vs, sett, phys)[0])
 
     derivative = jax.grad(total)(thickness)
     finite_difference = (total(thickness + 1e-4) - total(thickness - 1e-4)) / 2e-4
     np.testing.assert_allclose(derivative, finite_difference, rtol=1e-10)
     assert float(derivative) == pytest.approx(
-        15 * (sett.rhoSnow if snow else sett.rhoIce)
+        15 * (phys.rhoSnow if snow else phys.rhoIce)
     )
 
 
 @pytest.mark.parametrize("area", [0.3, 0.7, 0.95])
 def test_strength_area_sensitivity_matches_constitutive_law(
-    state: StateFactory, sett: Settings, area: float
+    state: StateFactory, sett: Settings, phys: PhysicalConstants, area: float
 ) -> None:
     """Smooth Hibler strength has dP/dA = cStar P at positive ice thickness."""
     from veris.dynamics_routines import SeaIceStrength
@@ -45,29 +52,33 @@ def test_strength_area_sensitivity_matches_constitutive_law(
             hIceMean=1.2 * jnp.ones((3, 5)),
             iceMask=jnp.ones((3, 5)),
         )
-        return jnp.sum(SeaIceStrength(vs, sett))
+        return jnp.sum(SeaIceStrength(vs, sett, phys))
 
     derivative = jax.grad(total)(area)
     delta = 1e-5
     finite_difference = (total(area + delta) - total(area - delta)) / (2 * delta)
     np.testing.assert_allclose(derivative, finite_difference, rtol=1e-7)
-    np.testing.assert_allclose(derivative, sett.cStar * total(area), rtol=1e-13)
+    np.testing.assert_allclose(derivative, phys.cStar * total(area), rtol=1e-13)
 
 
 @pytest.mark.parametrize("ice", [1.0, 2.0])
 @pytest.mark.parametrize("snow", [0.0, 0.2])
 def test_surface_temperature_longwave_sensitivity(
-    state: StateFactory, sett: Settings, ice: float, snow: float
+    state: StateFactory,
+    sett: Settings,
+    phys: PhysicalConstants,
+    ice: float,
+    snow: float,
 ) -> None:
     """Differentiate the thermal iteration at a smooth, subfreezing equilibrium."""
     from veris.solve4temp import solve4temp
 
     temperature = 260.0
-    freezing = sett.celsius2K + sett.tempFrz
-    conductivity = 1 / (ice / sett.iceConduct + snow / sett.snowConduct)
-    emissivity = sett.snowEmiss if snow else sett.iceEmiss
+    freezing = phys.celsius2K + phys.tempFrz
+    conductivity = 1 / (ice / phys.iceConduct + snow / phys.snowConduct)
+    emissivity = phys.snowEmiss if snow else phys.iceEmiss
     longwave = (
-        sett.stefBoltz * temperature**4
+        phys.stefBoltz * temperature**4
         - conductivity * (freezing - temperature) / emissivity
     )
     vapor_pressure = 10 ** (12.537 - 2663.5 / temperature)
@@ -83,11 +94,12 @@ def test_surface_temperature_longwave_sensitivity(
     )
 
     def surface(radiation: ArrayLike) -> Array:
-        current = vs._replace(LWdown=radiation * ones)
+        current = replace(vs, LWdown=radiation * ones)
         return jnp.mean(
             solve4temp(
                 current,
                 sett,
+                phys,
                 ice * ones,
                 snow * ones,
                 temperature * ones,
@@ -108,9 +120,9 @@ def test_surface_temperature_longwave_sensitivity(
     )
     expected = emissivity / (
         conductivity
-        + 4 * emissivity * sett.stefBoltz * temperature**3
-        + sett.dalton * sett.cpAir * sett.rhoAir * 5
-        + sett.dalton * sett.lhSublim * sett.rhoAir * 5 * humidity_slope
+        + 4 * emissivity * phys.stefBoltz * temperature**3
+        + phys.dalton * phys.cpAir * phys.rhoAir * 5
+        + phys.dalton * phys.lhSublim * phys.rhoAir * 5 * humidity_slope
     )
     assert actual > 0
     np.testing.assert_allclose(actual, expected, rtol=1e-10)

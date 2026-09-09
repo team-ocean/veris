@@ -21,6 +21,7 @@ from jax import Array
 from numpy import float64
 from numpy.typing import NDArray
 from veris.advection import calc_{direction}Flux
+from veris.physical_constants import PhysicalConstants
 
 class Geometry(NamedTuple):
     iceMask: Array
@@ -32,9 +33,10 @@ class Geometry(NamedTuple):
 class Constants(NamedTuple):
     deltatTherm: float
     CrMax: float
+    use_sharding: bool
 
 def evaluate(state: Geometry, constants: Constants, field: NDArray[float64]) -> Array:
-    return calc_{direction}Flux(state, constants, field, field)
+    return calc_{direction}Flux(state, constants, PhysicalConstants(), field, field)
 """
     root = Path(__file__).resolve().parents[1]
     path = tmp_path / "transport_contract.py"
@@ -64,11 +66,12 @@ from numpy import bool_, float64
 from numpy.typing import NDArray
 from veris.fill_overlap import fill_overlap
 from veris.heat_flux_CESM import dqnetdt
-from veris._bulk_types import BulkState, SimpleFluxSettings
+from veris.configuration import Settings
+from veris.physical_constants import PhysicalConstants
 
-def evaluate(state: BulkState[SimpleFluxSettings], mask: NDArray[bool_], field: NDArray[float64]) -> tuple[Array, Array, Array]:
-    fill_overlap(mask)
-    return dqnetdt(state, mask, field, field, field, field, field, field, field)
+def evaluate(sett: Settings, phys: PhysicalConstants, mask: NDArray[bool_], field: NDArray[float64]) -> tuple[Array, Array, Array]:
+    fill_overlap(mask, sett)
+    return dqnetdt(sett, phys, mask, field, field, field, field, field, field, field)
 """
     path = tmp_path / "boolean_mask.py"
     path.write_text(source)

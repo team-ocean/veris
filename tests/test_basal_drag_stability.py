@@ -5,6 +5,7 @@ large thickness, without overflowing its exponential in either JAX precision.
 Independent NumPy logaddexp and its analytic derivative define the reference.
 """
 
+from dataclasses import replace
 from typing import Any
 
 import jax
@@ -15,8 +16,9 @@ from conftest import StateFactory
 from jax import Array
 from jax.typing import ArrayLike
 
+from veris.configuration import Settings
 from veris.dynamics_routines import basal_drag_coeffs
-from veris.state import Settings
+from veris.physical_constants import PhysicalConstants
 
 
 def basal_case(
@@ -41,13 +43,18 @@ def basal_case(
 
 
 def stable_reference(
-    sett: Settings, thickness: float, area: float, u: float, v: float
+    sett: Settings,
+    phys: PhysicalConstants,
+    thickness: float,
+    area: float,
+    u: float,
+    v: float,
 ) -> tuple[np.float64, np.float64, np.float64]:
     """Return coefficient and uniform-thickness/velocity derivatives in float64."""
-    speed_squared = 0.5 * (u**2 + v**2) + sett.basalDragU0**2
-    scale = sett.basalDragK2 / np.sqrt(speed_squared)
-    scale *= np.exp(-sett.cBasalStar * (1 - area))
-    argument = 10 * (thickness - 8 * area / sett.basalDragK1)
+    speed_squared = 0.5 * (u**2 + v**2) + phys.basalDragU0**2
+    scale = phys.basalDragK2 / np.sqrt(speed_squared)
+    scale *= np.exp(-phys.cBasalStar * (1 - area))
+    argument = 10 * (thickness - 8 * area / phys.basalDragK1)
     coefficient = scale * np.logaddexp(0, argument) / 10
     thickness_derivative = scale * np.exp(-np.logaddexp(0, -argument))
     velocity_derivative = -coefficient * 0.5 * u / speed_squared
@@ -60,18 +67,24 @@ def stable_reference(
 def test_basal_drag_finite_and_matches_stable_keel_law(
     state: StateFactory,
     sett: Settings,
+    phys: PhysicalConstants,
     dtype: type[np.float32] | type[np.float64],
     area: float,
     thickness: float,
 ) -> None:
-    sett = sett._replace(basalDragK2=0.7)
+    phys = replace(phys, basalDragK2=0.7)
     vs = basal_case(state, dtype, area, thickness)
     u = jnp.full(vs.Area.shape, 0.03, dtype=dtype)
     v = jnp.full(vs.Area.shape, 0.04, dtype=dtype)
-    coefficient = basal_drag_coeffs(vs, sett, u, v)
+    coefficient = basal_drag_coeffs(vs, sett, phys, u, v)
     expected = (
         stable_reference(
-            sett, thickness, float(dtype(area)), float(dtype(0.03)), float(dtype(0.04))
+            sett,
+            phys,
+            thickness,
+            float(dtype(area)),
+            float(dtype(0.03)),
+            float(dtype(0.04)),
         )[0]
         if area > 0.01
         else 0
@@ -90,19 +103,21 @@ def test_basal_drag_finite_and_matches_stable_keel_law(
 def test_basal_drag_gradients_are_finite_and_match_analytic_law(
     state: StateFactory,
     sett: Settings,
+    phys: PhysicalConstants,
     dtype: type[np.float32] | type[np.float64],
     area: float,
     thickness: float,
 ) -> None:
-    sett = sett._replace(basalDragK2=0.7)
+    phys = replace(phys, basalDragK2=0.7)
     vs = basal_case(state, dtype, area, thickness)
 
     def mean_drag(height: ArrayLike, velocity: ArrayLike) -> Array:
-        current = vs._replace(hIceMean=jnp.full_like(vs.hIceMean, height))
+        current = replace(vs, hIceMean=jnp.full_like(vs.hIceMean, height))
         return jnp.mean(
             basal_drag_coeffs(
                 current,
                 sett,
+                phys,
                 jnp.full_like(vs.Area, velocity),
                 jnp.full_like(vs.Area, 0.04),
             )
@@ -113,7 +128,12 @@ def test_basal_drag_gradients_are_finite_and_match_analytic_law(
     )
     expected = (
         stable_reference(
-            sett, thickness, float(dtype(area)), float(dtype(0.03)), float(dtype(0.04))
+            sett,
+            phys,
+            thickness,
+            float(dtype(area)),
+            float(dtype(0.03)),
+            float(dtype(0.04)),
         )[1:]
         if area > 0.01
         else (0, 0)
@@ -129,19 +149,49 @@ def test_basal_drag_gradients_are_finite_and_match_analytic_law(
 def test_disabled_basal_drag_is_zero_with_zero_thickness_sensitivity(
     state: StateFactory,
     sett: Settings,
+    phys: PhysicalConstants,
     dtype: type[np.float32] | type[np.float64],
     thickness: float,
 ) -> None:
-    sett = sett._replace(basalDragK2=0)
+    phys = replace(phys, basalDragK2=0)
     vs = basal_case(state, dtype, 1, thickness)
     velocity = jnp.full_like(vs.Area, 0.03)
 
     def mean_drag(height: ArrayLike) -> Array:
-        current = vs._replace(hIceMean=jnp.full_like(vs.hIceMean, height))
-        return jnp.mean(basal_drag_coeffs(current, sett, velocity, velocity))
+        current = replace(vs, hIceMean=jnp.full_like(vs.hIceMean, height))
+        return jnp.mean(basal_drag_coeffs(current, sett, phys, velocity, velocity))
 
     value, derivative = jax.value_and_grad(mean_drag)(
         jnp.asarray(thickness, dtype=dtype)
     )
     np.testing.assert_array_equal(value, 0)
     np.testing.assert_array_equal(derivative, 0)
+
+
+@pytest.mark.parametrize("smoothing", [2.0, 25.0])
+@pytest.mark.parametrize("minimum_area", [0.1, 0.6])
+def test_basal_drag_settings_control_smoothing_and_active_area(
+    state: StateFactory,
+    sett: Settings,
+    phys: PhysicalConstants,
+    smoothing: float,
+    minimum_area: float,
+) -> None:
+    """Initialization controls the keel threshold independently of material drag."""
+    sett = replace(sett, basalDragSmoothing=smoothing, basalDragMinArea=minimum_area)
+    phys = replace(phys, basalDragK2=0.7)
+    vs = basal_case(state, np.float64, 0.5, 0.5)
+    u, v = np.full((3, 5), 0.03), np.full((3, 5), 0.04)
+    actual = basal_drag_coeffs(vs, sett, phys, u, v)
+    # Thickness equals critical keel height, so softplus(0) = log(2).
+    speed = np.sqrt(0.5 * (0.03**2 + 0.04**2) + phys.basalDragU0**2)
+    expected = (
+        phys.basalDragK2
+        / speed
+        * np.exp(-phys.cBasalStar * 0.5)
+        * np.log(2)
+        / smoothing
+        if minimum_area < 0.5
+        else 0.0
+    )
+    np.testing.assert_allclose(actual, expected, rtol=1e-13, atol=1e-15)

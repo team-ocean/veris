@@ -13,35 +13,35 @@ import pytest
 )
 def test_solver_contract(tmp_path: Path, valid: bool, contract: str) -> None:
     """Reject fractional substep counts and incorrectly sized solver results."""
-    source = """from typing import NamedTuple
+    source = """from dataclasses import dataclass
 from jax import Array
 from veris._solver_types import EVPState, IceVelocityState, IceVelocitySettings
 from veris.evp_solver import evp_solver
 from veris.dynsolver import IceVelocities
 
-class Constants(NamedTuple):
-    waterIceDrag_south: float
-    waterIceDrag: float
-    rhoSea: float
-    cDragMin: float
-    basalDragK2: float
-    basalDragU0: float
-    basalDragK1: float
-    cBasalStar: float
+from veris.configuration import Settings
+from veris.physical_constants import PhysicalConstants
+
+@dataclass(frozen=True)
+class Constants:
     use_coastline: bool
-    sideDragCoeff: float
     sideDragU0: float
     noSlip: bool
     secondOrderBC: bool
-    PlasDefCoeff: float
     deltaMin: float
-    tensileStrFac: float
     pressReplFac: float
+    cDragMin: float
+    basalDragSmoothing: float
+    basalDragMinArea: float
+    use_sharding: bool
+    printEvpResidual: bool
     computeEvpResidual: bool
     useAdaptiveEVP: bool
     aEVPalphaMin: float
-    cosWat: float
-    sinWat: float
+    aEVPmassMin: float
+    aEVPcStar: float
+    evpStressRelaxation: float
+    evpShearRelaxation: float
     recip_deltatDyn: float
     deltatDyn: float
     aEvpCoeff: float
@@ -49,8 +49,8 @@ class Constants(NamedTuple):
     evpBeta: float
     nEVPsteps: COUNT_TYPE
 
-def evaluate(state: STATE_TYPE, constants: SETTINGS_TYPE) -> RETURN_TYPE:
-    return SOLVER(state, constants)
+def evaluate(state: STATE_TYPE, constants: SETTINGS_TYPE, phys: PhysicalConstants) -> RETURN_TYPE:
+    return SOLVER(state, constants, phys)
 """
     dispatcher = contract == "dispatcher-result"
     source = source.replace(

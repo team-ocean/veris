@@ -16,10 +16,7 @@ from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 from numpy.typing import NDArray
 
-from veris.settings import settings
-
-settings["use_sharding"] = False
-from veris.fill_overlap import fill_overlap_shard
+from veris.fill_overlap import make_sharded_fill_overlap
 
 
 def check_layout(px: int, py: int) -> None:
@@ -47,9 +44,7 @@ def check_layout(px: int, py: int) -> None:
     # shard_map preserves this array-to-array callback despite its broad stubs.
     fill = cast(
         Callable[[Array], Array],
-        jax.shard_map(
-            fill_overlap_shard, mesh=mesh, in_specs=P("x", "y"), out_specs=P("x", "y")
-        ),
+        make_sharded_fill_overlap(mesh),
     )
     actual: NDArray[np.float64] = np.asarray(fill(data))
     if not np.array_equal(actual, expected):

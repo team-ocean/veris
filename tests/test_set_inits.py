@@ -1,108 +1,121 @@
-"""Initialize staggered geometry from explicit nonuniform ocean-grid fields."""
+"""Initialize immutable staggered geometry from nonuniform ocean-grid fields."""
 
-import importlib
-from types import SimpleNamespace
+from dataclasses import FrozenInstanceError, fields, replace
 
 import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris.initialization import initialize
+from veris.set_inits import Geometry, set_inits
+
 
 @pytest.fixture
-def ocean_grid() -> SimpleNamespace:
-    """Mutable host state with distinguishable surface and subsurface masks."""
-    x, y = np.indices((4, 7))
+def ocean_grid() -> Geometry:
+    """Frozen geometry with distinguishable surface and subsurface masks."""
+    x, y = np.indices((6, 9))
     surface = ((x + y) % 3 != 0).astype(float)
-    vs = SimpleNamespace(
+    return Geometry(
         maskT=jnp.asarray(np.stack([np.zeros_like(surface), surface], axis=-1)),
         maskU=jnp.asarray(np.stack([surface, 1 - surface], axis=-1)),
         maskV=jnp.asarray(np.stack([surface, surface[:, ::-1]], axis=-1)),
         ht=jnp.asarray(100 + x + y),
         coriolis_t=jnp.asarray((y - 3) * 1e-5),
-        dxt=jnp.array([2.0, 3.0, 5.0, 7.0]),
-        dyt=jnp.arange(3.0, 10.0),
-        dxu=jnp.array([3.0, 4.0, 6.0, 8.0]),
-        dyu=jnp.arange(4.0, 11.0),
+        dxt=jnp.array([2.0, 3.0, 5.0, 7.0, 11.0, 13.0]),
+        dyt=jnp.arange(3.0, 12.0),
+        dxu=jnp.array([3.0, 4.0, 6.0, 8.0, 12.0, 14.0]),
+        dyu=jnp.arange(4.0, 13.0),
         area_t=jnp.asarray(10.0 + x + 2 * y),
         area_u=jnp.asarray(20.0 + x + 2 * y),
         area_v=jnp.asarray(30.0 + x + 2 * y),
     )
-    return SimpleNamespace(variables=vs)
 
 
-def test_initialization_surface_masks_and_reciprocals(
-    ocean_grid: SimpleNamespace,
-) -> None:
-    initialize = importlib.import_module("veris.set_inits").set_inits
-    initialize(ocean_grid)
-    vs = ocean_grid.variables
-    for source, output in (
-        ("maskT", "iceMask"),
-        ("maskU", "iceMaskU"),
-        ("maskV", "iceMaskV"),
+def test_initialization_surface_masks_and_reciprocals(ocean_grid: Geometry) -> None:
+    state, sett, phys = initialize(2, 5)
+    result = set_inits(state, ocean_grid, sett, phys)
+    assert result is not state
+    assert result.hIceMean is state.hIceMean
+    np.testing.assert_array_equal(state.iceMask, 1)
+    for source, output, interior in (
+        ("maskT", "iceMask", "maskInC"),
+        ("maskU", "iceMaskU", "maskInU"),
+        ("maskV", "iceMaskV", "maskInV"),
     ):
-        np.testing.assert_array_equal(
-            getattr(vs, output), getattr(vs, source)[:, :, -1]
+        expected = getattr(ocean_grid, source)[:, :, -1]
+        np.testing.assert_array_equal(getattr(result, output), expected)
+        np.testing.assert_array_equal(getattr(result, interior), expected)
+    for name, input_name, axis in (
+        ("dxC", "dxt", 0),
+        ("dxV", "dxt", 0),
+        ("dxU", "dxu", 0),
+        ("dxG", "dxu", 0),
+        ("dyC", "dyt", 1),
+        ("dyV", "dyt", 1),
+        ("dyU", "dyu", 1),
+        ("dyG", "dyu", 1),
+    ):
+        spacing = np.asarray(getattr(ocean_grid, input_name))
+        expected = np.broadcast_to(spacing[:, None] if axis == 0 else spacing, (6, 9))
+        if hasattr(result, name):
+            np.testing.assert_array_equal(getattr(result, name), expected)
+        if hasattr(result, "recip_" + name):
+            np.testing.assert_allclose(
+                getattr(result, "recip_" + name), 1 / expected, rtol=1e-14
+            )
+    for name, source in (
+        ("recip_rA", "area_t"),
+        ("recip_rAu", "area_u"),
+        ("recip_rAv", "area_v"),
+    ):
+        np.testing.assert_allclose(
+            getattr(result, name), 1 / getattr(ocean_grid, source)
         )
-    for mask, interior in (
-        ("iceMask", "maskInC"),
-        ("iceMaskU", "maskInU"),
-        ("iceMaskV", "maskInV"),
-    ):
-        np.testing.assert_array_equal(getattr(vs, mask), getattr(vs, interior))
-    for name in (
-        "dxC",
-        "dyC",
-        "dxG",
-        "dyG",
-        "dxU",
-        "dyU",
-        "dxV",
-        "dyV",
-        "rA",
-        "rAu",
-        "rAv",
-        "rAz",
-    ):
-        actual = getattr(vs, name)
-        assert actual.shape == (4, 7)
-        np.testing.assert_allclose(actual * getattr(vs, "recip_" + name), 1, rtol=1e-14)
-    for name, input_name in (
-        ("dxC", "dxt"),
-        ("dxV", "dxt"),
-        ("dxU", "dxu"),
-        ("dxG", "dxu"),
-    ):
-        expected = np.broadcast_to(np.asarray(getattr(vs, input_name))[:, None], (4, 7))
-        np.testing.assert_array_equal(getattr(vs, name), expected)
-    for name, input_name in (
-        ("dyC", "dyt"),
-        ("dyV", "dyt"),
-        ("dyU", "dyu"),
-        ("dyG", "dyu"),
-    ):
-        expected = np.broadcast_to(np.asarray(getattr(vs, input_name)), (4, 7))
-        np.testing.assert_array_equal(getattr(vs, name), expected)
-    np.testing.assert_array_equal(vs.R_low, vs.ht)
-    np.testing.assert_array_equal(vs.fCori, vs.coriolis_t)
-    np.testing.assert_array_equal(vs.TSurf, np.full((4, 7), 273))
+    np.testing.assert_array_equal(result.R_low, ocean_grid.ht)
+    np.testing.assert_array_equal(result.fCori, ocean_grid.coriolis_t)
+    np.testing.assert_array_equal(result.TSurf, np.full((6, 9), 273))
+    assert len(fields(result)) == 70
+    with pytest.raises(FrozenInstanceError):
+        setattr(ocean_grid, "ht", jnp.zeros((6, 9)))  # noqa: B010 -- test frozen runtime guard
 
 
-def test_corner_area_is_four_cell_mean(ocean_grid: SimpleNamespace) -> None:
-    initialize = importlib.import_module("veris.set_inits").set_inits
-    initialize(ocean_grid)
-    vs = ocean_grid.variables
-    area = np.asarray(vs.area_t)
+def test_corner_area_is_four_cell_mean(ocean_grid: Geometry) -> None:
+    state, sett, phys = initialize(2, 5)
+    result = set_inits(state, ocean_grid, sett, phys)
+    area = np.asarray(ocean_grid.area_t)
     expected = np.empty_like(area)
     for i, j in np.ndindex(area.shape):
         expected[i, j] = (
             area[i, j] + area[i - 1, j] + area[i, j - 1] + area[i - 1, j - 1]
         ) / 4
-    np.testing.assert_allclose(vs.rAz, expected, rtol=1e-14)
+    np.testing.assert_allclose(result.rAz, expected, rtol=1e-14)
 
 
-def test_uniform_grid_preserves_cell_area(ocean_grid: SimpleNamespace) -> None:
-    vs = ocean_grid.variables
-    vs.area_t = jnp.full((4, 7), 12.0)
-    importlib.import_module("veris.set_inits").set_inits(ocean_grid)
-    np.testing.assert_array_equal(vs.rAz, np.full((4, 7), 12.0))
+def test_uniform_grid_and_configured_surface_temperature(ocean_grid: Geometry) -> None:
+    state, sett, phys = initialize(
+        2, 5, settings_overrides={"geometrySurfaceTemperature": 270.0}
+    )
+    geometry = replace(ocean_grid, area_t=jnp.full((6, 9), 12.0))
+    result = set_inits(state, geometry, sett, phys)
+    np.testing.assert_array_equal(result.rAz, np.full((6, 9), 12.0))
+    np.testing.assert_array_equal(result.TSurf, np.full((6, 9), 270.0))
+
+
+@pytest.mark.parametrize(
+    "name,value,reason",
+    [
+        ("maskT", jnp.ones((6, 9)), "maskT"),
+        ("maskU", jnp.ones((6, 9, 0)), "maskU"),
+        ("ht", jnp.ones((6, 8)), "ht"),
+        ("dxt", jnp.ones((6, 1)), "dxt"),
+        ("dyu", jnp.zeros(9), "dyu"),
+        ("area_t", jnp.full((6, 9), -1.0), "area_t"),
+        ("dxu", jnp.full(6, jnp.nan), "dxu"),
+    ],
+)
+def test_invalid_geometry_is_rejected(
+    ocean_grid: Geometry, name: str, value: object, reason: str
+) -> None:
+    state, sett, phys = initialize(2, 5)
+    with pytest.raises(ValueError, match=reason):
+        set_inits(state, replace(ocean_grid, **{name: value}), sett, phys)

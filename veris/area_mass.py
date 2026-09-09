@@ -7,10 +7,13 @@ import jax.numpy as jnp
 from jax import Array
 
 from veris._typing import AreaState, MassSettings, ThicknessState, jit
+from veris.physical_constants import PhysicalConstants
 
 
-@partial(jit, static_argnames=["sett"])
-def AreaWS(vs: AreaState, sett: Hashable) -> tuple[Array, Array]:
+@partial(jit, static_argnames=["sett", "phys"])
+def AreaWS(
+    vs: AreaState, sett: Hashable, phys: PhysicalConstants
+) -> tuple[Array, Array]:
     """calculate sea ice cover fraction centered around velocity points"""
 
     AreaW = 0.5 * (vs.Area + jnp.roll(vs.Area, 1, 0))
@@ -19,11 +22,13 @@ def AreaWS(vs: AreaState, sett: Hashable) -> tuple[Array, Array]:
     return AreaW, AreaS
 
 
-@partial(jit, static_argnames=["sett"])
-def SeaIceMass(vs: ThicknessState, sett: MassSettings) -> tuple[Array, Array, Array]:
+@partial(jit, static_argnames=["sett", "phys"])
+def SeaIceMass(
+    vs: ThicknessState, sett: MassSettings, phys: PhysicalConstants
+) -> tuple[Array, Array, Array]:
     """calculate mass of the ice-snow system centered around c-, u-, and v-points"""
 
-    SeaIceMassC = sett.rhoIce * vs.hIceMean + sett.rhoSnow * vs.hSnowMean
+    SeaIceMassC = phys.rhoIce * vs.hIceMean + phys.rhoSnow * vs.hSnowMean
     SeaIceMassU = 0.5 * (SeaIceMassC + jnp.roll(SeaIceMassC, 1, 0))
     SeaIceMassV = 0.5 * (SeaIceMassC + jnp.roll(SeaIceMassC, 1, 1))
 

@@ -105,6 +105,8 @@ def test_cli_writes_metadata_and_separate_real_traces(tmp_path: Path) -> None:
     assert data["metadata"]["backend"] == "cpu"
     assert data["metadata"]["jax_enable_x64"] is True
     assert data["metadata"]["settings"]["nEVPsteps"] == 1
+    assert "rhoIce" not in data["metadata"]["settings"]
+    assert data["metadata"]["physical_constants"]["rhoIce"] == 900.0
     assert data["metadata"]["revision"]
     assert data["metadata"]["cpu_affinity"]
     assert data["validation"]["passed"] is True

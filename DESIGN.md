@@ -2,8 +2,10 @@
 
 The `jax-only` source is the initial numerical reference. Tests belong in
 `tests/`, mirror physics modules, and execute real JAX kernels with float64
-arrays. Use immutable named tuples for static settings and PyTree state, following
-the standalone example interface. Compare against independent scalar equations,
+arrays. Use frozen dataclasses for separate static Settings and PhysicalConstants and
+for the minimal array-only State PyTree. Initialize defaults from SETTINGS,
+PHYSICALCONSTANTS and VARIABLES; metadata also generates reference documentation.
+Output-only coupling diagnostics stay outside State. Compare against independent scalar equations,
 explicit index-based stencils, conservation laws, and finite differences.
 
 Use small rectangular grids to expose axis errors; exercise masks, zero forcing,

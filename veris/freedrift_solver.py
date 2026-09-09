@@ -7,11 +7,12 @@ from jax import Array
 
 from veris._dynamics_types import FreeDriftSettings, FreeDriftState
 from veris._typing import jit
+from veris.physical_constants import PhysicalConstants
 
 
-@partial(jit, static_argnames=["sett"])
+@partial(jit, static_argnames=["sett", "phys"])
 def freedrift_solver(
-    vs: FreeDriftState, sett: FreeDriftSettings
+    vs: FreeDriftState, sett: FreeDriftSettings, phys: PhysicalConstants
 ) -> tuple[Array, Array]:
     """calculate ice velocities without taking into account internal ice stress"""
 
@@ -20,7 +21,7 @@ def freedrift_solver(
     tauYIceCenter = 0.5 * (vs.WindForcingY + jnp.roll(vs.WindForcingY, -1, 1))
 
     # mass of ice per unit area times coriolis factor
-    mIceCor = sett.rhoIce * vs.hIceMean * vs.fCori
+    mIceCor = phys.rhoIce * vs.hIceMean * vs.fCori
 
     # ocean surface velocity at c-points
     uOceanCenter = 0.5 * (vs.uOcean + jnp.roll(vs.uOcean, -1, 0))
@@ -39,7 +40,7 @@ def freedrift_solver(
     # solve for norm
     south = vs.fCori < 0
     tmp1 = 1 / (
-        jnp.where(south, sett.waterIceDrag_south, sett.waterIceDrag) * sett.rhoSea
+        jnp.where(south, phys.waterIceDrag_south, phys.waterIceDrag) * phys.rhoSea
     )
     tmp2 = tmp1**2 * mIceCor**2
     tmp3 = tmp1**2 * rhsN**2

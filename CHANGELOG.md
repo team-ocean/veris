@@ -1,26 +1,73 @@
 # Development log
 
-## 2026-09-09 — registry/dataclass migration design
+## 2026-09-09 — registry/dataclass initialization migration
 
-- IN PROGRESS (@root): implement the AGENTS.md Goal; branch is `jax-only`.
-  User-provided AGENTS.md is present and must be committed with this work.
-- [x] Read DESIGN.md, current schemas, initialization, halo selection, tests,
-  and documentation. Wrote proposed architecture in
-  `docs/superpowers/specs/2026-09-09-dataclass-initialization-design.md`.
-  Production implementation awaits the brainstorming skill's design review.
-- [x] Independent registry audit (@registry_audit), verified with a separate
-  AST scan: 84 State fields, 14 with no direct kernel read. Preserve useful
-  coupling diagnostics separately; remove dead aliases and unused metrics.
-- Additional required migration: local empirical coefficients in surface/bulk
-  flux kernels, missing bulk defaults for grav/radius, dependent defaults,
-  mutable import-time halo selection, geometry initialization, actual h5netcdf
-  metadata round trip and registry-generated Sphinx references.
-- Baseline full CPU run completed with one sandbox-only failure: local sockets
-  are denied in the two-process reduction test. No production changes made.
-  Full CPU rerun outside sandbox passed all 519 tests (exit 0); log:
-  `test_logs/dataclass-baseline-cpu.log`. Session 56631 is terminal; no pytest
-  remains live. This verifies the pre-migration baseline, not the proposed
-  implementation. Instructions/design commit follows; no remote push.
+- [x] User approved the design; working on `jax-only`. Instructions and design
+  committed in c39447e. Implementation plan and coefficient inventory are under
+  `docs/superpowers/`; no remote push requested.
+- [x] Separate frozen Settings and PhysicalConstants are initialized from
+  namedtuple metadata registries. All inventoried physical law coefficients,
+  cloud tables, numerical controls and artificial experiment defaults are
+  centralized. Exact derived values recompute on immutable replacement;
+  independently rounded legacy defaults are preserved and checked against a
+  historical 131-value JSON oracle from c39447e.
+- [x] State is a frozen, registered 70-array JAX PyTree allocated from VARIABLES.
+  Removed 14 unused/output-only fields. Five coupling outputs are returned in
+  separate Diagnostics with output metadata. No configuration or mesh is in AD
+  State. h5netcdf round-trip tests verify usable dimensions and attributes.
+- [x] Migrated all maintained physics, structural protocols, geometry adapter,
+  artificial integration, tests and benchmark callers to separate constants.
+  Removed legacy combined Settings and mutable import-time halo configuration.
+  Defaults, reference arrays and numerical tolerances remain unchanged.
+- [x] Serial initialization validates grid extents, overrides and x64 precision.
+  Explicit mesh initialization allocates every field in packed local-halo layout
+  with NamedSharding; mesh resources remain outside the numerical State.
+- [x] Four-device CPU initialized integration passes all 70 field comparisons,
+  coupled stepping, cooling JVP/VJP and finite-difference comparison against a
+  serial experiment (`initialized-sharding-third.log`). Global explicit-sharding
+  roll failed in the first attempt: the driver now maps the entire stencil
+  sequence onto local partitions and performs halo exchange in the manual mesh.
+  A subsequent set/tuple comparison error was fixed before the passing run.
+- [x] Targeted migration checks passed: dynamics/configuration/halo 220 tests;
+  coupled diagnostics/oracles/benchmark 42 tests; geometry/configuration 45
+  tests. These precede the final experiment registry and mesh-driver additions;
+  the full suite below is the authoritative final-source validation.
+- [x] Registry metadata review corrected wind staggering, reciprocal metric
+  units, stress descriptions and reciprocal thickness description. Preserved
+  the historical salt-flux equation; nonzero ice-salinity normalization remains
+  ambiguous and its diagnostic units are explicitly documented as unknown.
+- Failed migration approaches: a 59-test fast sample missed old artificial
+  callers; focused integration found them. Reciprocal override tests now change
+  independent base values; zero Area_reg remains permitted for existing oracle
+  cases. Halo serial oracle inputs must have serial sharding, not partitioned
+  explicit-sharding annotations. No physics tolerances were relaxed.
+- [x] Maintained Ruff, formatting, annotation checks and dependency consistency
+  pass; maintained ty check also passes. Final Sphinx build passes with remote
+  inventories disabled through Python configuration; all 68 settings, 122
+  physical constants, 70 state fields and five diagnostics appear in HTML.
+  The first CLI override was ignored by Sphinx and attempted a remote inventory;
+  the Python configuration avoids that unintended network dependency.
+- [x] Full final CPU suite: 625/625 pass; maintained statement coverage
+  1420/1443 (98.41%), whole package 1420/1796 (79.06%). The established CI gate
+  excludes generated version metadata and passes. Full log and JSON coverage:
+  `test_logs/dataclass-final-cpu.log`, `test_logs/dataclass-coverage.json`.
+- [x] Final test-quality review added six invalid-mesh cases and compiled
+  four-CPU step comparison. Follow-up initialization/distributed run passes
+  19/19, including all 70 fields and halos; final mesh log retained. Independent
+  code review found no blockers and confirmed registry/schema/field-use parity.
+- First GPU launch used JAX_PLATFORMS=cuda, disabling CPU entirely: 622 pass,
+  nine fail because residual debug callbacks and the explicit CPU benchmark
+  require a CPU backend. This is a launch-configuration error, not a numerical
+  discrepancy; no source or tolerance changes were made. Retained failed log.
+- [x] Final full GPU-default suite with JAX_PLATFORMS=cuda,cpu: 631/631 pass
+  in 305.54 seconds. Verified two CUDA devices and CPU callback availability.
+  This run includes the six final validation cases and compiled distributed
+  probe. Log: `test_logs/dataclass-final-gpu-cpu-enabled.log`. No pytest remains
+  live. All required validation passes; reviewed migration is ready to commit
+  on `jax-only`, with local test artifacts preserved and no remote push.
+- Remaining known limitation: physical units of the historical nonzero
+  ice-salinity coupling expression need separate scientific review; this
+  refactor preserves that equation and documents the ambiguity explicitly.
 
 ## 2026-09-08 — initial test harness
 

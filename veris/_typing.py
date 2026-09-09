@@ -2,7 +2,7 @@
 
 Array properties describe horizontal fields, including halos when required by
 an individual kernel. These protocols have no runtime validation or storage.
-Read-only properties allow immutable named tuples without requiring inheritance.
+Read-only properties allow frozen dataclasses without requiring inheritance.
 Physical coefficients are floats even when their defaults are integer literals.
 """
 
@@ -61,13 +61,7 @@ class MaskState(Protocol):
 
 
 class MassSettings(StaticSettings, Protocol):
-    """Material densities in kilograms per cubic meter."""
-
-    @property
-    def rhoIce(self) -> float: ...
-
-    @property
-    def rhoSnow(self) -> float: ...
+    """Static mass-kernel configuration; material densities are passed separately."""
 
 
 class BoundarySettings(StaticSettings, Protocol):
@@ -78,13 +72,10 @@ class BoundarySettings(StaticSettings, Protocol):
 
 
 class CleanupSettings(StaticSettings, Protocol):
-    """Transport cleanup thresholds and Celsius-to-kelvin offset."""
+    """Transport cleanup thresholds; physical conversion constants are separate."""
 
     @property
     def hIce_min(self) -> float: ...
-
-    @property
-    def celsius2K(self) -> float: ...
 
     @property
     def Area_min(self) -> float: ...

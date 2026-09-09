@@ -13,24 +13,32 @@ these derivatives with centered finite differences. Land derivatives are omitted
 because the existing adaptive relaxation has a square-root singularity at zero
 masked viscosity.
 
-To reproduce, use a separate checkout at the JSON `git_commit`, copy this test
-file and the JSON manifest into it, activate `.venv-latest`, then run:
+To reproduce, use the immutable generator from commit ``c39447e`` with a
+separate checkout of the numerical source identified by the JSON manifest.
+The generator predates the dataclass API; the current regression test uses the
+new API and should not be copied into a historical source checkout.
 
 ```sh
-JAX_PLATFORMS=cpu PYTHONPATH=. python tests/test_evp_optimization.py
+mkdir -p /tmp/veris-evp-capture/reference_data
+git show c39447e:tests/test_evp_optimization.py > /tmp/veris-evp-capture/generate.py
+cp tests/reference_data/evp_pre_barrier.json /tmp/veris-evp-capture/reference_data/
+JAX_PLATFORMS=cpu PYTHONPATH=/path/to/verified/reference python /tmp/veris-evp-capture/generate.py
 ```
 
-Alternatively, from this tree select the trusted reference package explicitly:
+Generated arrays remain under ``/tmp/veris-evp-capture/reference_data`` for
+comparison with the committed fixture; these commands do not replace it.
 
-```sh
-JAX_PLATFORMS=cpu PYTHONPATH=test_logs/profiling/reference_checkout python tests/test_evp_optimization.py
-```
-
-The generator validates the actually imported package, writes this tree’s fixture,
-and preserves the verified source commit from the manifest.
 The generator checks source hashes before writing and rejects a source containing
 the barrier. Only `initialize()` is hashed in the artificial example, because
 unrelated whole-step compilation was being developed in the same workspace;
 that function was verified identical to the recorded commit. The manifest records
 the JAX version used. These regression values preserve the pre-optimization
 implementation; the separate equation-based EVP tests remain the physics oracle.
+
+## Pre-dataclass configuration defaults
+
+`configuration_pre_dataclass.json` records all 131 defaults from
+`veris/settings.py` at `c39447e`, including its source SHA256. Configuration
+tests compare the new registries with these independent historical values.
+Additional initialized constants and controls are tested against the exact
+literals inventoried from their original numerical modules.

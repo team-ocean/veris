@@ -1,6 +1,7 @@
 """Standalone coupled integration with an artificial island and no ocean model."""
 
 import importlib
+from dataclasses import replace
 from types import ModuleType
 
 import jax
@@ -14,7 +15,7 @@ def example(halo: ModuleType) -> ModuleType:
 
 
 def test_artificial_masks_block_both_sides_of_coast(example: ModuleType) -> None:
-    vs, _ = example.initialize()
+    vs, _, _ = example.initialize()
     mask = np.asarray(vs.iceMask)
     assert mask.shape == (12, 16)
     assert np.any(mask == 0) and np.any(mask == 1)
@@ -26,14 +27,16 @@ def test_artificial_masks_block_both_sides_of_coast(example: ModuleType) -> None
 
 
 def test_coupled_rest_equilibrium_is_preserved(example: ModuleType) -> None:
-    from veris.settings import settings
+    from veris.physical_constants import PhysicalConstants
 
-    vs, sett = example.initialize(
-        wind=0, air_temperature=settings["celsius2K"] + settings["tempFrz"]
+    constants = PhysicalConstants()
+
+    vs, sett, phys = example.initialize(
+        wind=0, air_temperature=constants.celsius2K + constants.tempFrz
     )
     initial = vs
     for _ in range(2):
-        vs = example.step(vs, sett, cooling=0)
+        vs = example.step(vs, sett, phys, cooling=0)
     for name in ("hIceMean", "hSnowMean", "Area", "uIce", "vIce"):
         np.testing.assert_allclose(
             getattr(vs, name), getattr(initial, name), atol=1e-10
@@ -43,12 +46,12 @@ def test_coupled_rest_equilibrium_is_preserved(example: ModuleType) -> None:
 def test_coupled_forced_steps_keep_land_empty_and_halos_periodic(
     example: ModuleType,
 ) -> None:
-    vs, sett = example.initialize()
+    vs, sett, phys = example.initialize()
     initial_ice = np.asarray(vs.hIceMean)
     for _ in range(3):
-        vs = example.step(vs, sett, cooling=100)
+        vs = example.step(vs, sett, phys, cooling=100)
     jax.block_until_ready(vs)
-    for field in vs:
+    for field in jax.tree.leaves(vs):
         assert np.all(np.isfinite(field)), "ERROR nonfinite integration field"
     for name in ("hIceMean", "hSnowMean", "Area", "uIce", "vIce"):
         array = np.asarray(getattr(vs, name))
@@ -84,13 +87,15 @@ def test_prescribed_forcing_replaces_previous_ocean_flux_outputs(
     """Ocean coupling outputs must not become next-step atmospheric forcing."""
     import jax.numpy as jnp
 
-    vs, sett = example.initialize()
-    changed = vs._replace(
-        Qnet=jnp.full_like(vs.Qnet, -999), Qsw=jnp.full_like(vs.Qsw, -888)
+    vs, sett, phys = example.initialize()
+    changed = replace(
+        vs, Qnet=jnp.full_like(vs.Qnet, -999), Qsw=jnp.full_like(vs.Qsw, -888)
     )
-    expected = example.step(vs, sett, cooling=25)
-    actual = example.step(changed, sett, cooling=25)
-    for first, second in zip(actual, expected):
+    expected = example.step(vs, sett, phys, cooling=25)
+    actual = example.step(changed, sett, phys, cooling=25)
+    for first, second in zip(
+        jax.tree.leaves(actual), jax.tree.leaves(expected), strict=True
+    ):
         np.testing.assert_array_equal(first, second)
 
 
@@ -103,8 +108,8 @@ def test_example_runs_in_fresh_process_without_mesh_helper() -> None:
 import jax
 jax.config.update("jax_enable_x64", True)
 from veris.setup.artificial import initialize, step
-vs, sett = initialize()
-result = step(vs, sett)
+vs, sett, phys = initialize()
+result = step(vs, sett, phys)
 jax.block_until_ready(result)
 assert result.hIceMean.shape == (12, 16)
 assert bool((result.hIceMean >= 0).all())

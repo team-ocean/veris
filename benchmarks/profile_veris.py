@@ -18,6 +18,7 @@ import statistics
 import subprocess
 import time
 from collections.abc import Callable, Mapping
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 
@@ -152,7 +153,7 @@ def measure_pair(
 
 
 def _metadata(
-    args: argparse.Namespace, device: jax.Device, sett: Any
+    args: argparse.Namespace, device: jax.Device, sett: Any, phys: Any
 ) -> dict[str, Any]:
     cpu_model = platform.processor()
     # Read this single kernel metadata file; never scan the host filesystem.
@@ -192,7 +193,8 @@ def _metadata(
         "tracked_dirty": bool(dirty),
         "versions": versions,
         "jax_enable_x64": jax.config.x64_enabled,
-        "settings": sett._asdict(),
+        "settings": asdict(sett),
+        "physical_constants": asdict(phys),
         "arguments": {
             key: str(value) if isinstance(value, Path) else value
             for key, value in vars(args).items()
@@ -222,16 +224,16 @@ def main(argv: list[str] | None = None) -> None:
     from veris.setup import artificial
 
     with jax.default_device(device):
-        initial, sett = artificial.initialize(args.nx, args.ny)
-        sett = sett._replace(nEVPsteps=args.evp_steps)
+        initial, sett, phys = artificial.initialize(args.nx, args.ny)
+        sett = replace(sett, nEVPsteps=args.evp_steps)
         body = getattr(artificial.step, "__wrapped__", artificial.step)
         fused = getattr(artificial, "compiled_step", None)
         if fused is None:
             # Historical checkouts predate the explicit compiled driver.
-            fused = jax.jit(body, static_argnames=["sett"])
+            fused = jax.jit(body, static_argnames=["sett", "phys"])
         variants = {
-            "baseline": lambda state: body(state, sett),
-            "candidate": lambda state: fused(state, sett),
+            "baseline": lambda state: body(state, sett, phys),
+            "candidate": lambda state: fused(state, sett, phys),
         }
         result = measure_pair(
             variants,
@@ -241,7 +243,7 @@ def main(argv: list[str] | None = None) -> None:
             evolving=args.mode == "evolving",
             validation=args.validation,
         )
-        result["metadata"] = _metadata(args, device, sett)
+        result["metadata"] = _metadata(args, device, sett, phys)
         args.output.mkdir(parents=True, exist_ok=True)
         (args.output / "results.json").write_text(json.dumps(result, indent=2) + "\n")
         if args.trace:

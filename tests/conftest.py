@@ -4,8 +4,7 @@ import hashlib
 import importlib
 import math
 import os
-from collections import namedtuple
-from collections.abc import MutableMapping
+from dataclasses import make_dataclass
 from functools import cache
 from types import ModuleType
 from typing import Any, Protocol, cast
@@ -15,8 +14,8 @@ import jax.numpy as jnp
 import pytest
 from jax.typing import ArrayLike
 
-from veris.settings import settings
-from veris.state import Settings
+from veris.configuration import Settings
+from veris.physical_constants import PhysicalConstants
 
 jax.config.update("jax_enable_x64", True)
 
@@ -26,7 +25,7 @@ type StateFieldInput = ArrayLike | list[StateFieldInput] | tuple[StateFieldInput
 class StateFactory(Protocol):
     """Build partial PyTrees whose field names are chosen independently per test.
 
-    The dynamic namedtuple result is the intentional Any boundary: each test
+    The dynamic dataclass result is the intentional Any boundary: each test
     supplies a different set of fields, so no single structural state protocol
     describes every result. Inputs include nested Python lists accepted by
     jnp.asarray, as well as NumPy/JAX arrays and numerical scalars.
@@ -39,7 +38,12 @@ class StateFactory(Protocol):
 def state_type(fields: tuple[str, ...]) -> StateFactory:
     """Reuse PyTree node types to avoid compilation for identical structures."""
     # The generated class accepts exactly the runtime-selected keyword names.
-    return cast(StateFactory, namedtuple("State", fields))
+    return cast(
+        StateFactory,
+        jax.tree_util.register_dataclass(
+            make_dataclass("State", [(name, jax.Array) for name in fields], frozen=True)
+        ),
+    )
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -66,7 +70,7 @@ def pytest_collection_modifyitems(
 @pytest.fixture
 def sett() -> Settings:
     """Return hashable source settings accepted by static JIT arguments."""
-    return Settings(**settings)
+    return Settings(use_sharding=False)
 
 
 @pytest.fixture
@@ -86,11 +90,12 @@ def state() -> StateFactory:
 
 
 @pytest.fixture
-def halo(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
-    """Select the standalone serial mode without an external mesh module."""
-    from veris.settings import settings
+def phys() -> PhysicalConstants:
+    """Return immutable physical constants independently of execution settings."""
+    return PhysicalConstants()
 
-    # pytest's generic Mapping signature needs the heterogeneous value type.
-    registry = cast(MutableMapping[str, bool | float], settings)
-    monkeypatch.setitem(registry, "use_sharding", False)
+
+@pytest.fixture
+def halo() -> ModuleType:
+    """Import periodic halo helpers; callers select execution through settings."""
     return importlib.import_module("veris.fill_overlap")

@@ -1,7 +1,7 @@
 """Standalone JAX bulk heat-flux kernels, retaining the original CESM equations.
 
 Array inputs preserve the original shapes and units documented per function.
-Settings are supplied through an immutable, hashable state.settings object.
+Settings and physical constants are supplied as separate frozen dataclasses.
 The return casts describe JIT's array outputs for formulas whose eager NumPy
 or Python inputs would otherwise infer NumPy arrays or scalars. They perform no
 conversion and leave the original equations unchanged.
@@ -14,82 +14,26 @@ import jax.numpy as npx
 from jax import Array
 from jax.typing import ArrayLike
 
-from veris._bulk_types import (
-    BulkState,
-    CESMFluxes,
-    CESMFluxSettings,
-    HeatFluxes,
-    HeightSettings,
-    LongwaveSettings,
-    SimpleFluxSettings,
-)
+from veris._bulk_types import CESMFluxes, HeatFluxes
 from veris._typing import ArrayInput, MaskInput, jit
-
-_cc = npx.array(
-    [
-        0.88,
-        0.84,
-        0.80,
-        0.76,
-        0.72,
-        0.68,
-        0.63,
-        0.59,
-        0.52,
-        0.50,
-        0.50,
-        0.50,
-        0.52,
-        0.59,
-        0.63,
-        0.68,
-        0.72,
-        0.76,
-        0.80,
-        0.84,
-        0.88,
-    ]
-)
-
-_clat = npx.array(
-    [
-        -90.0,
-        -80.0,
-        -70.0,
-        -60.0,
-        -50.0,
-        -40.0,
-        -30.0,
-        -20.0,
-        -10.0,
-        -5.0,
-        0.0,
-        5.0,
-        10.0,
-        20.0,
-        30.0,
-        40.0,
-        50.0,
-        60.0,
-        70.0,
-        80.0,
-        90.0,
-    ]
-)
+from veris.configuration import Settings
+from veris.physical_constants import PhysicalConstants
 
 
-@jit
-def qsat(tk: ArrayLike) -> Array:
+@partial(jit, static_argnames=["phys"])
+def qsat(phys: PhysicalConstants, tk: ArrayLike) -> Array:
     """The saturation humidity of air (kg/m^3)
 
     Argument:
         tk (:obj:`ndarray`): temperature (K)
     """
-    return 640380.0 / npx.exp(5107.4 / tk)
+    return phys.cesmSaturationHumidityScale / npx.exp(
+        phys.cesmSaturationHumidityTemperature / tk
+    )
 
 
-@jit
-def qsat_august_eqn(ps: ArrayLike, tk: ArrayLike) -> Array:
+@partial(jit, static_argnames=["phys"])
+def qsat_august_eqn(phys: PhysicalConstants, ps: ArrayLike, tk: ArrayLike) -> Array:
     """Saturated specific humidity (kg/kg)
 
     Arguments:
@@ -105,7 +49,17 @@ def qsat_august_eqn(ps: ArrayLike, tk: ArrayLike) -> Array:
         using a three-year climatology of ECMWF analyses,
         Journal of Marine Systems, 6, p. 363-380.
     """
-    return cast(Array, 0.622 / ps * 10 ** (9.4051 - 2353.0 / tk) * 133.322)
+    return cast(
+        Array,
+        phys.waterVaporDryAirMassRatio
+        / ps
+        * 10
+        ** (
+            phys.augustVaporPressureLog10Offset
+            - phys.augustVaporPressureTemperature / tk
+        )
+        * phys.mmHgToPa,
+    )
 
 
 @jit
@@ -129,7 +83,7 @@ def get_press_levs(sp: ArrayInput, hya: ArrayInput, hyb: ArrayInput) -> Array:
 
 
 def compute_z_level(
-    settings: HeightSettings, t: ArrayInput, q: ArrayInput, ph: ArrayInput
+    phys: PhysicalConstants, t: ArrayInput, q: ArrayInput, ph: ArrayInput
 ) -> Array:
     """Computes the altitudes at ECMWF Integrated Forecasting System
     (ECMWF-IFS) model half- and full-levels (for 137 levels model reanalysis: L137)
@@ -153,12 +107,12 @@ def compute_z_level(
     """
 
     # virtual temperature (K)
-    tv = t[...] * (1.0 + settings.zvir * q[...])
+    tv = t[...] * (1.0 + phys.zvir * q[...])
 
     # compute geopotential for 2 lowermost (near-surface) model levels
     dlog_p = npx.log(ph[:, :, 1:] / ph[:, :, :-1])
     alpha = 1.0 - ((ph[:, :, :-1] / (ph[:, :, 1:] - ph[:, :, :-1])) * dlog_p)
-    tv = tv * settings.rdair
+    tv = tv * phys.rdair
 
     # zh is the geopotential of 'half-levels'
     # integrate zh to next half level
@@ -171,14 +125,15 @@ def compute_z_level(
     increment_zh = npx.insert(zh, 0, 0, axis=2)
     zf = npx.flip(tv * alpha, axis=2) + increment_zh[:, :, :-1]
 
-    alt = settings.radius * zf / settings.grav / (settings.radius - zf / settings.grav)
+    alt = phys.radius * zf / phys.gravity / (phys.radius - zf / phys.gravity)
 
     return alt[:, :, -1]
 
 
-@partial(jit, static_argnames=["state"])
+@partial(jit, static_argnames=["sett", "phys"])
 def dqnetdt(
-    state: BulkState[SimpleFluxSettings],
+    sett: Settings,
+    phys: PhysicalConstants,
     mask: MaskInput,
     ps: ArrayInput,
     rbot: ArrayInput,
@@ -207,28 +162,26 @@ def dqnetdt(
         Journal of Marine Systems, 6, p. 363-380.
     """
 
-    settings = state.settings
-
     vmag = npx.maximum(
-        settings.umin_o,
+        sett.umin_o,
         npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2),
     )
 
     # long-wave radiation correction (IR)
-    dqir_dt = -settings.stefBoltz * 4.0 * sst[...] ** 3 * mask
+    dqir_dt = -phys.stefBoltz * 4.0 * sst[...] ** 3 * mask
 
     # sensible heat flux correction
-    dqh_dt = -rbot[...] * settings.cpdair * settings.ch * vmag[...] * mask
+    dqh_dt = -rbot[...] * phys.cpdair * phys.ch * vmag[...] * mask
 
     # latent heat flux correction
     dqe_dt = (
         -rbot[...]
-        * settings.ce
-        * settings.latvap
+        * phys.ce
+        * phys.latvap
         * vmag[...]
-        * 2353.0
+        * phys.augustVaporPressureTemperature
         * npx.log(10.0)
-        * qsat_august_eqn(ps, sst)
+        * qsat_august_eqn(phys, ps, sst)
         / (sst[...] ** 2)
         * mask
     )
@@ -236,9 +189,10 @@ def dqnetdt(
     return cast(Array, dqir_dt), cast(Array, dqh_dt), cast(Array, dqe_dt)
 
 
-@partial(jit, static_argnames=["state"])
+@partial(jit, static_argnames=["sett", "phys"])
 def net_lw_ocn(
-    state: BulkState[LongwaveSettings],
+    sett: Settings,
+    phys: PhysicalConstants,
     mask: MaskInput,
     lat: ArrayInput,
     qbot: ArrayInput,
@@ -265,39 +219,59 @@ def net_lw_ocn(
         NOAA Technical report No. NMFS SSRF-682.
     """
 
-    settings = state.settings
-
     # Interpolate each latitude independently, including both polar endpoints.
-    ccint = npx.interp(lat, _clat, _cc)
+    ccint = npx.interp(
+        lat,
+        npx.asarray(phys.longwaveCloudLatitudes),
+        npx.asarray(phys.longwaveCloudCoefficients),
+    )
 
     frac_cloud_cover = 1.0 - ccint[npx.newaxis, :] * tcc[...] ** 2
-    rtea = npx.sqrt(1000.0 * qbot[...] / (0.622 + 0.378 * qbot[...]) + settings.eps2)
+    rtea = npx.sqrt(
+        phys.longwaveHumidityPressureScale
+        * qbot[...]
+        / (
+            phys.waterVaporDryAirMassRatio
+            + (1.0 - phys.waterVaporDryAirMassRatio) * qbot[...]
+        )
+        + sett.eps2
+    )
 
     return cast(
         Array,
-        -settings.emissivity
-        * settings.stefBoltz
+        -phys.emissivity
+        * phys.stefBoltz
         * tbot[...] ** 3
         * (
-            tbot[...] * (0.39 - 0.05 * rtea[...]) * frac_cloud_cover
+            tbot[...]
+            * (
+                phys.longwaveClearSkyOffset
+                - phys.longwaveHumidityCoefficient * rtea[...]
+            )
+            * frac_cloud_cover
             + 4.0 * (sst[...] - tbot[...])
         )
         * mask[...],
     )
 
 
-@jit
-def cdn(umps: ArrayLike) -> Array:
+@partial(jit, static_argnames=["phys"])
+def cdn(phys: PhysicalConstants, umps: ArrayLike) -> Array:
     """Neutral drag coeff at 10m
 
     Argument:
         umps (:obj:`ndarray`): wind speed (m/s)
     """
-    return cast(Array, 0.0027 / umps + 0.000142 + 0.0000764 * umps)
+    return cast(
+        Array,
+        phys.neutralDragInverseWind / umps
+        + phys.neutralDragConstant
+        + phys.neutralDragLinearWind * umps,
+    )
 
 
-@jit
-def psimhu(xd: ArrayLike) -> Array:
+@partial(jit, static_argnames=["phys"])
+def psimhu(phys: PhysicalConstants, xd: ArrayLike) -> Array:
     """Unstable part of psimh
 
     Argument:
@@ -306,7 +280,7 @@ def psimhu(xd: ArrayLike) -> Array:
     return (
         npx.log((1.0 + xd * (2.0 + xd)) * (1.0 + xd * xd) / 8.0)
         - 2.0 * npx.arctan(xd)
-        + 1.571
+        + phys.cesmUnstableMomentumOffset
     )
 
 
@@ -320,9 +294,10 @@ def psixhu(xd: ArrayLike) -> Array:
     return 2.0 * npx.log((1.0 + xd * xd) / 2.0)
 
 
-@partial(jit, static_argnames=["state"])
+@partial(jit, static_argnames=["sett", "phys"])
 def flux_atmOcn(
-    state: BulkState[CESMFluxSettings],
+    sett: Settings,
+    phys: PhysicalConstants,
     mask: MaskInput,
     rbot: ArrayInput,
     zbot: ArrayInput,
@@ -374,17 +349,15 @@ def flux_atmOcn(
         - https://svn-ccsm-release.cgd.ucar.edu/model_versions/cesm1_0_5/models/csm_share/shr/shr_flux_mod.F90
     """
 
-    settings = state.settings
-
-    al2 = npx.log(settings.zref / settings.ztref)
+    al2 = npx.log(sett.zref / sett.ztref)
 
     vmag = npx.maximum(
-        settings.umin_o,
+        sett.umin_o,
         npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2),
     )
 
     # sea surface humidity (kg/kg)
-    ssq = 0.98 * qsat(ts[...]) / rbot[...]
+    ssq = phys.seawaterHumidityFactor * qsat(phys, ts[...]) / rbot[...]
 
     # potential temperature diff. (K)
     delt = thbot[...] - ts[...]
@@ -392,16 +365,18 @@ def flux_atmOcn(
     # specific humidity diff. (kg/kg)
     delq = qbot[...] - ssq[...]
 
-    alz = npx.log(zbot[...] / settings.zref)
-    cp = settings.cpdair * (1.0 + settings.cpvir * ssq[...])
+    alz = npx.log(zbot[...] / sett.zref)
+    cp = phys.cpdair * (1.0 + phys.cpvir * ssq[...])
 
     # first estimate of Z/L and ustar, tstar and qstar
 
     # neutral coefficients, z/L = 0.0
     stable = 0.5 + 0.5 * npx.sign(delt[...])
-    rdn = npx.sqrt(cdn(vmag[...]))
-    rhn = (1.0 - stable) * 0.0327 + stable * 0.018
-    ren = 0.0346
+    rdn = npx.sqrt(cdn(phys, vmag[...]))
+    rhn = (
+        1.0 - stable
+    ) * phys.cesmNeutralHeatUnstable + stable * phys.cesmNeutralHeatStable
+    ren = phys.cesmNeutralMoisture
 
     ustar = rdn * vmag[...]
     tstar = rhn * delt[...]
@@ -409,32 +384,40 @@ def flux_atmOcn(
 
     # compute stability & evaluate all stability functions
     hol = (
-        settings.karman
-        * settings.grav
+        phys.karman
+        * phys.gravity
         * zbot[...]
-        * (tstar[...] / thbot[...] + qstar[...] / (1.0 / settings.zvir + qbot[...]))
+        * (tstar[...] / thbot[...] + qstar[...] / (1.0 / phys.zvir + qbot[...]))
         / ustar[...] ** 2
     )
-    hol = npx.minimum(npx.abs(hol[...]), 10.0) * npx.sign(hol[...])
+    hol = npx.minimum(npx.abs(hol[...]), sett.bulkStabilityLimit) * npx.sign(hol[...])
     stable = 0.5 + 0.5 * npx.sign(hol[...])
-    xsq = npx.maximum(npx.sqrt(npx.abs(1.0 - 16.0 * hol[...])), 1.0)
+    xsq = npx.maximum(
+        npx.sqrt(npx.abs(1.0 - phys.bulkUnstableStabilityCoefficient * hol[...])), 1.0
+    )
     xqq = npx.sqrt(xsq[...])
-    psimh = -5.0 * hol[...] * stable[...] + (1.0 - stable[...]) * psimhu(xqq[...])
-    psixh = -5.0 * hol[...] * stable[...] + (1.0 - stable[...]) * psixhu(xqq[...])
+    psimh = -phys.bulkStableStabilityCoefficient * hol[...] * stable[...] + (
+        1.0 - stable[...]
+    ) * psimhu(phys, xqq[...])
+    psixh = -phys.bulkStableStabilityCoefficient * hol[...] * stable[...] + (
+        1.0 - stable[...]
+    ) * psixhu(xqq[...])
 
     # shift wind speed using old coefficient
-    rd = rdn[...] / (1.0 + rdn[...] / settings.karman * (alz[...] - psimh[...]))
+    rd = rdn[...] / (1.0 + rdn[...] / phys.karman * (alz[...] - psimh[...]))
     u10n = vmag[...] * rd[...] / rdn[...]
 
     # update transfer coeffs at 10m and neutral stability
-    rdn = npx.sqrt(cdn(u10n[...]))
-    ren = 0.0346
-    rhn = (1.0 - stable[...]) * 0.0327 + stable[...] * 0.018
+    rdn = npx.sqrt(cdn(phys, u10n[...]))
+    ren = phys.cesmNeutralMoisture
+    rhn = (1.0 - stable[...]) * phys.cesmNeutralHeatUnstable + stable[
+        ...
+    ] * phys.cesmNeutralHeatStable
 
     # shift all coeffs to measurement height and stability
-    rd = rdn[...] / (1.0 + rdn[...] / settings.karman * (alz[...] - psimh[...]))
-    rh = rhn[...] / (1.0 + rhn[...] / settings.karman * (alz[...] - psixh[...]))
-    re = ren / (1.0 + ren / settings.karman * (alz[...] - psixh[...]))
+    rd = rdn[...] / (1.0 + rdn[...] / phys.karman * (alz[...] - psimh[...]))
+    rh = rhn[...] / (1.0 + rhn[...] / phys.karman * (alz[...] - psixh[...]))
+    re = ren / (1.0 + ren / phys.karman * (alz[...] - psixh[...]))
 
     # update ustar, tstar, qstar using updated, shifted coeffs
     ustar = rd[...] * vmag[...]
@@ -445,32 +428,40 @@ def flux_atmOcn(
 
     # compute stability & evaluate all stability functions
     hol = (
-        settings.karman
-        * settings.grav
+        phys.karman
+        * phys.gravity
         * zbot[...]
-        * (tstar[...] / thbot[...] + qstar[...] / (1.0 / settings.zvir + qbot[...]))
+        * (tstar[...] / thbot[...] + qstar[...] / (1.0 / phys.zvir + qbot[...]))
         / ustar[...] ** 2
     )
-    hol = npx.minimum(npx.abs(hol[...]), 10.0) * npx.sign(hol[...])
+    hol = npx.minimum(npx.abs(hol[...]), sett.bulkStabilityLimit) * npx.sign(hol[...])
     stable = 0.5 + 0.5 * npx.sign(hol[...])
-    xsq = npx.maximum(npx.sqrt(npx.abs(1.0 - 16.0 * hol[...])), 1.0)
+    xsq = npx.maximum(
+        npx.sqrt(npx.abs(1.0 - phys.bulkUnstableStabilityCoefficient * hol[...])), 1.0
+    )
     xqq = npx.sqrt(xsq[...])
-    psimh = -5.0 * hol[...] * stable[...] + (1.0 - stable[...]) * psimhu(xqq[...])
-    psixh = -5.0 * hol[...] * stable[...] + (1.0 - stable[...]) * psixhu(xqq[...])
+    psimh = -phys.bulkStableStabilityCoefficient * hol[...] * stable[...] + (
+        1.0 - stable[...]
+    ) * psimhu(phys, xqq[...])
+    psixh = -phys.bulkStableStabilityCoefficient * hol[...] * stable[...] + (
+        1.0 - stable[...]
+    ) * psixhu(xqq[...])
 
     # shift wind speed using old coefficient
-    rd = rdn[...] / (1.0 + rdn[...] / settings.karman * (alz[...] - psimh[...]))
+    rd = rdn[...] / (1.0 + rdn[...] / phys.karman * (alz[...] - psimh[...]))
     u10n = vmag[...] * rd[...] / rdn[...]
 
     # update transfer coeffs at 10m and neutral stability
-    rdn = npx.sqrt(cdn(u10n[...]))
-    ren = 0.0346
-    rhn = (1.0 - stable[...]) * 0.0327 + stable[...] * 0.018
+    rdn = npx.sqrt(cdn(phys, u10n[...]))
+    ren = phys.cesmNeutralMoisture
+    rhn = (1.0 - stable[...]) * phys.cesmNeutralHeatUnstable + stable[
+        ...
+    ] * phys.cesmNeutralHeatStable
 
     # shift all coeffs to measurement height and stability
-    rd = rdn[...] / (1.0 + rdn[...] / settings.karman * (alz[...] - psimh[...]))
-    rh = rhn[...] / (1.0 + rhn[...] / settings.karman * (alz[...] - psixh[...]))
-    re = ren / (1.0 + ren / settings.karman * (alz[...] - psixh[...]))
+    rd = rdn[...] / (1.0 + rdn[...] / phys.karman * (alz[...] - psimh[...]))
+    rh = rhn[...] / (1.0 + rhn[...] / phys.karman * (alz[...] - psixh[...]))
+    re = ren / (1.0 + ren / phys.karman * (alz[...] - psixh[...]))
 
     # update ustar, tstar, qstar using updated, shifted coeffs
     ustar = rd[...] * vmag[...]
@@ -487,27 +478,29 @@ def flux_atmOcn(
 
     # heat flux
     sen = cp[...] * tau[...] * tstar[...] / ustar[...] * mask[...]
-    lat = settings.latvap * tau[...] * qstar[...] / ustar[...] * mask[...]
-    lwup = -settings.stefBoltz * ts[...] ** 4 * mask[...]
+    lat = phys.latvap * tau[...] * qstar[...] / ustar[...] * mask[...]
+    lwup = -phys.stefBoltz * ts[...] ** 4 * mask[...]
 
     # water flux
-    evap = lat[...] / settings.latvap * mask[...]
+    evap = lat[...] / phys.latvap * mask[...]
 
     # compute diagnositcs: 2m ref T & Q, 10m wind speed squared
 
-    hol = hol[...] * settings.ztref / zbot[...]
-    xsq = npx.maximum(1.0, npx.sqrt(npx.abs(1.0 - 16.0 * hol[...])))
+    hol = hol[...] * sett.ztref / zbot[...]
+    xsq = npx.maximum(
+        1.0, npx.sqrt(npx.abs(1.0 - phys.bulkUnstableStabilityCoefficient * hol[...]))
+    )
     xqq = npx.sqrt(xsq)
-    psix2 = -5.0 * hol[...] * stable[...] + (1.0 - stable[...]) * psixhu(xqq[...])
-    fac = (rh[...] / settings.karman) * (alz[...] + al2 - psixh[...] + psix2[...])
+    psix2 = -phys.bulkStableStabilityCoefficient * hol[...] * stable[...] + (
+        1.0 - stable[...]
+    ) * psixhu(xqq[...])
+    fac = (rh[...] / phys.karman) * (alz[...] + al2 - psixh[...] + psix2[...])
     tref = thbot[...] - delt[...] * fac[...]
 
     # pot. temp to temp correction
-    tref = (tref[...] - 0.01 * settings.ztref) * mask[...]
+    tref = (tref[...] - phys.gamma_blk * sett.ztref) * mask[...]
     fac = (
-        (re[...] / settings.karman)
-        * (alz[...] + al2 - psixh[...] + psix2[...])
-        * mask[...]
+        (re[...] / phys.karman) * (alz[...] + al2 - psixh[...] + psix2[...]) * mask[...]
     )
     qref = (qbot[...] - delq[...] * fac[...]) * mask[...]
 
@@ -530,9 +523,10 @@ def flux_atmOcn(
     )
 
 
-@partial(jit, static_argnames=["state"])
+@partial(jit, static_argnames=["sett", "phys"])
 def flux_atmOcn_simple(
-    state: BulkState[SimpleFluxSettings],
+    sett: Settings,
+    phys: PhysicalConstants,
     mask: MaskInput,
     ps: ArrayInput,
     qbot: ArrayInput,
@@ -569,21 +563,19 @@ def flux_atmOcn_simple(
         Journal of Marine Systems, 6, p. 363-380.
     """
 
-    settings = state.settings
-
     vmag = npx.maximum(
-        settings.umin_o,
+        sett.umin_o,
         npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2),
     )
 
     # long-wave radiation (IR)
-    qir = -settings.stefBoltz * ts[...] ** 4 * mask[...]
+    qir = -phys.stefBoltz * ts[...] ** 4 * mask[...]
 
     # sensible heat flux
     qh = (
         rbot[...]
-        * settings.cpdair
-        * settings.ch
+        * phys.cpdair
+        * phys.ch
         * vmag[...]
         * (tbot[...] - ts[...])
         * mask[...]
@@ -592,10 +584,10 @@ def flux_atmOcn_simple(
     # latent heat flux
     qe = (
         -rbot[...]
-        * settings.ce
-        * settings.latvap
+        * phys.ce
+        * phys.latvap
         * vmag[...]
-        * (qsat_august_eqn(ps, ts) - qbot[...])
+        * (qsat_august_eqn(phys, ps, ts) - qbot[...])
         * mask[...]
     )
 

@@ -32,7 +32,7 @@ P100 GPUs with driver 580.173.02 and JAX 0.11.1 CUDA 12.
 
 Current physical coverage includes periodic transport, rheology, wind and ocean
 stress, EVP momentum limits, and thermodynamic energy/water budgets. Serial
-mode initializes with `settings["use_sharding"] = False` before importing halo
+mode uses `Settings(use_sharding=False)` when calling halo
 consumers. Fresh-process tests verify real four-CPU-device halo exchange and
 reverse-mode sensitivities on 2x2, 1x4 and 4x1 meshes. Separate reduction probes
 verify two-process CPU and GPU collectives. These local-machine checks do not

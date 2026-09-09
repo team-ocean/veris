@@ -12,11 +12,14 @@ import jax.numpy as jnp
 
 from veris._thermodynamic_types import GrowthResult, GrowthSettings, GrowthState
 from veris._typing import jit
+from veris.physical_constants import PhysicalConstants
 from veris.solve4temp import solve4temp
 
 
-@partial(jit, static_argnames=["sett"])
-def Growth(vs: GrowthState, sett: GrowthSettings) -> GrowthResult:
+@partial(jit, static_argnames=["sett", "phys"])
+def Growth(
+    vs: GrowthState, sett: GrowthSettings, phys: PhysicalConstants
+) -> GrowthResult:
     """calculate thermodynamic change of ice and snow thickness and ice cover fraction
     due to atmospheric and ocean surface forcing"""
 
@@ -40,8 +43,8 @@ def Growth(vs: GrowthState, sett: GrowthSettings) -> GrowthResult:
     FWsublim_mult = ones3d * 1
 
     # constants for converting heat fluxes into growth rates
-    qi = 1 / (sett.rhoIce * sett.lhFusion)
-    qs = 1 / (sett.rhoSnow * sett.lhFusion)
+    qi = 1 / (phys.rhoIce * phys.lhFusion)
+    qs = 1 / (phys.rhoSnow * phys.lhFusion)
 
     # store sea ice fields prior to any thermodynamical changes
     noIce = (vs.hIceMean == 0) | (vs.Area == 0)
@@ -60,7 +63,7 @@ def Growth(vs: GrowthState, sett: GrowthSettings) -> GrowthResult:
     recip_hIceActual = AreapreTH / jnp.sqrt(hIceMeanpreTH**2 + sett.hIce_reg)
     hSnowActual = jnp.where(isIce, hSnowMeanpreTH * recip_regArea, 0)
 
-    hIceActual = jnp.maximum(hIceActual, 0.05)
+    hIceActual = jnp.maximum(hIceActual, sett.minActualIceThickness)
 
     ##### calculate heat fluxes through the ice #####
 
@@ -79,13 +82,14 @@ def Growth(vs: GrowthState, sett: GrowthSettings) -> GrowthResult:
         hSnowActual_mult = hSnowActual_mult.at[:, :, l].set(hSnowActual * pFac)
 
     # freezing temperature
-    TempFrz = sett.tempFrz + sett.dtempFrz_dS * vs.ocSalt + sett.celsius2K
+    TempFrz = phys.tempFrz + phys.dtempFrz_dS * vs.ocSalt + phys.celsius2K
 
     # calculate heat fluxes
     for l in range(sett.nITC):
         output = solve4temp(
             vs,
             sett,
+            phys,
             hIceActual_mult[:, :, l],
             hSnowActual_mult[:, :, l],
             TIce_mult[:, :, l],
@@ -112,14 +116,14 @@ def Growth(vs: GrowthState, sett: GrowthSettings) -> GrowthResult:
 
     # if there is ice and the temperature is below the freezing point,
     # the precipitation falls and accumulates as snow
-    tmp = (AreapreTH > 0) & (jnp.mean(TIce_mult, axis=2) < sett.celsius2K)
+    tmp = (AreapreTH > 0) & (jnp.mean(TIce_mult, axis=2) < phys.celsius2K)
 
     # snow accumulation rate over ice [m/s]
     # the snowfall is given in water equivalent, therefore it also needs to be muliplied with rhoFresh2rhoSnow
     SnowAccRateOverIce = vs.snowfall
     SnowAccRateOverIce = (
         jnp.where(tmp, SnowAccRateOverIce + vs.precip, SnowAccRateOverIce)
-        * sett.rhoFresh2rhoSnow
+        * phys.rhoFresh2rhoSnow
     )
 
     # the precipitation rate over the ice which goes immediately into the
@@ -191,16 +195,16 @@ def Growth(vs: GrowthState, sett: GrowthSettings) -> GrowthResult:
 
     ##### calculate the ice melting due to mixed layer temperature #####
 
-    tmpscal0 = 0.4
-    tmpscal1 = 7 / tmpscal0
-    tmpscal2 = sett.stantonNr * sett.uStarBase * sett.rhoSea * sett.cpWater
+    tmpscal0 = phys.McPheeTaperArea
+    tmpscal1 = phys.McPheeTaperSteepness / tmpscal0
+    tmpscal2 = phys.stantonNr * phys.uStarBase * phys.rhoSea * phys.cpWater
 
     # the ocean temperature cannot be lower than the freezing temperature
     surf_theta = jnp.maximum(vs.theta, TempFrz)
 
     # mltf = mixed layer turbulence factor (determines how much of the temperature
     # difference is used for heat flux)
-    mltf = 1 + (sett.McPheeTaperFac - 1) / (
+    mltf = 1 + (phys.McPheeTaperFac - 1) / (
         1 + jnp.exp((AreapreTH - tmpscal0) * tmpscal1)
     )
 
@@ -234,7 +238,7 @@ def Growth(vs: GrowthState, sett: GrowthSettings) -> GrowthResult:
     # Accumulation is per ice area; the melt flux is already per grid-cell area.
     dhSnowMean_dt = SnowAccRateOverIce * AreapreTH - SnowMeltRateFromSurface
 
-    tmpscal0 = 0.5 * recip_hIceActual
+    tmpscal0 = phys.lateralMeltAreaFactor * recip_hIceActual
 
     # ice growth open water (due to ocean-atmosphere fluxes)
     # reduce ice cover if the open water growth rate is negative
@@ -249,8 +253,8 @@ def Growth(vs: GrowthState, sett: GrowthSettings) -> GrowthResult:
     # multiply with lead closing factor
     dArea_oaFlux = jnp.where(
         (tmp & (vs.fCori < 0)),
-        dArea_oaFlux * sett.recip_h0_south,
-        dArea_oaFlux * sett.recip_h0,
+        dArea_oaFlux * phys.recip_h0_south,
+        dArea_oaFlux * phys.recip_h0,
     )
 
     # ice growth mixed layer (due to ocean-ice fluxes)
@@ -292,10 +296,10 @@ def Growth(vs: GrowthState, sett: GrowthSettings) -> GrowthResult:
 
     # change of ice thickness due to conversion of snow to ice if snow
     # is submerged with water
-    h_sub = (hSnowMean * sett.rhoSnow + hIceMean * sett.rhoIce) * sett.recip_rhoSea
+    h_sub = (hSnowMean * phys.rhoSnow + hIceMean * phys.rhoIce) * phys.recip_rhoSea
     d_hIceMeanByFlood = jnp.maximum(0, h_sub - hIceMean)
     hIceMean = hIceMean + d_hIceMeanByFlood
-    hSnowMean = hSnowMean - d_hIceMeanByFlood * sett.rhoIce2rhoSnow
+    hSnowMean = hSnowMean - d_hIceMeanByFlood * phys.rhoIce2rhoSnow
 
     recip_hIceMean = 1 / jnp.sqrt(hIceMean**2 + sett.hIce_reg)
 
@@ -337,10 +341,10 @@ def Growth(vs: GrowthState, sett: GrowthSettings) -> GrowthResult:
     # (if the water is fresh, no salty sea ice can form)
     FreshwaterContribFromIce = (
         -hIceMeanChange
-        * sett.rhoIce2rhoFresh
+        * phys.rhoIce2rhoFresh
         * jnp.where(
-            ((vs.ocSalt > 0) & (vs.ocSalt > sett.saltIce_ref)),
-            (1 - sett.saltIce_ref / vs.ocSalt),
+            ((vs.ocSalt > 0) & (vs.ocSalt > phys.saltIce_ref)),
+            (1 - phys.saltIce_ref / vs.ocSalt),
             1,
         )
     )
@@ -351,17 +355,17 @@ def Growth(vs: GrowthState, sett: GrowthSettings) -> GrowthResult:
 
     # salt flux into the ocean due to ice formation [kg/s m2]
     # this is an actual salt flux
-    tmpscal0 = jnp.minimum(sett.saltIce_ref, vs.ocSalt)
+    tmpscal0 = jnp.minimum(phys.saltIce_ref, vs.ocSalt)
     saltflux = (
         (hIceMeanChange + vs.os_hIceMean)
         * tmpscal0
         * vs.iceMask
-        * sett.rhoIce
+        * phys.rhoIce
         * sett.recip_deltatTherm
     )
 
     # the freshwater contribution to the ocean from melting snow [m]
-    FreshwaterContribFromSnowMelt = MeltedSnowMean / sett.rhoFresh2rhoSnow
+    FreshwaterContribFromSnowMelt = MeltedSnowMean / phys.rhoFresh2rhoSnow
 
     # evaporation minus precipitation minus runoff (salt flux into ocean) [kg/m2 s]
     # this is a virtual salt flux (actually just a negative freshwater flux, it still needs to be
@@ -380,17 +384,17 @@ def Growth(vs: GrowthState, sett: GrowthSettings) -> GrowthResult:
             - (FreshwaterContribFromIce + FreshwaterContribFromSnowMelt)
             / sett.deltatTherm
         )
-        * sett.rhoFresh
+        * phys.rhoFresh
         + vs.iceMask
-        * (vs.os_hIceMean * sett.rhoIce + vs.os_hSnowMean * sett.rhoSnow)
+        * (vs.os_hIceMean * phys.rhoIce + vs.os_hSnowMean * phys.rhoSnow)
         * sett.recip_deltatTherm
     )
 
     # convert freshwater flux to salt flux and combine virtual and actual salt flux
-    forc_salt_surface = EmPmR * vs.ocSalt / sett.rhoFresh + saltflux
+    forc_salt_surface = EmPmR * vs.ocSalt / phys.rhoFresh + saltflux
 
     # sea ice + snow load on the sea surface
-    SeaIceLoad = hIceMean * sett.rhoIce + hSnowMean * sett.rhoSnow
+    SeaIceLoad = hIceMean * phys.rhoIce + hSnowMean * phys.rhoSnow
 
     return (
         hIceMean,

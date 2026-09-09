@@ -2,8 +2,8 @@
 
 Horizontal JAX fields include halo cells where required by a stencil. Each
 protocol lists only fields consumed by its kernel and transitive callees;
-composition supports mutable state containers and immutable JAX PyTrees.
-Physical settings are static scalar coefficients during JIT tracing.
+composition supports immutable dataclass JAX PyTrees.
+PhysicalConstants holds static material parameters separately from these settings.
 """
 
 from typing import Protocol
@@ -58,26 +58,11 @@ class StrengthState(IceThicknessState, AreaState, MaskState, Protocol):
 
 
 class StrengthSettings(StaticSettings, Protocol):
-    """Empirical pressure scale and concentration sensitivity."""
-
-    @property
-    def pStar(self) -> float: ...
-
-    @property
-    def cStar(self) -> float: ...
+    """Static configuration accepted by the strength kernel."""
 
 
 class WaterDragSettings(StaticSettings, Protocol):
-    """Hemispheric water-ice drag coefficients and seawater density."""
-
-    @property
-    def waterIceDrag_south(self) -> float: ...
-
-    @property
-    def waterIceDrag(self) -> float: ...
-
-    @property
-    def rhoSea(self) -> float: ...
+    """Static configuration accepted by water-drag kernels."""
 
 
 class OceanDragState(OceanVelocityState, InteriorFaceMaskState, MaskState, Protocol):
@@ -85,7 +70,7 @@ class OceanDragState(OceanVelocityState, InteriorFaceMaskState, MaskState, Proto
 
 
 class OceanDragSettings(WaterDragSettings, StaticSettings, Protocol):
-    """Water drag parameters including the minimum linear coefficient."""
+    """Minimum linear ocean drag coefficient."""
 
     @property
     def cDragMin(self) -> float: ...
@@ -99,19 +84,13 @@ class BasalDragState(IceThicknessState, AreaState, InteriorFaceMaskState, Protoc
 
 
 class BasalDragSettings(StaticSettings, Protocol):
-    """Keel geometry, speed regularization and concentration parameters."""
+    """Keel smoothing scale and minimum active ice concentration."""
 
     @property
-    def basalDragK2(self) -> float: ...
+    def basalDragSmoothing(self) -> float: ...
 
     @property
-    def basalDragU0(self) -> float: ...
-
-    @property
-    def basalDragK1(self) -> float: ...
-
-    @property
-    def cBasalStar(self) -> float: ...
+    def basalDragMinArea(self) -> float: ...
 
 
 class SideDragState(FaceMaskState, Protocol):
@@ -137,16 +116,10 @@ class SideDragState(FaceMaskState, Protocol):
 
 
 class SideDragSettings(StaticSettings, Protocol):
-    """Lateral drag strength, regularization and coastline selection."""
+    """Coastline selection for lateral drag."""
 
     @property
     def use_coastline(self) -> bool: ...
-
-    @property
-    def sideDragCoeff(self) -> float: ...
-
-    @property
-    def sideDragU0(self) -> float: ...
 
 
 class StrainState(MaskState, FaceMaskState, Protocol):
@@ -201,16 +174,10 @@ class ViscosityState(Protocol):
 
 
 class ViscositySettings(StaticSettings, Protocol):
-    """Elliptical yield curve, regularization and pressure parameters."""
-
-    @property
-    def PlasDefCoeff(self) -> float: ...
+    """Strain regularization and replacement pressure selection."""
 
     @property
     def deltaMin(self) -> float: ...
-
-    @property
-    def tensileStrFac(self) -> float: ...
 
     @property
     def pressReplFac(self) -> float: ...
@@ -249,10 +216,7 @@ class FreeDriftState(IceThicknessState, OceanVelocityState, FaceMaskState, Proto
 
 
 class FreeDriftSettings(WaterDragSettings, StaticSettings, Protocol):
-    """Material parameters for the stress-free momentum balance."""
-
-    @property
-    def rhoIce(self) -> float: ...
+    """Static configuration accepted by the stress-free momentum kernel."""
 
 
 class OceanStressState(OceanDragState, Protocol):
@@ -266,7 +230,7 @@ class OceanStressState(OceanDragState, Protocol):
 
 
 class OceanStressSettings(OceanDragSettings, StaticSettings, Protocol):
-    """Water drag parameters and turning angle in degrees."""
+    """Ocean drag speed floor and halo execution mode."""
 
     @property
-    def waterTurnAngle(self) -> float: ...
+    def use_sharding(self) -> bool: ...

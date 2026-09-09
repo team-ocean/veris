@@ -23,24 +23,31 @@ from veris._dynamics_types import (
     ViscosityState,
 )
 from veris._typing import ArrayInput, BoundarySettings, MaskState, jit
+from veris.physical_constants import PhysicalConstants
 
 
-@partial(jit, static_argnames=["sett"])
-def SeaIceStrength(vs: StrengthState, sett: StrengthSettings) -> Array:
+@partial(jit, static_argnames=["sett", "phys"])
+def SeaIceStrength(
+    vs: StrengthState, sett: StrengthSettings, phys: PhysicalConstants
+) -> Array:
     """calculate ice strength (= maximum compressive stress)
     from ice thickness and ice cover fraction
     """
 
     SeaIceStrength = (
-        sett.pStar * vs.hIceMean * jnp.exp(-sett.cStar * (1 - vs.Area)) * vs.iceMask
+        phys.pStar * vs.hIceMean * jnp.exp(-phys.cStar * (1 - vs.Area)) * vs.iceMask
     )
 
     return SeaIceStrength
 
 
-@partial(jit, static_argnames=["sett"])
+@partial(jit, static_argnames=["sett", "phys"])
 def ocean_drag_coeffs(
-    vs: OceanDragState, sett: OceanDragSettings, uIce: ArrayInput, vIce: ArrayInput
+    vs: OceanDragState,
+    sett: OceanDragSettings,
+    phys: PhysicalConstants,
+    uIce: ArrayInput,
+    vIce: ArrayInput,
 ) -> Array:
     """calculate linear ice-water drag coefficient from ice and ocean velocities
     (this coefficient creates a linear relationship between
@@ -49,8 +56,8 @@ def ocean_drag_coeffs(
 
     # get ice-water drag coefficient times density
     dragCoeff = (
-        jnp.where(vs.fCori < 0, sett.waterIceDrag_south, sett.waterIceDrag)
-        * sett.rhoSea
+        jnp.where(vs.fCori < 0, phys.waterIceDrag_south, phys.waterIceDrag)
+        * phys.rhoSea
     )
 
     # calculate component-wise velocity differences at velocity points
@@ -71,9 +78,13 @@ def ocean_drag_coeffs(
     return cDrag
 
 
-@partial(jit, static_argnames=["sett"])
+@partial(jit, static_argnames=["sett", "phys"])
 def basal_drag_coeffs(
-    vs: BasalDragState, sett: BasalDragSettings, uIce: ArrayInput, vIce: ArrayInput
+    vs: BasalDragState,
+    sett: BasalDragSettings,
+    phys: PhysicalConstants,
+    uIce: ArrayInput,
+    vIce: ArrayInput,
 ) -> Array:
     """calculate basal drag coefficient to account for the formation of
     landfast ice in shallow waters due to the formation of ice keels
@@ -89,30 +100,34 @@ def basal_drag_coeffs(
     )
 
     # include velocity parameter U0 to avoid singularities
-    tmpFld = sett.basalDragK2 / jnp.sqrt(tmpFld + sett.basalDragU0**2)
+    tmpFld = phys.basalDragK2 / jnp.sqrt(tmpFld + phys.basalDragU0**2)
 
     # critical ice height that allows for the formation of landfast ice
-    hCrit = jnp.abs(vs.R_low) * vs.Area / sett.basalDragK1
+    hCrit = jnp.abs(vs.R_low) * vs.Area / phys.basalDragK1
 
     # Smooth positive keel excess. logaddexp evaluates log(1 + exp(x))
     # without overflow, including derivatives and masked/disabled drag.
-    fac = 10.0
+    fac = sett.basalDragSmoothing
     recip_fac = 1.0 / fac
     cBot = jnp.where(
-        vs.Area > 0.01,
+        vs.Area > sett.basalDragMinArea,
         tmpFld
         * jnp.logaddexp(0.0, fac * (vs.hIceMean - hCrit))
         * recip_fac
-        * jnp.exp(-sett.cBasalStar * (1.0 - vs.Area)),
+        * jnp.exp(-phys.cBasalStar * (1.0 - vs.Area)),
         0.0,
     )
 
     return cBot
 
 
-@partial(jit, static_argnames=["sett"])
+@partial(jit, static_argnames=["sett", "phys"])
 def side_drag(
-    vs: SideDragState, sett: SideDragSettings, uIce: ArrayInput, vIce: ArrayInput
+    vs: SideDragState,
+    sett: SideDragSettings,
+    phys: PhysicalConstants,
+    uIce: ArrayInput,
+    vIce: ArrayInput,
 ) -> tuple[Array, Array]:
     """calculate the lateral drag coefficient to simulate landfast ice
     (Liu et al. 2022, A new parameterization of coastal drag to simulate landfast
@@ -144,18 +159,22 @@ def side_drag(
 
     # calculate side drag coefficients
     SideDragU = (
-        vs.SeaIceMassU * sett.sideDragCoeff * maskU / (iceSpeedU + sett.sideDragU0)
+        vs.SeaIceMassU * phys.sideDragCoeff * maskU / (iceSpeedU + phys.sideDragU0)
     )
     SideDragV = (
-        vs.SeaIceMassV * sett.sideDragCoeff * maskV / (iceSpeedV + sett.sideDragU0)
+        vs.SeaIceMassV * phys.sideDragCoeff * maskV / (iceSpeedV + phys.sideDragU0)
     )
 
     return SideDragU, SideDragV
 
 
-@partial(jit, static_argnames=["sett"])
+@partial(jit, static_argnames=["sett", "phys"])
 def strainrates(
-    vs: StrainState, sett: StrainSettings, uIce: ArrayInput, vIce: ArrayInput
+    vs: StrainState,
+    sett: StrainSettings,
+    phys: PhysicalConstants,
+    uIce: ArrayInput,
+    vIce: ArrayInput,
 ) -> tuple[Array, Array, Array]:
     """calculate strain rate tensor components from ice velocities"""
 
@@ -230,10 +249,11 @@ def strainrates(
     return e11, e22, cast(Array, e12)
 
 
-@partial(jit, static_argnames=["sett"])
+@partial(jit, static_argnames=["sett", "phys"])
 def viscosities(
     vs: ViscosityState,
     sett: ViscositySettings,
+    phys: PhysicalConstants,
     e11: ArrayInput,
     e22: ArrayInput,
     e12: ArrayInput,
@@ -246,7 +266,7 @@ def viscosities(
     (König Beatty and Holland, 2010).
     """
 
-    recip_PlasDefCoeffSq = 1.0 / sett.PlasDefCoeff**2
+    recip_PlasDefCoeffSq = 1.0 / phys.PlasDefCoeff**2
 
     # interpolate squares of e12 to c-points after weighting them with the
     # area centered around z-points
@@ -268,7 +288,7 @@ def viscosities(
     # deltaCreg = jnp.sqrt( deltaSq + deltaMin**2 )
 
     # calculate viscosities
-    zeta = 0.5 * (vs.SeaIceStrength * (1 + sett.tensileStrFac)) / deltaCreg
+    zeta = 0.5 * (vs.SeaIceStrength * (1 + phys.tensileStrFac)) / deltaCreg
     eta = zeta * recip_PlasDefCoeffSq
 
     # calculate ice pressure
@@ -276,18 +296,19 @@ def viscosities(
         1
         * (
             vs.SeaIceStrength * (1 - sett.pressReplFac)
-            + 2.0 * zeta * deltaC * sett.pressReplFac / (1 + sett.tensileStrFac)
+            + 2.0 * zeta * deltaC * sett.pressReplFac / (1 + phys.tensileStrFac)
         )
-        * (1 - sett.tensileStrFac)
+        * (1 - phys.tensileStrFac)
     )
 
     return zeta, eta, press
 
 
-@partial(jit, static_argnames=["sett"])
+@partial(jit, static_argnames=["sett", "phys"])
 def stress(
     vs: MaskState,
     sett: BoundarySettings,
+    phys: PhysicalConstants,
     e11: ArrayInput,
     e22: ArrayInput,
     e12: ArrayInput,
@@ -301,16 +322,17 @@ def stress(
 
     sig11 = 0.5 * (2 * zeta * (e11 + e22) + 2 * eta * (e11 - e22) - press)
     sig22 = 0.5 * (2 * zeta * (e11 + e22) - 2 * eta * (e11 - e22) - press)
-    sig12 = 2.0 * e12 * c_point_to_z_point(vs, sett, eta)
+    sig12 = 2.0 * e12 * c_point_to_z_point(vs, sett, phys, eta)
 
     # NumPy inputs become JAX tracers at this compiled boundary.
     return cast(tuple[Array, Array, Array], (sig11, sig22, sig12))
 
 
-@partial(jit, static_argnames=["sett"])
+@partial(jit, static_argnames=["sett", "phys"])
 def stressdiv(
     vs: StressDivergenceState,
     sett: Hashable,
+    phys: PhysicalConstants,
     sig11: ArrayInput,
     sig22: ArrayInput,
     sig12: ArrayInput,

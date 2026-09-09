@@ -9,20 +9,21 @@ from veris._dynamics_types import OceanStressSettings, OceanStressState
 from veris._typing import jit
 from veris.dynamics_routines import ocean_drag_coeffs
 from veris.fill_overlap import fill_overlap_uv
+from veris.physical_constants import PhysicalConstants
 
 
-@partial(jit, static_argnames=["sett"])
+@partial(jit, static_argnames=["sett", "phys"])
 def OceanStressUV(
-    vs: OceanStressState, sett: OceanStressSettings
+    vs: OceanStressState, sett: OceanStressSettings, phys: PhysicalConstants
 ) -> tuple[Array, Array]:
     """calculate stresses on ocean surface from ocean and ice velocities"""
 
     # get linear drag coefficient at c-point
-    cDrag = ocean_drag_coeffs(vs, sett, vs.uIce, vs.vIce)
+    cDrag = ocean_drag_coeffs(vs, sett, phys, vs.uIce, vs.vIce)
 
     # use turning angle (default is zero)
-    sinWat = jnp.sin(jnp.deg2rad(sett.waterTurnAngle))
-    cosWat = jnp.cos(jnp.deg2rad(sett.waterTurnAngle))
+    sinWat = jnp.sin(jnp.deg2rad(phys.waterTurnAngle))
+    cosWat = jnp.cos(jnp.deg2rad(phys.waterTurnAngle))
 
     # calculate component-wise velocity difference of ice and ocean surface
     du = vs.uIce - vs.uOcean
@@ -41,6 +42,6 @@ def OceanStressUV(
     ) * sinWat * 0.5 * (cDrag * duAtC + jnp.roll(cDrag * duAtC, 1, 0))
 
     # fill overlaps
-    OceanStressU, OceanStressV = fill_overlap_uv(OceanStressU, OceanStressV)
+    OceanStressU, OceanStressV = fill_overlap_uv(OceanStressU, OceanStressV, sett)
 
     return OceanStressU, OceanStressV

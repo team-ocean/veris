@@ -1,147 +1,135 @@
-"""Initialize sea-ice staggered grid fields from surface ocean geometry.
+"""Initialize immutable sea-ice fields from supplied surface ocean geometry.
 
-This host routine updates a mutable state.variables container with JAX arrays.
-Input ocean masks have shape (nx, ny, nz); horizontal metrics are 1-D or 2-D.
-The last vertical mask level is the ocean surface. Periodic neighbor averages
-follow the original Veris set_inits routine.
+This host adapter preserves the original Veris ``set_inits`` metric equations.
+Ocean volume masks have shape (x, y, z), with the surface at the last level;
+spacing vectors and horizontal arrays include the same halos as State. The
+periodic corner area is the mean of four neighboring tracer-cell areas. Ocean
+geometry is external initialization input, never an AD leaf in the ice State.
 """
 
-from typing import Protocol
+from dataclasses import dataclass, fields, replace
 
 import jax.numpy as npx
-from jax import Array
+import numpy as np
+
+from veris._typing import ArrayInput
+from veris.configuration import Settings
+from veris.physical_constants import PhysicalConstants
+from veris.state import State
 
 
-class MutableGeometry(Protocol):
-    """Ocean geometry inputs and writable output slots populated by set_inits.
+@dataclass(frozen=True)
+class Geometry:
+    """Read-only ocean grid inputs, independent of any ocean-model container.
 
-    Output slots may be uninitialized on entry; every output is assigned before
-    use. Inputs are surface/volume JAX arrays with the dimensions in set_inits.
+    ``maskT``, ``maskU`` and ``maskV`` are volume masks; ``dxt`` and ``dxu``
+    are x-spacing vectors, and ``dyt`` and ``dyu`` are y-spacing vectors (m).
+    ``ht`` is depth (m), ``coriolis_t`` is Coriolis frequency (s-1), and the
+    three horizontal cell-area arrays are in m2. Shapes and finite positive
+    metrics are checked by the host adapter before any reciprocal is computed.
     """
 
-    @property
-    def area_t(self) -> Array: ...
-
-    @property
-    def area_u(self) -> Array: ...
-
-    @property
-    def area_v(self) -> Array: ...
-
-    @property
-    def coriolis_t(self) -> Array: ...
-
-    @property
-    def dxt(self) -> Array: ...
-
-    @property
-    def dxu(self) -> Array: ...
-
-    @property
-    def dyt(self) -> Array: ...
-
-    @property
-    def dyu(self) -> Array: ...
-
-    @property
-    def ht(self) -> Array: ...
-
-    @property
-    def maskT(self) -> Array: ...
-
-    @property
-    def maskU(self) -> Array: ...
-
-    @property
-    def maskV(self) -> Array: ...
-
-    # Mutable horizontal outputs created by initialization.
-    R_low: Array
-    TSurf: Array
-    dxC: Array
-    dxG: Array
-    dxU: Array
-    dxV: Array
-    dyC: Array
-    dyG: Array
-    dyU: Array
-    dyV: Array
-    fCori: Array
-    iceMask: Array
-    iceMaskU: Array
-    iceMaskV: Array
-    maskInC: Array
-    maskInU: Array
-    maskInV: Array
-    rA: Array
-    rAu: Array
-    rAv: Array
-    rAz: Array
-    recip_dxC: Array
-    recip_dxG: Array
-    recip_dxU: Array
-    recip_dxV: Array
-    recip_dyC: Array
-    recip_dyG: Array
-    recip_dyU: Array
-    recip_dyV: Array
-    recip_rA: Array
-    recip_rAu: Array
-    recip_rAv: Array
-    recip_rAz: Array
+    maskT: ArrayInput
+    maskU: ArrayInput
+    maskV: ArrayInput
+    ht: ArrayInput
+    coriolis_t: ArrayInput
+    dxt: ArrayInput
+    dxu: ArrayInput
+    dyt: ArrayInput
+    dyu: ArrayInput
+    area_t: ArrayInput
+    area_u: ArrayInput
+    area_v: ArrayInput
 
 
-class GeometryState(Protocol):
-    """Host container exposing geometry storage, distinct from immutable ice state."""
+def _validate_geometry(geometry: Geometry, shape: tuple[int, ...]) -> None:
+    """Reject mismatched grids and invalid reciprocal inputs on the host."""
+    if len(shape) != 2:
+        raise ValueError("State.hIceMean must have a two-dimensional storage shape")
+    for field in fields(geometry):
+        name = field.name
+        array = np.asarray(getattr(geometry, name))
+        if name.startswith("mask"):
+            if array.ndim != 3 or array.shape[:2] != shape or array.shape[2] < 1:
+                raise ValueError(f"{name} must have shape {shape} + (nonempty z,)")
+        else:
+            expected = (
+                (shape[0],)
+                if name in ("dxt", "dxu")
+                else (shape[1],)
+                if name in ("dyt", "dyu")
+                else shape
+            )
+            if array.shape != expected:
+                raise ValueError(f"{name} has shape {array.shape}; expected {expected}")
+        if not np.isfinite(array).all():
+            raise ValueError(f"{name} must contain only finite values")
+        if name in (
+            "dxt",
+            "dxu",
+            "dyt",
+            "dyu",
+            "area_t",
+            "area_u",
+            "area_v",
+        ) and np.any(array <= 0):
+            raise ValueError(f"{name} must contain positive values")
 
-    @property
-    def variables(self) -> MutableGeometry: ...
 
+def set_inits(
+    state: State, geometry: Geometry, sett: Settings, phys: PhysicalConstants
+) -> State:
+    """Return State with surface masks and staggered metrics initialized.
 
-def set_inits(state: GeometryState) -> None:
-    """Populate surface masks, staggered areas/metrics and their reciprocals."""
-
-    vs = state.variables
-
-    # masks
-    vs.iceMask = vs.maskT[:, :, -1]
-    vs.iceMaskU = vs.maskU[:, :, -1]
-    vs.iceMaskV = vs.maskV[:, :, -1]
-    vs.maskInC = vs.iceMask
-    vs.maskInU = vs.iceMaskU
-    vs.maskInV = vs.iceMaskV
-
-    # grid
-    vs.R_low = vs.ht
-    vs.fCori = vs.coriolis_t
-    ones2d = npx.ones_like(vs.maskInC)
-    vs.dxC = ones2d * vs.dxt[:, npx.newaxis]
-    vs.dyC = ones2d * vs.dyt
-    vs.dxU = ones2d * vs.dxu[:, npx.newaxis]
-    vs.dyU = ones2d * vs.dyu
-    vs.dxG = 0.5 * (vs.dxU + npx.roll(vs.dxU, 1, 1))
-    vs.dyG = 0.5 * (vs.dyU + npx.roll(vs.dyU, 1, 0))
-    vs.dxV = 0.5 * (vs.dxC + npx.roll(vs.dxC, 1, 1))
-    vs.dyV = 0.5 * (vs.dyC + npx.roll(vs.dyC, 1, 0))
-    vs.rA = vs.area_t
-    vs.rAu = vs.area_u
-    vs.rAv = vs.area_v
-    vs.rAz = vs.rA + npx.roll(vs.rA, 1, 0)
-    vs.rAz = 0.25 * (vs.rAz + npx.roll(vs.rAz, 1, 1))
-
-    vs.recip_dxC = 1 / vs.dxC
-    vs.recip_dyC = 1 / vs.dyC
-    vs.recip_dxG = 1 / vs.dxG
-    vs.recip_dyG = 1 / vs.dyG
-    vs.recip_dxU = 1 / vs.dxU
-    vs.recip_dyU = 1 / vs.dyU
-    vs.recip_dxV = 1 / vs.dxV
-    vs.recip_dyV = 1 / vs.dyV
-    vs.recip_rA = 1 / vs.rA
-    vs.recip_rAu = 1 / vs.rAu
-    vs.recip_rAv = 1 / vs.rAv
-    vs.recip_rAz = 1 / vs.rAz
-
-    vs.TSurf = npx.ones_like(vs.maskInC) * 273
-
-    # The caller initializes physical ice, ocean, and atmospheric fields.
+    Input State and Geometry are unchanged; non-geometry fields retain their
+    initialized values. ``sett.geometrySurfaceTemperature`` preserves the
+    original setup temperature of 273 K. ``phys`` is supplied consistently with
+    other setup adapters; these geometric equations need no physical constants.
+    This host routine validates inputs and is not a compiled time-step kernel.
+    """
+    _validate_geometry(geometry, state.hIceMean.shape)
+    dtype = state.hIceMean.dtype
+    ice_mask = npx.asarray(geometry.maskT[:, :, -1], dtype=dtype)
+    ice_mask_u = npx.asarray(geometry.maskU[:, :, -1], dtype=dtype)
+    ice_mask_v = npx.asarray(geometry.maskV[:, :, -1], dtype=dtype)
+    ones = npx.ones_like(ice_mask)
+    dx_c = ones * npx.asarray(geometry.dxt, dtype=dtype)[:, npx.newaxis]
+    dy_c = ones * npx.asarray(geometry.dyt, dtype=dtype)
+    dx_u = ones * npx.asarray(geometry.dxu, dtype=dtype)[:, npx.newaxis]
+    dy_u = ones * npx.asarray(geometry.dyu, dtype=dtype)
+    dx_g = 0.5 * (dx_u + npx.roll(dx_u, 1, 1))
+    dy_g = 0.5 * (dy_u + npx.roll(dy_u, 1, 0))
+    dx_v = 0.5 * (dx_c + npx.roll(dx_c, 1, 1))
+    dy_v = 0.5 * (dy_c + npx.roll(dy_c, 1, 0))
+    area = npx.asarray(geometry.area_t, dtype=dtype)
+    area_z = area + npx.roll(area, 1, 0)
+    area_z = 0.25 * (area_z + npx.roll(area_z, 1, 1))
+    return replace(
+        state,
+        iceMask=ice_mask,
+        iceMaskU=ice_mask_u,
+        iceMaskV=ice_mask_v,
+        maskInC=ice_mask,
+        maskInU=ice_mask_u,
+        maskInV=ice_mask_v,
+        R_low=npx.asarray(geometry.ht, dtype=dtype),
+        fCori=npx.asarray(geometry.coriolis_t, dtype=dtype),
+        dxG=dx_g,
+        dyG=dy_g,
+        dxU=dx_u,
+        dyU=dy_u,
+        dxV=dx_v,
+        dyV=dy_v,
+        recip_dxC=1 / dx_c,
+        recip_dyC=1 / dy_c,
+        recip_dxU=1 / dx_u,
+        recip_dyU=1 / dy_u,
+        recip_dxV=1 / dx_v,
+        recip_dyV=1 / dy_v,
+        rAz=area_z,
+        recip_rA=1 / area,
+        recip_rAu=1 / npx.asarray(geometry.area_u, dtype=dtype),
+        recip_rAv=1 / npx.asarray(geometry.area_v, dtype=dtype),
+        TSurf=ones * sett.geometrySurfaceTemperature,
+    )

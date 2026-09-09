@@ -12,30 +12,25 @@ import pytest
 def test_minimal_dynamics_contract(tmp_path: Path, valid: bool, kernel: str) -> None:
     """Reject invalid masks without requiring unrelated fields or writable state."""
     fields = "    hIceMean: Array\n    Area: Array\n" if kernel == "strength" else ""
-    settings = (
-        "    pStar: float\n    cStar: float"
-        if kernel == "strength"
-        else "    noSlip: bool"
-    )
     expression = (
-        "SeaIceStrength(state, constants)"
+        "SeaIceStrength(state, settings, phys)"
         if kernel == "strength"
-        else "stress(state, constants, field, field, field, field, field, field)"
+        else "stress(state, settings, phys, field, field, field, field, field, field)"
     )
     returns = "Array" if kernel == "strength" else "tuple[Array, Array, Array]"
-    source = f"""from typing import NamedTuple
+    source = f"""from dataclasses import dataclass
 from jax import Array
 from numpy import float64
 from numpy.typing import NDArray
 from veris.dynamics_routines import SeaIceStrength, stress
+from veris.configuration import Settings
+from veris.physical_constants import PhysicalConstants
 
-class State(NamedTuple):
+@dataclass(frozen=True)
+class State:
 {fields}    iceMask: {"Array" if valid else "str"}
 
-class Constants(NamedTuple):
-{settings}
-
-def evaluate(state: State, constants: Constants, field: NDArray[float64]) -> {returns}:
+def evaluate(state: State, settings: Settings, phys: PhysicalConstants, field: NDArray[float64]) -> {returns}:
     return {expression}
 """
     root = Path(__file__).resolve().parents[1]

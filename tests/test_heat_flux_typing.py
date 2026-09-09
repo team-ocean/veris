@@ -43,48 +43,35 @@ def _check_contract(
     "case", ["immutable", "missing-settings", "wrong-coefficient", "wrong-arity"]
 )
 def test_bulk_heat_flux_contract(tmp_path: Path, case: str) -> None:
-    """Accept minimal immutable constants, NumPy fields, and scalar helpers."""
-    coefficient_type = "str" if case == "wrong-coefficient" else "float"
-    state_field = (
-        "unused: float" if case == "missing-settings" else "settings: Constants"
-    )
-    source = f"""from typing import NamedTuple
-import numpy as np
+    """Accept initialized configuration, NumPy fields, and scalar helpers."""
+    source = """import numpy as np
 from jax import Array
-from veris._bulk_types import BulkState, LANLFluxSettings
+from veris.configuration import Settings
+from veris.physical_constants import PhysicalConstants
 from veris.heat_flux_CESM import dqnetdt, get_press_levs, qsat, qsat_august_eqn, cdn
 from veris.heat_flux_MITgcm import bulkf_formula_lanl
 
-class Constants(NamedTuple):
-    ce: float
-    ch: float
-    cpdair: {coefficient_type}
-    latvap: float
-    stefBoltz: float
-    umin_o: float
-
-class State(NamedTuple):
-    {state_field}
-
-def evaluate(state: State) -> tuple[Array, Array, Array]:
+def evaluate(sett: Settings, phys: PhysicalConstants) -> tuple[Array, Array, Array]:
     field = np.ones((2, 3))
-    return dqnetdt(state, field, field, field, field, field, field, field, field)
+    return dqnetdt(sett, phys, field, field, field, field, field, field, field, field)
 
 def pressure_levels() -> Array:
     return get_press_levs(np.ones((2, 3)), np.ones(4), np.ones(4))
 
-def scalar_helpers() -> tuple[Array, Array, Array]:
-    return qsat(275.0), qsat_august_eqn(100000.0, 275.0), cdn(5.0)
+def scalar_helpers(phys: PhysicalConstants) -> tuple[Array, Array, Array]:
+    return qsat(phys, 275.0), qsat_august_eqn(phys, 100000.0, 275.0), cdn(phys, 5.0)
 """
     expected = None
     if case == "missing-settings":
-        expected = ("invalid-argument-type", "member `settings` is not defined")
+        source = source.replace("dqnetdt(sett, phys,", "dqnetdt(None, phys,")
+        expected = ("invalid-argument-type", "Settings")
     elif case == "wrong-coefficient":
-        expected = ("invalid-argument-type", "member `cpdair` is incompatible")
+        source += '\nconstants = PhysicalConstants(cpdair="invalid")\n'
+        expected = ("invalid-argument-type", "float")
     elif case == "wrong-arity":
         source += """
-def wrong_length(state: BulkState[LANLFluxSettings], field: Array) -> tuple[Array, Array]:
-    return bulkf_formula_lanl(state, field, field, field, field, field, field)
+def wrong_length(sett: Settings, phys: PhysicalConstants, field: Array) -> tuple[Array, Array]:
+    return bulkf_formula_lanl(sett, phys, field, field, field, field, field, field)
 """
         expected = ("invalid-return-type", "tuple of length 9")
     _check_contract(tmp_path, source, expected)
@@ -94,112 +81,52 @@ def wrong_length(state: BulkState[LANLFluxSettings], field: Array) -> tuple[Arra
     "case", ["immutable", "wrong-atmosphere", "wrong-category-count", "wrong-arity"]
 )
 def test_thermodynamic_heat_flux_contract(tmp_path: Path, case: str) -> None:
-    """Require atmospheric arrays and integer category counts in coupled growth."""
+    """Keep minimal array protocols and concrete configuration type checks."""
     fields = ["ATemp", "LWdown", "SWdown", "aqh", "fCori", "wSpeed"]
     atmosphere = "\n".join(
         f"    {name}: {'str' if case == 'wrong-atmosphere' and name == 'aqh' else 'Array'}"
         for name in fields
     )
-    constants = [
-        "Area_reg",
-        "McPheeTaperFac",
-        "celsius2K",
-        "cpWater",
-        "deltatTherm",
-        "dtempFrz_dS",
-        "hIce_reg",
-        "lhFusion",
-        "nITC",
-        "recip_deltatTherm",
-        "recip_h0",
-        "recip_h0_south",
-        "recip_nITC",
-        "recip_rhoSea",
-        "rhoFresh",
-        "rhoFresh2rhoSnow",
-        "rhoIce",
-        "rhoIce2rhoFresh",
-        "rhoIce2rhoSnow",
-        "rhoSea",
-        "rhoSnow",
-        "saltIce_ref",
-        "stantonNr",
-        "tempFrz",
-        "uStarBase",
-        "cpAir",
-        "dalton",
-        "dryIceAlb",
-        "dryIceAlb_south",
-        "drySnowAlb",
-        "drySnowAlb_south",
-        "hCut",
-        "iceConduct",
-        "iceEmiss",
-        "lhSublim",
-        "minLWdown",
-        "minTAir",
-        "minTIce",
-        "rhoAir",
-        "shortwave",
-        "snowConduct",
-        "snowEmiss",
-        "stefBoltz",
-        "wSpeedMin",
-        "wetAlbTemp",
-        "wetIceAlb",
-        "wetIceAlb_south",
-        "wetSnowAlb",
-        "wetSnowAlb_south",
-    ]
-    declarations = "\n".join(
-        f"    {name}: {'int' if name == 'nITC' and case != 'wrong-category-count' else 'float'}"
-        for name in constants
-    )
-    source = f"""from typing import NamedTuple
+    source = f"""from dataclasses import dataclass
 import numpy as np
 from jax import Array
+from veris.configuration import Settings
+from veris.physical_constants import PhysicalConstants
 from veris._thermodynamic_types import GrowthState, GrowthResult
 from veris.growth import Growth
 from veris.solve4temp import solve4temp
 
-class Atmosphere(NamedTuple):
+@dataclass(frozen=True)
+class Atmosphere:
 {atmosphere}
 
-class Constants(NamedTuple):
-{declarations}
-
-def surface_fluxes(state: Atmosphere, constants: Constants) -> tuple[Array, Array, Array, Array, Array]:
+def surface_fluxes(state: Atmosphere, sett: Settings, phys: PhysicalConstants) -> tuple[Array, Array, Array, Array, Array]:
     field = np.ones((2, 3))
-    return solve4temp(state, constants, field, field, field, field)
+    return solve4temp(state, sett, phys, field, field, field, field)
 
-def growth(state: GrowthState, constants: Constants) -> {"tuple[Array, Array]" if case == "wrong-arity" else "GrowthResult"}:
-    return Growth(state, constants)
+def growth(state: GrowthState, sett: Settings, phys: PhysicalConstants) -> {"tuple[Array, Array]" if case == "wrong-arity" else "GrowthResult"}:
+    return Growth(state, sett, phys)
 """
     expected = None
     if case == "wrong-atmosphere":
         expected = ("invalid-argument-type", "member `aqh` is incompatible")
     elif case == "wrong-category-count":
-        expected = ("invalid-argument-type", "member `nITC` is incompatible")
+        source += "\nsettings = Settings(nITC=1.5)\n"
+        expected = ("invalid-argument-type", "int")
     elif case == "wrong-arity":
         expected = ("invalid-return-type", "tuple of length 11")
     _check_contract(tmp_path, source, expected)
 
 
-def test_height_settings_need_not_be_hashable(tmp_path: Path) -> None:
-    """The uncompiled height helper accepts mutable atmospheric constants."""
+def test_height_uses_initialized_physical_constants(tmp_path: Path) -> None:
+    """The height helper consumes the same initialized physical constants."""
     _check_contract(
         tmp_path,
-        """from dataclasses import dataclass
-from jax import Array
+        """from jax import Array
+from veris.physical_constants import PhysicalConstants
 from veris.heat_flux_CESM import compute_z_level
-@dataclass
-class Constants:
-    grav: float
-    radius: float
-    rdair: float
-    zvir: float
-def evaluate(t: Array, q: Array, ph: Array) -> Array:
-    return compute_z_level(Constants(9.81, 6371000., 287., 0.61), t, q, ph)
+def evaluate(phys: PhysicalConstants, t: Array, q: Array, ph: Array) -> Array:
+    return compute_z_level(phys, t, q, ph)
 """,
         None,
     )

@@ -7,11 +7,12 @@ from jax import Array
 from jax.typing import ArrayLike
 
 from veris._typing import BoundarySettings, MaskState, jit
+from veris.physical_constants import PhysicalConstants
 
 
-@partial(jit, static_argnames=["sett"])
+@partial(jit, static_argnames=["sett", "phys"])
 def c_point_to_z_point(
-    vs: MaskState, sett: BoundarySettings, Cfield: ArrayLike
+    vs: MaskState, sett: BoundarySettings, phys: PhysicalConstants, Cfield: ArrayLike
 ) -> Array:
     """calculates value at z-point by averaging c-point values"""
 

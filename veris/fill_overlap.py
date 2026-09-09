@@ -2,25 +2,23 @@
 
 from collections.abc import Callable
 from functools import partial
-from importlib import import_module
 from typing import Protocol, cast
 
 import jax
 from jax import Array, shard_map
 from jax import numpy as jnp
 from jax.lax import ppermute
-from jax.sharding import Mesh
+from jax.sharding import AbstractMesh, Mesh
 from jax.sharding import PartitionSpec as P
 
 from veris._typing import MaskInput, jit
-from veris.settings import settings
 
 
-class _InitializedMeshModule(Protocol):
-    """Mesh supplied by the external application initialization module."""
+class HaloSettings(Protocol):
+    """Static configuration needed to choose a periodic halo exchange."""
 
     @property
-    def mesh(self) -> Mesh | None: ...
+    def use_sharding(self) -> bool: ...
 
 
 def fill_circular_overlap(A: Array) -> Array:
@@ -81,36 +79,47 @@ def fill_overlap_shard(var: MaskInput) -> Array:
     return var
 
 
-def make_sharded_fill_overlap() -> Callable[[MaskInput], Array]:
-    """return a shard_map-wrapped version of fill_overlap for the initialized mesh"""
-    mesh = cast(_InitializedMeshModule, import_module("initialize_mesh_sharding")).mesh
-    if mesh is None:
-        raise RuntimeError("mesh and sharding not initialized")
+def _validate_mesh(mesh: Mesh | AbstractMesh) -> None:
+    """Require the two processor-grid axes used by the exchange algorithm."""
+    if set(mesh.axis_names) != {"x", "y"}:
+        raise ValueError("halo exchange requires an active mesh with axes x and y")
+
+
+def make_sharded_fill_overlap(mesh: Mesh) -> Callable[[MaskInput], Array]:
+    """Bind the existing two-cell exchange to an explicitly supplied device mesh."""
+    _validate_mesh(mesh)
     return shard_map(
         fill_overlap_shard, mesh=mesh, in_specs=P("x", "y"), out_specs=P("x", "y")
     )
 
 
-if settings["use_sharding"]:
-    """use the correct fill_overlap function, depending on whether
-    veris is run is a distributed runtime with sharded arrays or not
+@partial(jit, static_argnames=["sett"])
+def fill_overlap(var: MaskInput, sett: HaloSettings) -> Array:
+    """Fill periodic halos using initialized settings and the caller's mesh.
+
+    Serial inputs store a single interior with two halo cells on each edge.
+    Sharded inputs pack those local halo regions for every mesh partition.
+    Sharded inputs use ``NamedSharding(mesh, P("x", "y"))``. Calls must
+    execute inside ``jax.set_mesh(mesh)``; mesh execution
+    context is owned by the caller and is never stored among State leaves.
     """
-    sharded_fill_overlap = make_sharded_fill_overlap()
+    if sett.use_sharding:
+        mesh = jax.sharding.get_abstract_mesh()
+        _validate_mesh(mesh)
+        if {"x", "y"} <= set(mesh.manual_axes):
+            # The coupled driver already mapped its entire local stencil.
+            return fill_overlap_shard(var)
+        fill = shard_map(
+            fill_overlap_shard, mesh=mesh, in_specs=P("x", "y"), out_specs=P("x", "y")
+        )
+        return fill(var)
+    # JIT converts NumPy inputs to JAX tracers before this body runs.
+    return fill_circular_overlap(cast(Array, var))
 
-    @partial(jit)
-    def fill_overlap(var: MaskInput) -> Array:
-        """Fill periodic halos using the configured local or sharded exchange."""
-        return sharded_fill_overlap(var)
-else:
 
-    @partial(jit)
-    def fill_overlap(var: MaskInput) -> Array:
-        """Fill periodic halos using the configured local or sharded exchange."""
-        # JIT converts NumPy inputs to JAX tracers before this body runs.
-        return fill_circular_overlap(cast(Array, var))
-
-
-@partial(jit)
-def fill_overlap_uv(u: MaskInput, v: MaskInput) -> tuple[Array, Array]:
-    """Fill both horizontal velocity components independently."""
-    return fill_overlap(u), fill_overlap(v)
+@partial(jit, static_argnames=["sett"])
+def fill_overlap_uv(
+    u: MaskInput, v: MaskInput, sett: HaloSettings
+) -> tuple[Array, Array]:
+    """Fill both horizontal velocity components with the same initialized settings."""
+    return fill_overlap(u, sett), fill_overlap(v, sett)

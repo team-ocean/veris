@@ -10,12 +10,16 @@ the coastline. Temperatures are in kelvin and thicknesses are grid-cell means.
 
 .. autofunction:: veris.setup.artificial.step
 
-The step retains all velocity and stress outputs. Its sequence is mass and area
+.. autofunction:: veris.setup.artificial.step_with_diagnostics
+
+The numerical State retains ice velocity and stress fields between steps.
+Output-only ocean coupling stresses and fluxes are returned separately by
+``step_with_diagnostics``. Its sequence is mass and area
 averaging, wind forcing, ice strength, EVP dynamics, ocean stress, advection,
 cleanup, ridging, growth, and periodic halo refresh. It restores prescribed
 open-water heat forcing each step because growth returns ocean-coupling fluxes
 in the same state fields.
 
-Run initialization before importing halo-dependent kernels in a fresh process.
-The example selects serial halos and does not initialize a distributed mesh.
+The example initializes separate settings and physical constants and selects
+serial halos. It does not initialize a distributed mesh.
 The same JAX kernels can execute on a supported CPU or GPU device.

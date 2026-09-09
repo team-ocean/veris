@@ -1,7 +1,7 @@
 """Standalone JAX bulk heat-flux kernels, retaining the original MITgcm LANL equations.
 
 Array inputs preserve the original shapes and units documented per function.
-Settings are supplied through an immutable, hashable state.settings object.
+Settings and physical constants are supplied as separate frozen dataclasses.
 """
 
 from functools import partial
@@ -9,13 +9,16 @@ from functools import partial
 import jax.numpy as npx
 from jax.typing import ArrayLike
 
-from veris._bulk_types import BulkState, LANLFluxes, LANLFluxSettings
+from veris._bulk_types import LANLFluxes
 from veris._typing import jit
+from veris.configuration import Settings
+from veris.physical_constants import PhysicalConstants
 
 
-@partial(jit, static_argnames=["state"])
+@partial(jit, static_argnames=["sett", "phys"])
 def bulkf_formula_lanl(
-    state: BulkState[LANLFluxSettings],
+    sett: Settings,
+    phys: PhysicalConstants,
     uw: ArrayLike,
     vw: ArrayLike,
     ta: ArrayLike,
@@ -57,8 +60,6 @@ def bulkf_formula_lanl(
         dEvdT  (:obj:`ndarray`): derivative of evap. with respect to tsf [kg/m2/s/K]
     """
 
-    settings = state.settings
-
     # Evaluate inactive cells at a regular finite state before masking outputs.
     # Masking outputs alone would leave NaNs in the reverse differentiation pass.
     wet = ocn_mask != 0
@@ -69,26 +70,36 @@ def bulkf_formula_lanl(
     tsf = npx.where(wet, tsf, 280.0)
 
     # Compute turbulent surface fluxes
-    ht = 2.0
-    zref = 10.0
-    zice = 0.0005
+    ht = sett.ztref
+    zref = sett.zref
+    zice = phys.zzsice
     aln = npx.log(ht / zref)
-    czol = zref * settings.karman * settings.grav
+    czol = zref * phys.karman * phys.gravity
 
-    lath = npx.ones_like(ocn_mask) * settings.latvap
+    lath = npx.ones_like(ocn_mask) * phys.latvap
 
     # wind speed
     us = npx.sqrt(uw[...] * uw[...] + vw[...] * vw[...])
-    usm = npx.maximum(us[...], 1.0)
+    usm = npx.maximum(us[...], sett.lanlMinWindSpeed)
 
-    t0 = ta[...] * (1.0 + settings.zvir * qa[...])
-    ssq = 3.797915 * npx.exp(lath[...] * (7.93252e-6 - 2.166847e-3 / tsf[...])) / 1013.0
+    t0 = ta[...] * (1.0 + phys.zvir * qa[...])
+    ssq = (
+        phys.lanlSaturationHumidityScale
+        * npx.exp(
+            lath[...]
+            * (
+                phys.lanlSaturationExponentOffset
+                - phys.lanlSaturationExponentTemperature / tsf[...]
+            )
+        )
+        / phys.lanlReferencePressure
+    )
 
-    deltap = ta[...] - tsf[...] + settings.gamma_blk * ht
+    deltap = ta[...] - tsf[...] + phys.gamma_blk * ht
     delq = qa[...] - ssq[...]
 
     # initialize estimate exchange coefficients
-    rdn = settings.karman / npx.log(zref / zice)
+    rdn = phys.karman / npx.log(zref / zice)
     rhn = rdn
     ren = rdn
     # calculate turbulent scales
@@ -97,29 +108,36 @@ def bulkf_formula_lanl(
     qstar = ren * delq[...]
 
     # iteration with psi-functions to find transfer coefficients
-    for _ in range(5):
+    for _ in range(sett.lanlBulkIterations):
         huol = (
             czol
             / ustar[...] ** 2
-            * (tstar[...] / t0 + qstar[...] / (1.0 / settings.zvir + qa[...]))
+            * (tstar[...] / t0 + qstar[...] / (1.0 / phys.zvir + qa[...]))
         )
-        huol = npx.minimum(npx.abs(huol[...]), 10.0) * npx.sign(huol[...])
+        huol = npx.minimum(npx.abs(huol[...]), sett.bulkStabilityLimit) * npx.sign(
+            huol[...]
+        )
         stable = 0.5 + 0.5 * npx.sign(huol[...])
-        xsq = npx.maximum(npx.sqrt(npx.abs(1.0 - 16.0 * huol[...])), 1.0)
+        xsq = npx.maximum(
+            npx.sqrt(npx.abs(1.0 - phys.bulkUnstableStabilityCoefficient * huol[...])),
+            1.0,
+        )
         x = npx.sqrt(xsq[...])
-        psimh = -5.0 * huol[...] * stable[...] + (1.0 - stable[...]) * (
+        psimh = -phys.bulkStableStabilityCoefficient * huol[...] * stable[...] + (
+            1.0 - stable[...]
+        ) * (
             2.0 * npx.log(0.5 * (1.0 + x[...]))
             + 2.0 * npx.log(0.5 * (1.0 + xsq[...]))
             - 2.0 * npx.arctan(x[...])
             + npx.pi * 0.5
         )
-        psixh = -5.0 * huol[...] * stable[...] + (1.0 - stable[...]) * (
-            2.0 * npx.log(0.5 * (1.0 + xsq[...]))
-        )
+        psixh = -phys.bulkStableStabilityCoefficient * huol[...] * stable[...] + (
+            1.0 - stable[...]
+        ) * (2.0 * npx.log(0.5 * (1.0 + xsq[...])))
 
         # update the transfer coefficients
-        rd = rdn / (1.0 + rdn * (aln[...] - psimh[...]) / settings.karman)
-        rh = rhn / (1.0 + rhn * (aln[...] - psixh[...]) / settings.karman)
+        rd = rdn / (1.0 + rdn * (aln[...] - psimh[...]) / phys.karman)
+        rh = rhn / (1.0 + rhn * (aln[...] - psixh[...]) / phys.karman)
         re = rh
 
         # update ustar, tstar, qstar using updated, shifted coefficients.
@@ -127,19 +145,24 @@ def bulkf_formula_lanl(
         qstar = re[...] * delq[...]
         tstar = rh[...] * deltap[...]
 
-    # tau = settings.rhoAir * ustar[...]**2
+    # tau = phys.rhoAir * ustar[...]**2
     # tau = tau * us[...] / usm[...]
-    csha = settings.rhoAir * settings.cpdair * us[...] * rh[...] * rd[...]
-    clha = settings.rhoAir * lath[...] * us[...] * re[...] * rd[...]
+    csha = phys.rhoAir * phys.cpdair * us[...] * rh[...] * rd[...]
+    clha = phys.rhoAir * lath[...] * us[...] * re[...] * rd[...]
 
     fsha = csha[...] * deltap[...]
     flha = clha[...] * delq[...]
     evp = -flha[...] / lath[...]
 
-    flwupa = settings.ocean_emissivity * settings.stefBoltz * tsf[...] ** 4
-    dflwupdt = 4.0 * settings.ocean_emissivity * settings.stefBoltz * tsf[...] ** 3
+    flwupa = phys.ocean_emissivity * phys.stefBoltz * tsf[...] ** 4
+    dflwupdt = 4.0 * phys.ocean_emissivity * phys.stefBoltz * tsf[...] ** 3
 
-    devdt = clha[...] * ssq[...] * 2.166847e-3 / (tsf[...] * tsf[...])
+    devdt = (
+        clha[...]
+        * ssq[...]
+        * phys.lanlSaturationExponentTemperature
+        / (tsf[...] * tsf[...])
+    )
     dflhdt = -lath[...] * devdt[...]
     dfshdt = -csha[...]
 
@@ -147,9 +170,13 @@ def bulkf_formula_lanl(
     df0dt = -dflwupdt[...] + dfshdt[...] + dflhdt[...]
 
     #  wind stress at center points
-    bulkf_cdn = 2.7e-3 / usm[...] + 0.142e-3 + 0.0764e-3 * usm[...]
-    ust = settings.rhoAir * bulkf_cdn * us[...] * uw[...]
-    vst = settings.rhoAir * bulkf_cdn * us[...] * vw[...]
+    bulkf_cdn = (
+        phys.neutralDragInverseWind / usm[...]
+        + phys.neutralDragConstant
+        + phys.neutralDragLinearWind * usm[...]
+    )
+    ust = phys.rhoAir * bulkf_cdn * us[...] * uw[...]
+    vst = phys.rhoAir * bulkf_cdn * us[...] * vw[...]
 
     return (
         npx.where(wet, flwupa, 0.0),

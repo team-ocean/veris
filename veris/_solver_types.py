@@ -48,25 +48,13 @@ class WindStressState(FaceMaskState, Protocol):
 
 
 class WindStressSettings(StaticSettings, Protocol):
-    """Relative wind, drag coefficients and air turning angle."""
-
-    @property
-    def airTurnAngle(self) -> float: ...
+    """Relative wind selection and minimum wind speed."""
 
     @property
     def useRelativeWind(self) -> bool: ...
 
     @property
     def wSpeedMin(self) -> float: ...
-
-    @property
-    def airIceDrag_south(self) -> float: ...
-
-    @property
-    def airIceDrag(self) -> float: ...
-
-    @property
-    def rhoAir(self) -> float: ...
 
 
 class WindForcingState(WindStressState, Protocol):
@@ -101,19 +89,13 @@ class WindForcingState(WindStressState, Protocol):
 
 
 class WindForcingSettings(WindStressSettings, StaticSettings, Protocol):
-    """Surface potential conversion and freshwater-load selection."""
-
-    @property
-    def gravity(self) -> float: ...
+    """Freshwater-load selection and surface-load multiplier."""
 
     @property
     def useRealFreshWaterFlux(self) -> bool: ...
 
     @property
     def seaIceLoadFac(self) -> float: ...
-
-    @property
-    def recip_rhoSea(self) -> float: ...
 
 
 class EVPState(
@@ -173,12 +155,6 @@ class EVPSettings(
     def aEVPalphaMin(self) -> float: ...
 
     @property
-    def cosWat(self) -> float: ...
-
-    @property
-    def sinWat(self) -> float: ...
-
-    @property
     def recip_deltatDyn(self) -> float: ...
 
     @property
@@ -195,6 +171,24 @@ class EVPSettings(
 
     @property
     def nEVPsteps(self) -> int: ...
+
+    @property
+    def aEVPmassMin(self) -> float: ...
+
+    @property
+    def aEVPcStar(self) -> float: ...
+
+    @property
+    def evpStressRelaxation(self) -> float: ...
+
+    @property
+    def evpShearRelaxation(self) -> float: ...
+
+    @property
+    def printEvpResidual(self) -> bool: ...
+
+    @property
+    def use_sharding(self) -> bool: ...
 
 
 class IceVelocityState(EVPState, FreeDriftState, Protocol):

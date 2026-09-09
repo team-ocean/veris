@@ -7,6 +7,7 @@ so its branch derivative must not be mistaken for sensitivity across removal.
 """
 
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 from types import ModuleType
 
 import jax
@@ -18,7 +19,8 @@ from jax import Array
 from jax.typing import ArrayLike
 
 from veris.clean_up import clean_up_advection, ridging
-from veris.state import Settings
+from veris.configuration import Settings
+from veris.physical_constants import PhysicalConstants
 
 
 def _check_elementwise_ad(
@@ -73,12 +75,12 @@ def test_superbee_one_sided_slopes_at_kinks(
 
 
 def test_ridging_area_cap_ad_and_one_sided_slopes(
-    state: StateFactory, sett: Settings
+    state: StateFactory, sett: Settings, phys: PhysicalConstants
 ) -> None:
     """Saturated area must have zero sensitivity; the cap itself is a kink."""
 
     def capped(area: Array) -> Array:
-        return ridging(state(Area=area), sett)
+        return ridging(state(Area=area), sett, phys)
 
     _check_elementwise_ad(capped, [0.4, 1.0, 1.3], [1.0, 0.5, 0.0])
     step = 1e-6
@@ -89,13 +91,13 @@ def test_ridging_area_cap_ad_and_one_sided_slopes(
 
 @pytest.mark.parametrize("output_index", [1, 5], ids=["snow", "snow_overshoot"])
 def test_cleanup_snow_zero_preserves_overshoot_sensitivities(
-    state: StateFactory, sett: Settings, output_index: int
+    state: StateFactory, sett: Settings, phys: PhysicalConstants, output_index: int
 ) -> None:
     """Clipping transfers negative snow to overshoot, retaining its sign in AD."""
 
     def cleaned(snow: Array) -> Array:
         vs = state(hIceMean=jnp.ones_like(snow), hSnowMean=snow, Area=0.5, TSurf=260)
-        return clean_up_advection(vs, sett)[output_index]
+        return clean_up_advection(vs, sett, phys)[output_index]
 
     slopes = [0.0, 0.5, 1.0] if output_index == 1 else [-1.0, -0.5, 0.0]
     _check_elementwise_ad(cleaned, [-0.2, 0.0, 0.2], slopes)
@@ -107,14 +109,14 @@ def test_cleanup_snow_zero_preserves_overshoot_sensitivities(
 
 
 def test_cleanup_area_floor_ad_and_one_sided_slopes(
-    state: StateFactory, sett: Settings
+    state: StateFactory, sett: Settings, phys: PhysicalConstants
 ) -> None:
     """The area floor suppresses area sensitivity while positive ice remains."""
-    sett = sett._replace(Area_min=0.1)
+    sett = replace(sett, Area_min=0.1)
 
     def cleaned(area: Array) -> Array:
         vs = state(hIceMean=1.0, hSnowMean=0.2, Area=area, TSurf=260.0)
-        return clean_up_advection(vs, sett)[2]
+        return clean_up_advection(vs, sett, phys)[2]
 
     _check_elementwise_ad(cleaned, [-0.1, 0.0, 0.05, 0.1, 0.3], [0, 0, 0, 0.5, 1])
     step = 1e-6
@@ -124,14 +126,14 @@ def test_cleanup_area_floor_ad_and_one_sided_slopes(
 
 
 def test_thin_ice_removal_branch_ad_does_not_describe_discontinuous_jump(
-    state: StateFactory, sett: Settings
+    state: StateFactory, sett: Settings, phys: PhysicalConstants
 ) -> None:
     """Catch a changed removal boundary and expose the jump that AD cannot see."""
-    sett = sett._replace(hIce_min=0.1)
+    sett = replace(sett, hIce_min=0.1)
 
     def cleaned(ice: Array) -> Array:
         vs = state(hIceMean=ice, hSnowMean=0.2, Area=0.5, TSurf=260.0)
-        return clean_up_advection(vs, sett)[0]
+        return clean_up_advection(vs, sett, phys)[0]
 
     _check_elementwise_ad(cleaned, [0.05, 0.1, 0.15], [0.0, 0.0, 1.0])
     # <= removes ice exactly at the threshold. The jump remains O(hIce_min)

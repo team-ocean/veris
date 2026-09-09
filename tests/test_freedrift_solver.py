@@ -1,11 +1,14 @@
 """Verify free drift against uniform momentum balance and land masks."""
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 from conftest import StateFactory
 
+from veris.configuration import Settings
 from veris.freedrift_solver import freedrift_solver
-from veris.state import Settings
+from veris.physical_constants import PhysicalConstants
 
 
 @pytest.mark.parametrize("coriolis", [-1e-4, 0, 1e-4])
@@ -14,6 +17,7 @@ from veris.state import Settings
 def test_uniform_free_drift_momentum_balance(
     state: StateFactory,
     sett: Settings,
+    phys: PhysicalConstants,
     coriolis: float,
     wind: float,
     ocean_velocity: tuple[float, float],
@@ -29,24 +33,24 @@ def test_uniform_free_drift_momentum_balance(
         iceMaskU=ones,
         iceMaskV=ones,
     )
-    u_jax, v_jax = freedrift_solver(vs, sett)
+    u_jax, v_jax = freedrift_solver(vs, sett, phys)
     u, v = np.asarray(u_jax), np.asarray(v_jax)
     assert u.shape == v.shape == ones.shape
-    drag = sett.rhoSea * (
-        sett.waterIceDrag_south if coriolis < 0 else sett.waterIceDrag
+    drag = phys.rhoSea * (
+        phys.waterIceDrag_south if coriolis < 0 else phys.waterIceDrag
     )
     relative_u = u - ocean_velocity[0]
     relative_v = v - ocean_velocity[1]
     speed = np.hypot(relative_u, relative_v)
     np.testing.assert_allclose(
-        drag * speed * relative_u - sett.rhoIce * coriolis * v, wind, atol=1e-12
+        drag * speed * relative_u - phys.rhoIce * coriolis * v, wind, atol=1e-12
     )
     np.testing.assert_allclose(
-        drag * speed * relative_v + sett.rhoIce * coriolis * u,
+        drag * speed * relative_v + phys.rhoIce * coriolis * u,
         0.3 * wind,
         atol=1e-12,
     )
-    land = vs._replace(iceMaskU=0 * vs.iceMaskU, iceMaskV=0 * vs.iceMaskV)
-    for component in freedrift_solver(land, sett):
+    land = replace(vs, iceMaskU=0 * vs.iceMaskU, iceMaskV=0 * vs.iceMaskV)
+    for component in freedrift_solver(land, sett, phys):
         assert component.shape == ones.shape
         np.testing.assert_array_equal(component, 0)
