@@ -36,7 +36,7 @@ def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
     # initialize three dimensional arrays accounting for the thickness categories of the ice
     # (using * 1 ensures that a new array is created for each variable. otherwise they would
     # all point to the same one)
-    ones3d = jnp.zeros((*vs.iceMask.shape, sett.nITC))
+    ones3d = jnp.zeros((*vs.iceMask.shape, sett.nITC), dtype=vs.iceMask.dtype)
     hIceActual_mult = ones3d * 1
     hSnowActual_mult = ones3d * 1
     F_io_net_mult = ones3d * 1
@@ -58,14 +58,14 @@ def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
     # ice or snow thickness divided by Area does not work if Area -> 0,
     # therefore the regularization
     isIce = hIceMeanpreTH > 0
-    regArea = jnp.sqrt(AreapreTH**2 + sett.Area_reg)
+    regArea = jnp.sqrt(AreapreTH**2 + phys.Area_reg)
     recip_regArea = 1 / regArea
 
     hIceActual = jnp.where(isIce, hIceMeanpreTH * recip_regArea, 0)
-    recip_hIceActual = AreapreTH / jnp.sqrt(hIceMeanpreTH**2 + sett.hIce_reg)
+    recip_hIceActual = AreapreTH / jnp.sqrt(hIceMeanpreTH**2 + phys.hIce_reg)
     hSnowActual = jnp.where(isIce, hSnowMeanpreTH * recip_regArea, 0)
 
-    hIceActual = jnp.maximum(hIceActual, sett.minActualIceThickness)
+    hIceActual = jnp.maximum(hIceActual, phys.minActualIceThickness)
 
     ##### calculate heat fluxes through the ice #####
 
@@ -303,7 +303,7 @@ def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
     hIceMean = hIceMean + d_hIceMeanByFlood
     hSnowMean = hSnowMean - d_hIceMeanByFlood * phys.rhoIce2rhoSnow
 
-    recip_hIceMean = 1 / jnp.sqrt(hIceMean**2 + sett.hIce_reg)
+    recip_hIceMean = 1 / jnp.sqrt(hIceMean**2 + phys.hIce_reg)
 
     ##### calculate output to ocean #####
 

@@ -1,6 +1,6 @@
 """Host allocation of the minimal standalone Veris calculation state.
 
-The VARIABLES registry supplies every field's default, dtype and C-grid
+The VARIABLES registry supplies every field's default and C-grid
 dimensions. Arrays include two halo cells on each boundary, matching the
 legacy standalone setup. Physical laws and timestepping choices are separate
 immutable objects, so neither adds leaves to the differentiable state.
@@ -24,6 +24,7 @@ def initialize(
     nx: int | None = None,
     ny: int | None = None,
     *,
+    dtype: str | None = None,
     mesh: Mesh | None = None,
     settings_overrides: Mapping[str, Any] | None = None,
     physical_overrides: Mapping[str, Any] | None = None,
@@ -35,9 +36,9 @@ def initialize(
     take precedence and are recorded on the returned Settings instance.
     Configuration constructors validate scalar overrides and recompute derived
     values. State overrides must contain numeric arrays with the full storage
-    shape, including halos; they are converted to the registry dtype. Each
+    shape, including halos; they are converted to the initialization dtype. Each
     interior extent must be at least two cells to supply the periodic halos.
-    Enable ``jax_enable_x64`` before calling when metadata requests 64-bit
+    Enable ``jax_enable_x64`` before calling when selecting 64-bit
     arrays; allocation rejects silent dtype truncation. Unknown keys and invalid
     grid extents fail before allocation. Setup-specific forcing and geometry can
     subsequently be applied with dataclasses.replace.
@@ -54,6 +55,8 @@ def initialize(
         overrides_settings["nx"] = nx
     if ny is not None:
         overrides_settings["ny"] = ny
+    if dtype is not None:
+        overrides_settings["dtype"] = dtype
     settings = Settings(**overrides_settings)
     sharding = None
     partitions_x = partitions_y = 1
@@ -67,14 +70,16 @@ def initialize(
         partitions_x, partitions_y = mesh.shape["x"], mesh.shape["y"]
         sharding = NamedSharding(mesh, P("x", "y"))
 
-    for name, metadata in VARIABLES.items():
-        if jax.dtypes.canonicalize_dtype(metadata.dtype) != jnp.dtype(metadata.dtype):
-            raise ValueError(
-                f"{name} requires {metadata.dtype}; enable jax_enable_x64 "
-                "before initializing Veris"
-            )
-
-    constants = PhysicalConstants(**dict(physical_overrides or {}))
+    dtype = settings.dtype
+    if jax.dtypes.canonicalize_dtype(dtype) != jnp.dtype(dtype):
+        raise ValueError(
+            f"dtype {dtype} requires jax_enable_x64 before initializing Veris"
+        )
+    overrides_physical = dict(physical_overrides or {})
+    if "dtype" in overrides_physical and overrides_physical["dtype"] != dtype:
+        raise ValueError("physical dtype must match the initialization dtype")
+    overrides_physical["dtype"] = dtype
+    constants = PhysicalConstants(**overrides_physical)
     overrides = dict(state_overrides or {})
     unknown = overrides.keys() - VARIABLES.keys()
     if unknown:
@@ -91,7 +96,7 @@ def initialize(
         shape = tuple(dimensions[dimension] for dimension in metadata.dimensions)
         if name in overrides:
             try:
-                array = jnp.asarray(overrides[name], dtype=metadata.dtype)
+                array = jnp.asarray(overrides[name], dtype=dtype)
             except (TypeError, ValueError) as error:
                 raise TypeError(f"{name} must be a numeric array") from error
             if array.shape != shape:
@@ -99,7 +104,7 @@ def initialize(
                     f"{name} has shape {array.shape}; expected halo-inclusive {shape}"
                 )
         else:
-            array = jnp.full(shape, metadata.default, dtype=metadata.dtype)
+            array = jnp.full(shape, metadata.default, dtype=dtype)
         arrays[name] = (
             jax.device_put(array, sharding) if sharding is not None else array
         )

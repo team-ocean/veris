@@ -11,12 +11,59 @@ from dataclasses import dataclass, field
 from veris._metadata import (
     FROM_REGISTRY,
     PhysicalConstant,
+    Precision,
     registry_defaults,
     validate_derived,
     validate_scalars,
 )
 
 PHYSICALCONSTANTS: dict[str, PhysicalConstant] = {
+    "minLWdown": PhysicalConstant(
+        60.0, float, "minimum downward longwave radiation /W/m^2"
+    ),
+    "maxTIce": PhysicalConstant(30.0, float, "maximum ice temperature /°C"),
+    "minTIce": PhysicalConstant(-50.0, float, "minimum ice temperature /°C"),
+    "minTAir": PhysicalConstant(-50.0, float, "minimum air temperature /°C"),
+    "Area_reg": PhysicalConstant(
+        0.0225, float, "Squared ice-concentration regularization (dimensionless)"
+    ),
+    "hIce_reg": PhysicalConstant(
+        0.010000000000000002, float, "regularization value for the ice thickness /m^2"
+    ),
+    "wSpeedMin": PhysicalConstant(1e-10, float, "minimum wind speed /m/s"),
+    "hIce_min": PhysicalConstant(1e-05, float, "'minimum' ice thickness /m"),
+    "Area_min": PhysicalConstant(1e-05, float, "'minimum' ice cover fraction /-"),
+    "cDragMin": PhysicalConstant(
+        0.25, float, "minimum of linear ice-ocean drag coefficient /-"
+    ),
+    "seaIceLoadFac": PhysicalConstant(1.0, float, "factor to scale sea ice loading /-"),
+    "deltaMin": PhysicalConstant(2e-09, float, "minimum value of delta /-"),
+    "umin_o": PhysicalConstant(
+        0.5, float, "minimum atm. wind speed over ocean surface /m/s"
+    ),
+    "umin_i": PhysicalConstant(
+        1.0, float, "minimum atm. wind speed over ice surface /m/s"
+    ),
+    "zref": PhysicalConstant(10.0, float, "reference height for wind speed /m"),
+    "ztref": PhysicalConstant(2.0, float, "reference height for air temperature /m"),
+    "minActualIceThickness": PhysicalConstant(
+        0.05, float, "Minimum actual ice thickness used in thermodynamic growth", "m"
+    ),
+    "basalDragSmoothing": PhysicalConstant(
+        10.0,
+        float,
+        "Inverse thickness scale of the basal-drag smooth positive part",
+        "m^-1",
+    ),
+    "basalDragMinArea": PhysicalConstant(
+        0.01, float, "Minimum ice concentration that enables basal drag", "1"
+    ),
+    "bulkStabilityLimit": PhysicalConstant(
+        10.0, float, "Maximum absolute height-to-Obukhov-length ratio", "1"
+    ),
+    "lanlMinWindSpeed": PhysicalConstant(
+        1.0, float, "Minimum open-ocean wind speed in LANL bulk fluxes", "m s^-1"
+    ),
     "hCut": PhysicalConstant(
         0.15,
         float,
@@ -380,9 +427,30 @@ PHYSICALCONSTANTS: dict[str, PhysicalConstant] = {
 
 @dataclass(frozen=True)
 @registry_defaults(PHYSICALCONSTANTS)
-class PhysicalConstants:
+class PhysicalConstants(Precision):
     """Validated immutable physical constants initialized from the registry."""
 
+    Area_min: float = FROM_REGISTRY
+    Area_reg: float = FROM_REGISTRY
+    basalDragMinArea: float = FROM_REGISTRY
+    basalDragSmoothing: float = FROM_REGISTRY
+    bulkStabilityLimit: float = FROM_REGISTRY
+    cDragMin: float = FROM_REGISTRY
+    deltaMin: float = FROM_REGISTRY
+    hIce_min: float = FROM_REGISTRY
+    hIce_reg: float = FROM_REGISTRY
+    lanlMinWindSpeed: float = FROM_REGISTRY
+    maxTIce: float = FROM_REGISTRY
+    minActualIceThickness: float = FROM_REGISTRY
+    minLWdown: float = FROM_REGISTRY
+    minTAir: float = FROM_REGISTRY
+    minTIce: float = FROM_REGISTRY
+    seaIceLoadFac: float = FROM_REGISTRY
+    umin_i: float = FROM_REGISTRY
+    umin_o: float = FROM_REGISTRY
+    wSpeedMin: float = FROM_REGISTRY
+    zref: float = FROM_REGISTRY
+    ztref: float = FROM_REGISTRY
     rhoIce: float = FROM_REGISTRY
     rhoFresh: float = FROM_REGISTRY
     rhoSea: float = FROM_REGISTRY
@@ -515,6 +583,20 @@ class PhysicalConstants:
             PHYSICALCONSTANTS,
             positive=frozenset(
                 [
+                    "Area_min",
+                    "basalDragMinArea",
+                    "basalDragSmoothing",
+                    "bulkStabilityLimit",
+                    "deltaMin",
+                    "hIce_min",
+                    "hIce_reg",
+                    "lanlMinWindSpeed",
+                    "minActualIceThickness",
+                    "umin_i",
+                    "umin_o",
+                    "wSpeedMin",
+                    "zref",
+                    "ztref",
                     "hCut",
                     "rhoIce",
                     "rhoFresh",
@@ -556,16 +638,30 @@ class PhysicalConstants:
                 ]
             ),
         )
-        object.__setattr__(self, "recip_rhoFresh", 1.0 / self.rhoFresh)
-        object.__setattr__(self, "recip_rhoSea", 1.0 / self.rhoSea)
-        object.__setattr__(self, "rhoIce2rhoSnow", self.rhoIce / self.rhoSnow)
-        object.__setattr__(self, "rhoIce2rhoFresh", self.rhoIce / self.rhoFresh)
-        object.__setattr__(self, "rhoFresh2rhoSnow", self.rhoFresh / self.rhoSnow)
-        object.__setattr__(self, "lhSublim", self.lhFusion + self.lhEvap)
-        object.__setattr__(self, "recip_h0", 1.0 / self.h0)
-        object.__setattr__(self, "recip_h0_south", 1.0 / self.h0_south)
-        object.__setattr__(self, "sinWat", math.sin(math.radians(self.waterTurnAngle)))
-        object.__setattr__(self, "cosWat", math.cos(math.radians(self.waterTurnAngle)))
+        if self.Area_reg < 0:
+            raise ValueError("Area_reg must be nonnegative")
+        if self.minTIce > self.maxTIce:
+            raise ValueError("minTIce must not exceed maxTIce")
+        object.__setattr__(self, "recip_rhoFresh", 1.0 / float(self.rhoFresh))
+        object.__setattr__(self, "recip_rhoSea", 1.0 / float(self.rhoSea))
+        object.__setattr__(
+            self, "rhoIce2rhoSnow", float(self.rhoIce) / float(self.rhoSnow)
+        )
+        object.__setattr__(
+            self, "rhoIce2rhoFresh", float(self.rhoIce) / float(self.rhoFresh)
+        )
+        object.__setattr__(
+            self, "rhoFresh2rhoSnow", float(self.rhoFresh) / float(self.rhoSnow)
+        )
+        object.__setattr__(self, "lhSublim", float(self.lhFusion) + float(self.lhEvap))
+        object.__setattr__(self, "recip_h0", 1.0 / float(self.h0))
+        object.__setattr__(self, "recip_h0_south", 1.0 / float(self.h0_south))
+        object.__setattr__(
+            self, "sinWat", math.sin(math.radians(float(self.waterTurnAngle)))
+        )
+        object.__setattr__(
+            self, "cosWat", math.cos(math.radians(float(self.waterTurnAngle)))
+        )
         if self.tensileStrFac <= -1:
             raise ValueError("tensileStrFac must exceed -1")
         validate_derived(

@@ -110,18 +110,18 @@ def test_lanl_uses_initialized_drag_and_humidity_coefficients(
         lanlSaturationHumidityScale=4.0,
         lanlSaturationExponentTemperature=0.0023,
     )
-    control = replace(sett, lanlMinWindSpeed=2.0, ztref=3.0)
+    custom = replace(custom, lanlMinWindSpeed=2.0, ztref=3.0)
     temperature, wind = 280.0, 0.5
     humidity = (
         4.0 * np.exp(custom.latvap * (7.93252e-6 - 0.0023 / temperature)) / 1013.0
     )
     ones = jnp.ones((2, 3))
     result = module.bulkf_formula_lanl(
-        control,
+        sett,
         custom,
         wind * ones,
         0 * ones,
-        (temperature - custom.gamma_blk * control.ztref) * ones,
+        (temperature - custom.gamma_blk * custom.ztref) * ones,
         humidity * ones,
         temperature * ones,
         ones,

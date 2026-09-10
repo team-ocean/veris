@@ -34,7 +34,7 @@ def tauXY(vs: State, sett: Settings, phys: PhysicalConstants) -> tuple[Array, Ar
     # calculate wind speed and set lower boundary
     windSpeed_sq = urel**2 + vrel**2
     windSpeed = jnp.where(
-        windSpeed_sq < sett.wSpeedMin**2, sett.wSpeedMin, jnp.sqrt(windSpeed_sq)
+        windSpeed_sq < phys.wSpeedMin**2, phys.wSpeedMin, jnp.sqrt(windSpeed_sq)
     )
 
     # calculate air-ice drag coefficient
@@ -74,7 +74,7 @@ def WindForcingXY(
     if sett.useRealFreshWaterFlux:
         phiSurf = (
             phiSurf
-            + (vs.surfPress + vs.SeaIceLoad * phys.gravity * sett.seaIceLoadFac)
+            + (vs.surfPress + vs.SeaIceLoad * phys.gravity * phys.seaIceLoadFac)
             * phys.recip_rhoSea
         )
     else:

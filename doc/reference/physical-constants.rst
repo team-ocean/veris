@@ -2,7 +2,8 @@ Physical constants
 ==================
 
 ``veris.physical_constants.PHYSICALCONSTANTS`` defines physical and empirical
-coefficients for the frozen ``PhysicalConstants`` dataclass. Each model
+coefficients, physical bounds, regularization scales and forcing reference
+heights for the frozen ``PhysicalConstants`` dataclass. Each model
 initialization constructs its own constants object. Physical constants stay
 outside the numerical State PyTree.
 
@@ -16,6 +17,10 @@ such as density ratios, follow the changed base values::
 
 Independently rounded coefficients in established parameterizations retain
 their numerical defaults. Similar names do not imply interchangeable formulas.
+Ice-removal thresholds such as ``hIce_min``, basal-drag thresholds such as
+``basalDragMinArea``, and bulk-flux wind floors belong here because they define
+the physical parameterizations. Override them through ``physical_overrides``
+at initialization, or replace fields on ``PhysicalConstants``.
 
 Registry defaults
 -----------------

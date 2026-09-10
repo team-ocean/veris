@@ -27,9 +27,10 @@ a combined settings facade that hides constants behind settings attributes.
 
 PhysicalConstants holds material properties, physical and empirical law
 coefficients, albedos, emissivities, phase-change quantities, gas constants,
-reference salinities and physical conversion factors. Settings holds execution
+reference salinities, physical conversion factors, physical thresholds,
+regularization scales and forcing heights. Settings holds execution
 choices, timesteps, iteration counts, solver controls, regularization values,
-numerical cutoffs, forcing heights and experiment configuration. Preserve
+solver convergence safeguards and experiment configuration. Preserve
 different established parameterizations even where their constants differ;
 do not silently equate rounded gas constants or latent heats. Pure algebraic
 numbers and stencil weights remain in equations. Inventory local named values

@@ -320,7 +320,7 @@ def evp_solver(
     else:
         EVPcFac = 0
 
-    denom1 = jnp.full(vs.iceMask.shape, 1 / sett.evpAlpha)
+    denom1 = jnp.full_like(vs.iceMask, 1 / sett.evpAlpha)
     denom2 = denom1
 
     # copy previous time step (n-1) of ice velocities and stress tensor
@@ -333,13 +333,13 @@ def evp_solver(
     sigma12 = vs.sigma12
 
     # initialize adaptive EVP specific fields
-    evpAlphaC = jnp.full(vs.iceMask.shape, sett.evpAlpha)
-    evpAlphaZ = jnp.full(vs.iceMask.shape, sett.evpAlpha)
-    evpBetaU = jnp.full(vs.iceMask.shape, sett.evpBeta)
-    evpBetaV = jnp.full(vs.iceMask.shape, sett.evpBeta)
+    evpAlphaC = jnp.full_like(vs.iceMask, sett.evpAlpha)
+    evpAlphaZ = jnp.full_like(vs.iceMask, sett.evpAlpha)
+    evpBetaU = jnp.full_like(vs.iceMask, sett.evpBeta)
+    evpBetaV = jnp.full_like(vs.iceMask, sett.evpBeta)
 
-    resSig = jnp.zeros(sett.nEVPsteps)
-    resU = jnp.zeros(sett.nEVPsteps)
+    resSig = jnp.zeros(sett.nEVPsteps, dtype=vs.iceMask.dtype)
+    resU = jnp.zeros(sett.nEVPsteps, dtype=vs.iceMask.dtype)
 
     # set argument for the loop (the for_loop of jax can only take one argument)
     arg_body: EVPCarry = (

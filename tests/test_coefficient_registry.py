@@ -8,6 +8,11 @@ from veris.configuration import SETTINGS, Settings
 from veris.physical_constants import PHYSICALCONSTANTS, PhysicalConstants
 
 PHYSICAL_DEFAULTS = {
+    "minActualIceThickness": 0.05,
+    "basalDragSmoothing": 10.0,
+    "basalDragMinArea": 0.01,
+    "bulkStabilityLimit": 10.0,
+    "lanlMinWindSpeed": 1.0,
     "iceVaporPressureTemperature": 2663.5,
     "iceVaporPressureLog10Offset": 12.537,
     "waterVaporDryAirMassRatio": 0.622,
@@ -41,15 +46,10 @@ PHYSICAL_DEFAULTS = {
 }
 SETTING_DEFAULTS = {
     "surfaceTemperatureIterations": 6,
-    "minActualIceThickness": 0.05,
-    "basalDragSmoothing": 10.0,
-    "basalDragMinArea": 0.01,
     "aEVPmassMin": 1e-4,
     "aEVPcStar": 4.0,
     "evpStressRelaxation": 1.0,
     "evpShearRelaxation": 0.25,
-    "bulkStabilityLimit": 10.0,
-    "lanlMinWindSpeed": 1.0,
     "lanlBulkIterations": 5,
 }
 CLOUD_LATITUDES = (
@@ -173,9 +173,14 @@ def test_invalid_cloud_tables_are_rejected(kwargs: dict[str, object]) -> None:
     ],
 )
 def test_invalid_extracted_settings_are_rejected(kwargs: dict[str, object]) -> None:
-    assert kwargs.keys() <= SETTINGS.keys()
+    cls, registry = (
+        (PhysicalConstants, PHYSICALCONSTANTS)
+        if kwargs.keys() <= PHYSICALCONSTANTS.keys()
+        else (Settings, SETTINGS)
+    )
+    assert kwargs.keys() <= registry.keys()
     with pytest.raises((TypeError, ValueError), match=next(iter(kwargs))):
-        Settings(**kwargs)  # ty: ignore[invalid-argument-type] - intentionally invalid inputs
+        cls(**kwargs)  # ty: ignore[invalid-argument-type] - intentionally invalid inputs
 
 
 def test_independent_relaxation_and_pressure_defaults_remain_independent() -> None:

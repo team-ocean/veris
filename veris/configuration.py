@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 
 from veris._metadata import (
     FROM_REGISTRY,
+    Precision,
     Setting,
     registry_defaults,
     validate_derived,
@@ -134,43 +135,11 @@ SETTINGS: dict[str, Setting] = {
     "use_sharding": Setting(
         True, bool, "flag for using parallel execution via sharded arrays"
     ),
-    "minLWdown": Setting(60.0, float, "minimum downward longwave radiation /W/m^2"),
-    "maxTIce": Setting(30.0, float, "maximum ice temperature /°C"),
-    "minTIce": Setting(-50.0, float, "minimum ice temperature /°C"),
-    "minTAir": Setting(-50.0, float, "minimum air temperature /°C"),
-    "Area_reg": Setting(
-        0.0225, float, "Squared ice-concentration regularization (dimensionless)"
-    ),
-    "hIce_reg": Setting(
-        0.010000000000000002, float, "regularization value for the ice thickness /m^2"
-    ),
-    "wSpeedMin": Setting(1e-10, float, "minimum wind speed /m/s"),
-    "hIce_min": Setting(1e-05, float, "'minimum' ice thickness /m"),
-    "Area_min": Setting(1e-05, float, "'minimum' ice cover fraction /-"),
-    "cDragMin": Setting(0.25, float, "minimum of linear ice-ocean drag coefficient /-"),
-    "seaIceLoadFac": Setting(1.0, float, "factor to scale sea ice loading /-"),
-    "deltaMin": Setting(2e-09, float, "minimum value of delta /-"),
     "pressReplFac": Setting(1.0, float, "flag whether to use replacement pressure /-"),
     "CrMax": Setting(1000000.0, float, "advective flux parameter /-"),
-    "umin_o": Setting(0.5, float, "minimum atm. wind speed over ocean surface /m/s"),
-    "umin_i": Setting(1.0, float, "minimum atm. wind speed over ice surface /m/s"),
-    "zref": Setting(10.0, float, "reference height for wind speed /m"),
-    "ztref": Setting(2.0, float, "reference height for air temperature /m"),
     "eps2": Setting(1e-20, float, "threshold value /-"),
     "surfaceTemperatureIterations": Setting(
         6, int, "Number of Newton iterations in the ice surface energy balance", "1"
-    ),
-    "minActualIceThickness": Setting(
-        0.05, float, "Minimum actual ice thickness used in thermodynamic growth", "m"
-    ),
-    "basalDragSmoothing": Setting(
-        10.0,
-        float,
-        "Inverse thickness scale of the basal-drag smooth positive part",
-        "m^-1",
-    ),
-    "basalDragMinArea": Setting(
-        0.01, float, "Minimum ice concentration that enables basal drag", "1"
     ),
     "aEVPmassMin": Setting(
         0.0001,
@@ -185,12 +154,6 @@ SETTINGS: dict[str, Setting] = {
     "evpShearRelaxation": Setting(
         0.25, float, "Independent shear stress forcing coefficient in EVP updates", "1"
     ),
-    "bulkStabilityLimit": Setting(
-        10.0, float, "Maximum absolute height-to-Obukhov-length ratio", "1"
-    ),
-    "lanlMinWindSpeed": Setting(
-        1.0, float, "Minimum open-ocean wind speed in LANL bulk fluxes", "m s^-1"
-    ),
     "lanlBulkIterations": Setting(
         5, int, "Number of LANL Monin-Obukhov stability iterations", "1"
     ),
@@ -199,7 +162,7 @@ SETTINGS: dict[str, Setting] = {
 
 @dataclass(frozen=True)
 @registry_defaults(SETTINGS)
-class Settings:
+class Settings(Precision):
     """Validated immutable model settings initialized from the registry."""
 
     deltatTherm: float = FROM_REGISTRY
@@ -227,36 +190,15 @@ class Settings:
     geometrySurfaceTemperature: float = FROM_REGISTRY
     use_coastline: bool = FROM_REGISTRY
     use_sharding: bool = FROM_REGISTRY
-    minLWdown: float = FROM_REGISTRY
-    maxTIce: float = FROM_REGISTRY
-    minTIce: float = FROM_REGISTRY
-    minTAir: float = FROM_REGISTRY
-    Area_reg: float = FROM_REGISTRY
-    hIce_reg: float = FROM_REGISTRY
-    wSpeedMin: float = FROM_REGISTRY
-    hIce_min: float = FROM_REGISTRY
-    Area_min: float = FROM_REGISTRY
-    cDragMin: float = FROM_REGISTRY
-    seaIceLoadFac: float = FROM_REGISTRY
-    deltaMin: float = FROM_REGISTRY
     pressReplFac: float = FROM_REGISTRY
     CrMax: float = FROM_REGISTRY
-    umin_o: float = FROM_REGISTRY
-    umin_i: float = FROM_REGISTRY
-    zref: float = FROM_REGISTRY
-    ztref: float = FROM_REGISTRY
     eps2: float = FROM_REGISTRY
 
     surfaceTemperatureIterations: int = FROM_REGISTRY
-    minActualIceThickness: float = FROM_REGISTRY
-    basalDragSmoothing: float = FROM_REGISTRY
-    basalDragMinArea: float = FROM_REGISTRY
     aEVPmassMin: float = FROM_REGISTRY
     aEVPcStar: float = FROM_REGISTRY
     evpStressRelaxation: float = FROM_REGISTRY
     evpShearRelaxation: float = FROM_REGISTRY
-    bulkStabilityLimit: float = FROM_REGISTRY
-    lanlMinWindSpeed: float = FROM_REGISTRY
     lanlBulkIterations: int = FROM_REGISTRY
 
     nx: int = FROM_REGISTRY
@@ -288,26 +230,12 @@ class Settings:
                     "evpBeta",
                     "aEVPalphaMin",
                     "aEvpCoeff",
-                    "hIce_reg",
-                    "wSpeedMin",
-                    "hIce_min",
-                    "Area_min",
-                    "deltaMin",
                     "CrMax",
-                    "umin_o",
-                    "umin_i",
-                    "zref",
-                    "ztref",
                     "surfaceTemperatureIterations",
-                    "minActualIceThickness",
-                    "basalDragSmoothing",
-                    "basalDragMinArea",
                     "aEVPmassMin",
                     "aEVPcStar",
                     "evpStressRelaxation",
                     "evpShearRelaxation",
-                    "bulkStabilityLimit",
-                    "lanlMinWindSpeed",
                     "lanlBulkIterations",
                     "eps2",
                     "artificialGridSpacing",
@@ -317,13 +245,9 @@ class Settings:
                 ]
             ),
         )
-        if self.Area_reg < 0:
-            raise ValueError("Area_reg must be nonnegative")
-        object.__setattr__(self, "recip_deltatTherm", 1.0 / self.deltatTherm)
-        object.__setattr__(self, "recip_deltatDyn", 1.0 / self.deltatDyn)
-        object.__setattr__(self, "recip_nITC", 1.0 / self.nITC)
-        if self.minTIce > self.maxTIce:
-            raise ValueError("minTIce must not exceed maxTIce")
+        object.__setattr__(self, "recip_deltatTherm", 1.0 / float(self.deltatTherm))
+        object.__setattr__(self, "recip_deltatDyn", 1.0 / float(self.deltatDyn))
+        object.__setattr__(self, "recip_nITC", 1.0 / float(self.nITC))
         validate_derived(self, ("recip_deltatTherm", "recip_deltatDyn", "recip_nITC"))
         for name in ("nx", "ny"):
             if getattr(self, name) < 2:

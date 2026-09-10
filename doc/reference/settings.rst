@@ -3,7 +3,10 @@ Model settings
 
 ``veris.configuration.SETTINGS`` defines defaults, scalar types and descriptions
 for the frozen ``Settings`` dataclass. Numerical controls and execution choices
-are separate from :doc:`physical-constants`.
+are separate from :doc:`physical-constants`. Grid extents, boundary-condition
+switches, timesteps, solver iterations and convergence safeguards stay in
+Settings. Physical thresholds, regularization scales and forcing reference
+heights are fields of PhysicalConstants.
 
 Use immutable updates; dependent reciprocals are recomputed::
 
@@ -15,12 +18,29 @@ Use immutable updates; dependent reciprocals are recomputed::
 Settings are static JIT arguments; changing a value may trigger compilation.
 The artificial example overrides timesteps and EVP iteration count.
 
+Floating-point precision
+------------------------
+
+Choose ``dtype="float32"`` or ``dtype="float64"`` once when calling
+``veris.initialization.initialize`` or the artificial initializer. Both returned
+static objects retain this policy. Their floating coefficients, derived values
+and lookup tables use the selected NumPy scalar type; all state and work arrays
+use the matching JAX dtype. Integers and Boolean switches retain their types.
+``float64`` requires JAX x64 enabled before initialization. Veris rejects silent
+truncation and does not change global JAX configuration. Immutable replacement
+preserves precision. Array replacements supplied by callers must use the existing
+array dtype. NetCDF storage uses the actual array dtype, as shown in :doc:`variables`.
+
+The shared policy field is described by ``veris._metadata.PRECISION`` and inherited
+by both dataclasses; it is separate from the disjoint model/physics registries.
+
 Registry defaults
 -----------------
 
 .. exec::
 
    from veris.configuration import SETTINGS
+   from veris._metadata import PRECISION
    print(".. list-table::")
    print("   :header-rows: 1")
    print("")
@@ -28,7 +48,7 @@ Registry defaults
    print("     - Default")
    print("     - Type")
    print("     - Description")
-   for name, metadata in SETTINGS.items():
+   for name, metadata in (PRECISION | SETTINGS).items():
        print(f"   * - ``{name}``")
        print(f"     - ``{metadata.default!r}``")
        print(f"     - ``{metadata.type.__name__}``")

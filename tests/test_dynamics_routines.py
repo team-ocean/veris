@@ -62,7 +62,7 @@ def test_ocean_drag_relative_speed_floor_and_land(
         vs, sett, phys, (0.2 + velocity[0]) * ones, (-0.1 + velocity[1]) * ones
     )
     coefficient = phys.waterIceDrag_south if coriolis < 0 else phys.waterIceDrag
-    expected = max(sett.cDragMin, phys.rhoSea * coefficient * np.hypot(*velocity))
+    expected = max(phys.cDragMin, phys.rhoSea * coefficient * np.hypot(*velocity))
     assert result.shape == ones.shape
     np.testing.assert_allclose(result, expected * mask, rtol=1e-13)
 
@@ -192,12 +192,12 @@ def test_uniform_viscosity_and_stress_scalar_equations(
     delta = np.sqrt(
         (e11 + e22) ** 2 + ((e11 - e22) ** 2 + 4 * e12**2) / phys.PlasDefCoeff**2
     )
-    bulk = strength * (1 + tensile) / (2 * (delta + sett.deltaMin))
+    bulk = strength * (1 + tensile) / (2 * (delta + phys.deltaMin))
     shear = bulk / phys.PlasDefCoeff**2
     pressure = (
         strength
         * (1 - tensile)
-        * (1 - replacement + replacement * delta / (delta + sett.deltaMin))
+        * (1 - replacement + replacement * delta / (delta + phys.deltaMin))
     )
     result = viscosities(vs, sett, phys, e11 * ones, e22 * ones, e12 * ones)
     for value, reference in zip(result, (bulk, shear, pressure)):

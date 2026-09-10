@@ -120,7 +120,7 @@ def test_one_evp_step_uniform_force_matches_mass_drag_balance(
     phys = replace(phys, basalDragK2=0)
     vs = evp_state(wind)
     result = solver(vs, sett, phys)
-    denominator = 900 * (sett.evpBeta + 1) / sett.deltatDyn + sett.cDragMin
+    denominator = 900 * (sett.evpBeta + 1) / sett.deltatDyn + phys.cDragMin
     for field, expected in zip(
         result, (wind / denominator, -0.5 * wind / denominator, 0, 0, 0)
     ):
@@ -138,7 +138,7 @@ def uniform_momentum_subcycles(
     u, v = 0.0, 0.0
     mass_rate = 900 / sett.deltatDyn
     for _ in range(steps):
-        drag = max(sett.cDragMin, phys.rhoSea * phys.waterIceDrag * np.hypot(u, v))
+        drag = max(phys.cDragMin, phys.rhoSea * phys.waterIceDrag * np.hypot(u, v))
         denominator = mass_rate * (beta + 1) + drag
         u = (mass_rate * beta * u + wind) / denominator
         v = (mass_rate * beta * v - 0.5 * wind) / denominator

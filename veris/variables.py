@@ -25,7 +25,6 @@ class Variable:
     dimensions: tuple[str, str]
     units: str
     description: str
-    dtype: str = "float64"
     default: float = 0.0
 
     def netcdf_attributes(self) -> dict[str, str]:

@@ -40,7 +40,7 @@ def test_registry_defaults_are_disjoint_complete_and_frozen() -> None:
     ):
         instance = cls()
         assert is_dataclass(instance)
-        assert {field.name for field in fields(instance)} == registry.keys()
+        assert {field.name for field in fields(instance)} == registry.keys() | {"dtype"}
         assert hash(instance) == hash(cls())
         for name, metadata in registry.items():
             assert isinstance(metadata, tuple)
@@ -100,8 +100,6 @@ def test_replace_recomputes_dependencies_and_preserves_rounded_constants() -> No
         ("evpBeta", 0),
         ("deltatDyn", float("nan")),
         ("deltatDyn", float("inf")),
-        ("zref", 0),
-        ("Area_reg", -1),
         ("eps2", 0),
     ],
 )
@@ -114,6 +112,8 @@ def test_invalid_settings_are_rejected(name: str, value: object) -> None:
 @pytest.mark.parametrize(
     "name,value",
     [
+        ("zref", 0),
+        ("Area_reg", -1),
         ("rhoIce", 0),
         ("rhoSea", 0),
         ("rhoSnow", -1),
@@ -191,3 +191,54 @@ def test_registry_defaults_reject_schema_drift(registry_names: tuple[str, ...]) 
     registry = {name: Setting(3, int, "Example") for name in registry_names}
     with pytest.raises(ValueError, match="registry.*fields"):
         registry_defaults(registry)(Example)
+
+
+def test_physics_thresholds_belong_to_constants() -> None:
+    """Physical thresholds and closures are independent of execution settings."""
+    config, physical = configuration_modules()
+    names = [
+        "minLWdown",
+        "maxTIce",
+        "minTIce",
+        "minTAir",
+        "Area_reg",
+        "hIce_reg",
+        "wSpeedMin",
+        "hIce_min",
+        "Area_min",
+        "cDragMin",
+        "seaIceLoadFac",
+        "deltaMin",
+        "umin_o",
+        "umin_i",
+        "zref",
+        "ztref",
+        "minActualIceThickness",
+        "basalDragSmoothing",
+        "basalDragMinArea",
+        "bulkStabilityLimit",
+        "lanlMinWindSpeed",
+    ]
+    assert set(names) <= physical.PHYSICALCONSTANTS.keys()
+    assert not set(names) & config.SETTINGS.keys()
+    constants = physical.PhysicalConstants(hIce_min=0.1, basalDragMinArea=0.2)
+    assert constants.hIce_min == 0.1
+    assert constants.basalDragMinArea == 0.2
+    for name in (
+        "nx",
+        "ny",
+        "printEvpResidual",
+        "noSlip",
+        "pressReplFac",
+        "CrMax",
+        "eps2",
+    ):
+        assert name in config.SETTINGS
+        assert name not in physical.PHYSICALCONSTANTS
+
+
+def test_physical_temperature_bounds_are_validated_together() -> None:
+    """Moving temperature limits preserves their cross-field host validation."""
+    _, physical = configuration_modules()
+    with pytest.raises(ValueError, match="minTIce must not exceed maxTIce"):
+        physical.PhysicalConstants(minTIce=10, maxTIce=5)

@@ -34,7 +34,7 @@ def test_constructed_surface_energy_equilibrium(
     emissivity = phys.snowEmiss if snow else phys.iceEmiss
     # Choose downwelling longwave to balance exactly the conductive flux.
     longwave = phys.stefBoltz * temperature**4 - conduction / emissivity
-    assert longwave > sett.minLWdown
+    assert longwave > phys.minLWdown
     vapor_pressure = 10 ** (12.537 - 2663.5 / temperature)
     humidity = 0.622 * vapor_pressure / (100000 - 0.378 * vapor_pressure)
     vs = state(
@@ -109,4 +109,4 @@ def test_shortwave_transmission_and_snow_opacity(
     expected = 0 if snow else -200 * (1 - albedo) * phys.shortwave * np.exp(-1.5 * 1.2)
     np.testing.assert_allclose(result[3], expected, atol=1e-12)
     assert np.all(np.asarray(result[0]) <= phys.celsius2K)
-    assert np.all(np.asarray(result[0]) >= phys.celsius2K + sett.minTIce)
+    assert np.all(np.asarray(result[0]) >= phys.celsius2K + phys.minTIce)

@@ -30,6 +30,7 @@ def initialize(
     wind: float | None = None,
     air_temperature: float | None = None,
     *,
+    dtype: str | None = None,
     settings_overrides: Mapping[str, Any] | None = None,
     physical_overrides: Mapping[str, Any] | None = None,
 ) -> tuple[State, Settings, PhysicalConstants]:
@@ -52,6 +53,8 @@ def initialize(
     ):
         if value is not None:
             overrides[name] = value
+    if dtype is not None:
+        overrides["dtype"] = dtype
     controls = Settings(**overrides)
     if "use_sharding" in overrides and controls.use_sharding:
         raise ValueError("artificial initialization supports serial execution only")
@@ -71,7 +74,7 @@ def initialize(
     fields = {}
     interior = np.ones((nx, ny))
     interior[nx // 2 - 1 : nx // 2 + 1, ny // 2 - 1 : ny // 2 + 1] = 0
-    mask = jnp.asarray(np.pad(interior, 2, mode="wrap"))
+    mask = jnp.asarray(np.pad(interior, 2, mode="wrap"), dtype=vs.iceMask.dtype)
     west = mask * jnp.roll(mask, 1, axis=0)
     south = mask * jnp.roll(mask, 1, axis=1)
     fields.update(
@@ -108,7 +111,7 @@ def initialize(
         )
         * mask,
         recip_hIceMean=1
-        / jnp.sqrt((sett.artificialIceThickness * mask) ** 2 + sett.hIce_reg),
+        / jnp.sqrt((sett.artificialIceThickness * mask) ** 2 + phys.hIce_reg),
         R_low=sett.artificialOceanDepth * ones,
         fCori=sett.artificialCoriolis * ones,
         theta=temperature * ones,

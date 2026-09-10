@@ -2,9 +2,11 @@
 
 import math
 from collections.abc import Callable, Mapping
-from dataclasses import Field
+from dataclasses import Field, dataclass, field
 from numbers import Real
-from typing import Any, NamedTuple, TypeVar
+from typing import Any, NamedTuple, TypeVar, cast
+
+import numpy as np
 
 T = TypeVar("T")
 
@@ -16,8 +18,8 @@ FROM_REGISTRY: Any = object()
 class Setting(NamedTuple):
     """Default, scalar type and human-readable description of a model setting."""
 
-    default: float | int | bool
-    type: type[float] | type[int] | type[bool]
+    default: float | int | bool | str
+    type: type[float] | type[int] | type[bool] | type[str]
     description: str
     units: str = ""
 
@@ -29,6 +31,29 @@ class PhysicalConstant(NamedTuple):
     type: type[float] | type[tuple[float, ...]]
     description: str
     units: str = ""
+
+
+PRECISION = {
+    "dtype": Setting(
+        "float64", str, "Model floating-point precision: float32 or float64"
+    )
+}
+
+
+@dataclass(frozen=True)
+class Precision:
+    """Shared static precision metadata; never part of the differentiated State."""
+
+    dtype: str = field(default=cast(str, PRECISION["dtype"].default), kw_only=True)
+
+
+def precision_scalar(value: Any, dtype: str, name: str) -> Any:
+    """Round a host coefficient once, rejecting overflow and nonzero underflow."""
+    with np.errstate(over="ignore", under="ignore", invalid="ignore"):
+        result = np.dtype(dtype).type(value)
+    if not np.isfinite(result) or (value != 0 and result == 0):
+        raise ValueError(f"{name} is not representable in dtype {dtype}")
+    return result
 
 
 def registry_defaults(
@@ -61,12 +86,15 @@ def validate_scalars(
     *,
     positive: frozenset[str],
 ) -> None:
-    """Reject invalid static inputs and normalize real coefficients to Python floats.
+    """Reject invalid static inputs and normalize real coefficients to the model precision.
 
     Booleans must be actual bools and counts actual ints. Real-valued coefficients
     accept finite host real scalars, including integers; arrays and tracers are
     not static configuration. Positive names protect denominators and cutoffs.
     """
+    dtype = cast(str, getattr(instance, "dtype", PRECISION["dtype"].default))
+    if dtype not in ("float32", "float64"):
+        raise ValueError("dtype must be float32 or float64")
     for name, metadata in registry.items():
         value = getattr(instance, name)
         if metadata.type is tuple:
@@ -78,7 +106,9 @@ def validate_scalars(
                 if not math.isfinite(element):
                     raise ValueError(f"{name} entries must be finite")
             object.__setattr__(
-                instance, name, tuple(float(element) for element in value)
+                instance,
+                name,
+                tuple(precision_scalar(element, dtype, name) for element in value),
             )
             continue
         if metadata.type is float:
@@ -87,7 +117,7 @@ def validate_scalars(
             value = float(value)
             if not math.isfinite(value):
                 raise ValueError(f"{name} must be finite")
-            object.__setattr__(instance, name, value)
+            object.__setattr__(instance, name, precision_scalar(value, dtype, name))
         elif type(value) is not metadata.type:
             raise TypeError(f"{name} must be {metadata.type.__name__}")
         if name in positive and value <= 0:
@@ -97,5 +127,14 @@ def validate_scalars(
 def validate_derived(instance: object, names: tuple[str, ...]) -> None:
     """Reject overflow in exact dependencies computed from finite input scalars."""
     for name in names:
+        object.__setattr__(
+            instance,
+            name,
+            precision_scalar(
+                getattr(instance, name),
+                cast(str, getattr(instance, "dtype", PRECISION["dtype"].default)),
+                name,
+            ),
+        )
         if not math.isfinite(getattr(instance, name)):
             raise ValueError(f"{name} must be finite")

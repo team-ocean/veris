@@ -58,11 +58,11 @@ def solve4temp(
     # make local copies of downward longwave radiation, surface
     # and atmospheric temperatures
     TSurfLoc = TSurfIn
-    LWdownLocCapped = jnp.maximum(sett.minLWdown, vs.LWdown)
-    ATempLoc = jnp.maximum(phys.celsius2K + sett.minTAir, vs.ATemp)
+    LWdownLocCapped = jnp.maximum(phys.minLWdown, vs.LWdown)
+    ATempLoc = jnp.maximum(phys.celsius2K + phys.minTAir, vs.ATemp)
 
     # set wind speed with lower boundary
-    ug = jnp.maximum(sett.wSpeedMin, vs.wSpeed)
+    ug = jnp.maximum(phys.wSpeedMin, vs.wSpeed)
 
     isIce = hIceActual > 0
     isSnow = hSnowActual > 0
@@ -180,7 +180,7 @@ def solve4temp(
 
         # add upper and lower boundary
         TSurfLoc = jnp.minimum(TSurfLoc, Tmelt)
-        TSurfLoc = jnp.maximum(TSurfLoc, phys.celsius2K + sett.minTIce)
+        TSurfLoc = jnp.maximum(TSurfLoc, phys.celsius2K + phys.minTIce)
 
     # recalculate the fluxes based on the adjusted surface temperature
     F_c, F_lh, F_ia, dFia_dTs = fluxes(TSurfLoc)

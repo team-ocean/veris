@@ -20,12 +20,12 @@ def test_cleanup_thresholds_and_overshoots(
     ice: float,
     snow: float,
 ) -> None:
-    sett = replace(sett, hIce_min=0.5, Area_min=0.01)
+    phys = replace(phys, hIce_min=0.5, Area_min=0.01)
     vs = state(hIceMean=[[ice]], hSnowMean=[[snow]], Area=[[-0.2]], TSurf=[[260]])
     result = clean_up_advection(vs, sett, phys)
     expected = (0, 0, 0, phys.celsius2K, max(-ice, 0), max(-snow, 0))
-    if ice > sett.hIce_min:
-        expected = (ice, max(snow, 0), sett.Area_min, 260, 0, max(-snow, 0))
+    if ice > phys.hIce_min:
+        expected = (ice, max(snow, 0), phys.Area_min, 260, 0, max(-snow, 0))
     assert len(result) == len(expected)
     for value, reference in zip(result, expected):
         assert value.shape == (1, 1)
@@ -35,7 +35,7 @@ def test_cleanup_thresholds_and_overshoots(
 def test_cleanup_preserves_positive_area_above_minimum(
     state: StateFactory, sett: Settings, phys: PhysicalConstants
 ) -> None:
-    sett = replace(sett, hIce_min=0.5, Area_min=0.01)
+    phys = replace(phys, hIce_min=0.5, Area_min=0.01)
     area = np.array([[0.005, 0.01, 0.4], [0.8, 1.0, 1.2]])
     ice = np.full_like(area, 2.0)
     snow = np.full_like(area, 0.3)

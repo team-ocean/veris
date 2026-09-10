@@ -50,7 +50,6 @@ def test_variable_metadata_has_explicit_staggering_and_defaults() -> None:
         assert metadata.long_name not in {"", "1"}
         assert metadata.description not in {"", "1"}
         assert metadata.units
-        assert np.dtype(metadata.dtype) == np.dtype("float64")
     with pytest.raises(FrozenInstanceError):
         setattr(VARIABLES["theta"], "units", "degC")  # noqa: B010 - exercise frozen runtime guard
 
@@ -84,15 +83,17 @@ def test_inverse_grid_metrics_have_physical_units_and_descriptions() -> None:
 
 def test_metadata_drives_real_netcdf_roundtrip(tmp_path: Path) -> None:
     """Dimension names, dtypes and attributes can be passed directly to h5netcdf."""
+    from veris.initialization import initialize
     from veris.variables import VARIABLES
 
+    state, _, _ = initialize(2, 5)
     path = tmp_path / "state.nc"
     dimensions = {"x_center": 6, "x_face": 6, "y_center": 9, "y_face": 9}
     with h5netcdf.File(path, "w") as output:
         output.dimensions = dimensions
         for name, metadata in VARIABLES.items():
             variable = output.create_variable(
-                name, metadata.dimensions, dtype=metadata.dtype
+                name, metadata.dimensions, dtype=getattr(state, name).dtype
             )
             variable.attrs.update(metadata.netcdf_attributes())
             variable[:] = np.full((6, 9), metadata.default)

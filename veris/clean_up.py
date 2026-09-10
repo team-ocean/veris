@@ -31,7 +31,7 @@ def clean_up_advection(
 
     # case 2: very thin ice
     # set thicknesses to zero if the ice thickness is very small
-    thinIce = hIceMean <= sett.hIce_min
+    thinIce = hIceMean <= phys.hIce_min
     hIceMean *= ~thinIce
     hSnowMean *= ~thinIce
     TSurf = jnp.where(thinIce, phys.celsius2K, vs.TSurf)
@@ -43,7 +43,7 @@ def clean_up_advection(
     # case 4: very small area
     # introduce lower boundary for the area (if ice or snow is present)
     Area = jnp.where(
-        (hIceMean > 0) | (hSnowMean > 0), jnp.maximum(Area, sett.Area_min), Area
+        (hIceMean > 0) | (hSnowMean > 0), jnp.maximum(Area, phys.Area_min), Area
     )
 
     return hIceMean, hSnowMean, Area, TSurf, os_hIceMean, os_hSnowMean

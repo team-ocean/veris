@@ -1,5 +1,68 @@
 # Development log
 
+## 2026-09-10 — initialization dtype policy
+
+- [x] Defined the shared frozen keyword-only dtype field once in PRECISION;
+  Settings and PhysicalConstants inherit it. Initialization selects float32 or
+  float64 for all 70 State fields, floating settings/constants, derived values
+  and lookup tables. Integer and Boolean controls remain host static values.
+- [x] Removed per-variable float64 policy. NetCDF examples use allocated array
+  dtypes; growth/advection/EVP scratch arrays and artificial masks inherit State
+  precision. Geometry conversion already followed State precision.
+- [x] Added expected-red precision selection tests, then verified 42 focused
+  cases and 66 fast regression cases. Review reproduced silent float32 derived
+  ratio underflow; a failing regression now passes after computing dependencies
+  from rounded inputs in host precision before their checked final cast.
+- [x] Expanded checks to overrides, mesh placement, adaptive EVP, free drift,
+  CESM stable/unstable fluxes and geometry conversion. Fixed a test fixture that
+  accidentally promoted humidity inputs through a NumPy float64 intermediate;
+  every bulk-flux input now has an explicit dtype assertion.
+- [x] Maintained Ruff, format, annotation and ty checks pass. Sphinx HTML builds
+  with warnings as errors and remote inventories disabled. Dependencies pass.
+- First full CPU run found 16 failures: 15 float32 basal coefficient fixtures
+  still used default float64 static constants; one schema test omitted inherited
+  PRECISION. Updated fixtures to initialize matching precision, retained separate
+  float64 analytic references and unchanged tolerances. All 72 focused basal and
+  State tests pass. No production fix or numerical tolerance change was needed.
+- [x] Final full CPU suite passes 673/673 in 208.11 s, including distributed
+  collectives and initialized sharding. Maintained coverage 1433/1448 (98.96%);
+  whole-package coverage 79.57%. Established maintained 80% gate passes.
+  Logs: `test_logs/precision-final-cpu.log`, `precision-final-coverage.json`.
+- [x] Independent final review confirms the fixture/schema changes preserve
+  all numerical tolerances and analytic reference checks; no blockers remain.
+- [x] Unsandboxed GPU-default full suite passes 673/673 in 345.01 s on the
+  available P100 GPUs, with asserted GPU backend and CPU support retained for
+  callbacks/CPU-only tests. Log: `test_logs/precision-final-gpu.log`.
+- [x] Final completion audit: one precision default; complete scalar/derived/table
+  normalization; all State and scratch allocation paths propagate precision;
+  physical ownership/legacy-default oracles pass; no config fields enter State;
+  output docs use actual array dtype. Both full suites and maintained checks pass.
+  Multi-device integration retains its existing float64 oracle; both precisions
+  additionally cover explicit mesh placement and coupled/alternative kernels.
+- Ready to commit on `jax-only`; no remote push requested. Large test logs and
+  coverage artifacts remain local and untracked. No test process remains live.
+
+## 2026-09-10 — physical thresholds separated from execution settings
+
+- [x] Moved 21 physical bounds, drag/viscosity regularization scales, wind floors
+  and bulk-flux reference heights from SETTINGS/Settings to
+  PHYSICALCONSTANTS/PhysicalConstants. Defaults and validation are preserved.
+  This includes `hIce_min`, `basalDragMinArea`, `Area_reg`, `deltaMin`, `zref`
+  and `bulkStabilityLimit`; consumers now read these through `phys`.
+- [x] Added an ownership regression before implementation; root confirmed the
+  expected missing-physical-registry assertion failure. Updated existing
+  physical-law, nonsmooth-gradient and invalid-input tests to override physical
+  constants, and updated generated-reference prose and coefficient inventory.
+- Classification: physical thresholds define the constitutive/thermodynamic
+  closure even with converged solvers. Grid sizes, boundary/pressure formulation
+  switches, iteration counts, timesteps, EVP relaxation controls, `CrMax` and
+  `eps2` remain numerical or execution configuration. Artificial forcing and
+  initial conditions remain experiment configuration.
+- Migration-only static type audit found no errors; integrated correctness and
+  dtype validation are running in the root agent's single pytest lane.
+- Environment note: `.venv` is absent; the existing `.venv-latest` environment
+  supplies Ruff and ty. No environment was recreated.
+
 ## 2026-09-09 — simplify registry defaults and kernel annotations
 
 - [x] Implemented registry-default and zero-default cleanup on `jax-only`.

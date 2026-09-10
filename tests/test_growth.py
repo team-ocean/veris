@@ -79,7 +79,7 @@ def test_zero_forcing_preserves_equilibrium(
         0,
         phys.rhoIce * area,
         0,
-        1 / np.sqrt(area**2 + sett.hIce_reg),
+        1 / np.sqrt(area**2 + phys.hIce_reg),
     )
     for actual, reference in zip(result, expected):
         assert actual.shape == (3, 5)
@@ -199,7 +199,8 @@ def test_partial_cover_conduction_closes_latent_heat_budget(
     state: StateFactory, sett: Settings, phys: PhysicalConstants, area: float
 ) -> None:
     # Remove concentration regularization to isolate pure energy accounting.
-    sett = replace(sett, nITC=1, Area_reg=0)
+    sett = replace(sett, nITC=1)
+    phys = replace(phys, Area_reg=0)
     surface_temperature = 260.0
     freezing = phys.celsius2K + phys.tempFrz
     thickness = 1.5
@@ -236,7 +237,7 @@ def test_partial_cover_shortwave_is_weighted_once(
         sett,
         phys,
         Area=area,
-        hIceMean=thickness * np.sqrt(area**2 + sett.Area_reg),
+        hIceMean=thickness * np.sqrt(area**2 + phys.Area_reg),
         SWdown=sunlight,
         Qsw=-80,
     )
@@ -284,7 +285,8 @@ def test_complete_snow_melt_and_excess_ice_melt_close_energy(
     heat_multiple: float,
 ) -> None:
     """Surface heat first melts all snow; excess consumes ice latent heat."""
-    sett = replace(sett, nITC=1, Area_reg=0, deltatTherm=600)
+    sett = replace(sett, nITC=1, deltatTherm=600)
+    phys = replace(phys, Area_reg=0)
     phys = replace(phys, tempFrz=0)
     snow = 1e-4
     snow_latent = snow * phys.rhoSnow * phys.lhFusion

@@ -30,12 +30,12 @@ constant.
 | `solve4temp.Ppascals`, artificial humidity denominator | 100000 | `iceSurfacePressure` | P |
 | `solve4temp` penetrating SW exponential | -1.5 times ice thickness | `iceShortwaveExtinction` = 1.5 | P |
 | `solve4temp` Newton loop | 6 | `surfaceTemperatureIterations` | S |
-| `growth` minimum actual ice thickness | 0.05 m | `minActualIceThickness` | S |
+| `growth` minimum actual ice thickness | 0.05 m | `minActualIceThickness` | P |
 | `growth.tmpscal0` in McPhee taper | 0.4 | `McPheeTaperArea` | P |
 | `growth.tmpscal1` numerator | 7 (`7 / tmpscal0`) | `McPheeTaperSteepness` | P |
 | `growth.tmpscal0` for lateral concentration loss | 0.5 (`0.5 * recip_hIceActual`) | `lateralMeltAreaFactor` | P |
-| `dynamics_routines.basal_drag_coeff.fac` | 10.0 | `basalDragSmoothing` | S |
-| `basal_drag_coeff` minimum concentration | 0.01 | `basalDragMinArea` | S |
+| `dynamics_routines.basal_drag_coeff.fac` | 10.0 | `basalDragSmoothing` | P |
+| `basal_drag_coeff` minimum concentration | 0.01 | `basalDragMinArea` | P |
 | `evp_solver` adaptive minimum cell ice mass | 1e-4 | `aEVPmassMin` | S |
 | `evp_solver.aEVPcStar` | 4 | `aEVPcStar` | S |
 | `evp_solver.evpRevFac` | 1 | `evpStressRelaxation` | S |
@@ -79,7 +79,7 @@ instances for calls made inside configurable kernels.
 | `flux_atmOcn` moisture transfer square root | 0.0346 | `cesmNeutralMoisture` | P |
 | CESM and LANL unstable stability coefficient | 16.0 | `bulkUnstableStabilityCoefficient` | P |
 | CESM and LANL stable stability coefficient | -5.0 | `bulkStableStabilityCoefficient` = 5.0 | P |
-| CESM and LANL maximum absolute height/Obukhov length | 10.0 | `bulkStabilityLimit` | S |
+| CESM and LANL maximum absolute height/Obukhov length | 10.0 | `bulkStabilityLimit` | P |
 | `flux_atmOcn` potential-to-actual T correction | 0.01 K/m | existing `gamma_blk` = 0.010 | P |
 
 Use the `waterVaporDryAirMassRatio` above for CESM's 0.622; derive its
@@ -109,10 +109,10 @@ lengths and strictly increasing latitude knots.
 
 | Local expression | Exact current value | Proposed field | Class |
 | --- | --- | --- | --- |
-| `ht` | 2.0 m | existing `ztref` (or separate `lanlTemperatureHeight`) | S |
-| `zref` | 10.0 m | existing `zref` | S |
+| `ht` | 2.0 m | existing `ztref` (or separate `lanlTemperatureHeight`) | P |
+| `zref` | 10.0 m | existing `zref` | P |
 | `zice` | 0.0005 m | existing `zzsice` | P |
-| `usm` minimum wind | 1.0 m/s | `lanlMinWindSpeed` | S |
+| `usm` minimum wind | 1.0 m/s | `lanlMinWindSpeed` | P |
 | `ssq` humidity scale | 3.797915 | `lanlSaturationHumidityScale` | P |
 | `ssq` constant in latent heat exponent | 7.93252e-6 | `lanlSaturationExponentOffset` | P |
 | `ssq` temperature factor and `devdt` derivative | 2.166847e-3 | `lanlSaturationExponentTemperature` | P |
@@ -256,13 +256,13 @@ computed at construction rather than accepted as independently stale overrides.
 | `dtempFrz_dS` | `0` | P |
 | `saltIce_ref` | `0` | P |
 | `saltOcn_ref` | `34.7` | P |
-| `minLWdown` | `60` | S |
-| `maxTIce` | `30` | S |
-| `minTIce` | `-50` | S |
-| `minTAir` | `-50` | S |
+| `minLWdown` | `60` | P |
+| `maxTIce` | `30` | P |
+| `minTIce` | `-50` | P |
+| `minTAir` | `-50` | P |
 | `dalton` | `0.00175` | P |
-| `Area_reg` | `0.15**2` | S |
-| `hIce_reg` | `0.10**2` | S |
+| `Area_reg` | `0.15**2` | P |
+| `hIce_reg` | `0.10**2` | P |
 | `celsius2K` | `273.15` | P |
 | `stantonNr` | `0.0056` | P |
 | `uStarBase` | `0.0125` | P |
@@ -275,18 +275,18 @@ computed at construction rather than accepted as independently stale overrides.
 | `waterTurnAngle` | `0` | P |
 | `sinWat` | `0` | P (derived) |
 | `cosWat` | `1` | P (derived) |
-| `wSpeedMin` | `1e-10` | S |
-| `hIce_min` | `1e-5` | S |
-| `Area_min` | `1e-5` | S |
+| `wSpeedMin` | `1e-10` | P |
+| `hIce_min` | `1e-5` | P |
+| `Area_min` | `1e-5` | P |
 | `airIceDrag` | `0.0012` | P |
 | `airIceDrag_south` | `0.0012` | P |
 | `waterIceDrag` | `0.0055` | P |
 | `waterIceDrag_south` | `0.0055` | P |
-| `cDragMin` | `0.25` | S |
-| `seaIceLoadFac` | `1` | S |
+| `cDragMin` | `0.25` | P |
+| `seaIceLoadFac` | `1` | P |
 | `gravity` | `9.81` | P |
 | `PlasDefCoeff` | `2` | P |
-| `deltaMin` | `2e-9` | S |
+| `deltaMin` | `2e-9` | P |
 | `pressReplFac` | `1` | S |
 | `pStar` | `27.5e3` | P |
 | `cStar` | `20` | P |
@@ -298,10 +298,10 @@ computed at construction rather than accepted as independently stale overrides.
 | `CrMax` | `1e6` | S |
 | `sideDragCoeff` | `0.001` | P |
 | `sideDragU0` | `0.01` | P |
-| `umin_o` | `0.5` | S |
-| `umin_i` | `1.0` | S |
-| `zref` | `10.0` | S |
-| `ztref` | `2.0` | S |
+| `umin_o` | `0.5` | P |
+| `umin_i` | `1.0` | P |
+| `zref` | `10.0` | P |
+| `ztref` | `2.0` | P |
 | `bolzc` | `1.38065e-23` | P |
 | `avogad` | `6.02214e26` | P |
 | `rgas` | `8314.47` | P |

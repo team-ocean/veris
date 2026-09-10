@@ -62,7 +62,7 @@ def check_initialized_step() -> None:
         assert isinstance(array.sharding, NamedSharding)
         assert array.sharding.spec == P("x", "y")
         assert len(array.addressable_shards) == 4
-        assert array.dtype == np.dtype(VARIABLES[field.name].dtype)
+        assert array.dtype == np.dtype(settings.dtype)
         assert_close(array, VARIABLES[field.name].default, f"default {field.name}")
 
     serial, serial_settings, physical = initialize_artificial(px * nx, py * ny)

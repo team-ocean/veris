@@ -39,7 +39,7 @@ def test_uniform_ocean_stress_rotation(
         fCori=hemisphere * ones,
     )
     drag = max(
-        sett.cDragMin,
+        phys.cDragMin,
         phys.rhoSea
         * np.hypot(du, dv)
         * (phys.waterIceDrag_south if hemisphere < 0 else phys.waterIceDrag),

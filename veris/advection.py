@@ -133,7 +133,7 @@ def calc_ZonalFlux(
     Cr = limiter(Cr)
 
     # zonal advective flux for the given field
-    ZonalFlux = jnp.zeros(vs.iceMask.shape)
+    ZonalFlux = jnp.zeros_like(vs.iceMask)
     ZonalFlux = ZonalFlux.at[2:-1, :].set(
         uTrans[2:-1, :] * (field[2:-1, :] + field[1:-2, :]) * 0.5
         - jnp.abs(uTrans[2:-1, :]) * ((1 - Cr) + uCFL[2:-1, :] * Cr) * Rj * 0.5,
@@ -172,7 +172,7 @@ def calc_MeridionalFlux(
     Cr = limiter(Cr)
 
     # meridional advective flux for the given field
-    MeridionalFlux = jnp.zeros(vs.iceMask.shape)
+    MeridionalFlux = jnp.zeros_like(vs.iceMask)
     MeridionalFlux = MeridionalFlux.at[:, 2:-1].set(
         vTrans[:, 2:-1] * (field[:, 2:-1] + field[:, 1:-2]) * 0.5
         - jnp.abs(vTrans[:, 2:-1]) * ((1 - Cr) + vCFL[:, 2:-1] * Cr) * Rj * 0.5,

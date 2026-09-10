@@ -4,7 +4,7 @@ State fields
 ============
 
 ``veris.variables.VARIABLES`` describes the calculation fields allocated by
-``veris.initialization.initialize``. Every entry has a default, dtype, units,
+``veris.initialization.initialize``. Every entry has a default, units,
 long name, description and staggered dimensions. State is a frozen dataclass
 registered as a JAX PyTree. Update arrays with ``dataclasses.replace``.
 
@@ -26,7 +26,7 @@ The metadata can be used directly with h5netcdf::
    from veris.variables import VARIABLES
    metadata = VARIABLES["uIce"]
    variable = output.create_variable(
-       "uIce", metadata.dimensions, dtype=metadata.dtype
+       "uIce", metadata.dimensions, dtype=state.uIce.dtype
    )
    variable.attrs.update(metadata.netcdf_attributes())
    variable[:] = state.uIce

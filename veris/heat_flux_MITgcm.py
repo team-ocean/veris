@@ -70,8 +70,8 @@ def bulkf_formula_lanl(
     tsf = npx.where(wet, tsf, 280.0)
 
     # Compute turbulent surface fluxes
-    ht = sett.ztref
-    zref = sett.zref
+    ht = phys.ztref
+    zref = phys.zref
     zice = phys.zzsice
     aln = npx.log(ht / zref)
     czol = zref * phys.karman * phys.gravity
@@ -80,7 +80,7 @@ def bulkf_formula_lanl(
 
     # wind speed
     us = npx.sqrt(uw[...] * uw[...] + vw[...] * vw[...])
-    usm = npx.maximum(us[...], sett.lanlMinWindSpeed)
+    usm = npx.maximum(us[...], phys.lanlMinWindSpeed)
 
     t0 = ta[...] * (1.0 + phys.zvir * qa[...])
     ssq = (
@@ -114,7 +114,7 @@ def bulkf_formula_lanl(
             / ustar[...] ** 2
             * (tstar[...] / t0 + qstar[...] / (1.0 / phys.zvir + qa[...]))
         )
-        huol = npx.minimum(npx.abs(huol[...]), sett.bulkStabilityLimit) * npx.sign(
+        huol = npx.minimum(npx.abs(huol[...]), phys.bulkStabilityLimit) * npx.sign(
             huol[...]
         )
         stable = 0.5 + 0.5 * npx.sign(huol[...])

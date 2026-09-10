@@ -163,7 +163,7 @@ def dqnetdt(
     """
 
     vmag = npx.maximum(
-        sett.umin_o,
+        phys.umin_o,
         npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2),
     )
 
@@ -349,10 +349,10 @@ def flux_atmOcn(
         - https://svn-ccsm-release.cgd.ucar.edu/model_versions/cesm1_0_5/models/csm_share/shr/shr_flux_mod.F90
     """
 
-    al2 = npx.log(sett.zref / sett.ztref)
+    al2 = npx.log(phys.zref / phys.ztref)
 
     vmag = npx.maximum(
-        sett.umin_o,
+        phys.umin_o,
         npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2),
     )
 
@@ -365,7 +365,7 @@ def flux_atmOcn(
     # specific humidity diff. (kg/kg)
     delq = qbot[...] - ssq[...]
 
-    alz = npx.log(zbot[...] / sett.zref)
+    alz = npx.log(zbot[...] / phys.zref)
     cp = phys.cpdair * (1.0 + phys.cpvir * ssq[...])
 
     # first estimate of Z/L and ustar, tstar and qstar
@@ -390,7 +390,7 @@ def flux_atmOcn(
         * (tstar[...] / thbot[...] + qstar[...] / (1.0 / phys.zvir + qbot[...]))
         / ustar[...] ** 2
     )
-    hol = npx.minimum(npx.abs(hol[...]), sett.bulkStabilityLimit) * npx.sign(hol[...])
+    hol = npx.minimum(npx.abs(hol[...]), phys.bulkStabilityLimit) * npx.sign(hol[...])
     stable = 0.5 + 0.5 * npx.sign(hol[...])
     xsq = npx.maximum(
         npx.sqrt(npx.abs(1.0 - phys.bulkUnstableStabilityCoefficient * hol[...])), 1.0
@@ -434,7 +434,7 @@ def flux_atmOcn(
         * (tstar[...] / thbot[...] + qstar[...] / (1.0 / phys.zvir + qbot[...]))
         / ustar[...] ** 2
     )
-    hol = npx.minimum(npx.abs(hol[...]), sett.bulkStabilityLimit) * npx.sign(hol[...])
+    hol = npx.minimum(npx.abs(hol[...]), phys.bulkStabilityLimit) * npx.sign(hol[...])
     stable = 0.5 + 0.5 * npx.sign(hol[...])
     xsq = npx.maximum(
         npx.sqrt(npx.abs(1.0 - phys.bulkUnstableStabilityCoefficient * hol[...])), 1.0
@@ -486,7 +486,7 @@ def flux_atmOcn(
 
     # compute diagnositcs: 2m ref T & Q, 10m wind speed squared
 
-    hol = hol[...] * sett.ztref / zbot[...]
+    hol = hol[...] * phys.ztref / zbot[...]
     xsq = npx.maximum(
         1.0, npx.sqrt(npx.abs(1.0 - phys.bulkUnstableStabilityCoefficient * hol[...]))
     )
@@ -498,7 +498,7 @@ def flux_atmOcn(
     tref = thbot[...] - delt[...] * fac[...]
 
     # pot. temp to temp correction
-    tref = (tref[...] - phys.gamma_blk * sett.ztref) * mask[...]
+    tref = (tref[...] - phys.gamma_blk * phys.ztref) * mask[...]
     fac = (
         (re[...] / phys.karman) * (alz[...] + al2 - psixh[...] + psix2[...]) * mask[...]
     )
@@ -564,7 +564,7 @@ def flux_atmOcn_simple(
     """
 
     vmag = npx.maximum(
-        sett.umin_o,
+        phys.umin_o,
         npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2),
     )
 

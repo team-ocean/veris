@@ -72,7 +72,9 @@ def test_basal_drag_finite_and_matches_stable_keel_law(
     area: float,
     thickness: float,
 ) -> None:
-    phys = replace(phys, basalDragK2=0.7)
+    reference_phys = replace(phys, basalDragK2=0.7)
+    phys = replace(reference_phys, dtype=np.dtype(dtype).name)
+    sett = replace(sett, dtype=np.dtype(dtype).name)
     vs = basal_case(state, dtype, area, thickness)
     u = jnp.full(vs.Area.shape, 0.03, dtype=dtype)
     v = jnp.full(vs.Area.shape, 0.04, dtype=dtype)
@@ -80,7 +82,7 @@ def test_basal_drag_finite_and_matches_stable_keel_law(
     expected = (
         stable_reference(
             sett,
-            phys,
+            reference_phys,
             thickness,
             float(dtype(area)),
             float(dtype(0.03)),
@@ -108,7 +110,9 @@ def test_basal_drag_gradients_are_finite_and_match_analytic_law(
     area: float,
     thickness: float,
 ) -> None:
-    phys = replace(phys, basalDragK2=0.7)
+    reference_phys = replace(phys, basalDragK2=0.7)
+    phys = replace(reference_phys, dtype=np.dtype(dtype).name)
+    sett = replace(sett, dtype=np.dtype(dtype).name)
     vs = basal_case(state, dtype, area, thickness)
 
     def mean_drag(height: ArrayLike, velocity: ArrayLike) -> Array:
@@ -129,7 +133,7 @@ def test_basal_drag_gradients_are_finite_and_match_analytic_law(
     expected = (
         stable_reference(
             sett,
-            phys,
+            reference_phys,
             thickness,
             float(dtype(area)),
             float(dtype(0.03)),
@@ -153,7 +157,8 @@ def test_disabled_basal_drag_is_zero_with_zero_thickness_sensitivity(
     dtype: type[np.float32] | type[np.float64],
     thickness: float,
 ) -> None:
-    phys = replace(phys, basalDragK2=0)
+    phys = replace(phys, basalDragK2=0, dtype=np.dtype(dtype).name)
+    sett = replace(sett, dtype=np.dtype(dtype).name)
     vs = basal_case(state, dtype, 1, thickness)
     velocity = jnp.full_like(vs.Area, 0.03)
 
@@ -178,7 +183,7 @@ def test_basal_drag_settings_control_smoothing_and_active_area(
     minimum_area: float,
 ) -> None:
     """Initialization controls the keel threshold independently of material drag."""
-    sett = replace(sett, basalDragSmoothing=smoothing, basalDragMinArea=minimum_area)
+    phys = replace(phys, basalDragSmoothing=smoothing, basalDragMinArea=minimum_area)
     phys = replace(phys, basalDragK2=0.7)
     vs = basal_case(state, np.float64, 0.5, 0.5)
     u, v = np.full((3, 5), 0.03), np.full((3, 5), 0.04)

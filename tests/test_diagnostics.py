@@ -31,7 +31,7 @@ def test_diagnostics_are_frozen_registered_pytree_with_complete_metadata(
     assert DIAGNOSTICS["OceanStressV"].dimensions == V_GRID
     assert DIAGNOSTICS["EmPmR"].dimensions == C_GRID
     arrays = {
-        name: jnp.full((6, 9), metadata.default, dtype=metadata.dtype)
+        name: jnp.full((6, 9), metadata.default, dtype="float64")
         for name, metadata in DIAGNOSTICS.items()
     }
     diagnostics = Diagnostics(**arrays)
@@ -45,7 +45,7 @@ def test_diagnostics_are_frozen_registered_pytree_with_complete_metadata(
     with h5netcdf.File(path, "w") as output:
         output.dimensions = {"x_center": 6, "x_face": 6, "y_center": 9, "y_face": 9}
         for name, metadata in DIAGNOSTICS.items():
-            variable = output.create_variable(name, metadata.dimensions, metadata.dtype)
+            variable = output.create_variable(name, metadata.dimensions, "float64")
             variable.attrs.update(metadata.netcdf_attributes())
             variable[:] = getattr(diagnostics, name)
     with h5netcdf.File(path, "r") as saved:

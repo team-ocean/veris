@@ -55,9 +55,9 @@ def ocean_drag_coeffs(
 
     # calculate linear drag coefficient and apply mask
     cDrag = jnp.where(
-        dragCoeff**2 * tmpVar > sett.cDragMin**2,
+        dragCoeff**2 * tmpVar > phys.cDragMin**2,
         dragCoeff * jnp.sqrt(tmpVar),
-        sett.cDragMin,
+        phys.cDragMin,
     )
     cDrag = cDrag * vs.iceMask
 
@@ -93,10 +93,10 @@ def basal_drag_coeffs(
 
     # Smooth positive keel excess. logaddexp evaluates log(1 + exp(x))
     # without overflow, including derivatives and masked/disabled drag.
-    fac = sett.basalDragSmoothing
+    fac = phys.basalDragSmoothing
     recip_fac = 1.0 / fac
     cBot = jnp.where(
-        vs.Area > sett.basalDragMinArea,
+        vs.Area > phys.basalDragMinArea,
         tmpFld
         * jnp.logaddexp(0.0, fac * (vs.hIceMean - hCrit))
         * recip_fac
@@ -268,7 +268,7 @@ def viscosities(
     deltaC = jnp.sqrt(deltaSq)
 
     # use regularization to avoid singularies of zeta
-    deltaCreg = deltaC + sett.deltaMin
+    deltaCreg = deltaC + phys.deltaMin
     # TODO implement smooth regularization after comparing with the MITgcm
     # smooth regularization of delta for better differentiability
     # deltaCreg = jnp.sqrt( deltaSq + deltaMin**2 )

@@ -112,7 +112,7 @@ def test_cleanup_area_floor_ad_and_one_sided_slopes(
     state: StateFactory, sett: Settings, phys: PhysicalConstants
 ) -> None:
     """The area floor suppresses area sensitivity while positive ice remains."""
-    sett = replace(sett, Area_min=0.1)
+    phys = replace(phys, Area_min=0.1)
 
     def cleaned(area: Array) -> Array:
         vs = state(hIceMean=1.0, hSnowMean=0.2, Area=area, TSurf=260.0)
@@ -129,7 +129,7 @@ def test_thin_ice_removal_branch_ad_does_not_describe_discontinuous_jump(
     state: StateFactory, sett: Settings, phys: PhysicalConstants
 ) -> None:
     """Catch a changed removal boundary and expose the jump that AD cannot see."""
-    sett = replace(sett, hIce_min=0.1)
+    phys = replace(phys, hIce_min=0.1)
 
     def cleaned(ice: Array) -> Array:
         vs = state(hIceMean=ice, hSnowMean=0.2, Area=0.5, TSurf=260.0)
@@ -139,6 +139,6 @@ def test_thin_ice_removal_branch_ad_does_not_describe_discontinuous_jump(
     # <= removes ice exactly at the threshold. The jump remains O(hIce_min)
     # as the perturbation shrinks; no finite derivative spans that boundary.
     steps = jnp.asarray([1e-3, 1e-5, 1e-7])
-    jumps = cleaned(sett.hIce_min + steps) - cleaned(jnp.asarray(sett.hIce_min))
+    jumps = cleaned(phys.hIce_min + steps) - cleaned(jnp.asarray(phys.hIce_min))
     np.testing.assert_allclose(jumps, [0.101, 0.10001, 0.1000001], atol=1e-14)
-    np.testing.assert_array_equal(cleaned(sett.hIce_min - steps), 0.0)
+    np.testing.assert_array_equal(cleaned(phys.hIce_min - steps), 0.0)

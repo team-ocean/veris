@@ -23,7 +23,7 @@ def test_initialize_allocates_complete_minimal_frozen_state() -> None:
         array = getattr(state, name)
         assert isinstance(array, jax.Array)
         assert array.shape == (8, 11)
-        assert array.dtype == np.dtype(metadata.dtype)
+        assert array.dtype == np.dtype(settings.dtype)
         np.testing.assert_array_equal(array, metadata.default)
     with pytest.raises(FrozenInstanceError):
         setattr(state, "theta", jnp.zeros((8, 11)))  # noqa: B010

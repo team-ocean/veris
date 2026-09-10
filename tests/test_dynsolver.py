@@ -79,7 +79,8 @@ def test_wind_speed_floor_preserves_zero_stress_at_rest(
     dynamics: ModuleType,
     speed: float,
 ) -> None:
-    sett = replace(sett, useRelativeWind=False, wSpeedMin=1)
+    sett = replace(sett, useRelativeWind=False)
+    phys = replace(phys, wSpeedMin=1)
     ones = np.ones((3, 5))
     vs = state(
         uWind=speed * ones,
@@ -131,7 +132,7 @@ def test_affine_hydrostatic_tilt_and_wind_force(
     factors = {
         "elevation": phys.gravity,
         "pressure": phys.recip_rhoSea,
-        "load": phys.gravity * sett.seaIceLoadFac * phys.recip_rhoSea
+        "load": phys.gravity * phys.seaIceLoadFac * phys.recip_rhoSea
         if real_freshwater
         else 0,
     }
