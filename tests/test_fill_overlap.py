@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from veris.configuration import Settings
+from veris.configuration import Configuration
 
 
 @pytest.mark.parametrize("shape", [(2, 3), (4, 7), (6, 4)])
@@ -19,13 +19,13 @@ def test_periodic_halo_matches_numpy_wrap(
     expected = np.pad(interior, 2, mode="wrap")
     for fill in (
         halo.fill_circular_overlap,
-        partial(halo.fill_overlap, sett=Settings(use_sharding=False)),
+        partial(halo.fill_overlap, conf=Configuration(use_sharding=False)),
     ):
         actual = fill(jnp.asarray(initial))
         np.testing.assert_array_equal(actual, expected)
         np.testing.assert_array_equal(fill(actual), expected)
     u, v = halo.fill_overlap_uv(
-        jnp.asarray(initial), jnp.asarray(-initial), Settings(use_sharding=False)
+        jnp.asarray(initial), jnp.asarray(-initial), Configuration(use_sharding=False)
     )
     np.testing.assert_array_equal(u, expected)
     np.testing.assert_array_equal(v, -expected)
@@ -71,7 +71,7 @@ def test_four_cpu_halo_exchange_and_adjoint_in_fresh_process() -> None:
 
 
 def test_sharded_dispatch_uses_explicit_active_mesh(halo: ModuleType) -> None:
-    """Settings select exchange at call time and the caller supplies the mesh."""
+    """Configuration selects exchange at call time and the caller supplies the mesh."""
     import jax
     from jax.sharding import NamedSharding
     from jax.sharding import PartitionSpec as P
@@ -82,14 +82,14 @@ def test_sharded_dispatch_uses_explicit_active_mesh(halo: ModuleType) -> None:
     data = jax.device_put(data, NamedSharding(mesh, P("x", "y")))
     expected = np.pad(interior, 2, mode="wrap")
     with jax.set_mesh(mesh):
-        actual = halo.fill_overlap(data, Settings(use_sharding=True))
-        u, v = halo.fill_overlap_uv(data, -data, Settings(use_sharding=True))
+        actual = halo.fill_overlap(data, Configuration(use_sharding=True))
+        u, v = halo.fill_overlap_uv(data, -data, Configuration(use_sharding=True))
     np.testing.assert_array_equal(actual, expected)
     np.testing.assert_array_equal(u, expected)
     np.testing.assert_array_equal(v, -expected)
     np.testing.assert_array_equal(
         halo.fill_overlap(
-            np.pad(interior, 2, constant_values=-99), Settings(use_sharding=False)
+            np.pad(interior, 2, constant_values=-99), Configuration(use_sharding=False)
         ),
         expected,
     )
@@ -101,7 +101,7 @@ def test_sharded_dispatch_requires_named_mesh(halo: ModuleType) -> None:
 
     data = jnp.zeros((8, 8))
     with pytest.raises(ValueError, match="mesh"):
-        halo.fill_overlap(data, Settings(use_sharding=True))
+        halo.fill_overlap(data, Configuration(use_sharding=True))
     mesh = jax.make_mesh((1,), ("devices",))
     with pytest.raises(ValueError, match="x.*y"):
         halo.make_sharded_fill_overlap(mesh)

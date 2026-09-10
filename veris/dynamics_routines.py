@@ -9,12 +9,12 @@ import jax.numpy as jnp
 from jax import Array
 
 from veris._typing import ArrayInput, State, jit
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 
-@partial(jit, static_argnames=["sett", "phys"])
-def SeaIceStrength(vs: State, sett: Settings, phys: PhysicalConstants) -> Array:
+@partial(jit, static_argnames=["conf", "phys"])
+def SeaIceStrength(vs: State, conf: Configuration, phys: PhysicalConstants) -> Array:
     """calculate ice strength (= maximum compressive stress)
     from ice thickness and ice cover fraction
     """
@@ -26,10 +26,10 @@ def SeaIceStrength(vs: State, sett: Settings, phys: PhysicalConstants) -> Array:
     return SeaIceStrength
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def ocean_drag_coeffs(
     vs: State,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     uIce: ArrayInput,
     vIce: ArrayInput,
@@ -63,10 +63,10 @@ def ocean_drag_coeffs(
     return cDrag
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def basal_drag_coeffs(
     vs: State,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     uIce: ArrayInput,
     vIce: ArrayInput,
@@ -106,10 +106,10 @@ def basal_drag_coeffs(
     return cBot
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def side_drag(
     vs: State,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     uIce: ArrayInput,
     vIce: ArrayInput,
@@ -138,7 +138,7 @@ def side_drag(
     ) * vs.iceMaskV
 
     # use the coastline to determine the form factor
-    if sett.use_coastline:
+    if conf.use_coastline:
         maskU = vs.Fu
         maskV = vs.Fv
 
@@ -153,10 +153,10 @@ def side_drag(
     return SideDragU, SideDragV
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def strainrates(
     vs: State,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     uIce: ArrayInput,
     vIce: ArrayInput,
@@ -183,14 +183,14 @@ def strainrates(
     mskZ = vs.iceMask * jnp.roll(vs.iceMask, 1, axis=0)
     mskZ = mskZ * jnp.roll(mskZ, 1, axis=1)
     e12 = 0.5 * (dudy + dvdx - vs.k1AtZ * vave - vs.k2AtZ * uave) * mskZ
-    if sett.noSlip:
+    if conf.noSlip:
         hFacU = vs.iceMaskU - jnp.roll(vs.iceMaskU, 1, axis=1)
         hFacV = vs.iceMaskV - jnp.roll(vs.iceMaskV, 1, axis=0)
         e12 = e12 + (
             2.0 * uave * vs.recip_dyU * hFacU + 2.0 * vave * vs.recip_dxV * hFacV
         )
 
-    if sett.noSlip and sett.secondOrderBC:
+    if conf.noSlip and conf.secondOrderBC:
         hFacU = (vs.iceMaskU - jnp.roll(vs.iceMaskU, 1, 0)) / 3.0
         hFacV = (vs.iceMaskV - jnp.roll(vs.iceMaskV, 1, 1)) / 3.0
         hFacU = hFacU * (
@@ -234,10 +234,10 @@ def strainrates(
     return e11, e22, cast(Array, e12)
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def viscosities(
     vs: State,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     e11: ArrayInput,
     e22: ArrayInput,
@@ -280,8 +280,8 @@ def viscosities(
     press = (
         1
         * (
-            vs.SeaIceStrength * (1 - sett.pressReplFac)
-            + 2.0 * zeta * deltaC * sett.pressReplFac / (1 + phys.tensileStrFac)
+            vs.SeaIceStrength * (1 - conf.pressReplFac)
+            + 2.0 * zeta * deltaC * conf.pressReplFac / (1 + phys.tensileStrFac)
         )
         * (1 - phys.tensileStrFac)
     )
@@ -289,10 +289,10 @@ def viscosities(
     return zeta, eta, press
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def stress(
     vs: State,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     e11: ArrayInput,
     e22: ArrayInput,
@@ -307,16 +307,16 @@ def stress(
 
     sig11 = 0.5 * (2 * zeta * (e11 + e22) + 2 * eta * (e11 - e22) - press)
     sig22 = 0.5 * (2 * zeta * (e11 + e22) - 2 * eta * (e11 - e22) - press)
-    sig12 = 2.0 * e12 * c_point_to_z_point(vs, sett, phys, eta)
+    sig12 = 2.0 * e12 * c_point_to_z_point(vs, conf, phys, eta)
 
     # NumPy inputs become JAX tracers at this compiled boundary.
     return cast(tuple[Array, Array, Array], (sig11, sig22, sig12))
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def stressdiv(
     vs: State,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     sig11: ArrayInput,
     sig22: ArrayInput,

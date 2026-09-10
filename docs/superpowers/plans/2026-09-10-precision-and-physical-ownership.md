@@ -3,7 +3,7 @@
 Goal: select floating-point precision once at initialization and propagate it to all
 state arrays, static coefficients, derived coefficients, tables and temporary arrays.
 Physical closure coefficients belong to PhysicalConstants; execution choices,
-numerical solver controls, grid sizes and experiment inputs belong to Settings.
+numerical solver controls, grid sizes and experiment inputs belong to Configuration.
 
 Implementation follows the user's authorized continuation on jax-only.
 

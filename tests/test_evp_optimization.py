@@ -16,7 +16,7 @@ import pytest
 from numpy.typing import NDArray
 
 from veris._typing import State
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 from veris.setup.artificial import initialize
 
@@ -31,9 +31,9 @@ CASES = [
 ]
 
 
-def oracle_state(masked: bool) -> tuple[State, Settings, PhysicalConstants]:
+def oracle_state(masked: bool) -> tuple[State, Configuration, PhysicalConstants]:
     """Construct periodic 6x9 interiors with variable ice, stress and forcing."""
-    vs, sett, phys = initialize(6, 9)
+    vs, conf, phys = initialize(6, 9)
     x, y = np.meshgrid(np.arange(6), np.arange(9), indexing="ij")
 
     def field(values: np.ndarray) -> jax.Array:
@@ -75,8 +75,8 @@ def oracle_state(masked: bool) -> tuple[State, Settings, PhysicalConstants]:
     from veris.area_mass import AreaWS, SeaIceMass
     from veris.dynamics_routines import SeaIceStrength
 
-    mass_c, mass_u, mass_v = SeaIceMass(vs, sett, phys)
-    area_w, area_s = AreaWS(vs, sett, phys)
+    mass_c, mass_u, mass_v = SeaIceMass(vs, conf, phys)
+    area_w, area_s = AreaWS(vs, conf, phys)
     return (
         replace(
             vs,
@@ -85,9 +85,9 @@ def oracle_state(masked: bool) -> tuple[State, Settings, PhysicalConstants]:
             SeaIceMassV=mass_v,
             AreaW=area_w,
             AreaS=area_s,
-            SeaIceStrength=SeaIceStrength(vs, sett, phys),
+            SeaIceStrength=SeaIceStrength(vs, conf, phys),
         ),
-        sett,
+        conf,
         phys,
     )
 
@@ -96,11 +96,11 @@ def evaluate(
     case: tuple[bool, bool, int], masked: bool
 ) -> dict[str, NDArray[np.float64]]:
     """Return scaled field outputs and derivatives with respect to two forcings."""
-    vs, sett, phys = oracle_state(masked)
+    vs, conf, phys = oracle_state(masked)
     from veris.evp_solver import evp_solver
 
     adaptive, no_slip, steps = case
-    sett = replace(sett, useAdaptiveEVP=adaptive, noSlip=no_slip, nEVPsteps=steps)
+    conf = replace(conf, useAdaptiveEVP=adaptive, noSlip=no_slip, nEVPsteps=steps)
 
     def solve(parameters: jax.Array) -> jax.Array:
         state = replace(
@@ -108,7 +108,7 @@ def evaluate(
             WindForcingX=parameters[0] * vs.WindForcingX,
             SeaIceStrength=parameters[1] * vs.SeaIceStrength,
         )
-        result = evp_solver(state, sett, phys)
+        result = evp_solver(state, conf, phys)
         # Scale stresses so a single tolerance resolves velocity and stress alike.
         return jnp.stack(result) / jnp.array([1, 1, 1000, 1000, 1000])[:, None, None]
 

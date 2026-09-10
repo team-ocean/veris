@@ -82,7 +82,7 @@ GROUP BY name;
 `baseline` calls the Python body of the current `artificial.step`; if the public
 function is decorated, its `__wrapped__` body is used. `candidate` uses the public
 `artificial.compiled_step` when available; on historical checkouts it applies a
-fresh `jax.jit(..., static_argnames=['sett'])` to the Python body. Both variants
+fresh `jax.jit(..., static_argnames=['conf'])` to the Python body. Both variants
 use the same current physics kernels and settings. This isolates the whole-step
 compilation boundary. It is **not a comparison against the historical source**,
 and cannot establish the gain from changes made inside EVP, growth or other

@@ -9,7 +9,7 @@ import jax.numpy as jnp
 from jax import Array
 
 from veris._typing import ArrayInput, State, jit
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.fill_overlap import fill_overlap
 from veris.physical_constants import PhysicalConstants
 
@@ -21,23 +21,23 @@ from veris.physical_constants import PhysicalConstants
 # thickness changes inbetween dynamics timesteps.
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def Advection(
-    vs: State, sett: Settings, phys: PhysicalConstants
+    vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[Array, Array, Array]:
     """retrieve changes in sea ice fields"""
 
-    hIceMean = calc_Advection(vs, sett, phys, vs.hIceMean)
-    hSnowMean = calc_Advection(vs, sett, phys, vs.hSnowMean)
-    Area = calc_Advection(vs, sett, phys, vs.Area)
+    hIceMean = calc_Advection(vs, conf, phys, vs.hIceMean)
+    hSnowMean = calc_Advection(vs, conf, phys, vs.hSnowMean)
+    Area = calc_Advection(vs, conf, phys, vs.Area)
 
     return hIceMean, hSnowMean, Area
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def calc_Advection(
     vs: State,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     field: ArrayInput,
 ) -> Array:
@@ -55,17 +55,17 @@ def calc_Advection(
     fieldLoc = field
 
     # calculate zonal advective fluxes
-    ZonalFlux = calc_ZonalFlux(vs, sett, phys, fieldLoc, uTrans)
+    ZonalFlux = calc_ZonalFlux(vs, conf, phys, fieldLoc, uTrans)
 
     # update field according to zonal fluxes
-    if sett.extensiveFld:
-        fieldLoc = fieldLoc - sett.deltatTherm * vs.maskInC * vs.recip_rA * (
+    if conf.extensiveFld:
+        fieldLoc = fieldLoc - conf.deltatTherm * vs.maskInC * vs.recip_rA * (
             jnp.roll(ZonalFlux, -1, 0) - ZonalFlux
         )
     else:
         fieldLoc = (
             fieldLoc
-            - sett.deltatTherm
+            - conf.deltatTherm
             * vs.maskInC
             * vs.recip_rA
             * vs.recip_hIceMean
@@ -76,17 +76,17 @@ def calc_Advection(
         )
 
     # calculate meridional advective fluxes
-    MeridionalFlux = calc_MeridionalFlux(vs, sett, phys, fieldLoc, vTrans)
+    MeridionalFlux = calc_MeridionalFlux(vs, conf, phys, fieldLoc, vTrans)
 
     # update field according to meridional fluxes
-    if sett.extensiveFld:
-        fieldLoc = fieldLoc - sett.deltatTherm * vs.maskInC * vs.recip_rA * (
+    if conf.extensiveFld:
+        fieldLoc = fieldLoc - conf.deltatTherm * vs.maskInC * vs.recip_rA * (
             jnp.roll(MeridionalFlux, -1, 1) - MeridionalFlux
         )
     else:
         fieldLoc = (
             fieldLoc
-            - sett.deltatTherm
+            - conf.deltatTherm
             * vs.maskInC
             * vs.recip_rA
             * vs.recip_hIceMean
@@ -103,10 +103,10 @@ def calc_Advection(
     return cast(Array, fieldLoc)
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def calc_ZonalFlux(
     vs: State,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     field: ArrayInput,
     uTrans: ArrayInput,
@@ -116,7 +116,7 @@ def calc_ZonalFlux(
     maskLocW = vs.iceMaskU * vs.maskInU
 
     # CFL number of zonal flow
-    uCFL = jnp.abs(vs.uIce * sett.deltatTherm * vs.recip_dxC)
+    uCFL = jnp.abs(vs.uIce * conf.deltatTherm * vs.recip_dxC)
 
     # calculate slope ratio Cr
     Rjp = (field[3:, :] - field[2:-1, :]) * maskLocW[3:, :]
@@ -125,9 +125,9 @@ def calc_ZonalFlux(
 
     Cr = jnp.where(uTrans[2:-1, :] > 0, Rjm, Rjp)
     Cr = jnp.where(
-        jnp.abs(Rj) * sett.CrMax > jnp.abs(Cr),
+        jnp.abs(Rj) * conf.CrMax > jnp.abs(Cr),
         Cr / Rj,
-        jnp.sign(Cr) * sett.CrMax * jnp.sign(Rj),
+        jnp.sign(Cr) * conf.CrMax * jnp.sign(Rj),
     )
     Cr = limiter(Cr)
 
@@ -137,15 +137,15 @@ def calc_ZonalFlux(
         uTrans[2:-1, :] * (field[2:-1, :] + field[1:-2, :]) * 0.5
         - jnp.abs(uTrans[2:-1, :]) * ((1 - Cr) + uCFL[2:-1, :] * Cr) * Rj * 0.5,
     )
-    ZonalFlux = fill_overlap(ZonalFlux, sett)
+    ZonalFlux = fill_overlap(ZonalFlux, conf)
 
     return ZonalFlux
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def calc_MeridionalFlux(
     vs: State,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     field: ArrayInput,
     vTrans: ArrayInput,
@@ -155,7 +155,7 @@ def calc_MeridionalFlux(
     maskLocS = vs.iceMaskV * vs.maskInV
 
     # CFL number of meridional flow
-    vCFL = jnp.abs(vs.vIce * sett.deltatTherm * vs.recip_dyC)
+    vCFL = jnp.abs(vs.vIce * conf.deltatTherm * vs.recip_dyC)
 
     # calculate slope ratio Cr
     Rjp = (field[:, 3:] - field[:, 2:-1]) * maskLocS[:, 3:]
@@ -164,9 +164,9 @@ def calc_MeridionalFlux(
 
     Cr = jnp.where(vTrans[:, 2:-1] > 0, Rjm, Rjp)
     Cr = jnp.where(
-        jnp.abs(Rj) * sett.CrMax > jnp.abs(Cr),
+        jnp.abs(Rj) * conf.CrMax > jnp.abs(Cr),
         Cr / Rj,
-        jnp.sign(Cr) * sett.CrMax * jnp.sign(Rj),
+        jnp.sign(Cr) * conf.CrMax * jnp.sign(Rj),
     )
     Cr = limiter(Cr)
 
@@ -176,7 +176,7 @@ def calc_MeridionalFlux(
         vTrans[:, 2:-1] * (field[:, 2:-1] + field[:, 1:-2]) * 0.5
         - jnp.abs(vTrans[:, 2:-1]) * ((1 - Cr) + vCFL[:, 2:-1] * Cr) * Rj * 0.5,
     )
-    MeridionalFlux = fill_overlap(MeridionalFlux, sett)
+    MeridionalFlux = fill_overlap(MeridionalFlux, conf)
 
     return MeridionalFlux
 

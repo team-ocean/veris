@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from conftest import StateFactory
 
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 
@@ -93,14 +93,14 @@ def evp_state(state: StateFactory) -> EVPStateFactory:
 def test_unforced_rest_is_exact_evp_fixed_point(
     halo: ModuleType,
     evp_state: EVPStateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     no_slip: bool,
     steps: int,
 ) -> None:
     solver = importlib.import_module("veris.evp_solver").evp_solver
     vs = evp_state()
-    result = solver(vs, replace(sett, noSlip=no_slip, nEVPsteps=steps), phys)
+    result = solver(vs, replace(conf, noSlip=no_slip, nEVPsteps=steps), phys)
     assert len(result) == 5
     for field in result:
         assert field.shape == (8, 11)
@@ -111,16 +111,16 @@ def test_unforced_rest_is_exact_evp_fixed_point(
 def test_one_evp_step_uniform_force_matches_mass_drag_balance(
     halo: ModuleType,
     evp_state: EVPStateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     wind: float,
 ) -> None:
     solver = importlib.import_module("veris.evp_solver").evp_solver
-    sett = replace(sett, nEVPsteps=1)
+    conf = replace(conf, nEVPsteps=1)
     phys = replace(phys, basalDragK2=0)
     vs = evp_state(wind)
-    result = solver(vs, sett, phys)
-    denominator = 900 * (sett.evpBeta + 1) / sett.deltatDyn + phys.cDragMin
+    result = solver(vs, conf, phys)
+    denominator = 900 * (conf.evpBeta + 1) / conf.deltatDyn + phys.cDragMin
     for field, expected in zip(
         result, (wind / denominator, -0.5 * wind / denominator, 0, 0, 0)
     ):
@@ -128,7 +128,7 @@ def test_one_evp_step_uniform_force_matches_mass_drag_balance(
 
 
 def uniform_momentum_subcycles(
-    sett: Settings, phys: PhysicalConstants, wind: float, steps: int, beta: float
+    conf: Configuration, phys: PhysicalConstants, wind: float, steps: int, beta: float
 ) -> tuple[float, float, float, float, float]:
     """Solve uniform scalar momentum updates without invoking model kernels.
 
@@ -136,7 +136,7 @@ def uniform_momentum_subcycles(
     vanish. Adaptive relaxation stays at its minimum because viscosity is zero.
     """
     u, v = 0.0, 0.0
-    mass_rate = 900 / sett.deltatDyn
+    mass_rate = 900 / conf.deltatDyn
     for _ in range(steps):
         drag = max(phys.cDragMin, phys.rhoSea * phys.waterIceDrag * np.hypot(u, v))
         denominator = mass_rate * (beta + 1) + drag
@@ -150,16 +150,16 @@ def uniform_momentum_subcycles(
 def test_adaptive_evp_uniform_momentum_balance(
     halo: ModuleType,
     evp_state: EVPStateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     steps: int,
     wind: float,
 ) -> None:
     solver = importlib.import_module("veris.evp_solver").evp_solver
-    sett = replace(sett, nEVPsteps=steps, useAdaptiveEVP=True)
+    conf = replace(conf, nEVPsteps=steps, useAdaptiveEVP=True)
     phys = replace(phys, basalDragK2=0)
-    result = solver(evp_state(wind), sett, phys)
-    expected = uniform_momentum_subcycles(sett, phys, wind, steps, sett.aEVPalphaMin)
+    result = solver(evp_state(wind), conf, phys)
+    expected = uniform_momentum_subcycles(conf, phys, wind, steps, conf.aEVPalphaMin)
     assert len(result) == len(expected)
     for field, value in zip(result, expected):
         assert field.shape == (8, 11)
@@ -171,20 +171,20 @@ def test_adaptive_evp_uniform_momentum_balance(
 def test_evp_residual_diagnostics_preserve_uniform_solution(
     halo: ModuleType,
     evp_state: EVPStateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     adaptive: bool,
     wind: float,
 ) -> None:
     solver = importlib.import_module("veris.evp_solver").evp_solver
-    sett = replace(sett, nEVPsteps=3, useAdaptiveEVP=adaptive)
+    conf = replace(conf, nEVPsteps=3, useAdaptiveEVP=adaptive)
     phys = replace(phys, basalDragK2=0)
     vs = evp_state(wind)
     # Run the diagnostics path first to reproduce its own failure directly.
-    measured = solver(vs, replace(sett, computeEvpResidual=True), phys)
-    unmeasured = solver(vs, replace(sett, computeEvpResidual=False), phys)
-    beta = sett.aEVPalphaMin if adaptive else sett.evpBeta
-    expected = uniform_momentum_subcycles(sett, phys, wind, sett.nEVPsteps, beta)
+    measured = solver(vs, replace(conf, computeEvpResidual=True), phys)
+    unmeasured = solver(vs, replace(conf, computeEvpResidual=False), phys)
+    beta = conf.aEVPalphaMin if adaptive else conf.evpBeta
+    expected = uniform_momentum_subcycles(conf, phys, wind, conf.nEVPsteps, beta)
     assert len(measured) == len(unmeasured) == len(expected)
     for actual, baseline, reference in zip(measured, unmeasured, expected):
         assert actual.shape == baseline.shape == (8, 11)
@@ -197,7 +197,7 @@ def test_evp_residual_diagnostics_preserve_uniform_solution(
 def test_printed_evp_residual_matches_interior_velocity_norm(
     halo: ModuleType,
     evp_state: EVPStateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     capsys: pytest.CaptureFixture[str],
     wind: float,
@@ -209,7 +209,7 @@ def test_printed_evp_residual_matches_interior_velocity_norm(
     import jax
 
     module = importlib.import_module("veris.evp_solver")
-    sett = replace(sett, nEVPsteps=1, computeEvpResidual=True, printEvpResidual=True)
+    conf = replace(conf, nEVPsteps=1, computeEvpResidual=True, printEvpResidual=True)
     phys = replace(phys, basalDragK2=0)
     jax.clear_caches()
     try:
@@ -221,15 +221,15 @@ def test_printed_evp_residual_matches_interior_velocity_norm(
             sigma2=vs.sigma2 + s2,
             sigma12=vs.sigma12 + s12,
         )
-        result = module.evp_solver(vs, sett, phys)
+        result = module.evp_solver(vs, conf, phys)
         jax.block_until_ready(result)
         jax.effects_barrier()
         output = capsys.readouterr().out
         match = re.search(r"evp resU, resSigma: 0 (\S+) (\S+)", output)
         assert match is not None, f"ERROR missing residual diagnostic: {output!r}"
         velocity_norm, stress_norm = map(float, match.groups())
-        u, v, *_ = uniform_momentum_subcycles(sett, phys, wind, 1, sett.evpBeta)
-        expected = 4 * 7 * sett.evpBeta**2 * (u * u + v * v)
+        u, v, *_ = uniform_momentum_subcycles(conf, phys, wind, 1, conf.evpBeta)
+        expected = 4 * 7 * conf.evpBeta**2 * (u * u + v * v)
         np.testing.assert_allclose(velocity_norm, expected, rtol=1e-6, atol=1e-14)
         # With zero strain/strength, one relaxation step changes each physical
         # stress by -sigma/alpha; scaling by alpha recovers its original norm.
@@ -248,7 +248,7 @@ def test_printed_evp_residual_matches_interior_velocity_norm(
 def test_sharded_evp_residual_sums_all_device_interiors(
     halo: ModuleType,
     evp_state: EVPStateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     capsys: pytest.CaptureFixture[str],
     partition_axis: int,
@@ -268,7 +268,7 @@ def test_sharded_evp_residual_sums_all_device_interiors(
     mesh = jax.make_mesh(dimensions, ("x", "y"))
     sharding = NamedSharding(mesh, P("x", "y"))
     wind = 0.1
-    sett = replace(sett, nEVPsteps=1, computeEvpResidual=True, printEvpResidual=True)
+    conf = replace(conf, nEVPsteps=1, computeEvpResidual=True, printEvpResidual=True)
     phys = replace(phys, basalDragK2=0)
     vs = evp_state(wind)
     vs = replace(vs, sigma1=vs.sigma1 + 4, sigma2=vs.sigma2 + 2, sigma12=vs.sigma12 + 3)
@@ -285,7 +285,7 @@ def test_sharded_evp_residual_sums_all_device_interiors(
             else importlib.import_module("veris.dynsolver").IceVelocities
         )
         solve = jax.shard_map(
-            lambda local: solver(local, sett, phys, axis_names=("x", "y")),
+            lambda local: solver(local, conf, phys, axis_names=("x", "y")),
             mesh=mesh,
             in_specs=P("x", "y"),
             out_specs=P("x", "y"),
@@ -296,8 +296,8 @@ def test_sharded_evp_residual_sums_all_device_interiors(
         output = capsys.readouterr().out
         matches = re.findall(r"evp resU, resSigma: 0 (\S+) (\S+)", output)
         assert matches, f"ERROR missing distributed residual diagnostic: {output!r}"
-        u, v, *_ = uniform_momentum_subcycles(sett, phys, wind, 1, sett.evpBeta)
-        expected_velocity = count * 4 * 7 * sett.evpBeta**2 * (u * u + v * v)
+        u, v, *_ = uniform_momentum_subcycles(conf, phys, wind, 1, conf.evpBeta)
+        expected_velocity = count * 4 * 7 * conf.evpBeta**2 * (u * u + v * v)
         # Principal stresses (4,2) give physical stresses (3,1); shear is 3.
         expected_stress = count * 4 * 7 * (3**2 + 1**2 + 3**2)
         for velocity_norm, stress_norm in matches:
@@ -317,17 +317,17 @@ def test_sharded_evp_residual_sums_all_device_interiors(
 def test_evp_configured_normal_relaxation_damps_uniform_stress(
     halo: ModuleType,
     evp_state: EVPStateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     relaxation: float,
 ) -> None:
     """Independent normal stress damping is read from physical constants."""
     solver = importlib.import_module("veris.evp_solver").evp_solver
-    sett = replace(sett, nEVPsteps=1)
+    conf = replace(conf, nEVPsteps=1)
     phys = replace(phys, evpStressRelaxation=relaxation)
     vs = evp_state()
     vs = replace(vs, sigma1=vs.sigma1 + 4, sigma2=vs.sigma2 + 2, sigma12=vs.sigma12 + 3)
-    result = solver(vs, sett, phys)
-    damping = (sett.evpAlpha - relaxation) / sett.evpAlpha
+    result = solver(vs, conf, phys)
+    damping = (conf.evpAlpha - relaxation) / conf.evpAlpha
     for field, initial in zip(result[2:], (4, 2, 3)):
         np.testing.assert_allclose(field, initial * damping, rtol=1e-14, atol=1e-15)

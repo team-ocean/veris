@@ -12,7 +12,7 @@ import pytest
 from conftest import StateFactory
 from jax.typing import ArrayLike
 
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 
@@ -61,7 +61,7 @@ def transport_state(state: StateFactory) -> Callable[[ArrayLike, ArrayLike], Any
 def test_cfl_one_is_exact_periodic_translation(
     transport: ModuleType,
     transport_state: Callable[[ArrayLike, ArrayLike], Any],
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     axis: int,
     velocity: int,
@@ -69,7 +69,7 @@ def test_cfl_one_is_exact_periodic_translation(
     interior = np.random.default_rng(42).uniform(0.2, 2, (5, 7))
     field = jnp.asarray(np.pad(interior, 2, mode="wrap"))
     vs = transport_state(velocity if axis == 0 else 0, velocity if axis == 1 else 0)
-    actual = transport.calc_Advection(vs, replace(sett, deltatTherm=1), phys, field)
+    actual = transport.calc_Advection(vs, replace(conf, deltatTherm=1), phys, field)
     expected = np.roll(interior, velocity, axis=axis)
     np.testing.assert_allclose(actual[2:-2, 2:-2], expected, atol=1e-14)
     assert float(jnp.sum(actual[2:-2, 2:-2])) == pytest.approx(interior.sum())
@@ -80,7 +80,7 @@ def test_cfl_one_is_exact_periodic_translation(
 def test_subcfl_transport_conserves_mass_and_bounds(
     transport: ModuleType,
     transport_state: Callable[[ArrayLike, ArrayLike], Any],
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     axis: int,
     velocity: float,
@@ -89,7 +89,7 @@ def test_subcfl_transport_conserves_mass_and_bounds(
     field = jnp.asarray(np.pad(interior, 2, mode="wrap"))
     vs = transport_state(velocity if axis == 0 else 0, velocity if axis == 1 else 0)
     actual = np.asarray(
-        transport.calc_Advection(vs, replace(sett, deltatTherm=1), phys, field)
+        transport.calc_Advection(vs, replace(conf, deltatTherm=1), phys, field)
     )[2:-2, 2:-2]
     assert actual.sum() == pytest.approx(interior.sum(), abs=1e-12)
     assert actual.min() >= interior.min() - 1e-14
@@ -111,7 +111,7 @@ def test_superbee_limiter_breakpoints(
 def test_intensive_field_translates_at_unit_cfl(
     transport: ModuleType,
     transport_state: Callable[[ArrayLike, ArrayLike], Any],
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     axis: int,
     velocity: int,
@@ -121,7 +121,7 @@ def test_intensive_field_translates_at_unit_cfl(
     field = jnp.asarray(np.pad(interior, 2, mode="wrap"))
     vs = transport_state(velocity if axis == 0 else 0, velocity if axis == 1 else 0)
     result = transport.calc_Advection(
-        vs, replace(sett, deltatTherm=1, extensiveFld=False), phys, field
+        vs, replace(conf, deltatTherm=1, extensiveFld=False), phys, field
     )
     np.testing.assert_allclose(
         result[2:-2, 2:-2], np.roll(interior, velocity, axis), atol=1e-14
@@ -132,7 +132,7 @@ def test_intensive_field_translates_at_unit_cfl(
 def test_intensive_constant_survives_divergent_velocity(
     transport: ModuleType,
     transport_state: Callable[[ArrayLike, ArrayLike], Any],
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     axis: int,
 ) -> None:
@@ -144,7 +144,7 @@ def test_intensive_constant_survives_divergent_velocity(
     vs = replace(vs, **{"uIce" if axis == 0 else "vIce": jnp.asarray(velocity)})
     field = jnp.full((9, 11), 2.3)
     result = transport.calc_Advection(
-        vs, replace(sett, deltatTherm=1, extensiveFld=False), phys, field
+        vs, replace(conf, deltatTherm=1, extensiveFld=False), phys, field
     )
     np.testing.assert_allclose(result, field, atol=1e-14)
 
@@ -152,7 +152,7 @@ def test_intensive_constant_survives_divergent_velocity(
 def test_intensive_meridional_sweep_uses_updated_zonal_field(
     transport: ModuleType,
     transport_state: Callable[[ArrayLike, ArrayLike], Any],
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
 ) -> None:
     """Cross-flow cannot change a tracer constant in the cross-flow direction."""
@@ -161,7 +161,7 @@ def test_intensive_meridional_sweep_uses_updated_zonal_field(
     v = np.broadcast_to(np.linspace(-0.2, 0.2, 7), (5, 7))
     vs = replace(transport_state(1, 0), vIce=jnp.asarray(np.pad(v, 2, mode="wrap")))
     result = transport.calc_Advection(
-        vs, replace(sett, deltatTherm=1, extensiveFld=False), phys, field
+        vs, replace(conf, deltatTherm=1, extensiveFld=False), phys, field
     )
     np.testing.assert_allclose(
         result[2:-2, 2:-2], np.roll(interior, 1, axis=0), atol=1e-14

@@ -8,12 +8,14 @@ import jax.numpy as jnp
 from jax import Array
 
 from veris._typing import State, jit
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 
-@partial(jit, static_argnames=["sett", "phys"])
-def AreaWS(vs: State, sett: Settings, phys: PhysicalConstants) -> tuple[Array, Array]:
+@partial(jit, static_argnames=["conf", "phys"])
+def AreaWS(
+    vs: State, conf: Configuration, phys: PhysicalConstants
+) -> tuple[Array, Array]:
     """calculate sea ice cover fraction centered around velocity points"""
 
     AreaW = 0.5 * (vs.Area + jnp.roll(vs.Area, 1, 0))
@@ -22,9 +24,9 @@ def AreaWS(vs: State, sett: Settings, phys: PhysicalConstants) -> tuple[Array, A
     return AreaW, AreaS
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def SeaIceMass(
-    vs: State, sett: Settings, phys: PhysicalConstants
+    vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[Array, Array, Array]:
     """calculate mass of the ice-snow system centered around c-, u-, and v-points"""
 

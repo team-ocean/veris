@@ -14,14 +14,14 @@ import jax.numpy as jnp
 from jax import Array
 
 from veris._typing import ArrayInput, State, SurfaceFluxResult, jit
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def solve4temp(
     vs: State,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     hIceActual: ArrayInput,
     hSnowActual: ArrayInput,
@@ -167,7 +167,7 @@ def solve4temp(
         return F_c, F_lh, F_ia, dFia_dTs
 
     # iterate for the temperatue to converge (Newton-Raphson method)
-    for _ in range(sett.surfaceTemperatureIterations):
+    for _ in range(conf.surfaceTemperatureIterations):
         F_c, F_lh, F_ia, dFia_dTs = fluxes(TSurfLoc)
 
         # update surface temperature as solution of

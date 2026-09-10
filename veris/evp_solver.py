@@ -10,7 +10,7 @@ from jax import Array
 
 from veris._typing import EVPCarry, State, jit
 from veris.averaging import c_point_to_z_point
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.dynamics_routines import (
     basal_drag_coeffs,
     ocean_drag_coeffs,
@@ -24,10 +24,10 @@ from veris.global_sum import global_sum
 from veris.physical_constants import PhysicalConstants
 
 
-@partial(jit, static_argnames=["sett", "phys", "axis_names"])
+@partial(jit, static_argnames=["conf", "phys", "axis_names"])
 def evp_solver(
     vs: State,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     *,
     axis_names: tuple[str, ...] = (),
@@ -66,7 +66,7 @@ def evp_solver(
             resU,
         ) = arg_body
 
-        if sett.computeEvpResidual:
+        if conf.computeEvpResidual:
             # save previous (p-1) iteration for residual computation
             sig11Pm1 = 0.5 * (sigma1 + sigma2)
             sig22Pm1 = 0.5 * (sigma1 - sigma2)
@@ -74,23 +74,23 @@ def evp_solver(
             uIcePm1 = uIce
             vIcePm1 = vIce
 
-        e11, e22, e12 = strainrates(vs, sett, phys, uIce, vIce)
-        zeta, _eta, press = viscosities(vs, sett, phys, e11, e22, e12)
-        # sig11, sig22, sig12 = stress(vs, sett, phys, e11, e22, e12, zeta, eta, press)
+        e11, e22, e12 = strainrates(vs, conf, phys, uIce, vIce)
+        zeta, _eta, press = viscosities(vs, conf, phys, e11, e22, e12)
+        # sig11, sig22, sig12 = stress(vs, conf, phys, e11, e22, e12, zeta, eta, press)
 
         # calculate adaptive relaxation parameters
-        if sett.useAdaptiveEVP:
+        if conf.useAdaptiveEVP:
             evpAlphaC = (
                 jnp.sqrt(
                     zeta
                     * EVPcFac
-                    / jnp.maximum(vs.SeaIceMassC, sett.aEVPmassMin)
+                    / jnp.maximum(vs.SeaIceMassC, conf.aEVPmassMin)
                     * vs.recip_rA
                 )
                 * vs.iceMask
             )
 
-            evpAlphaC = jnp.maximum(evpAlphaC, sett.aEVPalphaMin)
+            evpAlphaC = jnp.maximum(evpAlphaC, conf.aEVPalphaMin)
             denom1 = 1.0 / evpAlphaC
             denom2 = denom1
 
@@ -105,7 +105,7 @@ def evp_solver(
         # used to calculate the components of the stress tensor
         divergence = 2 * zeta * ep - press
         tension = 2 * zeta * em
-        shear = 2 * c_point_to_z_point(vs, sett, phys, zeta) * e12
+        shear = 2 * c_point_to_z_point(vs, conf, phys, zeta) * e12
 
         # step principal stress components
         sigma1 = (sigma1 * (evpAlphaC - evpRevFac) + divergence) * denom1 * vs.iceMask
@@ -120,7 +120,7 @@ def evp_solver(
         sig22 = 0.5 * (sigma1 - sigma2)
 
         # calculate adaptive relaxation parameter on z-points
-        if sett.useAdaptiveEVP:
+        if conf.useAdaptiveEVP:
             evpAlphaZ = 0.5 * (evpAlphaC + jnp.roll(evpAlphaC, 1, 1))
             evpAlphaZ = 0.5 * (evpAlphaZ + jnp.roll(evpAlphaZ, 1, 0))
             denom2 = 1.0 / evpAlphaZ
@@ -129,11 +129,11 @@ def evp_solver(
         sigma12 = (sigma12 * (evpAlphaZ - evpRevFac) + shear * recip_evpRevFac) * denom2
 
         # calculate divergence of stress tensor
-        stressDivX, stressDivY = stressdiv(vs, sett, phys, sig11, sig22, sigma12)
+        stressDivX, stressDivY = stressdiv(vs, conf, phys, sig11, sig22, sigma12)
 
         # calculate drag coefficients
-        cDrag = ocean_drag_coeffs(vs, sett, phys, uIce, vIce)
-        cBotC = basal_drag_coeffs(vs, sett, phys, uIce, vIce)
+        cDrag = ocean_drag_coeffs(vs, conf, phys, uIce, vIce)
+        cBotC = basal_drag_coeffs(vs, conf, phys, uIce, vIce)
 
         # Materialize shared stencil inputs on CUDA: this improves the measured
         # 256x256 P100 case, at a modest cost for small grids. Native CPU coupled
@@ -202,14 +202,14 @@ def evp_solver(
         ForcingY = ForcingY - 0.5 * (fuAtC + jnp.roll(fuAtC, 1, 1))
 
         # interpolate relaxation parameters to velocity points
-        if sett.useAdaptiveEVP:
+        if conf.useAdaptiveEVP:
             evpBetaU = 0.5 * (evpAlphaC + jnp.roll(evpAlphaC, 1, 0))
             evpBetaV = 0.5 * (evpAlphaC + jnp.roll(evpAlphaC, 1, 1))
 
-        betaFacU = evpBetaU * sett.recip_deltatDyn
-        betaFacV = evpBetaV * sett.recip_deltatDyn
-        betaFacP1U = betaFacU + sett.recip_deltatDyn
-        betaFacP1V = betaFacV + sett.recip_deltatDyn
+        betaFacU = evpBetaU * conf.recip_deltatDyn
+        betaFacV = evpBetaV * conf.recip_deltatDyn
+        betaFacP1U = betaFacU + conf.recip_deltatDyn
+        betaFacP1V = betaFacV + conf.recip_deltatDyn
 
         denomU = vs.SeaIceMassU * betaFacP1U + vs.AreaW * (
             0.5 * (cDrag + jnp.roll(cDrag, 1, 0)) * phys.cosWat
@@ -224,8 +224,8 @@ def evp_solver(
         denomV = jnp.where(denomV == 0, 1, denomV)
 
         # add lateral drag
-        if not sett.noSlip:
-            SideDragU, SideDragV = side_drag(vs, sett, phys, uIce, vIce)
+        if not conf.noSlip:
+            SideDragU, SideDragV = side_drag(vs, conf, phys, uIce, vIce)
 
             # the side drag coefficients are not multiplied by the area because they are calculated from
             # SeaIceMass which is calculated from hIceMean which includes the area
@@ -236,7 +236,7 @@ def evp_solver(
             vs.iceMaskU
             * (
                 betaFacU * vs.SeaIceMassU * uIce
-                + vs.SeaIceMassU * sett.recip_deltatDyn * uIceNm1
+                + vs.SeaIceMassU * conf.recip_deltatDyn * uIceNm1
                 + ForcingX
                 + stressDivX
             )
@@ -246,7 +246,7 @@ def evp_solver(
             vs.iceMaskV
             * (
                 betaFacV * vs.SeaIceMassV * vIce
-                + vs.SeaIceMassV * sett.recip_deltatDyn * vIceNm1
+                + vs.SeaIceMassV * conf.recip_deltatDyn * vIceNm1
                 + ForcingY
                 + stressDivY
             )
@@ -254,10 +254,10 @@ def evp_solver(
         )
 
         # fill overlaps
-        uIce, vIce = fill_overlap_uv(uIce, vIce, sett)
+        uIce, vIce = fill_overlap_uv(uIce, vIce, conf)
 
         # residual computation
-        if sett.computeEvpResidual:
+        if conf.computeEvpResidual:
             sig11Pm1 = (sig11 - sig11Pm1) * evpAlphaC * vs.iceMask
             sig22Pm1 = (sig22 - sig22Pm1) * evpAlphaC * vs.iceMask
             sig12Pm1 = (sigma12 - sig12Pm1) * evpAlphaZ  # * maskZ
@@ -283,7 +283,7 @@ def evp_solver(
             resSig = resSig.at[iEVP].set(global_sum(stress_norm, axis_names))
             resU = resU.at[iEVP].set(global_sum(velocity_norm, axis_names))
 
-            if sett.printEvpResidual:
+            if conf.printEvpResidual:
                 jax.debug.print(
                     "evp resU, resSigma: {i} {u:.6e} {s:.6e}",
                     i=iEVP,
@@ -312,13 +312,13 @@ def evp_solver(
         )
 
     # calculate parameter used for adaptive relaxation parameters
-    if sett.useAdaptiveEVP:
-        aEVPcStar = sett.aEVPcStar
-        EVPcFac = sett.deltatDyn * aEVPcStar * (jnp.pi * sett.aEvpCoeff) ** 2
+    if conf.useAdaptiveEVP:
+        aEVPcStar = conf.aEVPcStar
+        EVPcFac = conf.deltatDyn * aEVPcStar * (jnp.pi * conf.aEvpCoeff) ** 2
     else:
         EVPcFac = 0
 
-    denom1 = jnp.full_like(vs.iceMask, 1 / sett.evpAlpha)
+    denom1 = jnp.full_like(vs.iceMask, 1 / conf.evpAlpha)
     denom2 = denom1
 
     # copy previous time step (n-1) of ice velocities and stress tensor
@@ -331,13 +331,13 @@ def evp_solver(
     sigma12 = vs.sigma12
 
     # initialize adaptive EVP specific fields
-    evpAlphaC = jnp.full_like(vs.iceMask, sett.evpAlpha)
-    evpAlphaZ = jnp.full_like(vs.iceMask, sett.evpAlpha)
-    evpBetaU = jnp.full_like(vs.iceMask, sett.evpBeta)
-    evpBetaV = jnp.full_like(vs.iceMask, sett.evpBeta)
+    evpAlphaC = jnp.full_like(vs.iceMask, conf.evpAlpha)
+    evpAlphaZ = jnp.full_like(vs.iceMask, conf.evpAlpha)
+    evpBetaU = jnp.full_like(vs.iceMask, conf.evpBeta)
+    evpBetaV = jnp.full_like(vs.iceMask, conf.evpBeta)
 
-    resSig = jnp.zeros(sett.nEVPsteps, dtype=vs.iceMask.dtype)
-    resU = jnp.zeros(sett.nEVPsteps, dtype=vs.iceMask.dtype)
+    resSig = jnp.zeros(conf.nEVPsteps, dtype=vs.iceMask.dtype)
+    resU = jnp.zeros(conf.nEVPsteps, dtype=vs.iceMask.dtype)
 
     # set argument for the loop (the for_loop of jax can only take one argument)
     arg_body: EVPCarry = (
@@ -361,7 +361,7 @@ def evp_solver(
     )
 
     # calculate u^n, sigma^n and residuals
-    arg_body = jax.lax.fori_loop(0, sett.nEVPsteps, evp_solver_body, arg_body)
+    arg_body = jax.lax.fori_loop(0, conf.nEVPsteps, evp_solver_body, arg_body)
 
     # return uIce, vIce, sigma1, sigma2, sigma12
     return arg_body[1], arg_body[2], arg_body[5], arg_body[6], arg_body[7]

@@ -14,14 +14,14 @@ def test_directional_transport_contract(
 ) -> None:
     """Accept NumPy fields and concrete State, but reject invalid state arguments."""
     source = f"""from veris._typing import State
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from jax import Array
 from numpy import float64
 from numpy.typing import NDArray
 from veris.advection import calc_{direction}Flux
 from veris.physical_constants import PhysicalConstants
 
-def evaluate(state: {"State" if valid else "str"}, constants: Settings, field: NDArray[float64]) -> Array:
+def evaluate(state: {"State" if valid else "str"}, constants: Configuration, field: NDArray[float64]) -> Array:
     return calc_{direction}Flux(state, constants, PhysicalConstants(), field, field)
 """
     root = Path(__file__).resolve().parents[1]
@@ -52,12 +52,12 @@ from numpy import bool_, float64
 from numpy.typing import NDArray
 from veris.fill_overlap import fill_overlap
 from veris.heat_flux_CESM import dqnetdt
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
-def evaluate(sett: Settings, phys: PhysicalConstants, mask: NDArray[bool_], field: NDArray[float64]) -> tuple[Array, Array, Array]:
-    fill_overlap(mask, sett)
-    return dqnetdt(sett, phys, mask, field, field, field, field, field, field, field)
+def evaluate(conf: Configuration, phys: PhysicalConstants, mask: NDArray[bool_], field: NDArray[float64]) -> tuple[Array, Array, Array]:
+    fill_overlap(mask, conf)
+    return dqnetdt(conf, phys, mask, field, field, field, field, field, field, field)
 """
     path = tmp_path / "boolean_mask.py"
     path.write_text(source)

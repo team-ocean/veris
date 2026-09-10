@@ -2,7 +2,7 @@
 
 The `jax-only` source is the initial numerical reference. Tests belong in
 `tests/`, mirror physics modules, and execute real JAX kernels with float64
-arrays. Use frozen dataclasses for separate static Settings and PhysicalConstants and
+arrays. Use frozen dataclasses for separate static Configuration and PhysicalConstants and
 for the minimal array-only State PyTree. Initialize defaults from SETTINGS,
 PHYSICALCONSTANTS and VARIABLES; metadata also generates reference documentation.
 Output-only coupling diagnostics stay outside State. Compare against independent scalar equations,
@@ -25,7 +25,7 @@ add halo and transport checks; test dynamic and thermodynamic equations and
 smooth-region gradients; review test quality, measure coverage, and close gaps.
 Known broken branches need reproducing tests before production fixes.
 
-Type ownership: Settings, Setting and PRECISION live in configuration.py;
+Type ownership: Configuration, Setting and PRECISION live in configuration.py;
 PhysicalConstants and PhysicalConstant in physical_constants.py; Variable in
 variables.py; Diagnostics in diagnostics.py. PRECISION is a Setting metadata
 entry, not a class. State, OceanGeometry and shared kernel contracts live in

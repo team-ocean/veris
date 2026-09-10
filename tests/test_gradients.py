@@ -11,7 +11,7 @@ from jax import Array
 from jax.typing import ArrayLike
 
 from veris.area_mass import SeaIceMass
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 
@@ -19,7 +19,7 @@ from veris.physical_constants import PhysicalConstants
 @pytest.mark.parametrize("thickness", [0.1, 0.5, 2.0])
 def test_mass_gradient(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     snow: bool,
     thickness: float,
@@ -29,7 +29,7 @@ def test_mass_gradient(
             hIceMean=jnp.ones((3, 5)) * (1 if snow else value),
             hSnowMean=jnp.ones((3, 5)) * (value if snow else 0.2),
         )
-        return jnp.sum(SeaIceMass(vs, sett, phys)[0])
+        return jnp.sum(SeaIceMass(vs, conf, phys)[0])
 
     derivative = jax.grad(total)(thickness)
     finite_difference = (total(thickness + 1e-4) - total(thickness - 1e-4)) / 2e-4
@@ -41,7 +41,7 @@ def test_mass_gradient(
 
 @pytest.mark.parametrize("area", [0.3, 0.7, 0.95])
 def test_strength_area_sensitivity_matches_constitutive_law(
-    state: StateFactory, sett: Settings, phys: PhysicalConstants, area: float
+    state: StateFactory, conf: Configuration, phys: PhysicalConstants, area: float
 ) -> None:
     """Smooth Hibler strength has dP/dA = cStar P at positive ice thickness."""
     from veris.dynamics_routines import SeaIceStrength
@@ -52,7 +52,7 @@ def test_strength_area_sensitivity_matches_constitutive_law(
             hIceMean=1.2 * jnp.ones((3, 5)),
             iceMask=jnp.ones((3, 5)),
         )
-        return jnp.sum(SeaIceStrength(vs, sett, phys))
+        return jnp.sum(SeaIceStrength(vs, conf, phys))
 
     derivative = jax.grad(total)(area)
     delta = 1e-5
@@ -65,7 +65,7 @@ def test_strength_area_sensitivity_matches_constitutive_law(
 @pytest.mark.parametrize("snow", [0.0, 0.2])
 def test_surface_temperature_longwave_sensitivity(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     ice: float,
     snow: float,
@@ -98,7 +98,7 @@ def test_surface_temperature_longwave_sensitivity(
         return jnp.mean(
             solve4temp(
                 current,
-                sett,
+                conf,
                 phys,
                 ice * ones,
                 snow * ones,

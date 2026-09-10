@@ -3,7 +3,7 @@
 ## Objective and current evidence
 
 Implement the Goal in AGENTS.md on `jax-only`. The existing `State` and
-`Settings` in `veris/state.py` are named tuples, `settings.py` mixes physical
+`Configuration` in `veris/state.py` are named tuples, `settings.py` mixes physical
 constants with configuration, and `variables.py` has no allocation or output
 metadata. The artificial setup allocates 84 fields, including output-only
 diagnostics. Bulk flux functions and `solve4temp` contain additional local
@@ -12,7 +12,7 @@ mutable dictionary. These are all migration scope, not just container syntax.
 
 ## Proposed architecture
 
-Use three frozen dataclasses: `Settings`, `PhysicalConstants`, and JAX PyTree
+Use three frozen dataclasses: `Configuration`, `PhysicalConstants`, and JAX PyTree
 `State`. Pass settings and constants explicitly to numerical routines; neither
 belongs among the array leaves of State. Keep settings and constants hashable
 static JIT arguments, preserving current coefficient differentiation behavior.
@@ -28,7 +28,7 @@ a combined settings facade that hides constants behind settings attributes.
 PhysicalConstants holds material properties, physical and empirical law
 coefficients, albedos, emissivities, phase-change quantities, gas constants,
 reference salinities, physical conversion factors, physical thresholds,
-regularization scales and forcing heights. Settings holds execution
+regularization scales and forcing heights. Configuration holds execution
 choices, timesteps, iteration counts, solver controls, regularization values,
 solver convergence safeguards and experiment configuration. Preserve
 different established parameterizations even where their constants differ;

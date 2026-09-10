@@ -29,7 +29,7 @@ Scenario controls
 
 ``ARTIFICIAL_SETTINGS`` and the frozen ``ArtificialSettings`` class are defined
 in this setup. They describe prescribed initial fields and example controls;
-they do not add fields to model Settings, PhysicalConstants or State.
+they do not add fields to model Configuration, PhysicalConstants or State.
 This includes ``saltOcn_ref``, the prescribed ocean salinity, which can be
 changed through ``scenario_overrides``.
 ``initialize(scenario_overrides={...})`` accepts these controls except

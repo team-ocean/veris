@@ -1,5 +1,22 @@
 # Development log
 
+## 2026-09-10 — Configuration class and conf arguments
+
+- Renamed Settings to Configuration in configuration.py and its public re-export,
+  imports, annotations, initialization, tests, documentation and benchmarks.
+- Renamed every old object identifier sett to conf, including keyword calls,
+  pytest fixtures and JAX static_argnames. SETTINGS and Setting metadata remain.
+- Updated tests first and observed the expected missing-Configuration import
+  failure. Independent review found no correctness issues; grammar notes fixed.
+- Ruff, formatting, annotation checks, ty and warnings-as-errors Sphinx build pass.
+  The initial documentation build required network access for intersphinx.
+- Initial full CPU run had only the sandbox-denied local socket failure in the
+  two-process reduction test. The unrestricted full CPU suite passes 693/693.
+  Maintained coverage passes the 80% gate. Evidence is in
+  test_logs/configuration-rename-full-cpu.log and configuration-rename-coverage.json.
+- Final identifier audit and git diff --check pass. Committed on jax-only;
+  no remote push performed.
+
 ## 2026-09-10 — explicit metadata owners and OceanGeometry
 
 - Applied the user's precise type locations: Setting/configuration.py,

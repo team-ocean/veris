@@ -1,7 +1,7 @@
 """Standalone JAX bulk heat-flux kernels, retaining the original CESM equations.
 
 Array inputs preserve the original shapes and units documented per function.
-Settings and physical constants are supplied as separate frozen dataclasses.
+Configuration and physical constants are supplied as separate frozen dataclasses.
 The return casts describe JIT's array outputs for formulas whose eager NumPy
 or Python inputs would otherwise infer NumPy arrays or scalars. They perform no
 conversion and leave the original equations unchanged.
@@ -15,7 +15,7 @@ from jax import Array
 from jax.typing import ArrayLike
 
 from veris._typing import ArrayInput, CESMFluxes, HeatFluxes, MaskInput, jit
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 
@@ -129,9 +129,9 @@ def compute_z_level(
     return alt[:, :, -1]
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def dqnetdt(
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     mask: MaskInput,
     ps: ArrayInput,
@@ -188,9 +188,9 @@ def dqnetdt(
     return cast(Array, dqir_dt), cast(Array, dqh_dt), cast(Array, dqe_dt)
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def net_lw_ocn(
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     mask: MaskInput,
     lat: ArrayInput,
@@ -233,7 +233,7 @@ def net_lw_ocn(
             phys.waterVaporDryAirMassRatio
             + (1.0 - phys.waterVaporDryAirMassRatio) * qbot[...]
         )
-        + sett.eps2
+        + conf.eps2
     )
 
     return cast(
@@ -293,9 +293,9 @@ def psixhu(xd: ArrayLike) -> Array:
     return 2.0 * npx.log((1.0 + xd * xd) / 2.0)
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def flux_atmOcn(
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     mask: MaskInput,
     rbot: ArrayInput,
@@ -522,9 +522,9 @@ def flux_atmOcn(
     )
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def flux_atmOcn_simple(
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     mask: MaskInput,
     ps: ArrayInput,

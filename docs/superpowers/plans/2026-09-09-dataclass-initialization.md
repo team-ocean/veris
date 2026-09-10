@@ -2,7 +2,7 @@
 
 > **For agentic workers:** Use superpowers:subagent-driven-development or superpowers:executing-plans to implement tasks with review checkpoints.
 
-**Goal:** Implement frozen Settings, PhysicalConstants and minimal State, allocated from documented registries at initialization.
+**Goal:** Implement frozen Configuration, PhysicalConstants and minimal State, allocated from documented registries at initialization.
 
 **Architecture:** Explicit typed frozen dataclasses derive defaults from metadata dictionaries. Kernels consume separate configuration and constants; State is an array-only JAX PyTree. Diagnostics are separate outputs.
 
@@ -21,12 +21,12 @@
 ## 1. Configuration registries and classes
 
 Files: new `veris/configuration.py`, `veris/physical_constants.py`, metadata support;
-`veris/settings.py` and `veris/state.py` now re-export the separated Settings class.
+`veris/settings.py` and `veris/state.py` now re-export the separated Configuration class.
 Tests: `tests/test_configuration.py` and physical constants tests.
 
-- [x] Write tests asserting `is_dataclass(Settings())`, frozen mutation failure,
+- [x] Write tests asserting `is_dataclass(Configuration())`, frozen mutation failure,
   disjoint registry keys, parity with existing defaults, hashability, scalar
-  validation and `replace(Settings(), deltatDyn=600).recip_deltatDyn == 1/600`.
+  validation and `replace(Configuration(), deltatDyn=600).recip_deltatDyn == 1/600`.
 - [x] Run focused tests and record failure before implementation.
 - [x] Define namedtuple metadata with default/type/description; generate explicit
   typed source fields whose defaults refer to registries, then maintain source.

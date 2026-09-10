@@ -14,11 +14,11 @@ def test_concrete_mass_contract(tmp_path: Path, valid: bool) -> None:
     source = """from jax import Array
 from veris.area_mass import SeaIceMass
 from veris._typing import State
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 def evaluate(ice: STATE_TYPE, constants: PhysicalConstants) -> tuple[Array, Array, Array]:
-    return SeaIceMass(ice, Settings(), constants)
+    return SeaIceMass(ice, Configuration(), constants)
 """.replace("STATE_TYPE", "State" if valid else "str")
     path = tmp_path / "contract.py"
     path.write_text(source)
@@ -45,7 +45,7 @@ def test_mutable_static_settings_are_rejected(tmp_path: Path) -> None:
     path = tmp_path / "unhashable.py"
     path.write_text("""from dataclasses import dataclass
 from veris._typing import State
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 from veris.area_mass import SeaIceMass
 
@@ -94,7 +94,7 @@ def test_kernels_use_concrete_model_annotations(module_name: str) -> None:
     from typing import get_type_hints
 
     from veris._typing import State
-    from veris.configuration import Settings
+    from veris.configuration import Configuration
 
     module = importlib.import_module(f"veris.{module_name}")
     checked = 0
@@ -106,7 +106,7 @@ def test_kernels_use_concrete_model_annotations(module_name: str) -> None:
             continue
         function = inspect.unwrap(function)
         annotations = get_type_hints(function)
-        for argument, expected in (("vs", State), ("sett", Settings)):
+        for argument, expected in (("vs", State), ("conf", Configuration)):
             if argument in inspect.signature(function).parameters:
                 assert annotations.get(argument) is expected, (
                     f"ERROR {module_name}.{function.__name__} {argument} must use {expected.__name__}"

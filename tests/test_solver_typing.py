@@ -18,17 +18,17 @@ from veris._typing import State
 from veris.evp_solver import evp_solver
 from veris.dynsolver import IceVelocities
 
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
-def evaluate(state: State, constants: Settings, phys: PhysicalConstants) -> RETURN_TYPE:
+def evaluate(state: State, constants: Configuration, phys: PhysicalConstants) -> RETURN_TYPE:
     return SOLVER(state, constants, phys)
 """
     dispatcher = contract == "dispatcher-result"
     source = source.replace("SOLVER", "IceVelocities" if dispatcher else "evp_solver")
     if contract == "iteration-count":
         count = "1.5" if not valid else "10"
-        source += f"\nsettings = Settings(nEVPsteps={count})\n"
+        source += f"\nsettings = Configuration(nEVPsteps={count})\n"
     result_type = (
         "tuple[Array, Array]"
         if contract != "iteration-count" and not valid

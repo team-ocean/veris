@@ -2,20 +2,20 @@ Model settings
 ==============
 
 ``veris.configuration.SETTINGS`` defines defaults, scalar types and descriptions
-for the frozen ``Settings`` dataclass. Numerical controls and execution choices
+for the frozen ``Configuration`` dataclass. Numerical controls and execution choices
 are separate from :doc:`physical-constants`. Grid extents, boundary-condition
 switches, timesteps, solver iterations and convergence safeguards stay in
-Settings. Physical thresholds, regularization scales and forcing reference
+Configuration. Physical thresholds, regularization scales and forcing reference
 heights are fields of PhysicalConstants.
 
 Use immutable updates; dependent reciprocals are recomputed::
 
    from dataclasses import replace
-   from veris.configuration import Settings
-   settings = replace(Settings(), deltatDyn=600, nEVPsteps=20)
+   from veris.configuration import Configuration
+   settings = replace(Configuration(), deltatDyn=600, nEVPsteps=20)
    assert settings.recip_deltatDyn == 1 / 600
 
-Settings are static JIT arguments; changing a value may trigger compilation.
+Configuration objects are static JIT arguments; changing a value may trigger compilation.
 The artificial example overrides timesteps and EVP iteration count.
 
 Floating-point precision

@@ -22,10 +22,10 @@ from veris._typing import State
 from numpy import float64
 from numpy.typing import NDArray
 from veris.dynamics_routines import SeaIceStrength, stress
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
-def evaluate(state: {"State" if valid else "str"}, settings: Settings, phys: PhysicalConstants, field: NDArray[float64]) -> {returns}:
+def evaluate(state: {"State" if valid else "str"}, settings: Configuration, phys: PhysicalConstants, field: NDArray[float64]) -> {returns}:
     return {expression}
 """
     root = Path(__file__).resolve().parents[1]

@@ -8,20 +8,20 @@ import jax.numpy as jnp
 from jax import Array
 
 from veris._typing import State, jit
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.dynamics_routines import ocean_drag_coeffs
 from veris.fill_overlap import fill_overlap_uv
 from veris.physical_constants import PhysicalConstants
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def OceanStressUV(
-    vs: State, sett: Settings, phys: PhysicalConstants
+    vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[Array, Array]:
     """calculate stresses on ocean surface from ocean and ice velocities"""
 
     # get linear drag coefficient at c-point
-    cDrag = ocean_drag_coeffs(vs, sett, phys, vs.uIce, vs.vIce)
+    cDrag = ocean_drag_coeffs(vs, conf, phys, vs.uIce, vs.vIce)
 
     # use turning angle (default is zero)
     sinWat = jnp.sin(jnp.deg2rad(phys.waterTurnAngle))
@@ -44,6 +44,6 @@ def OceanStressUV(
     ) * sinWat * 0.5 * (cDrag * duAtC + jnp.roll(cDrag * duAtC, 1, 0))
 
     # fill overlaps
-    OceanStressU, OceanStressV = fill_overlap_uv(OceanStressU, OceanStressV, sett)
+    OceanStressU, OceanStressV = fill_overlap_uv(OceanStressU, OceanStressV, conf)
 
     return OceanStressU, OceanStressV

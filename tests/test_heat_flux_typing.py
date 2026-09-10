@@ -46,14 +46,14 @@ def test_bulk_heat_flux_contract(tmp_path: Path, case: str) -> None:
     """Accept initialized configuration, NumPy fields, and scalar helpers."""
     source = """import numpy as np
 from jax import Array
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 from veris.heat_flux_CESM import dqnetdt, get_press_levs, qsat, qsat_august_eqn, cdn
 from veris.heat_flux_MITgcm import bulkf_formula_lanl
 
-def evaluate(sett: Settings, phys: PhysicalConstants) -> tuple[Array, Array, Array]:
+def evaluate(conf: Configuration, phys: PhysicalConstants) -> tuple[Array, Array, Array]:
     field = np.ones((2, 3))
-    return dqnetdt(sett, phys, field, field, field, field, field, field, field, field)
+    return dqnetdt(conf, phys, field, field, field, field, field, field, field, field)
 
 def pressure_levels() -> Array:
     return get_press_levs(np.ones((2, 3)), np.ones(4), np.ones(4))
@@ -63,15 +63,15 @@ def scalar_helpers(phys: PhysicalConstants) -> tuple[Array, Array, Array]:
 """
     expected = None
     if case == "missing-settings":
-        source = source.replace("dqnetdt(sett, phys,", "dqnetdt(None, phys,")
-        expected = ("invalid-argument-type", "Settings")
+        source = source.replace("dqnetdt(conf, phys,", "dqnetdt(None, phys,")
+        expected = ("invalid-argument-type", "Configuration")
     elif case == "wrong-coefficient":
         source += '\nconstants = PhysicalConstants(cpdair="invalid")\n'
         expected = ("invalid-argument-type", "float")
     elif case == "wrong-arity":
         source += """
-def wrong_length(sett: Settings, phys: PhysicalConstants, field: Array) -> tuple[Array, Array]:
-    return bulkf_formula_lanl(sett, phys, field, field, field, field, field, field)
+def wrong_length(conf: Configuration, phys: PhysicalConstants, field: Array) -> tuple[Array, Array]:
+    return bulkf_formula_lanl(conf, phys, field, field, field, field, field, field)
 """
         expected = ("invalid-return-type", "tuple of length 9")
     _check_contract(tmp_path, source, expected)
@@ -84,25 +84,25 @@ def test_thermodynamic_heat_flux_contract(tmp_path: Path, case: str) -> None:
     """Check concrete State, configuration, and thermodynamic result types."""
     source = f"""import numpy as np
 from jax import Array
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 from veris._typing import GrowthResult
 from veris._typing import State
 from veris.growth import Growth
 from veris.solve4temp import solve4temp
 
-def surface_fluxes(state: {"str" if case == "wrong-atmosphere" else "State"}, sett: Settings, phys: PhysicalConstants) -> tuple[Array, Array, Array, Array, Array]:
+def surface_fluxes(state: {"str" if case == "wrong-atmosphere" else "State"}, conf: Configuration, phys: PhysicalConstants) -> tuple[Array, Array, Array, Array, Array]:
     field = np.ones((2, 3))
-    return solve4temp(state, sett, phys, field, field, field, field)
+    return solve4temp(state, conf, phys, field, field, field, field)
 
-def growth(state: State, sett: Settings, phys: PhysicalConstants) -> {"tuple[Array, Array]" if case == "wrong-arity" else "GrowthResult"}:
-    return Growth(state, sett, phys)
+def growth(state: State, conf: Configuration, phys: PhysicalConstants) -> {"tuple[Array, Array]" if case == "wrong-arity" else "GrowthResult"}:
+    return Growth(state, conf, phys)
 """
     expected = None
     if case == "wrong-atmosphere":
         expected = ("invalid-argument-type", "State")
     elif case == "wrong-category-count":
-        source += "\nsettings = Settings(nITC=1.5)\n"
+        source += "\nsettings = Configuration(nITC=1.5)\n"
         expected = ("invalid-argument-type", "int")
     elif case == "wrong-arity":
         expected = ("invalid-return-type", "tuple of length 11")

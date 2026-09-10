@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from conftest import StateFactory
 
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.dynamics_routines import (
     SeaIceStrength,
     basal_drag_coeffs,
@@ -21,12 +21,12 @@ from veris.physical_constants import PhysicalConstants
 
 
 def test_ice_strength_concentration_and_land(
-    state: StateFactory, sett: Settings, phys: PhysicalConstants
+    state: StateFactory, conf: Configuration, phys: PhysicalConstants
 ) -> None:
     ice = np.array([[0, 1, 2], [3, 1, 2]], dtype=float)
     area = np.array([[0, 0.5, 1], [0.8, 1, 0.9]])
     mask = np.array([[1, 1, 1], [1, 0, 0]])
-    result = SeaIceStrength(state(hIceMean=ice, Area=area, iceMask=mask), sett, phys)
+    result = SeaIceStrength(state(hIceMean=ice, Area=area, iceMask=mask), conf, phys)
     expected = np.zeros_like(ice)
     for i, j in np.ndindex(ice.shape):
         if mask[i, j]:
@@ -41,7 +41,7 @@ def test_ice_strength_concentration_and_land(
 @pytest.mark.parametrize("velocity", [(0, 0), (0.03, 0.04), (0.3, -0.4)])
 def test_ocean_drag_relative_speed_floor_and_land(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     coriolis: float,
     velocity: tuple[float, float],
@@ -59,7 +59,7 @@ def test_ocean_drag_relative_speed_floor_and_land(
         iceMask=mask,
     )
     result = ocean_drag_coeffs(
-        vs, sett, phys, (0.2 + velocity[0]) * ones, (-0.1 + velocity[1]) * ones
+        vs, conf, phys, (0.2 + velocity[0]) * ones, (-0.1 + velocity[1]) * ones
     )
     coefficient = phys.waterIceDrag_south if coriolis < 0 else phys.waterIceDrag
     expected = max(phys.cDragMin, phys.rhoSea * coefficient * np.hypot(*velocity))
@@ -71,7 +71,7 @@ def test_ocean_drag_relative_speed_floor_and_land(
 @pytest.mark.parametrize("velocity", [(0, 0), (0.3, -0.4)])
 def test_basal_drag_regularized_keel_threshold(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     area: float,
     velocity: tuple[float, float],
@@ -85,7 +85,7 @@ def test_basal_drag_regularized_keel_threshold(
         maskInU=ones,
         maskInV=ones,
     )
-    result = basal_drag_coeffs(vs, sett, phys, velocity[0] * ones, velocity[1] * ones)
+    result = basal_drag_coeffs(vs, conf, phys, velocity[0] * ones, velocity[1] * ones)
     expected = 0
     if area > 0.01:
         speed = np.sqrt(0.5 * np.hypot(*velocity) ** 2 + phys.basalDragU0**2)
@@ -105,12 +105,12 @@ def test_basal_drag_regularized_keel_threshold(
 @pytest.mark.parametrize("velocity", [(0, 0), (0.3, 0.4)])
 def test_side_drag_coastline_and_neighbor_counts(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     coastline: bool,
     velocity: tuple[float, float],
 ) -> None:
-    sett = replace(sett, use_coastline=coastline)
+    conf = replace(conf, use_coastline=coastline)
     ones = np.ones((4, 7))
     mask_u, mask_v = ones.copy(), ones.copy()
     mask_u[0, :] = 0
@@ -125,7 +125,7 @@ def test_side_drag_coastline_and_neighbor_counts(
         Fu=0.75 * ones,
         Fv=1.25 * ones,
     )
-    result = side_drag(vs, sett, phys, velocity[0] * ones, velocity[1] * ones)
+    result = side_drag(vs, conf, phys, velocity[0] * ones, velocity[1] * ones)
     expected_u, expected_v = np.zeros_like(ones), np.zeros_like(ones)
     for i, j in np.ndindex(ones.shape):
         neighbors_u = mask_u[i, j] * (2 - mask_u[i - 1, j] - mask_u[(i + 1) % 4, j])
@@ -143,12 +143,12 @@ def test_side_drag_coastline_and_neighbor_counts(
 @pytest.mark.parametrize("coefficients", [(0, 0, 0, 0), (2, 3, 4, -1), (0, -2, 2, 0)])
 def test_affine_cartesian_strain_tensor(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     boundary: tuple[bool, bool],
     coefficients: tuple[int, int, int, int],
 ) -> None:
-    sett = replace(sett, noSlip=boundary[0], secondOrderBC=boundary[1])
+    conf = replace(conf, noSlip=boundary[0], secondOrderBC=boundary[1])
     x, y = np.indices((6, 8), dtype=float)
     ones = np.ones_like(x)
     a, b, c, d = coefficients
@@ -166,7 +166,7 @@ def test_affine_cartesian_strain_tensor(
         iceMaskU=ones,
         iceMaskV=ones,
     )
-    result = strainrates(vs, sett, phys, a * x + b * y + 0.2, c * x + d * y - 0.3)
+    result = strainrates(vs, conf, phys, a * x + b * y + 0.2, c * x + d * y - 0.3)
     for value, reference in zip(result, (a, d, 0.5 * (b + c))):
         assert value.shape == x.shape
         np.testing.assert_allclose(value[1:-1, 1:-1], reference, atol=1e-14)
@@ -177,13 +177,13 @@ def test_affine_cartesian_strain_tensor(
 @pytest.mark.parametrize("tensile", [0, 0.2])
 def test_uniform_viscosity_and_stress_scalar_equations(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     strain: tuple[float, float, float],
     replacement: int,
     tensile: float,
 ) -> None:
-    sett = replace(sett, pressReplFac=replacement)
+    conf = replace(conf, pressReplFac=replacement)
     phys = replace(phys, tensileStrFac=tensile)
     ones = np.ones((3, 5))
     strength = 1500.0
@@ -199,11 +199,11 @@ def test_uniform_viscosity_and_stress_scalar_equations(
         * (1 - tensile)
         * (1 - replacement + replacement * delta / (delta + phys.deltaMin))
     )
-    result = viscosities(vs, sett, phys, e11 * ones, e22 * ones, e12 * ones)
+    result = viscosities(vs, conf, phys, e11 * ones, e22 * ones, e12 * ones)
     for value, reference in zip(result, (bulk, shear, pressure)):
         assert value.shape == ones.shape
         np.testing.assert_allclose(value, reference, rtol=1e-13)
-    tensor = stress(vs, sett, phys, e11 * ones, e22 * ones, e12 * ones, *result)
+    tensor = stress(vs, conf, phys, e11 * ones, e22 * ones, e12 * ones, *result)
     expected = (
         bulk * (e11 + e22) + shear * (e11 - e22) - pressure / 2,
         bulk * (e11 + e22) - shear * (e11 - e22) - pressure / 2,
@@ -216,7 +216,7 @@ def test_uniform_viscosity_and_stress_scalar_equations(
 
 @pytest.mark.parametrize("constant", [False, True])
 def test_stress_divergence_affine_cartesian_tensor(
-    state: StateFactory, sett: Settings, phys: PhysicalConstants, constant: bool
+    state: StateFactory, conf: Configuration, phys: PhysicalConstants, constant: bool
 ) -> None:
     x, y = np.indices((6, 8), dtype=float)
     dx, dy = 2.0, 3.0
@@ -235,7 +235,7 @@ def test_stress_divergence_affine_cartesian_tensor(
     else:
         tensor = (2 * dx * x, -3 * dy * y, 0.5 * dx * x + 4 * dy * y)
         expected = (6, -2.5)
-    for value, reference in zip(stressdiv(vs, sett, phys, *tensor), expected):
+    for value, reference in zip(stressdiv(vs, conf, phys, *tensor), expected):
         assert value.shape == x.shape
         region = value if constant else value[1:-1, 1:-1]
         np.testing.assert_allclose(region, reference, atol=1e-13)

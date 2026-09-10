@@ -16,7 +16,7 @@ from conftest import StateFactory
 from jax import Array
 from jax.typing import ArrayLike
 
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.dynamics_routines import basal_drag_coeffs
 from veris.physical_constants import PhysicalConstants
 
@@ -43,7 +43,7 @@ def basal_case(
 
 
 def stable_reference(
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     thickness: float,
     area: float,
@@ -66,7 +66,7 @@ def stable_reference(
 @pytest.mark.parametrize("thickness", [1.0, 10.0, 90.0])
 def test_basal_drag_finite_and_matches_stable_keel_law(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     dtype: type[np.float32] | type[np.float64],
     area: float,
@@ -74,14 +74,14 @@ def test_basal_drag_finite_and_matches_stable_keel_law(
 ) -> None:
     reference_phys = replace(phys, basalDragK2=0.7)
     phys = replace(reference_phys, dtype=np.dtype(dtype).name)
-    sett = replace(sett, dtype=np.dtype(dtype).name)
+    conf = replace(conf, dtype=np.dtype(dtype).name)
     vs = basal_case(state, dtype, area, thickness)
     u = jnp.full(vs.Area.shape, 0.03, dtype=dtype)
     v = jnp.full(vs.Area.shape, 0.04, dtype=dtype)
-    coefficient = basal_drag_coeffs(vs, sett, phys, u, v)
+    coefficient = basal_drag_coeffs(vs, conf, phys, u, v)
     expected = (
         stable_reference(
-            sett,
+            conf,
             reference_phys,
             thickness,
             float(dtype(area)),
@@ -104,7 +104,7 @@ def test_basal_drag_finite_and_matches_stable_keel_law(
 @pytest.mark.parametrize("thickness", [1.0, 10.0, 90.0])
 def test_basal_drag_gradients_are_finite_and_match_analytic_law(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     dtype: type[np.float32] | type[np.float64],
     area: float,
@@ -112,7 +112,7 @@ def test_basal_drag_gradients_are_finite_and_match_analytic_law(
 ) -> None:
     reference_phys = replace(phys, basalDragK2=0.7)
     phys = replace(reference_phys, dtype=np.dtype(dtype).name)
-    sett = replace(sett, dtype=np.dtype(dtype).name)
+    conf = replace(conf, dtype=np.dtype(dtype).name)
     vs = basal_case(state, dtype, area, thickness)
 
     def mean_drag(height: ArrayLike, velocity: ArrayLike) -> Array:
@@ -120,7 +120,7 @@ def test_basal_drag_gradients_are_finite_and_match_analytic_law(
         return jnp.mean(
             basal_drag_coeffs(
                 current,
-                sett,
+                conf,
                 phys,
                 jnp.full_like(vs.Area, velocity),
                 jnp.full_like(vs.Area, 0.04),
@@ -132,7 +132,7 @@ def test_basal_drag_gradients_are_finite_and_match_analytic_law(
     )
     expected = (
         stable_reference(
-            sett,
+            conf,
             reference_phys,
             thickness,
             float(dtype(area)),
@@ -152,19 +152,19 @@ def test_basal_drag_gradients_are_finite_and_match_analytic_law(
 @pytest.mark.parametrize("thickness", [1.0, 10.0, 90.0])
 def test_disabled_basal_drag_is_zero_with_zero_thickness_sensitivity(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     dtype: type[np.float32] | type[np.float64],
     thickness: float,
 ) -> None:
     phys = replace(phys, basalDragK2=0, dtype=np.dtype(dtype).name)
-    sett = replace(sett, dtype=np.dtype(dtype).name)
+    conf = replace(conf, dtype=np.dtype(dtype).name)
     vs = basal_case(state, dtype, 1, thickness)
     velocity = jnp.full_like(vs.Area, 0.03)
 
     def mean_drag(height: ArrayLike) -> Array:
         current = replace(vs, hIceMean=jnp.full_like(vs.hIceMean, height))
-        return jnp.mean(basal_drag_coeffs(current, sett, phys, velocity, velocity))
+        return jnp.mean(basal_drag_coeffs(current, conf, phys, velocity, velocity))
 
     value, derivative = jax.value_and_grad(mean_drag)(
         jnp.asarray(thickness, dtype=dtype)
@@ -177,7 +177,7 @@ def test_disabled_basal_drag_is_zero_with_zero_thickness_sensitivity(
 @pytest.mark.parametrize("minimum_area", [0.1, 0.6])
 def test_basal_drag_settings_control_smoothing_and_active_area(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     smoothing: float,
     minimum_area: float,
@@ -187,7 +187,7 @@ def test_basal_drag_settings_control_smoothing_and_active_area(
     phys = replace(phys, basalDragK2=0.7)
     vs = basal_case(state, np.float64, 0.5, 0.5)
     u, v = np.full((3, 5), 0.03), np.full((3, 5), 0.04)
-    actual = basal_drag_coeffs(vs, sett, phys, u, v)
+    actual = basal_drag_coeffs(vs, conf, phys, u, v)
     # Thickness equals critical keel height, so softplus(0) = log(2).
     speed = np.sqrt(0.5 * (0.03**2 + 0.04**2) + phys.basalDragU0**2)
     expected = (

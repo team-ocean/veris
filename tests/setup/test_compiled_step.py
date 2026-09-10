@@ -24,14 +24,14 @@ def test_compiled_step_matches_evolving_python_driver(
     assert not hasattr(artificial.step, "lower"), "ERROR preserve the Python driver"
 
     assert hasattr(step, "lower"), "ERROR coupled step must expose compiled lowering"
-    initial, sett, phys = initialize(6, 9)
-    sett = replace(sett, useAdaptiveEVP=adaptive)
+    initial, conf, phys = initialize(6, 9)
+    conf = replace(conf, useAdaptiveEVP=adaptive)
     pattern = jnp.sin(jnp.arange(initial.uWind.size).reshape(initial.uWind.shape))
     initial = replace(initial, uWind=initial.uWind + 0.3 * pattern)
     expected = actual = initial
     for cooling in (50.0, 125.0, 80.0):
-        expected = step.__wrapped__(expected, sett, phys, cooling)
-        actual = step(actual, sett, phys, cooling)
+        expected = step.__wrapped__(expected, conf, phys, cooling)
+        actual = step(actual, conf, phys, cooling)
         for metadata in fields(initial):
             name = metadata.name
             left, right = getattr(actual, name), getattr(expected, name)
@@ -51,13 +51,13 @@ def test_compiled_step_cooling_jvp_vjp_and_finite_difference(halo: ModuleType) -
     initialize, step = artificial.initialize, artificial.compiled_step
 
     assert hasattr(step, "lower"), "ERROR coupled step must expose compiled lowering"
-    initial, sett, phys = initialize(5, 7)
+    initial, conf, phys = initialize(5, 7)
 
     def compiled(cooling: jax.Array) -> jax.Array:
-        return step(initial, sett, phys, cooling).hIceMean[2:-2, 2:-2].sum()
+        return step(initial, conf, phys, cooling).hIceMean[2:-2, 2:-2].sum()
 
     def reference(cooling: jax.Array) -> jax.Array:
-        return step.__wrapped__(initial, sett, phys, cooling).hIceMean[2:-2, 2:-2].sum()
+        return step.__wrapped__(initial, conf, phys, cooling).hIceMean[2:-2, 2:-2].sum()
 
     cooling = jnp.asarray(100.0)
     tangent = jnp.asarray(1.0)

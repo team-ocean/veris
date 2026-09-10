@@ -4,7 +4,7 @@ Audited 2026-09-09 against maintained `veris/*.py` and
 `veris/setup/artificial.py`, before the approved dataclass migration. This is
 an implementation inventory, not the generated end-user registry reference.
 Defaults below preserve current formulas, including independent rounded
-coefficients. `P` means PhysicalConstants; `S` means Settings. Names for newly
+coefficients. `P` means PhysicalConstants; `S` means Configuration. Names for newly
 extracted fields are proposals. Existing fields retain their names unless an
 explicit canonical replacement is stated.
 
@@ -12,11 +12,11 @@ explicit canonical replacement is stated.
 
 The snow thickness ``hCut = 0.15 m`` belongs to PhysicalConstants: it sets the
 physical transition between ice and optically opaque snow albedo in solve4temp.
-It is not a solver tolerance. Grid extents are initialized fields of Settings. Artificial scenario defaults
+It is not a solver tolerance. Grid extents are initialized fields of Configuration. Artificial scenario defaults
 and validation belong to ARTIFICIAL_SETTINGS/ArtificialSettings in artificial.py;
 initial model arrays are described by VARIABLES and local setup overrides.
 The geometry adapter retains its independent historical 273 K surface default
-through ``Settings.geometrySurfaceTemperature``. Registry allocation's 273.15 K
+through ``Configuration.geometrySurfaceTemperature``. Registry allocation's 273.15 K
 temperature values describe initial conditions, not a second Celsius conversion
 constant.
 
@@ -137,7 +137,7 @@ State fields or imply a configurable land model.
 and turbulent fluxes, plus LANL fluxes, instead request nonexistent `grav`.
 Canonicalize these reads to `PhysicalConstants.gravity`; do not add a second
 independent `grav` default. `tests/test_heat_flux_CESM.py:32` and
-`tests/test_heat_flux_MITgcm.py:20` explicitly supply `grav=sett.gravity`.
+`tests/test_heat_flux_MITgcm.py:20` explicitly supply `grav=conf.gravity`.
 The CESM fixture supplies `radius=6371000.0 m`; the typing contract uses the
 same radius. Introduce `PhysicalConstants.radius = 6371000.0` and describe it
 as the spherical Earth radius used in the geometric altitude conversion.

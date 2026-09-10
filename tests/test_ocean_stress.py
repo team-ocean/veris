@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from conftest import StateFactory
 
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 
@@ -18,7 +18,7 @@ from veris.physical_constants import PhysicalConstants
 def test_uniform_ocean_stress_rotation(
     halo: ModuleType,
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     hemisphere: int,
     angle: int,
@@ -49,6 +49,6 @@ def test_uniform_ocean_stress_rotation(
         drag * (np.cos(radians) * du - hemisphere * np.sin(radians) * dv),
         drag * (np.cos(radians) * dv + hemisphere * np.sin(radians) * du),
     )
-    for actual, scalar in zip(ocean.OceanStressUV(vs, sett, phys), expected):
+    for actual, scalar in zip(ocean.OceanStressUV(vs, conf, phys), expected):
         assert actual.shape == ones.shape
         np.testing.assert_allclose(actual, scalar, atol=1e-14)

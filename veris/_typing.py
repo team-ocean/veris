@@ -1,7 +1,7 @@
 """Shared Veris schemas, array contracts and typed JAX compiled callables.
 
 State is an array-only PyTree; OceanGeometry describes host input.
-Settings and PhysicalConstants are defined beside their respective registries.
+Configuration and PhysicalConstants are defined beside their respective registries.
 Artificial experiment types belong to their setup module.
 """
 

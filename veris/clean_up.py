@@ -8,13 +8,13 @@ import jax.numpy as jnp
 from jax import Array
 
 from veris._typing import State, jit
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def clean_up_advection(
-    vs: State, sett: Settings, phys: PhysicalConstants
+    vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[Array, Array, Array, Array, Array, Array]:
     """clean up overshoots and other pathological cases after advection"""
 
@@ -48,8 +48,8 @@ def clean_up_advection(
     return hIceMean, hSnowMean, Area, TSurf, os_hIceMean, os_hSnowMean
 
 
-@partial(jit, static_argnames=["sett", "phys"])
-def ridging(vs: State, sett: Settings, phys: PhysicalConstants) -> Array:
+@partial(jit, static_argnames=["conf", "phys"])
+def ridging(vs: State, conf: Configuration, phys: PhysicalConstants) -> Array:
     """cut off ice cover fraction at 1 after advection to account for ridging"""
     Area = jnp.minimum(vs.Area, 1)
 

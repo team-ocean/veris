@@ -65,9 +65,9 @@ def test_step_returns_separate_periodic_diagnostics_and_identical_state(
     from veris.diagnostics import DIAGNOSTICS
     from veris.setup.artificial import initialize, step, step_with_diagnostics
 
-    initial, sett, phys = initialize(5, 7)
-    expected = step(initial, sett, phys, cooling=25.0)
-    actual, diagnostics = step_with_diagnostics(initial, sett, phys, cooling=25.0)
+    initial, conf, phys = initialize(5, 7)
+    expected = step(initial, conf, phys, cooling=25.0)
+    actual, diagnostics = step_with_diagnostics(initial, conf, phys, cooling=25.0)
     assert len(jax.tree.leaves(actual)) == 70
     for left, right in zip(
         jax.tree.leaves(actual), jax.tree.leaves(expected), strict=True

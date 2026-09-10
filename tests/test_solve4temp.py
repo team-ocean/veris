@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 from conftest import StateFactory
 
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 from veris.solve4temp import solve4temp
 
@@ -20,7 +20,7 @@ from veris.solve4temp import solve4temp
 @pytest.mark.parametrize("temperature", [250.0, 260.0, 270.0])
 def test_constructed_surface_energy_equilibrium(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     snow: float,
     temperature: float,
@@ -47,7 +47,7 @@ def test_constructed_surface_energy_equilibrium(
     )
     result = solve4temp(
         vs,
-        sett,
+        conf,
         phys,
         thickness * ones,
         snow * ones,
@@ -62,7 +62,7 @@ def test_constructed_surface_energy_equilibrium(
 
 @pytest.mark.parametrize("snow", [0.0, 0.1])
 def test_absent_ice_has_no_flux_and_preserves_temperature(
-    state: StateFactory, sett: Settings, phys: PhysicalConstants, snow: float
+    state: StateFactory, conf: Configuration, phys: PhysicalConstants, snow: float
 ) -> None:
     ones = np.ones((3, 5))
     vs = state(
@@ -73,7 +73,7 @@ def test_absent_ice_has_no_flux_and_preserves_temperature(
         wSpeed=3 * ones,
         fCori=-1e-4 * ones,
     )
-    result = solve4temp(vs, sett, phys, 0 * ones, snow * ones, 265 * ones, 271 * ones)
+    result = solve4temp(vs, conf, phys, 0 * ones, snow * ones, 265 * ones, 271 * ones)
     np.testing.assert_array_equal(result[0], 265 * ones)
     for flux in result[1:]:
         np.testing.assert_array_equal(flux, 0 * ones)
@@ -84,7 +84,7 @@ def test_absent_ice_has_no_flux_and_preserves_temperature(
 @pytest.mark.parametrize("snow", [0.0, 0.05, 0.3])
 def test_shortwave_transmission_and_snow_opacity(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     south: bool,
     wet: bool,
@@ -102,7 +102,7 @@ def test_shortwave_transmission_and_snow_opacity(
     )
     initial_temperature = phys.celsius2K if wet else 260
     result = solve4temp(
-        vs, sett, phys, 1.2 * ones, snow * ones, initial_temperature * ones, 271 * ones
+        vs, conf, phys, 1.2 * ones, snow * ones, initial_temperature * ones, 271 * ones
     )
     suffix = "_south" if south else ""
     albedo = getattr(phys, ("wetIceAlb" if wet else "dryIceAlb") + suffix)

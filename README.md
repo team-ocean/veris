@@ -31,9 +31,9 @@ validated environment and numerical test commands.
 ### Typed interfaces
 
 The standalone initializer returns frozen dataclasses: `veris._typing.State`,
-`Settings`, and `PhysicalConstants`. Kernels use these concrete types directly.
+`Configuration`, and `PhysicalConstants`. Kernels use these concrete types directly.
 State is a JAX PyTree containing only calculation arrays.
-Settings passed as JIT static arguments must be hashable, with integer solver
+Configuration passed as JIT static arguments must be hashable, with integer solver
 iteration counts. Array shapes and physical units are described by each kernel;
 annotations do not add runtime shape checks.
 

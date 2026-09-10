@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 
@@ -14,7 +14,7 @@ from veris.physical_constants import PhysicalConstants
 @pytest.mark.parametrize("temperature", [260.0, 280.0, 300.0])
 @pytest.mark.parametrize("wind", [0.0, 3.0, -7.0])
 def test_lanl_radiation_drag_and_saturated_equilibrium(
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     temperature: float,
     wind: float,
@@ -26,7 +26,7 @@ def test_lanl_radiation_drag_and_saturated_equilibrium(
         3.797915 * np.exp(phys.latvap * (7.93252e-6 - 2.166847e-3 / temperature)) / 1013
     )
     result = module.bulkf_formula_lanl(
-        sett,
+        conf,
         phys,
         wind * ones,
         0 * ones,
@@ -56,7 +56,7 @@ def test_lanl_radiation_drag_and_saturated_equilibrium(
 
 @pytest.mark.parametrize("land_value", [280.0, float("nan"), 0.0])
 def test_lanl_mask_preserves_ocean_and_zeros_land_and_sensitivities(
-    sett: Settings, phys: PhysicalConstants, land_value: float
+    conf: Configuration, phys: PhysicalConstants, land_value: float
 ) -> None:
     """MITgcm's caller gates LANL evaluation on wet cells; land is inactive."""
     import jax
@@ -68,10 +68,10 @@ def test_lanl_mask_preserves_ocean_and_zeros_land_and_sensitivities(
         jnp.full(mask.shape, value) for value in (4.0, 2.0, 275.0, 0.003, 280.0)
     )
     inputs = (uw, vw, ta, qa, tsf)
-    reference = module.bulkf_formula_lanl(sett, phys, *inputs, jnp.ones_like(mask))
+    reference = module.bulkf_formula_lanl(conf, phys, *inputs, jnp.ones_like(mask))
     uw, vw, ta, qa, tsf = (jnp.where(mask, value, land_value) for value in inputs)
     masked_inputs = (uw, vw, ta, qa, tsf)
-    actual = module.bulkf_formula_lanl(sett, phys, *masked_inputs, mask)
+    actual = module.bulkf_formula_lanl(conf, phys, *masked_inputs, mask)
     for result, expected in zip(actual, reference):
         np.testing.assert_allclose(np.asarray(result)[wet], np.asarray(expected)[wet])
         np.testing.assert_array_equal(np.asarray(result)[~wet], 0)
@@ -83,7 +83,7 @@ def test_lanl_mask_preserves_ocean_and_zeros_land_and_sensitivities(
             (
                 jnp.sum(value)
                 for value in module.bulkf_formula_lanl(
-                    sett, phys, uw, vw, ta, qa, tsf, mask
+                    conf, phys, uw, vw, ta, qa, tsf, mask
                 )
             ),
             start=jnp.asarray(0.0),
@@ -98,7 +98,7 @@ def test_lanl_mask_preserves_ocean_and_zeros_land_and_sensitivities(
 
 
 def test_lanl_uses_initialized_drag_and_humidity_coefficients(
-    sett: Settings, phys: PhysicalConstants
+    conf: Configuration, phys: PhysicalConstants
 ) -> None:
     """Nondefault parameterizations control humidity, neutral drag, and height."""
     from dataclasses import replace
@@ -117,7 +117,7 @@ def test_lanl_uses_initialized_drag_and_humidity_coefficients(
     )
     ones = jnp.ones((2, 3))
     result = module.bulkf_formula_lanl(
-        sett,
+        conf,
         custom,
         wind * ones,
         0 * ones,

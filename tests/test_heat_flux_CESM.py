@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from jax import Array
 
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 
@@ -35,7 +35,7 @@ def test_saturated_specific_humidity_pressure_scaling(
 @pytest.mark.parametrize("temperature", [260.0, 280.0, 300.0])
 def test_simple_flux_equilibrium_and_temperature_derivative(
     cesm: ModuleType,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     wind: float,
     temperature: float,
@@ -48,7 +48,7 @@ def test_simple_flux_equilibrium_and_temperature_derivative(
 
     def flux(surface: float) -> tuple[Array, Array, Array]:
         return cesm.flux_atmOcn_simple(
-            sett,
+            conf,
             phys,
             mask,
             pressure,
@@ -74,7 +74,7 @@ def test_simple_flux_equilibrium_and_temperature_derivative(
         for a, b in zip(flux(temperature + delta), flux(temperature - delta))
     ]
     actual = cesm.dqnetdt(
-        sett,
+        conf,
         phys,
         mask,
         pressure,
@@ -119,7 +119,7 @@ def test_drag_and_neutral_stability_functions(
 @pytest.mark.parametrize("wind", [0.0, 5.0, -10.0])
 def test_iterative_flux_heat_water_closure_and_stress_direction(
     cesm: ModuleType,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     difference: float,
     wind: float,
@@ -131,7 +131,7 @@ def test_iterative_flux_heat_water_closure_and_stress_direction(
     temperature = 280.0
     saturation = 0.98 * 640380 * np.exp(-5107.4 / temperature) / 1.3
     result = cesm.flux_atmOcn(
-        sett,
+        conf,
         phys,
         mask,
         1.3 * ones,
@@ -166,7 +166,7 @@ def test_iterative_flux_heat_water_closure_and_stress_direction(
 
 
 def test_one_layer_hydrostatic_height(
-    cesm: ModuleType, sett: Settings, phys: PhysicalConstants
+    cesm: ModuleType, conf: Configuration, phys: PhysicalConstants
 ) -> None:
     s = phys
     t = jnp.full((2, 3, 1), 280.0)
@@ -184,7 +184,7 @@ def test_one_layer_hydrostatic_height(
 
 @pytest.mark.parametrize("reverse", [False, True])
 def test_cloud_coefficients_at_knots_and_midpoints(
-    cesm: ModuleType, sett: Settings, phys: PhysicalConstants, reverse: bool
+    cesm: ModuleType, conf: Configuration, phys: PhysicalConstants, reverse: bool
 ) -> None:
     s = phys
     latitudes = np.array([-90.0, -45.0, 0.0, 45.0, 90.0])
@@ -197,11 +197,11 @@ def test_cloud_coefficients_at_knots_and_midpoints(
         -s.emissivity
         * s.stefBoltz
         * temperature**4
-        * (0.39 - 0.05 * np.sqrt(sett.eps2))
+        * (0.39 - 0.05 * np.sqrt(conf.eps2))
         * (1 - coefficient)
     )
     result = cesm.net_lw_ocn(
-        sett,
+        conf,
         phys,
         ones,
         jnp.asarray(latitudes),
@@ -241,7 +241,7 @@ def test_initialized_empirical_coefficients_are_used(
 
 
 def test_initialized_cloud_table_controls_longwave(
-    cesm: ModuleType, sett: Settings, phys: PhysicalConstants
+    cesm: ModuleType, conf: Configuration, phys: PhysicalConstants
 ) -> None:
     """Cloud interpolation consumes the selected instance's immutable table."""
     from dataclasses import replace
@@ -251,7 +251,7 @@ def test_initialized_cloud_table_controls_longwave(
     )
     ones = jnp.ones((2, 3))
     actual = cesm.net_lw_ocn(
-        sett,
+        conf,
         custom,
         ones,
         jnp.array([-90.0, 0.0, 90.0]),
@@ -264,7 +264,7 @@ def test_initialized_cloud_table_controls_longwave(
         -phys.emissivity
         * phys.stefBoltz
         * 280**4
-        * (0.39 - 0.05 * np.sqrt(sett.eps2))
+        * (0.39 - 0.05 * np.sqrt(conf.eps2))
         * (1 - np.array([0.2, 0.4, 0.6]))
     )
     np.testing.assert_allclose(actual, np.broadcast_to(expected, ones.shape))

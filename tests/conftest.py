@@ -14,7 +14,7 @@ import jax.numpy as jnp
 import pytest
 from jax.typing import ArrayLike
 
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 jax.config.update("jax_enable_x64", True)
@@ -68,9 +68,9 @@ def pytest_collection_modifyitems(
 
 
 @pytest.fixture
-def sett() -> Settings:
+def conf() -> Configuration:
     """Return hashable source settings accepted by static JIT arguments."""
-    return Settings(use_sharding=False)
+    return Configuration(use_sharding=False)
 
 
 @pytest.fixture

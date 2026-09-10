@@ -22,7 +22,7 @@ from veris._metadata import (
     validate_scalars,
 )
 from veris._typing import State, jit
-from veris.configuration import PRECISION, Setting, Settings
+from veris.configuration import PRECISION, Configuration, Setting
 from veris.diagnostics import Diagnostics
 from veris.initialization import initialize as initialize_model
 from veris.physical_constants import PhysicalConstants
@@ -138,7 +138,7 @@ def initialize(
     settings_overrides: Mapping[str, Any] | None = None,
     scenario_overrides: Mapping[str, Any] | None = None,
     physical_overrides: Mapping[str, Any] | None = None,
-) -> tuple[State, Settings, PhysicalConstants]:
+) -> tuple[State, Configuration, PhysicalConstants]:
     """Return an artificial island experiment with separate local scenario controls.
 
     Registry defaults select an 8-km grid, 600-second timesteps and five EVP
@@ -162,7 +162,7 @@ def initialize(
             overrides[name] = value
     if dtype is not None:
         overrides["dtype"] = dtype
-    controls = Settings(**overrides)
+    controls = Configuration(**overrides)
     for name, value in (
         ("artificialWindSpeed", wind),
         ("artificialAirTemperature", air_temperature),
@@ -178,10 +178,10 @@ def initialize(
     overrides.setdefault("deltatTherm", scenario.artificialTimeStep)
     overrides.setdefault("deltatDyn", scenario.artificialTimeStep)
     overrides.setdefault("nEVPsteps", scenario.artificialEVPsteps)
-    vs, sett, phys = initialize_model(
+    vs, conf, phys = initialize_model(
         settings_overrides=overrides, physical_overrides=physical_overrides
     )
-    nx, ny = sett.nx, sett.ny
+    nx, ny = conf.nx, conf.ny
     wind = scenario.artificialWindSpeed
     air_temperature = scenario.artificialAirTemperature
     ones = jnp.ones_like(vs.iceMask)
@@ -239,12 +239,12 @@ def initialize(
         / (phys.iceSurfacePressure - (1 - phys.waterVaporDryAirMassRatio) * vapor)
         * ones,
     )
-    return replace(vs, **fields), sett, phys
+    return replace(vs, **fields), conf, phys
 
 
 def step(
     vs: State,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     cooling: float | jax.Array | None = None,
 ) -> State:
@@ -257,13 +257,13 @@ def step(
     the forcing. Cooling resets atmospheric Qnet/Qsw forcing on every call, before Growth
     replaces these state fields with ocean-coupling fluxes.
     """
-    result, _ = step_with_diagnostics(vs, sett, phys, cooling)
+    result, _ = step_with_diagnostics(vs, conf, phys, cooling)
     return result
 
 
 def step_with_diagnostics(
     vs: State,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     cooling: float | jax.Array | None = None,
 ) -> tuple[State, Diagnostics]:
@@ -275,7 +275,7 @@ def step_with_diagnostics(
     """
     if cooling is None:
         cooling = float(ARTIFICIAL_SETTINGS["artificialCooling"].default)
-    if sett.use_sharding:
+    if conf.use_sharding:
         mesh = jax.sharding.get_abstract_mesh()
         if set(mesh.axis_names) != {"x", "y"}:
             raise ValueError(
@@ -285,17 +285,17 @@ def step_with_diagnostics(
             # Run stencils on each local halo-inclusive partition. Explicitly
             # sharded global arrays cannot be rolled along partitioned axes.
             mapped = jax.shard_map(
-                lambda state, flux: _step_local(state, sett, phys, flux),
+                lambda state, flux: _step_local(state, conf, phys, flux),
                 mesh=mesh,
                 in_specs=(P("x", "y"), P()),
                 out_specs=(P("x", "y"), P("x", "y")),
             )
             return mapped(vs, cooling)
-    return _step_local(vs, sett, phys, cooling)
+    return _step_local(vs, conf, phys, cooling)
 
 
 def _step_local(
-    vs: State, sett: Settings, phys: PhysicalConstants, cooling: float | jax.Array
+    vs: State, conf: Configuration, phys: PhysicalConstants, cooling: float | jax.Array
 ) -> tuple[State, Diagnostics]:
     """Execute the reference physics sequence on one local halo-inclusive grid."""
     from veris.advection import Advection
@@ -311,25 +311,25 @@ def _step_local(
         return replace(state, **dict(zip(names.split(), values, strict=True)))
 
     vs = replace(vs, Qnet=jnp.full_like(vs.Qnet, cooling), Qsw=jnp.zeros_like(vs.Qsw))
-    vs = assign(vs, "SeaIceMassC SeaIceMassU SeaIceMassV", SeaIceMass(vs, sett, phys))
-    vs = assign(vs, "AreaW AreaS", AreaWS(vs, sett, phys))
-    vs = assign(vs, "WindForcingX WindForcingY", WindForcingXY(vs, sett, phys))
-    vs = replace(vs, SeaIceStrength=SeaIceStrength(vs, sett, phys))
+    vs = assign(vs, "SeaIceMassC SeaIceMassU SeaIceMassV", SeaIceMass(vs, conf, phys))
+    vs = assign(vs, "AreaW AreaS", AreaWS(vs, conf, phys))
+    vs = assign(vs, "WindForcingX WindForcingY", WindForcingXY(vs, conf, phys))
+    vs = replace(vs, SeaIceStrength=SeaIceStrength(vs, conf, phys))
     vs = assign(
         vs,
         "uIce vIce sigma1 sigma2 sigma12",
         IceVelocities(
-            vs, sett, phys, axis_names=("x", "y") if sett.use_sharding else ()
+            vs, conf, phys, axis_names=("x", "y") if conf.use_sharding else ()
         ),
     )
-    ocean_stress_u, ocean_stress_v = OceanStressUV(vs, sett, phys)
-    vs = assign(vs, "hIceMean hSnowMean Area", Advection(vs, sett, phys))
+    ocean_stress_u, ocean_stress_v = OceanStressUV(vs, conf, phys)
+    vs = assign(vs, "hIceMean hSnowMean Area", Advection(vs, conf, phys))
     vs = assign(
         vs,
         "hIceMean hSnowMean Area TSurf os_hIceMean os_hSnowMean",
-        clean_up_advection(vs, sett, phys),
+        clean_up_advection(vs, conf, phys),
     )
-    vs = replace(vs, Area=ridging(vs, sett, phys))
+    vs = replace(vs, Area=ridging(vs, conf, phys))
     (
         ice,
         snow,
@@ -342,7 +342,7 @@ def _step_local(
         load,
         penetrating_shortwave,
         inverse_ice,
-    ) = Growth(vs, sett, phys)
+    ) = Growth(vs, conf, phys)
     vs = replace(
         vs,
         hIceMean=ice,
@@ -361,10 +361,10 @@ def _step_local(
         EmPmR=freshwater,
         forc_salt_surface=salt,
     )
-    return jax.tree.map(lambda array: fill_overlap(array, sett), (vs, diagnostics))
+    return jax.tree.map(lambda array: fill_overlap(array, conf), (vs, diagnostics))
 
 
-compiled_step = jit(step, static_argnames=["sett", "phys"])
+compiled_step = jit(step, static_argnames=["conf", "phys"])
 """Whole-step compiled driver; settings and constants are static; cooling stays dynamic.
 
 Shares the exact physics sequence with step. Choose this callable once outside

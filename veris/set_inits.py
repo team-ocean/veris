@@ -13,7 +13,7 @@ import jax.numpy as npx
 import numpy as np
 
 from veris._typing import OceanGeometry, State
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 
@@ -52,12 +52,12 @@ def _validate_geometry(geometry: OceanGeometry, shape: tuple[int, ...]) -> None:
 
 
 def set_inits(
-    state: State, geometry: OceanGeometry, sett: Settings, phys: PhysicalConstants
+    state: State, geometry: OceanGeometry, conf: Configuration, phys: PhysicalConstants
 ) -> State:
     """Return State with surface masks and staggered metrics initialized.
 
     Input State and OceanGeometry are unchanged; non-geometry fields retain their
-    initialized values. ``sett.geometrySurfaceTemperature`` preserves the
+    initialized values. ``conf.geometrySurfaceTemperature`` preserves the
     original setup temperature of 273 K. ``phys`` is supplied consistently with
     other setup adapters; these geometric equations need no physical constants.
     This host routine validates inputs and is not a compiled time-step kernel.
@@ -105,7 +105,7 @@ def set_inits(
         recip_rA=1 / area,
         recip_rAu=1 / npx.asarray(geometry.area_u, dtype=dtype),
         recip_rAv=1 / npx.asarray(geometry.area_v, dtype=dtype),
-        TSurf=ones * sett.geometrySurfaceTemperature,
+        TSurf=ones * conf.geometrySurfaceTemperature,
     )
 
 

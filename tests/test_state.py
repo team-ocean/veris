@@ -11,13 +11,13 @@ from veris.variables import VARIABLES
 
 def test_settings_schema_matches_registry() -> None:
     """Catch drift between explicit static fields and runtime configuration."""
-    from veris.configuration import SETTINGS, Settings
-    from veris.settings import Settings as ModelSettings
+    from veris.configuration import SETTINGS, Configuration
+    from veris.settings import Configuration as ModelConfiguration
 
-    assert Settings is ModelSettings
-    actual = Settings()
+    assert Configuration is ModelConfiguration
+    actual = Configuration()
     assert is_dataclass(actual)
-    assert {field.name for field in fields(Settings)} == SETTINGS.keys()
+    assert {field.name for field in fields(Configuration)} == SETTINGS.keys()
     assert all(
         getattr(actual, name) == metadata.default for name, metadata in SETTINGS.items()
     )

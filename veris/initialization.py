@@ -15,7 +15,7 @@ from jax.sharding import Mesh, NamedSharding
 from jax.sharding import PartitionSpec as P
 
 from veris._typing import State
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 from veris.variables import VARIABLES
 
@@ -29,11 +29,11 @@ def initialize(
     settings_overrides: Mapping[str, Any] | None = None,
     physical_overrides: Mapping[str, Any] | None = None,
     state_overrides: Mapping[str, Any] | None = None,
-) -> tuple[State, Settings, PhysicalConstants]:
+) -> tuple[State, Configuration, PhysicalConstants]:
     """Allocate all fields for an ``nx`` by ``ny`` interior Cartesian grid.
 
-    Omitted extents use Settings defaults or settings_overrides. Explicit nx/ny
-    take precedence and are recorded on the returned Settings instance.
+    Omitted extents use Configuration defaults or settings_overrides. Explicit nx/ny
+    take precedence and are recorded on the returned Configuration instance.
     Configuration constructors validate scalar overrides and recompute derived
     values. State overrides must contain numeric arrays with the full storage
     shape, including halos; they are converted to the initialization dtype. Each
@@ -57,7 +57,7 @@ def initialize(
         overrides_settings["ny"] = ny
     if dtype is not None:
         overrides_settings["dtype"] = dtype
-    settings = Settings(**overrides_settings)
+    settings = Configuration(**overrides_settings)
     sharding = None
     partitions_x = partitions_y = 1
     if mesh is not None:

@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from conftest import StateFactory
 
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.freedrift_solver import freedrift_solver
 from veris.physical_constants import PhysicalConstants
 
@@ -16,7 +16,7 @@ from veris.physical_constants import PhysicalConstants
 @pytest.mark.parametrize("ocean_velocity", [(0, 0), (0.15, -0.08), (-0.1, 0.2)])
 def test_uniform_free_drift_momentum_balance(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     coriolis: float,
     wind: float,
@@ -33,7 +33,7 @@ def test_uniform_free_drift_momentum_balance(
         iceMaskU=ones,
         iceMaskV=ones,
     )
-    u_jax, v_jax = freedrift_solver(vs, sett, phys)
+    u_jax, v_jax = freedrift_solver(vs, conf, phys)
     u, v = np.asarray(u_jax), np.asarray(v_jax)
     assert u.shape == v.shape == ones.shape
     drag = phys.rhoSea * (
@@ -51,6 +51,6 @@ def test_uniform_free_drift_momentum_balance(
         atol=1e-12,
     )
     land = replace(vs, iceMaskU=0 * vs.iceMaskU, iceMaskV=0 * vs.iceMaskV)
-    for component in freedrift_solver(land, sett, phys):
+    for component in freedrift_solver(land, conf, phys):
         assert component.shape == ones.shape
         np.testing.assert_array_equal(component, 0)

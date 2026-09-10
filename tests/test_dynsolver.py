@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from conftest import StateFactory
 
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 
@@ -23,14 +23,14 @@ def dynamics(halo: ModuleType) -> ModuleType:
 @pytest.mark.parametrize("angle", [0, 30, 90])
 def test_wind_stress_rotation_staggering_and_masks(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     dynamics: ModuleType,
     relative: bool,
     hemisphere: int,
     angle: int,
 ) -> None:
-    sett = replace(sett, useRelativeWind=relative)
+    conf = replace(conf, useRelativeWind=relative)
     phys = replace(phys, airTurnAngle=angle, airIceDrag=0.001, airIceDrag_south=0.002)
     x, y = np.indices((3, 5), dtype=float)
     wind_u, wind_v = 2 + x / 5, -1 + y / 10
@@ -65,7 +65,7 @@ def test_wind_stress_rotation_staggering_and_masks(
         expected_x[i, j] = (centered_x[i, j] + centered_x[i - 1, j]) / 2 * mask_u[i, j]
         expected_y[i, j] = (centered_y[i, j] + centered_y[i, j - 1]) / 2 * mask_v[i, j]
     for value, expected in zip(
-        dynamics.tauXY(vs, sett, phys), (expected_x, expected_y)
+        dynamics.tauXY(vs, conf, phys), (expected_x, expected_y)
     ):
         assert value.shape == x.shape
         np.testing.assert_allclose(value, expected, rtol=1e-13, atol=1e-14)
@@ -74,12 +74,12 @@ def test_wind_stress_rotation_staggering_and_masks(
 @pytest.mark.parametrize("speed", [0, 0.5, 2])
 def test_wind_speed_floor_preserves_zero_stress_at_rest(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     dynamics: ModuleType,
     speed: float,
 ) -> None:
-    sett = replace(sett, useRelativeWind=False)
+    conf = replace(conf, useRelativeWind=False)
     phys = replace(phys, wSpeedMin=1)
     ones = np.ones((3, 5))
     vs = state(
@@ -89,7 +89,7 @@ def test_wind_speed_floor_preserves_zero_stress_at_rest(
         iceMaskU=ones,
         iceMaskV=ones,
     )
-    tx, ty = dynamics.tauXY(vs, sett, phys)
+    tx, ty = dynamics.tauXY(vs, conf, phys)
     assert tx.shape == ty.shape == ones.shape
     np.testing.assert_allclose(
         tx, phys.rhoAir * phys.airIceDrag * max(1, speed) * speed
@@ -101,13 +101,13 @@ def test_wind_speed_floor_preserves_zero_stress_at_rest(
 @pytest.mark.parametrize("source", ["elevation", "pressure", "load"])
 def test_affine_hydrostatic_tilt_and_wind_force(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     dynamics: ModuleType,
     real_freshwater: bool,
     source: str,
 ) -> None:
-    sett = replace(sett, useRelativeWind=False, useRealFreshWaterFlux=real_freshwater)
+    conf = replace(conf, useRelativeWind=False, useRealFreshWaterFlux=real_freshwater)
     x, y = np.indices((4, 7), dtype=float)
     ones = np.ones_like(x)
     dx, dy = 2000, 3000
@@ -141,7 +141,7 @@ def test_affine_hydrostatic_tilt_and_wind_force(
         0.3 * phys.rhoAir * phys.airIceDrag * 4 - 800 * acceleration * slope_x,
         -600 * acceleration * slope_y,
     )
-    for value, reference in zip(dynamics.WindForcingXY(vs, sett, phys), expected):
+    for value, reference in zip(dynamics.WindForcingXY(vs, conf, phys), expected):
         assert value.shape == x.shape
         np.testing.assert_allclose(value[1:, 1:], reference, rtol=1e-10, atol=1e-12)
 
@@ -149,12 +149,12 @@ def test_affine_hydrostatic_tilt_and_wind_force(
 @pytest.mark.parametrize("forcing", [0, 0.05, 0.3])
 def test_free_drift_dispatch_preserves_internal_stresses(
     state: StateFactory,
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     dynamics: ModuleType,
     forcing: float,
 ) -> None:
-    sett = replace(sett, useFreedrift=True, useEVP=False)
+    conf = replace(conf, useFreedrift=True, useEVP=False)
     ones = np.ones((3, 5))
     sigma = np.arange(15, dtype=float).reshape(ones.shape)
     vs = state(
@@ -170,7 +170,7 @@ def test_free_drift_dispatch_preserves_internal_stresses(
         sigma2=-2 * sigma,
         sigma12=0.5 * sigma,
     )
-    result = dynamics.IceVelocities(vs, sett, phys)
+    result = dynamics.IceVelocities(vs, conf, phys)
     # At the equator, quadratic water drag alone balances the applied stress.
     expected_u = 0.1 + np.sqrt(forcing / (phys.rhoSea * phys.waterIceDrag))
     assert len(result) == 5

@@ -117,12 +117,12 @@ SETTINGS: dict[str, Setting] = {
 }
 
 
-__all__ = ["PRECISION", "SETTINGS", "Setting", "Settings"]
+__all__ = ["PRECISION", "SETTINGS", "Configuration", "Setting"]
 
 
 @dataclass(frozen=True)
 @registry_defaults(SETTINGS)
-class Settings:
+class Configuration:
     """Validated immutable model settings initialized from the registry."""
 
     dtype: str = field(default=FROM_REGISTRY, kw_only=True)

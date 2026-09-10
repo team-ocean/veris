@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from veris.configuration import SETTINGS, Settings
+from veris.configuration import SETTINGS, Configuration
 from veris.initialization import initialize
 from veris.physical_constants import PHYSICALCONSTANTS, PhysicalConstants
 from veris.setup import artificial
@@ -28,7 +28,7 @@ def test_all_experiment_defaults_are_registered() -> None:
     assert EXPERIMENT_DEFAULTS.keys() == artificial.ARTIFICIAL_SETTINGS.keys()
     assert not EXPERIMENT_DEFAULTS.keys() & SETTINGS.keys()
     assert not EXPERIMENT_DEFAULTS.keys() & PHYSICALCONSTANTS.keys()
-    settings = Settings()
+    settings = Configuration()
     for name, value in EXPERIMENT_DEFAULTS.items():
         assert artificial.ARTIFICIAL_SETTINGS[name].default == value
         assert not hasattr(settings, name)

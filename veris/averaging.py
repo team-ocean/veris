@@ -9,19 +9,19 @@ from jax import Array
 from jax.typing import ArrayLike
 
 from veris._typing import State, jit
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def c_point_to_z_point(
-    vs: State, sett: Settings, phys: PhysicalConstants, Cfield: ArrayLike
+    vs: State, conf: Configuration, phys: PhysicalConstants, Cfield: ArrayLike
 ) -> Array:
     """calculates value at z-point by averaging c-point values"""
 
     sumNorm = vs.iceMask + jnp.roll(vs.iceMask, 1, 0)
     sumNorm = sumNorm + jnp.roll(sumNorm, 1, 1)
-    if sett.noSlip:
+    if conf.noSlip:
         sumNorm = jnp.where(sumNorm > 0, 1.0 / sumNorm, 0.0)
     else:
         sumNorm = jnp.where(sumNorm == 4.0, 0.25, 0.0)

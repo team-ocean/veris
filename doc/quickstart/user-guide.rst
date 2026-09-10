@@ -29,7 +29,7 @@ the local ``ARTIFICIAL_SETTINGS["artificialCooling"]`` default; an explicit scal
 it and remains differentiable. Each step restores prescribed atmospheric heat
 forcing before growth replaces ``Qnet`` and ``Qsw`` with ocean-coupling fluxes.
 
-Grid extents and numerical controls are recorded in model Settings. Spacing,
+Grid extents and numerical controls are recorded in model Configuration. Spacing,
 wind, temperatures and initial ice/snow conditions belong to the artificial
 setup and determine its initialized arrays. Explicit
 ``nx``, ``ny``, ``wind`` and ``air_temperature`` arguments override their registry
@@ -61,7 +61,7 @@ consistent geometry and intermediate fields before running kernels.
 ``SETTINGS`` and ``PHYSICALCONSTANTS`` are the source of configuration defaults.
 Their classes mark regular fields with ``FROM_REGISTRY``; ``registry_defaults``
 copies the matching metadata defaults before the standard frozen dataclass is
-created. ``Settings`` and ``PhysicalConstants`` are defined beside their
+created. ``Configuration`` and ``PhysicalConstants`` are defined beside their
 respective registries, along with ``Setting`` and ``PhysicalConstant`` metadata.
 ``Variable`` lives in ``variables.py`` and ``Diagnostics`` in ``diagnostics.py``.
 ``State``, ``OceanGeometry`` and shared array contracts live in ``veris._typing``.

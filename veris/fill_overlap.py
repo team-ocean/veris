@@ -14,7 +14,7 @@ from jax.sharding import AbstractMesh, Mesh
 from jax.sharding import PartitionSpec as P
 
 from veris._typing import MaskInput, jit
-from veris.configuration import Settings
+from veris.configuration import Configuration
 
 
 def fill_circular_overlap(A: Array) -> Array:
@@ -89,8 +89,8 @@ def make_sharded_fill_overlap(mesh: Mesh) -> Callable[[MaskInput], Array]:
     )
 
 
-@partial(jit, static_argnames=["sett"])
-def fill_overlap(var: MaskInput, sett: Settings) -> Array:
+@partial(jit, static_argnames=["conf"])
+def fill_overlap(var: MaskInput, conf: Configuration) -> Array:
     """Fill periodic halos using initialized settings and the caller's mesh.
 
     Serial inputs store a single interior with two halo cells on each edge.
@@ -99,7 +99,7 @@ def fill_overlap(var: MaskInput, sett: Settings) -> Array:
     execute inside ``jax.set_mesh(mesh)``; mesh execution
     context is owned by the caller and is never stored among State leaves.
     """
-    if sett.use_sharding:
+    if conf.use_sharding:
         mesh = jax.sharding.get_abstract_mesh()
         _validate_mesh(mesh)
         if {"x", "y"} <= set(mesh.manual_axes):
@@ -113,7 +113,9 @@ def fill_overlap(var: MaskInput, sett: Settings) -> Array:
     return fill_circular_overlap(cast(Array, var))
 
 
-@partial(jit, static_argnames=["sett"])
-def fill_overlap_uv(u: MaskInput, v: MaskInput, sett: Settings) -> tuple[Array, Array]:
+@partial(jit, static_argnames=["conf"])
+def fill_overlap_uv(
+    u: MaskInput, v: MaskInput, conf: Configuration
+) -> tuple[Array, Array]:
     """Fill both horizontal velocity components with the same initialized settings."""
-    return fill_overlap(u, sett), fill_overlap(v, sett)
+    return fill_overlap(u, conf), fill_overlap(v, conf)

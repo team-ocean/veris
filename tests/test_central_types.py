@@ -12,7 +12,7 @@ import pytest
     "module,name",
     [
         ("configuration", "Setting"),
-        ("configuration", "Settings"),
+        ("configuration", "Configuration"),
         ("physical_constants", "PhysicalConstant"),
         ("physical_constants", "PhysicalConstants"),
         ("variables", "Variable"),
@@ -65,11 +65,11 @@ from dataclasses import replace
 from veris._typing import State, OceanGeometry
 from veris.configuration import Setting
 from veris.physical_constants import PhysicalConstant
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
-assert Settings().deltatDyn == 86400
+assert Configuration().deltatDyn == 86400
 assert PhysicalConstants().rhoIce == 900
-assert replace(Settings(), deltatDyn=600).recip_deltatDyn == 1/600
+assert replace(Configuration(), deltatDyn=600).recip_deltatDyn == 1/600
 assert State.__module__ == OceanGeometry.__module__ == 'veris._typing'
 """
     result = subprocess.run(
@@ -84,7 +84,7 @@ assert State.__module__ == OceanGeometry.__module__ == 'veris._typing'
 
 @pytest.mark.parametrize(
     "module,name",
-    [("configuration", "Settings"), ("physical_constants", "PhysicalConstants")],
+    [("configuration", "Configuration"), ("physical_constants", "PhysicalConstants")],
 )
 def test_configuration_types_live_with_their_registries(module: str, name: str) -> None:
     """The settings and physical constants classes are explicit local exceptions."""

@@ -13,13 +13,13 @@ from functools import partial
 import jax.numpy as jnp
 
 from veris._typing import GrowthResult, State, jit
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 from veris.solve4temp import solve4temp
 
 
-@partial(jit, static_argnames=["sett", "phys"])
-def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
+@partial(jit, static_argnames=["conf", "phys"])
+def Growth(vs: State, conf: Configuration, phys: PhysicalConstants) -> GrowthResult:
     """calculate thermodynamic change of ice and snow thickness and ice cover fraction
     due to atmospheric and ocean surface forcing"""
 
@@ -34,7 +34,7 @@ def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
     # initialize three dimensional arrays accounting for the thickness categories of the ice
     # (using * 1 ensures that a new array is created for each variable. otherwise they would
     # all point to the same one)
-    ones3d = jnp.zeros((*vs.iceMask.shape, sett.nITC), dtype=vs.iceMask.dtype)
+    ones3d = jnp.zeros((*vs.iceMask.shape, conf.nITC), dtype=vs.iceMask.dtype)
     hIceActual_mult = ones3d * 1
     hSnowActual_mult = ones3d * 1
     F_io_net_mult = ones3d * 1
@@ -70,12 +70,12 @@ def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
     # set ice and snow thickness categories to account for thicknes variations in one grid cell
     TIce_mult = ones3d * 1
 
-    for l in range(sett.nITC):
+    for l in range(conf.nITC):
         # the ice categories all have the same initial temperature
         TIce_mult = TIce_mult.at[:, :, l].set(vs.TSurf)
 
         # set relative thickness of ice and snow categories
-        pFac = (2 * (l + 1) - 1) * sett.recip_nITC
+        pFac = (2 * (l + 1) - 1) * conf.recip_nITC
 
         # actual snow and ice thickness within each category
         hIceActual_mult = hIceActual_mult.at[:, :, l].set(hIceActual * pFac)
@@ -85,10 +85,10 @@ def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
     TempFrz = phys.tempFrz + phys.dtempFrz_dS * vs.ocSalt + phys.celsius2K
 
     # calculate heat fluxes
-    for l in range(sett.nITC):
+    for l in range(conf.nITC):
         output = solve4temp(
             vs,
-            sett,
+            conf,
             phys,
             hIceActual_mult[:, :, l],
             hSnowActual_mult[:, :, l],
@@ -103,14 +103,14 @@ def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
         FWsublim_mult = FWsublim_mult.at[:, :, l].set(output[4])
 
     # update surface temperature and fluxes
-    TSurf = jnp.sum(TIce_mult, axis=2) * sett.recip_nITC
+    TSurf = jnp.sum(TIce_mult, axis=2) * conf.recip_nITC
 
     # multplying the fluxes with the area changes them from mean fluxes
     # for the ice part of the cell to mean fluxes for the whole cell
-    F_io_net = jnp.sum(F_io_net_mult, axis=2) * sett.recip_nITC * AreapreTH
-    F_ia_net = jnp.sum(F_ia_net_mult, axis=2) * sett.recip_nITC * AreapreTH
-    IcePenetSW = jnp.sum(IcePenetSW_mult, axis=2) * sett.recip_nITC * AreapreTH
-    # FWsublim = jnp.sum(FWsublim_mult, axis=2) * sett.recip_nITC * AreapreTH
+    F_io_net = jnp.sum(F_io_net_mult, axis=2) * conf.recip_nITC * AreapreTH
+    F_ia_net = jnp.sum(F_ia_net_mult, axis=2) * conf.recip_nITC * AreapreTH
+    IcePenetSW = jnp.sum(IcePenetSW_mult, axis=2) * conf.recip_nITC * AreapreTH
+    # FWsublim = jnp.sum(FWsublim_mult, axis=2) * conf.recip_nITC * AreapreTH
 
     ##### evaluate precipitation as snow or rain #####
 
@@ -133,7 +133,7 @@ def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
     PrecipRateOverIceSurfaceToSea = jnp.where(tmp, 0, vs.precip)
 
     # total snow accumulation over ice [m]
-    SnowAccOverIce = SnowAccRateOverIce * AreapreTH * sett.deltatTherm
+    SnowAccOverIce = SnowAccRateOverIce * AreapreTH * conf.deltatTherm
 
     ##### calculate growth rates of ice and snow #####
 
@@ -149,7 +149,7 @@ def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
     PotSnowMeltRateFromSurf = -F_ia_net * qs
 
     # the thickness of snow that can be melted in one time step:
-    PotSnowMeltFromSurf = PotSnowMeltRateFromSurf * sett.deltatTherm
+    PotSnowMeltFromSurf = PotSnowMeltRateFromSurf * conf.deltatTherm
 
     # if the heat flux convergence could melt more snow than is actually
     # there, the excess is used to melt ice
@@ -171,13 +171,13 @@ def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
     # the actual snow melt rate due to snow surface heat flux convergence [m/s]
     SnowMeltRateFromSurface = jnp.where(
         allSnowMelted,
-        SnowMeltFromSurface * sett.recip_deltatTherm,
+        SnowMeltFromSurface * conf.recip_deltatTherm,
         PotSnowMeltRateFromSurf,
     )
 
     # the actual surface heat flux convergence used to melt snow [W/m2]
     SurfHeatFluxConvergToSnowMelt = jnp.where(
-        allSnowMelted, -hSnowMeanpreTH * sett.recip_deltatTherm / qs, F_ia_net
+        allSnowMelted, -hSnowMeanpreTH * conf.recip_deltatTherm / qs, F_ia_net
     )
 
     # the surface heat flux convergence is reduced by the amount that
@@ -280,9 +280,9 @@ def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
 
     ######  update ice, snow thickness and area #####
 
-    Area = AreapreTH + dArea_dt * vs.iceMask * sett.deltatTherm
-    hIceMean = hIceMeanpreTH + dhIceMean_dt * vs.iceMask * sett.deltatTherm
-    hSnowMean = hSnowMeanpreTH + dhSnowMean_dt * vs.iceMask * sett.deltatTherm
+    Area = AreapreTH + dArea_dt * vs.iceMask * conf.deltatTherm
+    hIceMean = hIceMeanpreTH + dhIceMean_dt * vs.iceMask * conf.deltatTherm
+    hSnowMean = hSnowMeanpreTH + dhSnowMean_dt * vs.iceMask * conf.deltatTherm
 
     # set boundaries:
     Area = jnp.clip(Area, 0, 1)
@@ -322,7 +322,7 @@ def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
     # the net energy flux out of the ocean [J/m2]
     NetEnergyFluxOutOfOcean = (
         F_ia_net + F_io_net + IcePenetSW + (1 - AreapreTH) * vs.Qnet
-    ) * sett.deltatTherm
+    ) * conf.deltatTherm
 
     # energy taken out of the ocean which is not used for sea ice growth [J].
     # If the net energy flux out of the ocean is balanced by the latent
@@ -330,7 +330,7 @@ def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
     ResidualEnergyOutOfOcean = NetEnergyFluxOutOfOcean - EnergyForIceChange
 
     # total heat flux out of the ocean [W/m2]
-    Qnet = ResidualEnergyOutOfOcean * sett.recip_deltatTherm
+    Qnet = ResidualEnergyOutOfOcean * conf.recip_deltatTherm
 
     # the freshwater contribution to (from) the ocean due to melting (growing)
     # of ice [m3/m2] (positive for melting)
@@ -361,7 +361,7 @@ def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
         * tmpscal0
         * vs.iceMask
         * phys.rhoIce
-        * sett.recip_deltatTherm
+        * conf.recip_deltatTherm
     )
 
     # the freshwater contribution to the ocean from melting snow [m]
@@ -382,12 +382,12 @@ def Growth(vs: State, sett: Settings, phys: PhysicalConstants) -> GrowthResult:
             - PrecipRateOverIceSurfaceToSea * AreapreTH
             - vs.runoff
             - (FreshwaterContribFromIce + FreshwaterContribFromSnowMelt)
-            / sett.deltatTherm
+            / conf.deltatTherm
         )
         * phys.rhoFresh
         + vs.iceMask
         * (vs.os_hIceMean * phys.rhoIce + vs.os_hSnowMean * phys.rhoSnow)
-        * sett.recip_deltatTherm
+        * conf.recip_deltatTherm
     )
 
     # convert freshwater flux to salt flux and combine virtual and actual salt flux

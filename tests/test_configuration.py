@@ -37,7 +37,7 @@ def test_registry_defaults_are_disjoint_complete_and_frozen() -> None:
     for name, value in legacy.items():
         assert combined[name].default == value, name
     for cls, registry in (
-        (config.Settings, config.SETTINGS),
+        (config.Configuration, config.SETTINGS),
         (physical.PhysicalConstants, physical.PHYSICALCONSTANTS),
     ):
         instance = cls()
@@ -55,7 +55,7 @@ def test_registry_defaults_are_disjoint_complete_and_frozen() -> None:
 
 def test_replace_recomputes_dependencies_and_preserves_rounded_constants() -> None:
     config, physical = configuration_modules()
-    settings = replace(config.Settings(), deltatDyn=600, deltatTherm=900, nITC=3)
+    settings = replace(config.Configuration(), deltatDyn=600, deltatTherm=900, nITC=3)
     assert settings.recip_deltatDyn == 1 / 600
     assert settings.recip_deltatTherm == 1 / 900
     assert settings.recip_nITC == 1 / 3
@@ -108,7 +108,7 @@ def test_replace_recomputes_dependencies_and_preserves_rounded_constants() -> No
 def test_invalid_settings_are_rejected(name: str, value: object) -> None:
     config, _ = configuration_modules()
     with pytest.raises((TypeError, ValueError), match=name):
-        config.Settings(**{name: value})
+        config.Configuration(**{name: value})
 
 
 @pytest.mark.parametrize(
@@ -138,18 +138,18 @@ def test_derived_nonfinite_values_are_rejected() -> None:
     """Finite inputs must not produce infinite dependent constants or reciprocals."""
     config, physical = configuration_modules()
     with pytest.raises(ValueError, match="recip_deltatDyn"):
-        config.Settings(deltatDyn=1e-320)
+        config.Configuration(deltatDyn=1e-320)
     with pytest.raises(ValueError, match="lhSublim"):
         physical.PhysicalConstants(lhFusion=1e308, lhEvap=1e308)
 
 
 def test_evp_print_control_is_instance_owned() -> None:
     """Residual reporting is configurable without a mutable module global."""
-    from veris.configuration import SETTINGS, Settings
+    from veris.configuration import SETTINGS, Configuration
 
     assert "printEvpResidual" in SETTINGS
-    assert Settings().printEvpResidual is False
-    assert replace(Settings(), printEvpResidual=True).printEvpResidual is True
+    assert Configuration().printEvpResidual is False
+    assert replace(Configuration(), printEvpResidual=True).printEvpResidual is True
 
 
 def test_registry_defaults_populate_dataclass_fields() -> None:

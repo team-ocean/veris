@@ -1,7 +1,7 @@
 """Standalone JAX bulk heat-flux kernels, retaining the original MITgcm LANL equations.
 
 Array inputs preserve the original shapes and units documented per function.
-Settings and physical constants are supplied as separate frozen dataclasses.
+Configuration and physical constants are supplied as separate frozen dataclasses.
 """
 
 from functools import partial
@@ -10,13 +10,13 @@ import jax.numpy as npx
 from jax.typing import ArrayLike
 
 from veris._typing import LANLFluxes, jit
-from veris.configuration import Settings
+from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 
-@partial(jit, static_argnames=["sett", "phys"])
+@partial(jit, static_argnames=["conf", "phys"])
 def bulkf_formula_lanl(
-    sett: Settings,
+    conf: Configuration,
     phys: PhysicalConstants,
     uw: ArrayLike,
     vw: ArrayLike,
@@ -107,7 +107,7 @@ def bulkf_formula_lanl(
     qstar = ren * delq[...]
 
     # iteration with psi-functions to find transfer coefficients
-    for _ in range(sett.lanlBulkIterations):
+    for _ in range(conf.lanlBulkIterations):
         huol = (
             czol
             / ustar[...] ** 2

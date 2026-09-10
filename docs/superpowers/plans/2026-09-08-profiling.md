@@ -36,7 +36,7 @@ is excluded from timing samples. No persistent compilation cache was configured.
 | CPU | 186.404 ms | 183.739 ms |
 | One P100 | 27.900 ms | 20.701 ms |
 
-The experimental callable is `jax.jit(step, static_argnames=['sett'])`.
+The experimental callable is `jax.jit(step, static_argnames=['conf'])`.
 Every returned state field matched the original step exactly for this input
 on each backend (maximum absolute difference zero). This is exploratory
 evidence only: separate processes, no paired randomized trials, no larger-grid

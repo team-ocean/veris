@@ -4,7 +4,7 @@ from dataclasses import replace
 
 import pytest
 
-from veris.configuration import SETTINGS, Settings
+from veris.configuration import SETTINGS, Configuration
 from veris.physical_constants import PHYSICALCONSTANTS, PhysicalConstants
 
 PHYSICAL_DEFAULTS = {
@@ -102,7 +102,7 @@ CLOUD_COEFFICIENTS = (
 
 def test_scattered_coefficient_defaults_match_original_literals() -> None:
     for cls, registry, expected in (
-        (Settings, SETTINGS, SETTING_DEFAULTS),
+        (Configuration, SETTINGS, SETTING_DEFAULTS),
         (PhysicalConstants, PHYSICALCONSTANTS, PHYSICAL_DEFAULTS),
     ):
         obj = cls()
@@ -178,7 +178,7 @@ def test_invalid_extracted_settings_are_rejected(kwargs: dict[str, object]) -> N
     cls, registry = (
         (PhysicalConstants, PHYSICALCONSTANTS)
         if kwargs.keys() <= PHYSICALCONSTANTS.keys()
-        else (Settings, SETTINGS)
+        else (Configuration, SETTINGS)
     )
     assert kwargs.keys() <= registry.keys()
     with pytest.raises((TypeError, ValueError), match=next(iter(kwargs))):

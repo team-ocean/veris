@@ -34,8 +34,8 @@ def ocean_grid() -> OceanGeometry:
 def test_initialization_surface_masks_and_reciprocals(
     ocean_grid: OceanGeometry,
 ) -> None:
-    state, sett, phys = initialize(2, 5)
-    result = set_inits(state, ocean_grid, sett, phys)
+    state, conf, phys = initialize(2, 5)
+    result = set_inits(state, ocean_grid, conf, phys)
     assert result is not state
     assert result.hIceMean is state.hIceMean
     np.testing.assert_array_equal(state.iceMask, 1)
@@ -82,8 +82,8 @@ def test_initialization_surface_masks_and_reciprocals(
 
 
 def test_corner_area_is_four_cell_mean(ocean_grid: OceanGeometry) -> None:
-    state, sett, phys = initialize(2, 5)
-    result = set_inits(state, ocean_grid, sett, phys)
+    state, conf, phys = initialize(2, 5)
+    result = set_inits(state, ocean_grid, conf, phys)
     area = np.asarray(ocean_grid.area_t)
     expected = np.empty_like(area)
     for i, j in np.ndindex(area.shape):
@@ -96,11 +96,11 @@ def test_corner_area_is_four_cell_mean(ocean_grid: OceanGeometry) -> None:
 def test_uniform_grid_and_configured_surface_temperature(
     ocean_grid: OceanGeometry,
 ) -> None:
-    state, sett, phys = initialize(
+    state, conf, phys = initialize(
         2, 5, settings_overrides={"geometrySurfaceTemperature": 270.0}
     )
     geometry = replace(ocean_grid, area_t=jnp.full((6, 9), 12.0))
-    result = set_inits(state, geometry, sett, phys)
+    result = set_inits(state, geometry, conf, phys)
     np.testing.assert_array_equal(result.rAz, np.full((6, 9), 12.0))
     np.testing.assert_array_equal(result.TSurf, np.full((6, 9), 270.0))
 
@@ -120,6 +120,6 @@ def test_uniform_grid_and_configured_surface_temperature(
 def test_invalid_geometry_is_rejected(
     ocean_grid: OceanGeometry, name: str, value: object, reason: str
 ) -> None:
-    state, sett, phys = initialize(2, 5)
+    state, conf, phys = initialize(2, 5)
     with pytest.raises(ValueError, match=reason):
-        set_inits(state, replace(ocean_grid, **{name: value}), sett, phys)
+        set_inits(state, replace(ocean_grid, **{name: value}), conf, phys)
