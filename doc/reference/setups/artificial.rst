@@ -23,3 +23,31 @@ in the same state fields.
 The example initializes separate settings and physical constants and selects
 serial halos. It does not initialize a distributed mesh.
 The same JAX kernels can execute on a supported CPU or GPU device.
+
+Scenario controls
+-----------------
+
+``ARTIFICIAL_SETTINGS`` and the frozen ``ArtificialSettings`` class are defined
+in this setup. They describe prescribed initial fields and example controls;
+they do not add fields to model Settings, PhysicalConstants or State.
+This includes ``saltOcn_ref``, the prescribed ocean salinity, which can be
+changed through ``scenario_overrides``.
+``initialize(scenario_overrides={...})`` accepts these controls except
+``artificialCooling``: use ``step(..., cooling=...)`` to select that forcing.
+An omitted cooling argument uses the default below.
+
+.. exec::
+
+   from veris.setup.artificial import ARTIFICIAL_SETTINGS
+   print(".. list-table::")
+   print("   :header-rows: 1")
+   print("")
+   print("   * - Setting")
+   print("     - Default")
+   print("     - Type")
+   print("     - Description")
+   for name, metadata in ARTIFICIAL_SETTINGS.items():
+       print(f"   * - ``{name}``")
+       print(f"     - ``{metadata.default!r}``")
+       print(f"     - ``{metadata.type.__name__}``")
+       print(f"     - {metadata.description}")

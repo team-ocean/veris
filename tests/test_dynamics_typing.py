@@ -18,7 +18,7 @@ def test_concrete_dynamics_contract(tmp_path: Path, valid: bool, kernel: str) ->
     )
     returns = "Array" if kernel == "strength" else "tuple[Array, Array, Array]"
     source = f"""from jax import Array
-from veris.state import State
+from veris._typing import State
 from numpy import float64
 from numpy.typing import NDArray
 from veris.dynamics_routines import SeaIceStrength, stress

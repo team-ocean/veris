@@ -6,70 +6,33 @@ updates through dataclasses.replace.
 """
 
 from dataclasses import dataclass, field
+from typing import NamedTuple
 
 from veris._metadata import (
     FROM_REGISTRY,
-    Precision,
-    Setting,
     registry_defaults,
     validate_derived,
     validate_scalars,
 )
 
+
+class Setting(NamedTuple):
+    """Default, scalar type and human-readable description of a model setting."""
+
+    default: float | int | bool | str
+    type: type[float] | type[int] | type[bool] | type[str]
+    description: str
+    units: str = ""
+
+
+PRECISION = Setting(
+    "float64", str, "Model floating-point precision: float32 or float64"
+)
+
 SETTINGS: dict[str, Setting] = {
+    "dtype": PRECISION,
     "nx": Setting(8, int, "Local interior grid extent along the x direction", "1"),
     "ny": Setting(12, int, "Local interior grid extent along the y direction", "1"),
-    "artificialGridSpacing": Setting(
-        8000.0, float, "Uniform Cartesian grid spacing in the artificial example", "m"
-    ),
-    "artificialWindSpeed": Setting(
-        5.0, float, "Prescribed signed zonal wind in the artificial example", "m s-1"
-    ),
-    "artificialAirTemperature": Setting(
-        260.0,
-        float,
-        "Prescribed atmosphere and initial ice-surface temperature in the artificial example",
-        "K",
-    ),
-    "artificialIceThickness": Setting(
-        1.0,
-        float,
-        "Initial grid-cell mean ice thickness over ocean in the artificial example",
-        "m",
-    ),
-    "artificialSnowThickness": Setting(
-        0.05,
-        float,
-        "Initial grid-cell mean snow thickness over ocean in the artificial example",
-        "m",
-    ),
-    "artificialIceArea": Setting(
-        0.8,
-        float,
-        "Initial ocean-cell ice concentration in the artificial example",
-        "1",
-    ),
-    "artificialOceanDepth": Setting(
-        -100.0, float, "Signed ocean bottom elevation in the artificial example", "m"
-    ),
-    "artificialCoriolis": Setting(
-        0.0001, float, "Uniform Coriolis frequency in the artificial example", "s-1"
-    ),
-    "artificialCooling": Setting(
-        100.0,
-        float,
-        "Default upward open-water cooling imposed each artificial step",
-        "W m-2",
-    ),
-    "artificialTimeStep": Setting(
-        600.0,
-        float,
-        "Default dynamics and thermodynamics timestep for the artificial example",
-        "s",
-    ),
-    "artificialEVPsteps": Setting(
-        5, int, "Default EVP substeps in the artificial example", "1"
-    ),
     "geometrySurfaceTemperature": Setting(
         273.0, float, "Initial surface temperature used by the geometry adapter /K"
     ),
@@ -148,22 +111,21 @@ SETTINGS: dict[str, Setting] = {
         "kg m^-2",
     ),
     "aEVPcStar": Setting(4.0, float, "Adaptive EVP relaxation multiplier", "1"),
-    "evpStressRelaxation": Setting(
-        1.0, float, "Independent normal stress damping coefficient in EVP updates", "1"
-    ),
-    "evpShearRelaxation": Setting(
-        0.25, float, "Independent shear stress forcing coefficient in EVP updates", "1"
-    ),
     "lanlBulkIterations": Setting(
         5, int, "Number of LANL Monin-Obukhov stability iterations", "1"
     ),
 }
 
 
+__all__ = ["PRECISION", "SETTINGS", "Setting", "Settings"]
+
+
 @dataclass(frozen=True)
 @registry_defaults(SETTINGS)
-class Settings(Precision):
+class Settings:
     """Validated immutable model settings initialized from the registry."""
+
+    dtype: str = field(default=FROM_REGISTRY, kw_only=True)
 
     deltatTherm: float = FROM_REGISTRY
     recip_deltatTherm: float = field(init=False)
@@ -197,23 +159,10 @@ class Settings(Precision):
     surfaceTemperatureIterations: int = FROM_REGISTRY
     aEVPmassMin: float = FROM_REGISTRY
     aEVPcStar: float = FROM_REGISTRY
-    evpStressRelaxation: float = FROM_REGISTRY
-    evpShearRelaxation: float = FROM_REGISTRY
     lanlBulkIterations: int = FROM_REGISTRY
 
     nx: int = FROM_REGISTRY
     ny: int = FROM_REGISTRY
-    artificialGridSpacing: float = FROM_REGISTRY
-    artificialWindSpeed: float = FROM_REGISTRY
-    artificialAirTemperature: float = FROM_REGISTRY
-    artificialIceThickness: float = FROM_REGISTRY
-    artificialSnowThickness: float = FROM_REGISTRY
-    artificialIceArea: float = FROM_REGISTRY
-    artificialOceanDepth: float = FROM_REGISTRY
-    artificialCoriolis: float = FROM_REGISTRY
-    artificialCooling: float = FROM_REGISTRY
-    artificialTimeStep: float = FROM_REGISTRY
-    artificialEVPsteps: int = FROM_REGISTRY
 
     def __post_init__(self) -> None:
         """Validate host scalars and recompute exact dependent quantities."""
@@ -234,14 +183,8 @@ class Settings(Precision):
                     "surfaceTemperatureIterations",
                     "aEVPmassMin",
                     "aEVPcStar",
-                    "evpStressRelaxation",
-                    "evpShearRelaxation",
                     "lanlBulkIterations",
                     "eps2",
-                    "artificialGridSpacing",
-                    "artificialAirTemperature",
-                    "artificialTimeStep",
-                    "artificialEVPsteps",
                 ]
             ),
         )
@@ -252,10 +195,3 @@ class Settings(Precision):
         for name in ("nx", "ny"):
             if getattr(self, name) < 2:
                 raise ValueError(f"{name} must be at least two interior cells")
-        for name in ("artificialIceThickness", "artificialSnowThickness"):
-            if getattr(self, name) < 0:
-                raise ValueError(f"{name} must be nonnegative")
-        if not 0 <= self.artificialIceArea <= 1:
-            raise ValueError("artificialIceArea must lie between zero and one")
-        if self.artificialOceanDepth > 0:
-            raise ValueError("artificialOceanDepth must be nonpositive")

@@ -13,7 +13,7 @@ def test_concrete_mass_contract(tmp_path: Path, valid: bool) -> None:
     root = Path(__file__).resolve().parents[1]
     source = """from jax import Array
 from veris.area_mass import SeaIceMass
-from veris.state import State
+from veris._typing import State
 from veris.configuration import Settings
 from veris.physical_constants import PhysicalConstants
 
@@ -44,7 +44,7 @@ def test_mutable_static_settings_are_rejected(tmp_path: Path) -> None:
     root = Path(__file__).resolve().parents[1]
     path = tmp_path / "unhashable.py"
     path.write_text("""from dataclasses import dataclass
-from veris.state import State
+from veris._typing import State
 from veris.configuration import Settings
 from veris.physical_constants import PhysicalConstants
 from veris.area_mass import SeaIceMass
@@ -93,8 +93,8 @@ def test_kernels_use_concrete_model_annotations(module_name: str) -> None:
     import inspect
     from typing import get_type_hints
 
+    from veris._typing import State
     from veris.configuration import Settings
-    from veris.state import State
 
     module = importlib.import_module(f"veris.{module_name}")
     checked = 0

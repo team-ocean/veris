@@ -11,26 +11,21 @@ from veris.variables import VARIABLES
 
 def test_settings_schema_matches_registry() -> None:
     """Catch drift between explicit static fields and runtime configuration."""
-    from veris._metadata import PRECISION
-    from veris.configuration import SETTINGS
-    from veris.configuration import Settings as ModelSettings
-    from veris.state import Settings
+    from veris.configuration import SETTINGS, Settings
+    from veris.settings import Settings as ModelSettings
 
     assert Settings is ModelSettings
     actual = Settings()
     assert is_dataclass(actual)
-    assert {
-        field.name for field in fields(Settings)
-    } == SETTINGS.keys() | PRECISION.keys()
+    assert {field.name for field in fields(Settings)} == SETTINGS.keys()
     assert all(
-        getattr(actual, name) == metadata.default
-        for name, metadata in (PRECISION | SETTINGS).items()
+        getattr(actual, name) == metadata.default for name, metadata in SETTINGS.items()
     )
 
 
 def test_state_preserves_dataclass_pytree_and_replacement() -> None:
     """Changing container typing must not change field order or AD traversal."""
-    from veris.state import State
+    from veris._typing import State
 
     assert tuple(field.name for field in fields(State)) == tuple(VARIABLES)
     values = [jnp.full((2, 3), i, dtype=float) for i in range(len(VARIABLES))]

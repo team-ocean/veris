@@ -7,43 +7,17 @@ periodic corner area is the mean of four neighboring tracer-cell areas. Ocean
 geometry is external initialization input, never an AD leaf in the ice State.
 """
 
-from dataclasses import dataclass, fields, replace
+from dataclasses import fields, replace
 
 import jax.numpy as npx
 import numpy as np
 
-from veris._typing import ArrayInput
+from veris._typing import OceanGeometry, State
 from veris.configuration import Settings
 from veris.physical_constants import PhysicalConstants
-from veris.state import State
 
 
-@dataclass(frozen=True)
-class Geometry:
-    """Read-only ocean grid inputs, independent of any ocean-model container.
-
-    ``maskT``, ``maskU`` and ``maskV`` are volume masks; ``dxt`` and ``dxu``
-    are x-spacing vectors, and ``dyt`` and ``dyu`` are y-spacing vectors (m).
-    ``ht`` is depth (m), ``coriolis_t`` is Coriolis frequency (s-1), and the
-    three horizontal cell-area arrays are in m2. Shapes and finite positive
-    metrics are checked by the host adapter before any reciprocal is computed.
-    """
-
-    maskT: ArrayInput
-    maskU: ArrayInput
-    maskV: ArrayInput
-    ht: ArrayInput
-    coriolis_t: ArrayInput
-    dxt: ArrayInput
-    dxu: ArrayInput
-    dyt: ArrayInput
-    dyu: ArrayInput
-    area_t: ArrayInput
-    area_u: ArrayInput
-    area_v: ArrayInput
-
-
-def _validate_geometry(geometry: Geometry, shape: tuple[int, ...]) -> None:
+def _validate_geometry(geometry: OceanGeometry, shape: tuple[int, ...]) -> None:
     """Reject mismatched grids and invalid reciprocal inputs on the host."""
     if len(shape) != 2:
         raise ValueError("State.hIceMean must have a two-dimensional storage shape")
@@ -78,11 +52,11 @@ def _validate_geometry(geometry: Geometry, shape: tuple[int, ...]) -> None:
 
 
 def set_inits(
-    state: State, geometry: Geometry, sett: Settings, phys: PhysicalConstants
+    state: State, geometry: OceanGeometry, sett: Settings, phys: PhysicalConstants
 ) -> State:
     """Return State with surface masks and staggered metrics initialized.
 
-    Input State and Geometry are unchanged; non-geometry fields retain their
+    Input State and OceanGeometry are unchanged; non-geometry fields retain their
     initialized values. ``sett.geometrySurfaceTemperature`` preserves the
     original setup temperature of 273 K. ``phys`` is supplied consistently with
     other setup adapters; these geometric equations need no physical constants.
@@ -133,3 +107,6 @@ def set_inits(
         recip_rAv=1 / npx.asarray(geometry.area_v, dtype=dtype),
         TSurf=ones * sett.geometrySurfaceTemperature,
     )
+
+
+__all__ = ["OceanGeometry", "set_inits"]

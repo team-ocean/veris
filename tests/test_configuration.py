@@ -30,7 +30,9 @@ def test_registry_defaults_are_disjoint_complete_and_frozen() -> None:
     )["defaults"]
 
     assert not config.SETTINGS.keys() & physical.PHYSICALCONSTANTS.keys()
-    combined = {**config.SETTINGS, **physical.PHYSICALCONSTANTS}
+    from veris.setup.artificial import ARTIFICIAL_SETTINGS
+
+    combined = {**config.SETTINGS, **physical.PHYSICALCONSTANTS, **ARTIFICIAL_SETTINGS}
     assert legacy.keys() <= combined.keys()
     for name, value in legacy.items():
         assert combined[name].default == value, name
@@ -155,7 +157,8 @@ def test_registry_defaults_populate_dataclass_fields() -> None:
     from dataclasses import dataclass, field
     from inspect import signature
 
-    from veris._metadata import FROM_REGISTRY, Setting, registry_defaults
+    from veris._metadata import FROM_REGISTRY, registry_defaults
+    from veris.configuration import Setting
 
     registry = {
         "count": Setting(3, int, "Example count"),
@@ -183,7 +186,8 @@ def test_registry_defaults_populate_dataclass_fields() -> None:
 @pytest.mark.parametrize("registry_names", [(), ("count", "extra")])
 def test_registry_defaults_reject_schema_drift(registry_names: tuple[str, ...]) -> None:
     """A metadata entry and class field must always describe the same schema."""
-    from veris._metadata import FROM_REGISTRY, Setting, registry_defaults
+    from veris._metadata import FROM_REGISTRY, registry_defaults
+    from veris.configuration import Setting
 
     class Example:
         count: int = FROM_REGISTRY

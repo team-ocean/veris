@@ -375,3 +375,6 @@ VARIABLES: dict[str, Variable] = {
         "Reciprocal of rAv", V_GRID, "m-2", "Reciprocal of rAv", default=1.0
     ),
 }
+
+
+__all__ = ["C_GRID", "U_GRID", "VARIABLES", "V_GRID", "Z_GRID", "Variable"]

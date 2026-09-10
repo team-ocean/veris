@@ -12,9 +12,9 @@ explicit canonical replacement is stated.
 
 The snow thickness ``hCut = 0.15 m`` belongs to PhysicalConstants: it sets the
 physical transition between ice and optically opaque snow albedo in solve4temp.
-It is not a solver tolerance. Scenario controls, including grid extents and all
-artificial setup defaults, are now initialized fields of Settings; initial
-array values remain described by VARIABLES and explicit setup overrides.
+It is not a solver tolerance. Grid extents are initialized fields of Settings. Artificial scenario defaults
+and validation belong to ARTIFICIAL_SETTINGS/ArtificialSettings in artificial.py;
+initial model arrays are described by VARIABLES and local setup overrides.
 The geometry adapter retains its independent historical 273 K surface default
 through ``Settings.geometrySurfaceTemperature``. Registry allocation's 273.15 K
 temperature values describe initial conditions, not a second Celsius conversion
@@ -38,8 +38,8 @@ constant.
 | `basal_drag_coeff` minimum concentration | 0.01 | `basalDragMinArea` | P |
 | `evp_solver` adaptive minimum cell ice mass | 1e-4 | `aEVPmassMin` | S |
 | `evp_solver.aEVPcStar` | 4 | `aEVPcStar` | S |
-| `evp_solver.evpRevFac` | 1 | `evpStressRelaxation` | S |
-| `evp_solver.recip_evpRevFac` | 0.25 | `evpShearRelaxation` | S |
+| `evp_solver.evpRevFac` | 1 | `evpStressRelaxation` | P (sets constitutive equilibrium) |
+| `evp_solver.recip_evpRevFac` | 0.25 | `evpShearRelaxation` | P (sets constitutive equilibrium) |
 
 The last two EVP locals are **not reciprocals** despite their old names.
 Do not derive 0.25 as `1 / 1`. They are the current independent coefficients
@@ -255,7 +255,7 @@ computed at construction rather than accepted as independently stale overrides.
 | `tempFrz` | `-1.96` | P |
 | `dtempFrz_dS` | `0` | P |
 | `saltIce_ref` | `0` | P |
-| `saltOcn_ref` | `34.7` | P |
+| `saltOcn_ref` | `34.7` | Artificial setup |
 | `minLWdown` | `60` | P |
 | `maxTIce` | `30` | P |
 | `minTIce` | `-50` | P |

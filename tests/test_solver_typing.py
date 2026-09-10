@@ -14,7 +14,7 @@ import pytest
 def test_solver_contract(tmp_path: Path, valid: bool, contract: str) -> None:
     """Reject fractional substep counts and incorrectly sized solver results."""
     source = """from jax import Array
-from veris.state import State
+from veris._typing import State
 from veris.evp_solver import evp_solver
 from veris.dynsolver import IceVelocities
 

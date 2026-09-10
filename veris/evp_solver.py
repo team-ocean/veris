@@ -8,8 +8,7 @@ import jax
 import jax.numpy as jnp
 from jax import Array
 
-from veris._solver_types import EVPCarry
-from veris._typing import jit
+from veris._typing import EVPCarry, State, jit
 from veris.averaging import c_point_to_z_point
 from veris.configuration import Settings
 from veris.dynamics_routines import (
@@ -23,7 +22,6 @@ from veris.dynamics_routines import (
 from veris.fill_overlap import fill_overlap_uv
 from veris.global_sum import global_sum
 from veris.physical_constants import PhysicalConstants
-from veris.state import State
 
 
 @partial(jit, static_argnames=["sett", "phys", "axis_names"])
@@ -97,8 +95,8 @@ def evp_solver(
             denom2 = denom1
 
         # copied from the MITgcm
-        evpRevFac = sett.evpStressRelaxation
-        recip_evpRevFac = sett.evpShearRelaxation
+        evpRevFac = phys.evpStressRelaxation
+        recip_evpRevFac = phys.evpShearRelaxation
 
         # define principle strain rate components
         ep = e11 + e22

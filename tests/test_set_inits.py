@@ -7,15 +7,15 @@ import numpy as np
 import pytest
 
 from veris.initialization import initialize
-from veris.set_inits import Geometry, set_inits
+from veris.set_inits import OceanGeometry, set_inits
 
 
 @pytest.fixture
-def ocean_grid() -> Geometry:
+def ocean_grid() -> OceanGeometry:
     """Frozen geometry with distinguishable surface and subsurface masks."""
     x, y = np.indices((6, 9))
     surface = ((x + y) % 3 != 0).astype(float)
-    return Geometry(
+    return OceanGeometry(
         maskT=jnp.asarray(np.stack([np.zeros_like(surface), surface], axis=-1)),
         maskU=jnp.asarray(np.stack([surface, 1 - surface], axis=-1)),
         maskV=jnp.asarray(np.stack([surface, surface[:, ::-1]], axis=-1)),
@@ -31,7 +31,9 @@ def ocean_grid() -> Geometry:
     )
 
 
-def test_initialization_surface_masks_and_reciprocals(ocean_grid: Geometry) -> None:
+def test_initialization_surface_masks_and_reciprocals(
+    ocean_grid: OceanGeometry,
+) -> None:
     state, sett, phys = initialize(2, 5)
     result = set_inits(state, ocean_grid, sett, phys)
     assert result is not state
@@ -79,7 +81,7 @@ def test_initialization_surface_masks_and_reciprocals(ocean_grid: Geometry) -> N
         setattr(ocean_grid, "ht", jnp.zeros((6, 9)))  # noqa: B010 -- test frozen runtime guard
 
 
-def test_corner_area_is_four_cell_mean(ocean_grid: Geometry) -> None:
+def test_corner_area_is_four_cell_mean(ocean_grid: OceanGeometry) -> None:
     state, sett, phys = initialize(2, 5)
     result = set_inits(state, ocean_grid, sett, phys)
     area = np.asarray(ocean_grid.area_t)
@@ -91,7 +93,9 @@ def test_corner_area_is_four_cell_mean(ocean_grid: Geometry) -> None:
     np.testing.assert_allclose(result.rAz, expected, rtol=1e-14)
 
 
-def test_uniform_grid_and_configured_surface_temperature(ocean_grid: Geometry) -> None:
+def test_uniform_grid_and_configured_surface_temperature(
+    ocean_grid: OceanGeometry,
+) -> None:
     state, sett, phys = initialize(
         2, 5, settings_overrides={"geometrySurfaceTemperature": 270.0}
     )
@@ -114,7 +118,7 @@ def test_uniform_grid_and_configured_surface_temperature(ocean_grid: Geometry) -
     ],
 )
 def test_invalid_geometry_is_rejected(
-    ocean_grid: Geometry, name: str, value: object, reason: str
+    ocean_grid: OceanGeometry, name: str, value: object, reason: str
 ) -> None:
     state, sett, phys = initialize(2, 5)
     with pytest.raises(ValueError, match=reason):

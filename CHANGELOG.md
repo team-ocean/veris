@@ -1,5 +1,70 @@
 # Development log
 
+## 2026-09-10 — explicit metadata owners and OceanGeometry
+
+- Applied the user's precise type locations: Setting/configuration.py,
+  PhysicalConstant/physical_constants.py, Variable/variables.py, and
+  Diagnostics/diagnostics.py. Renamed the central Geometry to OceanGeometry
+  throughout callers and tests, without a stale alias.
+- PRECISION is now a single Setting entry in configuration.py, referenced by
+  SETTINGS["dtype"]. Removed the Precision base class; each configuration
+  dataclass has an explicit keyword-only dtype field with the same eager default.
+- Added expected-red ownership/name/import tests before moving definitions.
+  The interrupted commit never executed; prior 688-case CPU/GPU results
+  precede these latest corrections and are not final-source evidence.
+- [x] All 93 focused regression cases pass, followed by the full CPU suite:
+  693/693 in 211.50 s. Maintained coverage 1431/1442 (99.24%); the established
+  80% gate passes. Whole-package coverage is 79.72% including generated code.
+  Evidence: test_logs/explicit-owners-full-cpu.log and explicit-owners-coverage.json.
+- [x] Ruff/format/annotation/ty and warnings-as-errors Sphinx HTML build pass.
+  Independent review found no runtime issues; corrected its documentation notes.
+  Final ownership audit verifies every requested module and removed old names.
+- [x] All 69 targeted GPU precision/state/diagnostics/geometry/initialization
+  cases pass with an asserted GPU backend. Log: test_logs/explicit-owners-gpu.log.
+  No source changes after CPU validation and no pytest remains running.
+- Ready to commit the complete corrected refactor on jax-only. No remote push;
+  large test logs and generated artifacts remain untracked.
+
+## 2026-09-10 — configuration ownership and central type definitions
+
+- [x] Moved EVP stress/shear coefficients to PhysicalConstants after tracing
+  their influence on the converged stress law. Defaults and positive validation
+  are preserved; timestep/relaxation-rate/tolerance controls remain Settings.
+- [x] Moved all 12 artificial scenario controls and validation into artificial.py.
+  scenario_overrides configures initialization; step(cooling=...) supplies custom
+  cooling. Generic Settings and State contain no artificial-only controls.
+- [x] Centralized shared model/metadata/geometry/diagnostics types in _typing.py.
+  Per the user's explicit correction, Settings stays with SETTINGS in
+  configuration.py and PhysicalConstants stays with PHYSICALCONSTANTS in
+  physical_constants.py. ArtificialSettings remains local to the setup.
+  Removed state.py, _bulk_types.py, _solver_types.py and _thermodynamic_types.py;
+  migrated consumers and documentation.
+- Rejected approach: putting Settings/PhysicalConstants in _typing.py exceeded
+  the requested ownership boundary and required unnecessary lazy defaults.
+  Restored eager registry defaults and removed the deferred machinery/tests.
+  Added expected-red tests explicitly enforcing the two local class exceptions.
+- The first 123 focused cases, static checks and docs passed before this
+  correction. Interrupted the obsolete full CPU run at 359 passing tests;
+  those results are not final-source validation. No numerical tolerances changed.
+- Final consumer audit found saltOcn_ref was used only by the artificial setup;
+  moved its unchanged 34.7 default to ARTIFICIAL_SETTINGS and tested scenario
+  overrides. Interrupted the second obsolete CPU run at 326 passing tests.
+  An AST audit of every registry key found no other artificial-only consumers.
+- [x] Corrected final-source CPU suite passes 688/688 in 209.86 s, including
+  distributed collectives. Maintained coverage 1427/1438 (99.24%); whole package
+  79.68%. The maintained 80% coverage gate passes. Log and coverage JSON:
+  test_logs/ownership-full-cpu.log and test_logs/ownership-coverage.json.
+- [x] Ruff/format/annotation/ty gates and Sphinx HTML with warnings as errors
+  pass. Updated independent review found no correctness/import/default issue;
+  replaced a redundant settings identity assertion with public-reexport coverage.
+- [x] Final asserted GPU-backend suite passes 688/688; CPU-only integration
+  checks retain their intentional backend. Log: test_logs/ownership-full-gpu.log.
+  Final source is unchanged since CPU validation; no pytest remains live.
+- [x] Completion audit verifies local Settings/PhysicalConstants classes,
+  disjoint scenario ownership, centralized remaining shared types, removed
+  redundant modules and generated registry documentation. Ready to commit on
+  jax-only; test logs and generated artifacts remain local. No remote push.
+
 ## 2026-09-10 — initialization dtype policy
 
 - [x] Defined the shared frozen keyword-only dtype field once in PRECISION;

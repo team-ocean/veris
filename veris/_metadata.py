@@ -1,50 +1,22 @@
 """Immutable scalar metadata and host validation shared by configuration registries."""
 
+from __future__ import annotations
+
 import math
 from collections.abc import Callable, Mapping
-from dataclasses import Field, dataclass, field
+from dataclasses import Field
 from numbers import Real
-from typing import Any, NamedTuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
-T = TypeVar("T")
+if TYPE_CHECKING:
+    from veris.configuration import Setting
+    from veris.physical_constants import PhysicalConstant
 
 # An explicit default keeps dataclass constructor arguments optional to static
 # type checkers. The decorator replaces this marker before dataclass runs.
 FROM_REGISTRY: Any = object()
-
-
-class Setting(NamedTuple):
-    """Default, scalar type and human-readable description of a model setting."""
-
-    default: float | int | bool | str
-    type: type[float] | type[int] | type[bool] | type[str]
-    description: str
-    units: str = ""
-
-
-class PhysicalConstant(NamedTuple):
-    """Default, scalar type and description of a physical or empirical constant."""
-
-    default: float | tuple[float, ...]
-    type: type[float] | type[tuple[float, ...]]
-    description: str
-    units: str = ""
-
-
-PRECISION = {
-    "dtype": Setting(
-        "float64", str, "Model floating-point precision: float32 or float64"
-    )
-}
-
-
-@dataclass(frozen=True)
-class Precision:
-    """Shared static precision metadata; never part of the differentiated State."""
-
-    dtype: str = field(default=cast(str, PRECISION["dtype"].default), kw_only=True)
 
 
 def precision_scalar(value: Any, dtype: str, name: str) -> Any:
@@ -56,7 +28,7 @@ def precision_scalar(value: Any, dtype: str, name: str) -> Any:
     return result
 
 
-def registry_defaults(
+def registry_defaults[T](
     registry: Mapping[str, Setting | PhysicalConstant],
 ) -> Callable[[type[T]], type[T]]:
     """Populate annotated fields before applying the standard dataclass decorator.
@@ -92,7 +64,9 @@ def validate_scalars(
     accept finite host real scalars, including integers; arrays and tracers are
     not static configuration. Positive names protect denominators and cutoffs.
     """
-    dtype = cast(str, getattr(instance, "dtype", PRECISION["dtype"].default))
+    from veris.configuration import PRECISION
+
+    dtype = cast(str, getattr(instance, "dtype", PRECISION.default))
     if dtype not in ("float32", "float64"):
         raise ValueError("dtype must be float32 or float64")
     for name, metadata in registry.items():
@@ -126,13 +100,15 @@ def validate_scalars(
 
 def validate_derived(instance: object, names: tuple[str, ...]) -> None:
     """Reject overflow in exact dependencies computed from finite input scalars."""
+    from veris.configuration import PRECISION
+
     for name in names:
         object.__setattr__(
             instance,
             name,
             precision_scalar(
                 getattr(instance, name),
-                cast(str, getattr(instance, "dtype", PRECISION["dtype"].default)),
+                cast(str, getattr(instance, "dtype", PRECISION.default)),
                 name,
             ),
         )

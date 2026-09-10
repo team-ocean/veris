@@ -14,10 +14,10 @@ Initialize the model and run the artificial island example::
 
    state, settings, constants = initialize(
        nx=8, ny=12, wind=5.0,
-       settings_overrides={"artificialCooling": 100.0},
+       scenario_overrides={"artificialGridSpacing": 8000.0},
    )
    for _ in range(3):
-       state = step(state, settings, constants)
+       state = step(state, settings, constants, cooling=100.0)
    jax.block_until_ready(state)
    print(float(state.hIceMean[2:-2, 2:-2].mean()))
 
@@ -25,14 +25,16 @@ The example uses a periodic Cartesian grid with a central island. Each time step
 updates ice velocities and stresses, transports ice and snow, then computes
 thermodynamic growth and ocean heat/salt exchange. Cooling is prescribed in
 W/m², positive upward. Ocean fields remain prescribed. Omitted ``cooling`` uses
-``settings.artificialCooling``; an explicit scalar or JAX scalar array overrides
+the local ``ARTIFICIAL_SETTINGS["artificialCooling"]`` default; an explicit scalar or JAX scalar array overrides
 it and remains differentiable. Each step restores prescribed atmospheric heat
 forcing before growth replaces ``Qnet`` and ``Qsw`` with ocean-coupling fluxes.
 
-Grid extents, spacing, wind, temperatures, initial ice/snow conditions and other
-experiment controls are recorded in the initialized settings. Explicit
+Grid extents and numerical controls are recorded in model Settings. Spacing,
+wind, temperatures and initial ice/snow conditions belong to the artificial
+setup and determine its initialized arrays. Explicit
 ``nx``, ``ny``, ``wind`` and ``air_temperature`` arguments override their registry
-defaults. Use ``settings_overrides`` for other experiment controls and
+defaults. Use ``scenario_overrides`` for other experiment controls,
+``settings_overrides`` for model controls and
 ``physical_overrides`` for material parameters. Explicit ``deltatDyn``,
 ``deltatTherm`` and ``nEVPsteps`` overrides take precedence over the artificial
 scenario defaults.
@@ -59,7 +61,11 @@ consistent geometry and intermediate fields before running kernels.
 ``SETTINGS`` and ``PHYSICALCONSTANTS`` are the source of configuration defaults.
 Their classes mark regular fields with ``FROM_REGISTRY``; ``registry_defaults``
 copies the matching metadata defaults before the standard frozen dataclass is
-created. Derived fields retain ``field(init=False)`` and are recomputed during
+created. ``Settings`` and ``PhysicalConstants`` are defined beside their
+respective registries, along with ``Setting`` and ``PhysicalConstant`` metadata.
+``Variable`` lives in ``variables.py`` and ``Diagnostics`` in ``diagnostics.py``.
+``State``, ``OceanGeometry`` and shared array contracts live in ``veris._typing``.
+Derived fields retain ``field(init=False)`` and are recomputed during
 construction and replacement. This keeps typed constructor arguments without
 repeating registry keys or casts for each field.
 

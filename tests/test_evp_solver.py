@@ -321,9 +321,10 @@ def test_evp_configured_normal_relaxation_damps_uniform_stress(
     phys: PhysicalConstants,
     relaxation: float,
 ) -> None:
-    """Independent normal stress damping is read from initialized settings."""
+    """Independent normal stress damping is read from physical constants."""
     solver = importlib.import_module("veris.evp_solver").evp_solver
-    sett = replace(sett, nEVPsteps=1, evpStressRelaxation=relaxation)
+    sett = replace(sett, nEVPsteps=1)
+    phys = replace(phys, evpStressRelaxation=relaxation)
     vs = evp_state()
     vs = replace(vs, sigma1=vs.sigma1 + 4, sigma2=vs.sigma2 + 2, sigma12=vs.sigma12 + 3)
     result = solver(vs, sett, phys)

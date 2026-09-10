@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from veris.state import State
+from veris._typing import State
 
 
 def test_initialize_allocates_complete_minimal_frozen_state() -> None:

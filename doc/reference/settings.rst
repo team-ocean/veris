@@ -31,8 +31,9 @@ truncation and does not change global JAX configuration. Immutable replacement
 preserves precision. Array replacements supplied by callers must use the existing
 array dtype. NetCDF storage uses the actual array dtype, as shown in :doc:`variables`.
 
-The shared policy field is described by ``veris._metadata.PRECISION`` and inherited
-by both dataclasses; it is separate from the disjoint model/physics registries.
+``veris.configuration.PRECISION`` is the ``Setting`` metadata entry stored at
+``SETTINGS["dtype"]``. Configuration objects declare their own keyword-only
+``dtype`` field using that same default; there is no precision base class.
 
 Registry defaults
 -----------------
@@ -40,7 +41,6 @@ Registry defaults
 .. exec::
 
    from veris.configuration import SETTINGS
-   from veris._metadata import PRECISION
    print(".. list-table::")
    print("   :header-rows: 1")
    print("")
@@ -48,7 +48,7 @@ Registry defaults
    print("     - Default")
    print("     - Type")
    print("     - Description")
-   for name, metadata in (PRECISION | SETTINGS).items():
+   for name, metadata in SETTINGS.items():
        print(f"   * - ``{name}``")
        print(f"     - ``{metadata.default!r}``")
        print(f"     - ``{metadata.type.__name__}``")

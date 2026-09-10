@@ -24,3 +24,9 @@ Implementation sequence: establish fixtures and elementary numerical tests;
 add halo and transport checks; test dynamic and thermodynamic equations and
 smooth-region gradients; review test quality, measure coverage, and close gaps.
 Known broken branches need reproducing tests before production fixes.
+
+Type ownership: Settings, Setting and PRECISION live in configuration.py;
+PhysicalConstants and PhysicalConstant in physical_constants.py; Variable in
+variables.py; Diagnostics in diagnostics.py. PRECISION is a Setting metadata
+entry, not a class. State, OceanGeometry and shared kernel contracts live in
+_typing.py. Artificial-only configuration remains in setup/artificial.py.

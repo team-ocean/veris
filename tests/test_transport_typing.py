@@ -13,7 +13,7 @@ def test_directional_transport_contract(
     tmp_path: Path, valid: bool, direction: str
 ) -> None:
     """Accept NumPy fields and concrete State, but reject invalid state arguments."""
-    source = f"""from veris.state import State
+    source = f"""from veris._typing import State
 from veris.configuration import Settings
 from jax import Array
 from numpy import float64

@@ -8,7 +8,7 @@ Five EVP substeps keep this example small; they are not a convergence criterion.
 """
 
 from collections.abc import Mapping
-from dataclasses import replace
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import jax
@@ -16,12 +16,116 @@ import jax.numpy as jnp
 import numpy as np
 from jax.sharding import PartitionSpec as P
 
-from veris._typing import jit
-from veris.configuration import Settings
+from veris._metadata import (
+    FROM_REGISTRY,
+    registry_defaults,
+    validate_scalars,
+)
+from veris._typing import State, jit
+from veris.configuration import PRECISION, Setting, Settings
 from veris.diagnostics import Diagnostics
 from veris.initialization import initialize as initialize_model
 from veris.physical_constants import PhysicalConstants
-from veris.state import State
+
+ARTIFICIAL_SETTINGS: dict[str, Setting] = {
+    "saltOcn_ref": Setting(
+        34.7, float, "Prescribed ocean salinity in the artificial example", "g kg-1"
+    ),
+    "artificialGridSpacing": Setting(
+        8000.0, float, "Uniform Cartesian grid spacing in the artificial example", "m"
+    ),
+    "artificialWindSpeed": Setting(
+        5.0, float, "Prescribed signed zonal wind in the artificial example", "m s-1"
+    ),
+    "artificialAirTemperature": Setting(
+        260.0,
+        float,
+        "Prescribed atmosphere and initial ice-surface temperature in the artificial example",
+        "K",
+    ),
+    "artificialIceThickness": Setting(
+        1.0,
+        float,
+        "Initial grid-cell mean ice thickness over ocean in the artificial example",
+        "m",
+    ),
+    "artificialSnowThickness": Setting(
+        0.05,
+        float,
+        "Initial grid-cell mean snow thickness over ocean in the artificial example",
+        "m",
+    ),
+    "artificialIceArea": Setting(
+        0.8,
+        float,
+        "Initial ocean-cell ice concentration in the artificial example",
+        "1",
+    ),
+    "artificialOceanDepth": Setting(
+        -100.0, float, "Signed ocean bottom elevation in the artificial example", "m"
+    ),
+    "artificialCoriolis": Setting(
+        0.0001, float, "Uniform Coriolis frequency in the artificial example", "s-1"
+    ),
+    "artificialCooling": Setting(
+        100.0,
+        float,
+        "Default upward open-water cooling imposed each artificial step",
+        "W m-2",
+    ),
+    "artificialTimeStep": Setting(
+        600.0,
+        float,
+        "Default dynamics and thermodynamics timestep for the artificial example",
+        "s",
+    ),
+    "artificialEVPsteps": Setting(
+        5, int, "Default EVP substeps in the artificial example", "1"
+    ),
+}
+
+
+@dataclass(frozen=True)
+@registry_defaults({"dtype": PRECISION, **ARTIFICIAL_SETTINGS})
+class ArtificialSettings:
+    """Validated scenario defaults kept outside model configuration and AD State."""
+
+    dtype: str = field(default=FROM_REGISTRY, kw_only=True)
+
+    saltOcn_ref: float = FROM_REGISTRY
+    artificialGridSpacing: float = FROM_REGISTRY
+    artificialWindSpeed: float = FROM_REGISTRY
+    artificialAirTemperature: float = FROM_REGISTRY
+    artificialIceThickness: float = FROM_REGISTRY
+    artificialSnowThickness: float = FROM_REGISTRY
+    artificialIceArea: float = FROM_REGISTRY
+    artificialOceanDepth: float = FROM_REGISTRY
+    artificialCoriolis: float = FROM_REGISTRY
+    artificialCooling: float = FROM_REGISTRY
+    artificialTimeStep: float = FROM_REGISTRY
+    artificialEVPsteps: int = FROM_REGISTRY
+
+    def __post_init__(self) -> None:
+        """Validate prescribed experiment fields at the selected model precision."""
+        validate_scalars(
+            self,
+            ARTIFICIAL_SETTINGS,
+            positive=frozenset(
+                {
+                    "artificialGridSpacing",
+                    "artificialAirTemperature",
+                    "artificialTimeStep",
+                    "artificialEVPsteps",
+                }
+            ),
+        )
+        for name in ("artificialIceThickness", "artificialSnowThickness"):
+            if getattr(self, name) < 0:
+                raise ValueError(f"{name} must be nonnegative")
+        if not 0 <= self.artificialIceArea <= 1:
+            raise ValueError("artificialIceArea must lie between zero and one")
+        if self.artificialOceanDepth > 0:
+            raise ValueError("artificialOceanDepth must be nonpositive")
 
 
 def initialize(
@@ -32,44 +136,54 @@ def initialize(
     *,
     dtype: str | None = None,
     settings_overrides: Mapping[str, Any] | None = None,
+    scenario_overrides: Mapping[str, Any] | None = None,
     physical_overrides: Mapping[str, Any] | None = None,
 ) -> tuple[State, Settings, PhysicalConstants]:
-    """Return an artificial island experiment with all controls in Settings.
+    """Return an artificial island experiment with separate local scenario controls.
 
     Registry defaults select an 8-km grid, 600-second timesteps and five EVP
     substeps. Explicit arguments override scenario settings and are recorded in
-    the returned object; explicit deltatDyn, deltatTherm and nEVPsteps overrides
+    the initialized arrays; explicit deltatDyn, deltatTherm and nEVPsteps overrides
     take precedence over the artificial scenario defaults. Atmosphere is
     saturated at its specified temperature with blackbody downward longwave
     radiation. This setup supports serial execution; use the general initializer
-    with supplied mesh geometry for sharded experiments.
+    with supplied mesh geometry for sharded experiments. Scenario overrides stay
+    local to this module; use the step cooling argument for heat-flux forcing.
     """
     overrides = dict(settings_overrides or {})
+    scenario_values = dict(scenario_overrides or {})
+    if "artificialCooling" in scenario_values:
+        raise ValueError("pass artificialCooling as the cooling argument to step")
     for name, value in (
         ("nx", nx),
         ("ny", ny),
-        ("artificialWindSpeed", wind),
-        ("artificialAirTemperature", air_temperature),
     ):
         if value is not None:
             overrides[name] = value
     if dtype is not None:
         overrides["dtype"] = dtype
     controls = Settings(**overrides)
+    for name, value in (
+        ("artificialWindSpeed", wind),
+        ("artificialAirTemperature", air_temperature),
+    ):
+        if value is not None:
+            scenario_values[name] = value
+    scenario = ArtificialSettings(dtype=controls.dtype, **scenario_values)
     if "use_sharding" in overrides and controls.use_sharding:
         raise ValueError("artificial initialization supports serial execution only")
     if controls.nx < 4 or controls.ny < 4:
         raise ValueError("grid dimensions must be at least four interior cells")
     overrides["use_sharding"] = False
-    overrides.setdefault("deltatTherm", controls.artificialTimeStep)
-    overrides.setdefault("deltatDyn", controls.artificialTimeStep)
-    overrides.setdefault("nEVPsteps", controls.artificialEVPsteps)
+    overrides.setdefault("deltatTherm", scenario.artificialTimeStep)
+    overrides.setdefault("deltatDyn", scenario.artificialTimeStep)
+    overrides.setdefault("nEVPsteps", scenario.artificialEVPsteps)
     vs, sett, phys = initialize_model(
         settings_overrides=overrides, physical_overrides=physical_overrides
     )
     nx, ny = sett.nx, sett.ny
-    wind = sett.artificialWindSpeed
-    air_temperature = sett.artificialAirTemperature
+    wind = scenario.artificialWindSpeed
+    air_temperature = scenario.artificialAirTemperature
     ones = jnp.ones_like(vs.iceMask)
     fields = {}
     interior = np.ones((nx, ny))
@@ -86,7 +200,7 @@ def initialize(
         maskInV=south,
     )
     # Direct metrics unused by the kernels stay local to initialization.
-    spacing = sett.artificialGridSpacing
+    spacing = scenario.artificialGridSpacing
     cell_area = spacing**2
     for name in ("dxG", "dyG", "dxU", "dyU", "dxV", "dyV"):
         fields[name] = spacing * ones
@@ -101,21 +215,21 @@ def initialize(
         - phys.iceVaporPressureTemperature / air_temperature
     )
     fields.update(
-        hIceMean=sett.artificialIceThickness * mask,
-        hSnowMean=sett.artificialSnowThickness * mask,
-        Area=sett.artificialIceArea * mask,
+        hIceMean=scenario.artificialIceThickness * mask,
+        hSnowMean=scenario.artificialSnowThickness * mask,
+        Area=scenario.artificialIceArea * mask,
         TSurf=air_temperature * ones,
         SeaIceLoad=(
-            sett.artificialIceThickness * phys.rhoIce
-            + sett.artificialSnowThickness * phys.rhoSnow
+            scenario.artificialIceThickness * phys.rhoIce
+            + scenario.artificialSnowThickness * phys.rhoSnow
         )
         * mask,
         recip_hIceMean=1
-        / jnp.sqrt((sett.artificialIceThickness * mask) ** 2 + phys.hIce_reg),
-        R_low=sett.artificialOceanDepth * ones,
-        fCori=sett.artificialCoriolis * ones,
+        / jnp.sqrt((scenario.artificialIceThickness * mask) ** 2 + phys.hIce_reg),
+        R_low=scenario.artificialOceanDepth * ones,
+        fCori=scenario.artificialCoriolis * ones,
         theta=temperature * ones,
-        ocSalt=phys.saltOcn_ref * ones,
+        ocSalt=scenario.saltOcn_ref * ones,
         uWind=wind * ones,
         wSpeed=abs(wind) * ones,
         ATemp=air_temperature * ones,
@@ -139,7 +253,8 @@ def step(
     The Python driver and compiled_step execute the same dynamics, transport,
     cleanup and growth sequence. Both support AD. Use step_with_diagnostics to
     retain the output-only ice-ocean coupling fields alongside the updated state.
-    Cooling resets atmospheric Qnet/Qsw forcing on every call, before Growth
+    Omitted cooling uses ARTIFICIAL_SETTINGS; pass cooling explicitly to change
+    the forcing. Cooling resets atmospheric Qnet/Qsw forcing on every call, before Growth
     replaces these state fields with ocean-coupling fluxes.
     """
     result, _ = step_with_diagnostics(vs, sett, phys, cooling)
@@ -159,7 +274,7 @@ def step_with_diagnostics(
     and penetrating shortwave outputs. Only calculation fields enter State.
     """
     if cooling is None:
-        cooling = sett.artificialCooling
+        cooling = float(ARTIFICIAL_SETTINGS["artificialCooling"].default)
     if sett.use_sharding:
         mesh = jax.sharding.get_abstract_mesh()
         if set(mesh.axis_names) != {"x", "y"}:
@@ -195,8 +310,6 @@ def _step_local(
     def assign(state: State, names: str, values: tuple[jax.Array, ...]) -> State:
         return replace(state, **dict(zip(names.split(), values, strict=True)))
 
-    if cooling is None:
-        cooling = sett.artificialCooling
     vs = replace(vs, Qnet=jnp.full_like(vs.Qnet, cooling), Qsw=jnp.zeros_like(vs.Qsw))
     vs = assign(vs, "SeaIceMassC SeaIceMassU SeaIceMassV", SeaIceMass(vs, sett, phys))
     vs = assign(vs, "AreaW AreaS", AreaWS(vs, sett, phys))

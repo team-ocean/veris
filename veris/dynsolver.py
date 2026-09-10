@@ -7,12 +7,11 @@ from functools import partial
 import jax.numpy as jnp
 from jax import Array
 
-from veris._typing import jit
+from veris._typing import State, jit
 from veris.configuration import Settings
 from veris.evp_solver import evp_solver
 from veris.freedrift_solver import freedrift_solver
 from veris.physical_constants import PhysicalConstants
-from veris.state import State
 
 
 @partial(jit, static_argnames=["sett", "phys"])

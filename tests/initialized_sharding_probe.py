@@ -13,10 +13,10 @@ import numpy as np
 from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 
+from veris._typing import State
 from veris.initialization import initialize
 from veris.setup.artificial import compiled_step, step
 from veris.setup.artificial import initialize as initialize_artificial
-from veris.state import State
 from veris.variables import VARIABLES
 
 

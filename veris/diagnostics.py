@@ -14,6 +14,19 @@ from jax import Array
 
 from veris.variables import C_GRID, U_GRID, V_GRID, Variable
 
+
+@jax.tree_util.register_dataclass
+@dataclass(frozen=True)
+class Diagnostics:
+    """Per-step coupling outputs in DIAGNOSTICS registry order."""
+
+    IcePenetSW: Array
+    OceanStressU: Array
+    OceanStressV: Array
+    EmPmR: Array
+    forc_salt_surface: Array
+
+
 DIAGNOSTICS: dict[str, Variable] = {
     "IcePenetSW": Variable(
         "Shortwave radiation penetrating the ice",
@@ -49,13 +62,4 @@ DIAGNOSTICS: dict[str, Variable] = {
 }
 
 
-@jax.tree_util.register_dataclass
-@dataclass(frozen=True)
-class Diagnostics:
-    """Per-step coupling outputs in DIAGNOSTICS registry order."""
-
-    IcePenetSW: Array
-    OceanStressU: Array
-    OceanStressV: Array
-    EmPmR: Array
-    forc_salt_surface: Array
+__all__ = ["DIAGNOSTICS", "Diagnostics"]

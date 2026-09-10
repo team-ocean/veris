@@ -10,7 +10,7 @@ import pytest
 from veris import heat_flux_CESM as cesm
 from veris.dynsolver import IceVelocities
 from veris.initialization import initialize
-from veris.set_inits import Geometry, set_inits
+from veris.set_inits import OceanGeometry, set_inits
 from veris.setup import artificial
 
 
@@ -110,7 +110,7 @@ def test_geometry_inputs_convert_to_initialized_precision(dtype: str) -> None:
     state, settings, constants = initialize(2, 3, dtype=dtype)
     ones = jnp.ones((6, 7), dtype="float64")
     mask = jnp.ones((6, 7, 2), dtype="int32")
-    geometry = Geometry(
+    geometry = OceanGeometry(
         maskT=mask,
         maskU=mask,
         maskV=mask,

@@ -22,6 +22,11 @@ Ice-removal thresholds such as ``hIce_min``, basal-drag thresholds such as
 the physical parameterizations. Override them through ``physical_overrides``
 at initialization, or replace fields on ``PhysicalConstants``.
 
+``evpStressRelaxation`` and ``evpShearRelaxation`` also belong here: the first
+scales the equilibrium stresses, while their ratio scales equilibrium
+deviatoric stresses. They retain independent defaults. The numerical EVP
+relaxation rates ``evpAlpha`` and ``evpBeta`` remain model settings.
+
 Registry defaults
 -----------------
 

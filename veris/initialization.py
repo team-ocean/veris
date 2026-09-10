@@ -14,9 +14,9 @@ import jax.numpy as jnp
 from jax.sharding import Mesh, NamedSharding
 from jax.sharding import PartitionSpec as P
 
+from veris._typing import State
 from veris.configuration import Settings
 from veris.physical_constants import PhysicalConstants
-from veris.state import State
 from veris.variables import VARIABLES
 
 

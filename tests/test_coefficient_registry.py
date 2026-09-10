@@ -8,6 +8,8 @@ from veris.configuration import SETTINGS, Settings
 from veris.physical_constants import PHYSICALCONSTANTS, PhysicalConstants
 
 PHYSICAL_DEFAULTS = {
+    "evpStressRelaxation": 1.0,
+    "evpShearRelaxation": 0.25,
     "minActualIceThickness": 0.05,
     "basalDragSmoothing": 10.0,
     "basalDragMinArea": 0.01,
@@ -48,8 +50,6 @@ SETTING_DEFAULTS = {
     "surfaceTemperatureIterations": 6,
     "aEVPmassMin": 1e-4,
     "aEVPcStar": 4.0,
-    "evpStressRelaxation": 1.0,
-    "evpShearRelaxation": 0.25,
     "lanlBulkIterations": 5,
 }
 CLOUD_LATITUDES = (
@@ -169,6 +169,8 @@ def test_invalid_cloud_tables_are_rejected(kwargs: dict[str, object]) -> None:
         {"minActualIceThickness": 0},
         {"basalDragSmoothing": 0},
         {"aEVPmassMin": -1},
+        {"evpStressRelaxation": 0},
+        {"evpShearRelaxation": -1},
         {"lanlMinWindSpeed": 0},
     ],
 )
@@ -184,9 +186,12 @@ def test_invalid_extracted_settings_are_rejected(kwargs: dict[str, object]) -> N
 
 
 def test_independent_relaxation_and_pressure_defaults_remain_independent() -> None:
-    assert "evpShearRelaxation" in SETTINGS
-    settings = replace(Settings(), evpStressRelaxation=2)
-    assert settings.evpShearRelaxation == 0.25
+    """EVP coefficients change equilibrium stresses and belong to physical laws."""
+    for name in ("evpStressRelaxation", "evpShearRelaxation"):
+        assert name in PHYSICALCONSTANTS
+        assert name not in SETTINGS
+    relaxed_constants = replace(PhysicalConstants(), evpStressRelaxation=2)
+    assert relaxed_constants.evpShearRelaxation == 0.25
     constants = replace(PhysicalConstants(), p0=101000, latvap=2502000)
     assert constants.iceSurfacePressure == 100000
     assert constants.lanlReferencePressure == 1013

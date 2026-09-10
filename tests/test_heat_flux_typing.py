@@ -86,8 +86,8 @@ def test_thermodynamic_heat_flux_contract(tmp_path: Path, case: str) -> None:
 from jax import Array
 from veris.configuration import Settings
 from veris.physical_constants import PhysicalConstants
-from veris._thermodynamic_types import GrowthResult
-from veris.state import State
+from veris._typing import GrowthResult
+from veris._typing import State
 from veris.growth import Growth
 from veris.solve4temp import solve4temp
 

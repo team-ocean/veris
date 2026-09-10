@@ -7,17 +7,39 @@ construction and dataclasses.replace; instances are hashable static JAX argument
 
 import math
 from dataclasses import dataclass, field
+from typing import NamedTuple
 
 from veris._metadata import (
     FROM_REGISTRY,
-    PhysicalConstant,
-    Precision,
     registry_defaults,
     validate_derived,
     validate_scalars,
 )
+from veris.configuration import PRECISION
+
+
+class PhysicalConstant(NamedTuple):
+    """Default, scalar type and description of a physical or empirical constant."""
+
+    default: float | tuple[float, ...]
+    type: type[float] | type[tuple[float, ...]]
+    description: str
+    units: str = ""
+
 
 PHYSICALCONSTANTS: dict[str, PhysicalConstant] = {
+    "evpStressRelaxation": PhysicalConstant(
+        1.0,
+        float,
+        "Stress damping coefficient setting the EVP constitutive equilibrium",
+        "1",
+    ),
+    "evpShearRelaxation": PhysicalConstant(
+        0.25,
+        float,
+        "Deviatoric stress forcing coefficient setting the EVP constitutive equilibrium",
+        "1",
+    ),
     "minLWdown": PhysicalConstant(
         60.0, float, "minimum downward longwave radiation /W/m^2"
     ),
@@ -127,9 +149,6 @@ PHYSICALCONSTANTS: dict[str, PhysicalConstant] = {
         "Derivative of freezing temperature with respect to salinity /°C/(g/kg)",
     ),
     "saltIce_ref": PhysicalConstant(0.0, float, "reference salinity of sea ice /g/kg"),
-    "saltOcn_ref": PhysicalConstant(
-        34.7, float, "reference salinity of the ocean /g/kg"
-    ),
     "dalton": PhysicalConstant(
         0.00175,
         float,
@@ -425,11 +444,18 @@ PHYSICALCONSTANTS: dict[str, PhysicalConstant] = {
 }
 
 
+__all__ = ["PHYSICALCONSTANTS", "PhysicalConstant", "PhysicalConstants"]
+
+
 @dataclass(frozen=True)
-@registry_defaults(PHYSICALCONSTANTS)
-class PhysicalConstants(Precision):
+@registry_defaults({"dtype": PRECISION, **PHYSICALCONSTANTS})
+class PhysicalConstants:
     """Validated immutable physical constants initialized from the registry."""
 
+    dtype: str = field(default=FROM_REGISTRY, kw_only=True)
+
+    evpStressRelaxation: float = FROM_REGISTRY
+    evpShearRelaxation: float = FROM_REGISTRY
     Area_min: float = FROM_REGISTRY
     Area_reg: float = FROM_REGISTRY
     basalDragMinArea: float = FROM_REGISTRY
@@ -484,7 +510,6 @@ class PhysicalConstants(Precision):
     tempFrz: float = FROM_REGISTRY
     dtempFrz_dS: float = FROM_REGISTRY
     saltIce_ref: float = FROM_REGISTRY
-    saltOcn_ref: float = FROM_REGISTRY
     dalton: float = FROM_REGISTRY
     celsius2K: float = FROM_REGISTRY
     stantonNr: float = FROM_REGISTRY
@@ -583,6 +608,8 @@ class PhysicalConstants(Precision):
             PHYSICALCONSTANTS,
             positive=frozenset(
                 [
+                    "evpStressRelaxation",
+                    "evpShearRelaxation",
                     "Area_min",
                     "basalDragMinArea",
                     "basalDragSmoothing",

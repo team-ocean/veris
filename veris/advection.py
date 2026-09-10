@@ -8,11 +8,10 @@ from typing import cast
 import jax.numpy as jnp
 from jax import Array
 
-from veris._typing import ArrayInput, jit
+from veris._typing import ArrayInput, State, jit
 from veris.configuration import Settings
 from veris.fill_overlap import fill_overlap
 from veris.physical_constants import PhysicalConstants
-from veris.state import State
 
 # in this routine, the thermodynamic time step is used instead of the dynamic one.
 # this has historical reasons as with lower resolutions, the dynamics change much

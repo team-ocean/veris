@@ -9,8 +9,7 @@ from veris.physical_constants import PHYSICALCONSTANTS, PhysicalConstants
 from veris.setup import artificial
 
 EXPERIMENT_DEFAULTS = {
-    "nx": 8,
-    "ny": 12,
+    "saltOcn_ref": 34.7,
     "artificialGridSpacing": 8000.0,
     "artificialWindSpeed": 5.0,
     "artificialAirTemperature": 260.0,
@@ -26,11 +25,13 @@ EXPERIMENT_DEFAULTS = {
 
 
 def test_all_experiment_defaults_are_registered() -> None:
-    assert EXPERIMENT_DEFAULTS.keys() <= SETTINGS.keys()
+    assert EXPERIMENT_DEFAULTS.keys() == artificial.ARTIFICIAL_SETTINGS.keys()
+    assert not EXPERIMENT_DEFAULTS.keys() & SETTINGS.keys()
+    assert not EXPERIMENT_DEFAULTS.keys() & PHYSICALCONSTANTS.keys()
     settings = Settings()
     for name, value in EXPERIMENT_DEFAULTS.items():
-        assert SETTINGS[name].default == value
-        assert getattr(settings, name) == value
+        assert artificial.ARTIFICIAL_SETTINGS[name].default == value
+        assert not hasattr(settings, name)
 
 
 def test_optical_snow_transition_is_a_physical_constant() -> None:
@@ -50,9 +51,9 @@ def test_allocation_extents_are_recorded_and_settings_overrides_are_used() -> No
 
 def test_artificial_overrides_drive_geometry_fields_and_time_controls() -> None:
     state, settings, constants = artificial.initialize(
-        settings_overrides={
-            "nx": 4,
-            "ny": 5,
+        settings_overrides={"nx": 4, "ny": 5},
+        scenario_overrides={
+            "saltOcn_ref": 33,
             "artificialGridSpacing": 2000,
             "artificialWindSpeed": -3,
             "artificialAirTemperature": 265,
@@ -67,6 +68,7 @@ def test_artificial_overrides_drive_geometry_fields_and_time_controls() -> None:
         physical_overrides={"rhoIce": 910, "rhoSnow": 310},
     )
     assert (settings.nx, settings.ny) == (4, 5)
+    np.testing.assert_array_equal(state.ocSalt, 33)
     assert (settings.deltatDyn, settings.deltatTherm, settings.nEVPsteps) == (
         300,
         300,
@@ -92,7 +94,7 @@ def test_artificial_overrides_drive_geometry_fields_and_time_controls() -> None:
 
 
 def test_explicit_artificial_arguments_and_model_timestep_overrides_win() -> None:
-    _, settings, _ = artificial.initialize(
+    state, settings, _ = artificial.initialize(
         nx=4,
         ny=6,
         wind=2,
@@ -100,15 +102,15 @@ def test_explicit_artificial_arguments_and_model_timestep_overrides_win() -> Non
         settings_overrides={
             "nx": 8,
             "ny": 8,
-            "artificialWindSpeed": 4,
-            "artificialAirTemperature": 266,
             "deltatDyn": 200,
             "deltatTherm": 400,
             "nEVPsteps": 3,
         },
+        scenario_overrides={"artificialWindSpeed": 4, "artificialAirTemperature": 266},
     )
     assert (settings.nx, settings.ny) == (4, 6)
-    assert (settings.artificialWindSpeed, settings.artificialAirTemperature) == (2, 262)
+    np.testing.assert_array_equal(state.uWind, 2)
+    np.testing.assert_array_equal(state.ATemp, 262)
     assert (settings.deltatDyn, settings.deltatTherm, settings.nEVPsteps) == (
         200,
         400,
@@ -119,8 +121,6 @@ def test_explicit_artificial_arguments_and_model_timestep_overrides_win() -> Non
 @pytest.mark.parametrize(
     "kwargs",
     [
-        {"nx": True},
-        {"ny": 1},
         {"artificialGridSpacing": 0},
         {"artificialAirTemperature": 0},
         {"artificialIceThickness": -1},
@@ -135,9 +135,9 @@ def test_explicit_artificial_arguments_and_model_timestep_overrides_win() -> Non
 def test_invalid_registered_experiment_controls_are_rejected(
     kwargs: dict[str, float | int | bool],
 ) -> None:
-    assert kwargs.keys() <= SETTINGS.keys()
+    assert kwargs.keys() <= artificial.ARTIFICIAL_SETTINGS.keys()
     with pytest.raises((ValueError, TypeError), match=next(iter(kwargs))):
-        Settings(**kwargs)  # ty: ignore[invalid-argument-type]
+        artificial.initialize(scenario_overrides=kwargs)
 
 
 def test_artificial_rejects_sharding_without_mesh_support() -> None:
@@ -145,11 +145,32 @@ def test_artificial_rejects_sharding_without_mesh_support() -> None:
         artificial.initialize(settings_overrides={"use_sharding": True})
 
 
-def test_omitted_cooling_uses_initialized_experiment_setting() -> None:
-    state, settings, constants = artificial.initialize(
-        nx=4, ny=4, settings_overrides={"artificialCooling": 25.0}
-    )
+def test_omitted_cooling_uses_local_experiment_default() -> None:
+    state, settings, constants = artificial.initialize(nx=4, ny=4)
     implicit = artificial.step(state, settings, constants)
-    explicit = artificial.step(state, settings, constants, cooling=25.0)
+    explicit = artificial.step(state, settings, constants, cooling=100.0)
     np.testing.assert_array_equal(implicit.hIceMean, explicit.hIceMean)
     np.testing.assert_array_equal(implicit.Qnet, explicit.Qnet)
+
+
+def test_artificial_controls_cannot_enter_model_settings() -> None:
+    with pytest.raises(TypeError, match="artificialWindSpeed"):
+        initialize(settings_overrides={"artificialWindSpeed": 4})
+    with pytest.raises(TypeError, match="unknownScenario"):
+        artificial.initialize(scenario_overrides={"unknownScenario": 4})
+
+
+def test_initializer_rejects_step_only_cooling_override() -> None:
+    with pytest.raises(ValueError, match="cooling argument to step"):
+        artificial.initialize(scenario_overrides={"artificialCooling": 25})
+
+
+@pytest.mark.parametrize("dtype", ["float32", "float64"])
+def test_scenario_config_is_frozen_and_uses_model_precision(dtype: str) -> None:
+    from dataclasses import FrozenInstanceError, replace
+
+    scenario = artificial.ArtificialSettings(dtype=dtype)
+    assert isinstance(scenario.artificialGridSpacing, np.dtype(dtype).type)
+    with pytest.raises(FrozenInstanceError):
+        scenario.artificialGridSpacing = 2  # ty: ignore[invalid-assignment]
+    assert replace(scenario, artificialGridSpacing=2000).artificialGridSpacing == 2000

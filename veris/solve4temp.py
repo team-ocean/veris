@@ -13,11 +13,9 @@ from functools import partial
 import jax.numpy as jnp
 from jax import Array
 
-from veris._thermodynamic_types import SurfaceFluxResult
-from veris._typing import ArrayInput, jit
+from veris._typing import ArrayInput, State, SurfaceFluxResult, jit
 from veris.configuration import Settings
 from veris.physical_constants import PhysicalConstants
-from veris.state import State
 
 
 @partial(jit, static_argnames=["sett", "phys"])

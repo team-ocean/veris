@@ -7,10 +7,9 @@ from functools import partial
 import jax.numpy as jnp
 from jax import Array
 
-from veris._typing import jit
+from veris._typing import State, jit
 from veris.configuration import Settings
 from veris.physical_constants import PhysicalConstants
-from veris.state import State
 
 
 @partial(jit, static_argnames=["sett", "phys"])

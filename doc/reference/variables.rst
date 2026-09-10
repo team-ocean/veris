@@ -14,7 +14,7 @@ axis one is meridional. Dimensions describe Cartesian grid locations:
 ``x_center``, ``y_center``, ``x_face`` and ``y_face``. Face and center storage
 extents are equal, including two periodic halo cells at each boundary.
 
-Geometry and prescribed forcing used by calculations belong to State.
+Geometry fields and prescribed forcing used by calculations belong to State.
 Output-only diagnostics and configuration do not add numerical State leaves.
 Ice-thickness category arrays are local intermediates in thermodynamics.
 

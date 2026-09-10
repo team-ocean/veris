@@ -6,13 +6,10 @@ Callers exclude halo duplicates before forming each local total. JAX supplies
 the collective's forward and reverse differentiation rules.
 """
 
-from typing import TypeVar
-
 import jax
 from jax import Array
-from jax.typing import ArrayLike
 
-SumInput = TypeVar("SumInput", bound=ArrayLike)
+from veris._typing import SumInput
 
 
 def global_sum(value: SumInput, axis_names: tuple[str, ...] = ()) -> SumInput | Array:

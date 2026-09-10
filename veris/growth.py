@@ -12,12 +12,10 @@ from functools import partial
 
 import jax.numpy as jnp
 
-from veris._thermodynamic_types import GrowthResult
-from veris._typing import jit
+from veris._typing import GrowthResult, State, jit
 from veris.configuration import Settings
 from veris.physical_constants import PhysicalConstants
 from veris.solve4temp import solve4temp
-from veris.state import State
 
 
 @partial(jit, static_argnames=["sett", "phys"])

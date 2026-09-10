@@ -14,8 +14,7 @@ import jax.numpy as npx
 from jax import Array
 from jax.typing import ArrayLike
 
-from veris._bulk_types import CESMFluxes, HeatFluxes
-from veris._typing import ArrayInput, MaskInput, jit
+from veris._typing import ArrayInput, CESMFluxes, HeatFluxes, MaskInput, jit
 from veris.configuration import Settings
 from veris.physical_constants import PhysicalConstants
 
