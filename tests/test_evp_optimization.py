@@ -18,7 +18,7 @@ from numpy.typing import NDArray
 from veris._typing import State
 from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
-from veris.setup.artificial import initialize
+from veris.setups.artificial import initialize
 
 REFERENCE = Path(__file__).parent / "reference_data" / "evp_pre_barrier.npz"
 CASES = [

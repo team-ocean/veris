@@ -6,7 +6,7 @@ import pytest
 from veris.configuration import SETTINGS, Configuration
 from veris.initialization import initialize
 from veris.physical_constants import PHYSICALCONSTANTS, PhysicalConstants
-from veris.setup import artificial
+from veris.setups import artificial
 
 EXPERIMENT_DEFAULTS = {
     "saltOcn_ref": 34.7,

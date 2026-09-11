@@ -41,7 +41,7 @@ def initialize(
     Enable ``jax_enable_x64`` before calling when selecting 64-bit
     arrays; allocation rejects silent dtype truncation. Unknown keys and invalid
     grid extents fail before allocation. Setup-specific forcing and geometry can
-    subsequently be applied with dataclasses.replace.
+    be supplied through state_overrides during allocation.
 
     With an explicit ``mesh``, nx and ny are interior extents per partition.
     Every partition owns two halo cells at each edge; global storage therefore

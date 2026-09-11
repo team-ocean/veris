@@ -1,5 +1,27 @@
 # Development log
 
+## 2026-09-11 — Fresh external ocean initialization and setups package
+
+- Moved precision metadata directly into SETTINGS["dtype"] and removed PRECISION.
+  Dependent configuration defaults and validation read the dictionary entry.
+- Renamed setup to setups and migrated active imports, tests, benchmarks and docs.
+- Replaced set_inits with setups/ocean.py:initialize_from_ocean. It infers interior
+  dimensions from halo-inclusive ocean geometry, computes the original staggered
+  metrics, and supplies them to the shared initialize for fresh State allocation.
+  Optional settings, physical and state overrides initialize coupling inputs.
+- Migrated numerical geometry tests before implementation and observed the missing
+  new-package import failure. All 44 focused cases pass, including float32/64,
+  fresh defaults, external forcing and invalid overrides. Independent review
+  found no blocking issues. Maintained Ruff, formatting, annotations and ty pass.
+- Warnings-as-errors Sphinx build passes after enabling network access for its
+  intersphinx inventory. The initial full CPU run had only the sandbox-denied
+  local socket failure in the two-process reduction test.
+- Full unrestricted CPU suite passes 699/699. Maintained coverage is
+  1441/1452 (99.24%), passing the 80% gate. Final source passes Ruff, formatting,
+  annotation checks, ty, Sphinx and git diff --check. Evidence is retained in
+  test_logs/ocean-full-cpu.log, ocean-coverage.json and ocean-docs.log.
+- Completed on jax-only; no remote push. Generated test artifacts stay untracked.
+
 ## 2026-09-10 — Configuration class and conf arguments
 
 - Renamed Settings to Configuration in configuration.py and its public re-export,

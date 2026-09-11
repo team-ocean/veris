@@ -15,7 +15,7 @@ from veris._metadata import (
     validate_derived,
     validate_scalars,
 )
-from veris.configuration import PRECISION
+from veris.configuration import SETTINGS
 
 
 class PhysicalConstant(NamedTuple):
@@ -448,7 +448,7 @@ __all__ = ["PHYSICALCONSTANTS", "PhysicalConstant", "PhysicalConstants"]
 
 
 @dataclass(frozen=True)
-@registry_defaults({"dtype": PRECISION, **PHYSICALCONSTANTS})
+@registry_defaults({"dtype": SETTINGS["dtype"], **PHYSICALCONSTANTS})
 class PhysicalConstants:
     """Validated immutable physical constants initialized from the registry."""
 

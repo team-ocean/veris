@@ -16,7 +16,7 @@ and atmospheric fields:
 
 ```python
 import jax
-from veris.setup.artificial import initialize, step
+from veris.setups.artificial import initialize, step
 
 jax.config.update("jax_enable_x64", True)
 state, settings, constants = initialize()

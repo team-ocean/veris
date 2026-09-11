@@ -1,16 +1,16 @@
 Artificial island
 =================
 
-``veris.setup.artificial`` provides a small periodic Cartesian sea surrounding
+``veris.setups.artificial`` provides a small periodic Cartesian sea surrounding
 a two-by-two-cell island. The default interior is 8 by 12 cells at 8 km spacing;
 arrays include two halo cells on each side. Face masks prevent transport across
 the coastline. Temperatures are in kelvin and thicknesses are grid-cell means.
 
-.. autofunction:: veris.setup.artificial.initialize
+.. autofunction:: veris.setups.artificial.initialize
 
-.. autofunction:: veris.setup.artificial.step
+.. autofunction:: veris.setups.artificial.step
 
-.. autofunction:: veris.setup.artificial.step_with_diagnostics
+.. autofunction:: veris.setups.artificial.step_with_diagnostics
 
 The numerical State retains ice velocity and stress fields between steps.
 Output-only ocean coupling stresses and fluxes are returned separately by
@@ -38,7 +38,7 @@ An omitted cooling argument uses the default below.
 
 .. exec::
 
-   from veris.setup.artificial import ARTIFICIAL_SETTINGS
+   from veris.setups.artificial import ARTIFICIAL_SETTINGS
    print(".. list-table::")
    print("   :header-rows: 1")
    print("")

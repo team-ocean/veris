@@ -7,20 +7,23 @@ periodic corner area is the mean of four neighboring tracer-cell areas. Ocean
 geometry is external initialization input, never an AD leaf in the ice State.
 """
 
-from dataclasses import fields, replace
+from collections.abc import Mapping
+from dataclasses import fields
+from typing import Any
 
 import jax.numpy as npx
 import numpy as np
 
 from veris._typing import OceanGeometry, State
 from veris.configuration import Configuration
+from veris.initialization import initialize
 from veris.physical_constants import PhysicalConstants
 
 
 def _validate_geometry(geometry: OceanGeometry, shape: tuple[int, ...]) -> None:
     """Reject mismatched grids and invalid reciprocal inputs on the host."""
     if len(shape) != 2:
-        raise ValueError("State.hIceMean must have a two-dimensional storage shape")
+        raise ValueError("maskT must have a two-dimensional horizontal storage shape")
     for field in fields(geometry):
         name = field.name
         array = np.asarray(getattr(geometry, name))
@@ -51,19 +54,31 @@ def _validate_geometry(geometry: OceanGeometry, shape: tuple[int, ...]) -> None:
             raise ValueError(f"{name} must contain positive values")
 
 
-def set_inits(
-    state: State, geometry: OceanGeometry, conf: Configuration, phys: PhysicalConstants
-) -> State:
-    """Return State with surface masks and staggered metrics initialized.
+def initialize_from_ocean(
+    geometry: OceanGeometry,
+    *,
+    dtype: str | None = None,
+    settings_overrides: Mapping[str, Any] | None = None,
+    physical_overrides: Mapping[str, Any] | None = None,
+    state_overrides: Mapping[str, Any] | None = None,
+) -> tuple[State, Configuration, PhysicalConstants]:
+    """Allocate a fresh Veris state and static objects from ocean geometry.
 
-    Input State and OceanGeometry are unchanged; non-geometry fields retain their
-    initialized values. ``conf.geometrySurfaceTemperature`` preserves the
-    original setup temperature of 273 K. ``phys`` is supplied consistently with
-    other setup adapters; these geometric equations need no physical constants.
-    This host routine validates inputs and is not a compiled time-step kernel.
+    Geometry includes two halo cells at each boundary. Its horizontal shape
+    determines nx and ny, taking precedence over settings overrides. Additional
+    state overrides supply ocean forcing and initial ice fields; geometry-derived
+    fields take precedence. Unspecified fields use VARIABLES defaults. The shared
+    initializer validates overrides and allocates every field at the selected
+    precision. No pre-existing State is required or updated.
     """
-    _validate_geometry(geometry, state.hIceMean.shape)
-    dtype = state.hIceMean.dtype
+    shape = np.shape(geometry.maskT)[:2]
+    _validate_geometry(geometry, shape)
+    options = dict(settings_overrides or {})
+    options.update(nx=shape[0] - 4, ny=shape[1] - 4)
+    if dtype is not None:
+        options["dtype"] = dtype
+    conf = Configuration(**options)
+    dtype = conf.dtype
     ice_mask = npx.asarray(geometry.maskT[:, :, -1], dtype=dtype)
     ice_mask_u = npx.asarray(geometry.maskU[:, :, -1], dtype=dtype)
     ice_mask_v = npx.asarray(geometry.maskV[:, :, -1], dtype=dtype)
@@ -79,8 +94,8 @@ def set_inits(
     area = npx.asarray(geometry.area_t, dtype=dtype)
     area_z = area + npx.roll(area, 1, 0)
     area_z = 0.25 * (area_z + npx.roll(area_z, 1, 1))
-    return replace(
-        state,
+    overrides = dict(state_overrides or {})
+    overrides.update(
         iceMask=ice_mask,
         iceMaskU=ice_mask_u,
         iceMaskV=ice_mask_v,
@@ -107,6 +122,11 @@ def set_inits(
         recip_rAv=1 / npx.asarray(geometry.area_v, dtype=dtype),
         TSurf=ones * conf.geometrySurfaceTemperature,
     )
+    return initialize(
+        settings_overrides=options,
+        physical_overrides=physical_overrides,
+        state_overrides=overrides,
+    )
 
 
-__all__ = ["OceanGeometry", "set_inits"]
+__all__ = ["OceanGeometry", "initialize_from_ocean"]

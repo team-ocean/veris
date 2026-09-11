@@ -25,12 +25,10 @@ class Setting(NamedTuple):
     units: str = ""
 
 
-PRECISION = Setting(
-    "float64", str, "Model floating-point precision: float32 or float64"
-)
-
 SETTINGS: dict[str, Setting] = {
-    "dtype": PRECISION,
+    "dtype": Setting(
+        "float64", str, "Model floating-point precision: float32 or float64"
+    ),
     "nx": Setting(8, int, "Local interior grid extent along the x direction", "1"),
     "ny": Setting(12, int, "Local interior grid extent along the y direction", "1"),
     "geometrySurfaceTemperature": Setting(
@@ -117,7 +115,7 @@ SETTINGS: dict[str, Setting] = {
 }
 
 
-__all__ = ["PRECISION", "SETTINGS", "Configuration", "Setting"]
+__all__ = ["SETTINGS", "Configuration", "Setting"]
 
 
 @dataclass(frozen=True)

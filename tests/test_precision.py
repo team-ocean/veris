@@ -10,7 +10,7 @@ import pytest
 from veris.configuration import SETTINGS
 from veris.initialization import initialize
 from veris.physical_constants import PHYSICALCONSTANTS
-from veris.setup import artificial
+from veris.setups import artificial
 
 
 @pytest.mark.parametrize("dtype", ["float32", "float64"])

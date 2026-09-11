@@ -28,8 +28,8 @@ def test_registry_types_have_local_owners(module: str, name: str) -> None:
 def test_precision_is_setting_metadata_without_a_base_class() -> None:
     from veris import _typing, configuration
 
-    assert isinstance(configuration.PRECISION, configuration.Setting)
-    assert configuration.SETTINGS["dtype"] is configuration.PRECISION
+    assert isinstance(configuration.SETTINGS["dtype"], configuration.Setting)
+    assert not hasattr(configuration, "PRECISION")
     assert not hasattr(_typing, "Precision")
     assert not hasattr(_typing, "PRECISION")
 

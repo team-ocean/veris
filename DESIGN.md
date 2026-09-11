@@ -25,8 +25,11 @@ add halo and transport checks; test dynamic and thermodynamic equations and
 smooth-region gradients; review test quality, measure coverage, and close gaps.
 Known broken branches need reproducing tests before production fixes.
 
-Type ownership: Configuration, Setting and PRECISION live in configuration.py;
+Type ownership: Configuration, Setting and SETTINGS live in configuration.py;
 PhysicalConstants and PhysicalConstant in physical_constants.py; Variable in
-variables.py; Diagnostics in diagnostics.py. PRECISION is a Setting metadata
-entry, not a class. State, OceanGeometry and shared kernel contracts live in
-_typing.py. Artificial-only configuration remains in setup/artificial.py.
+variables.py; Diagnostics in diagnostics.py. Precision metadata is defined
+directly in SETTINGS["dtype"]. State, OceanGeometry and shared kernel contracts
+live in _typing.py. Artificial-only configuration remains in setups/artificial.py.
+
+External ocean geometry is initialized from scratch through
+setups/ocean.py:initialize_from_ocean and the shared initialization.initialize.

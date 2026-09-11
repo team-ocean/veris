@@ -22,7 +22,7 @@ from veris._metadata import (
     validate_scalars,
 )
 from veris._typing import State, jit
-from veris.configuration import PRECISION, Configuration, Setting
+from veris.configuration import SETTINGS, Configuration, Setting
 from veris.diagnostics import Diagnostics
 from veris.initialization import initialize as initialize_model
 from veris.physical_constants import PhysicalConstants
@@ -86,7 +86,7 @@ ARTIFICIAL_SETTINGS: dict[str, Setting] = {
 
 
 @dataclass(frozen=True)
-@registry_defaults({"dtype": PRECISION, **ARTIFICIAL_SETTINGS})
+@registry_defaults({"dtype": SETTINGS["dtype"], **ARTIFICIAL_SETTINGS})
 class ArtificialSettings:
     """Validated scenario defaults kept outside model configuration and AD State."""
 

@@ -10,7 +10,7 @@ Initialize the model and run the artificial island example::
    import jax
    jax.config.update("jax_enable_x64", True)
 
-   from veris.setup.artificial import initialize, step
+   from veris.setups.artificial import initialize, step
 
    state, settings, constants = initialize(
        nx=8, ny=12, wind=5.0,
@@ -48,7 +48,7 @@ updates; timestep reciprocals and density ratios are recomputed automatically::
 
 Output-only coupling diagnostics are available without adding State leaves::
 
-   from veris.setup.artificial import step_with_diagnostics
+   from veris.setups.artificial import step_with_diagnostics
    state, diagnostics = step_with_diagnostics(state, settings, constants)
 
 For default registry allocation without experiment-specific forcing, use

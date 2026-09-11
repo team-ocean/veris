@@ -221,7 +221,7 @@ def main(argv: list[str] | None = None) -> None:
     device = devices[0]
     if device.platform != args.backend:
         raise RuntimeError(f"ERROR requested {args.backend}, got {device.platform}")
-    from veris.setup import artificial
+    from veris.setups import artificial
 
     with jax.default_device(device):
         initial, conf, phys = artificial.initialize(args.nx, args.ny)

@@ -11,7 +11,7 @@ import pytest
 
 @pytest.fixture
 def example(halo: ModuleType) -> ModuleType:
-    return importlib.import_module("veris.setup.artificial")
+    return importlib.import_module("veris.setups.artificial")
 
 
 def test_artificial_masks_block_both_sides_of_coast(example: ModuleType) -> None:
@@ -107,7 +107,7 @@ def test_example_runs_in_fresh_process_without_mesh_helper() -> None:
     code = """
 import jax
 jax.config.update("jax_enable_x64", True)
-from veris.setup.artificial import initialize, step
+from veris.setups.artificial import initialize, step
 vs, conf, phys = initialize()
 result = step(vs, conf, phys)
 jax.block_until_ready(result)

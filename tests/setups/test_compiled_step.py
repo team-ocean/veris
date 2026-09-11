@@ -14,7 +14,7 @@ def test_compiled_step_matches_evolving_python_driver(
     halo: ModuleType, adaptive: bool
 ) -> None:
     """Compare all fields through changing forcing on a nonuniform masked grid."""
-    from veris.setup import artificial
+    from veris.setups import artificial
 
     assert hasattr(artificial, "compiled_step"), (
         "ERROR explicit compiled driver missing"
@@ -43,7 +43,7 @@ def test_compiled_step_matches_evolving_python_driver(
 
 def test_compiled_step_cooling_jvp_vjp_and_finite_difference(halo: ModuleType) -> None:
     """Dynamic cooling remains differentiable through the compiled growth step."""
-    from veris.setup import artificial
+    from veris.setups import artificial
 
     assert hasattr(artificial, "compiled_step"), (
         "ERROR explicit compiled driver missing"

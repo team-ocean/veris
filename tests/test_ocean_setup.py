@@ -1,13 +1,13 @@
 """Initialize immutable staggered geometry from nonuniform ocean-grid fields."""
 
 from dataclasses import FrozenInstanceError, fields, replace
+from typing import Any
 
 import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from veris.initialization import initialize
-from veris.set_inits import OceanGeometry, set_inits
+from veris.setups.ocean import OceanGeometry, initialize_from_ocean
 
 
 @pytest.fixture
@@ -34,11 +34,9 @@ def ocean_grid() -> OceanGeometry:
 def test_initialization_surface_masks_and_reciprocals(
     ocean_grid: OceanGeometry,
 ) -> None:
-    state, conf, phys = initialize(2, 5)
-    result = set_inits(state, ocean_grid, conf, phys)
-    assert result is not state
-    assert result.hIceMean is state.hIceMean
-    np.testing.assert_array_equal(state.iceMask, 1)
+    result, conf, _phys = initialize_from_ocean(ocean_grid)
+    assert (conf.nx, conf.ny) == (2, 5)
+    np.testing.assert_array_equal(result.hIceMean, 0)
     for source, output, interior in (
         ("maskT", "iceMask", "maskInC"),
         ("maskU", "iceMaskU", "maskInU"),
@@ -82,8 +80,7 @@ def test_initialization_surface_masks_and_reciprocals(
 
 
 def test_corner_area_is_four_cell_mean(ocean_grid: OceanGeometry) -> None:
-    state, conf, phys = initialize(2, 5)
-    result = set_inits(state, ocean_grid, conf, phys)
+    result, _conf, _phys = initialize_from_ocean(ocean_grid)
     area = np.asarray(ocean_grid.area_t)
     expected = np.empty_like(area)
     for i, j in np.ndindex(area.shape):
@@ -96,11 +93,10 @@ def test_corner_area_is_four_cell_mean(ocean_grid: OceanGeometry) -> None:
 def test_uniform_grid_and_configured_surface_temperature(
     ocean_grid: OceanGeometry,
 ) -> None:
-    state, conf, phys = initialize(
-        2, 5, settings_overrides={"geometrySurfaceTemperature": 270.0}
-    )
     geometry = replace(ocean_grid, area_t=jnp.full((6, 9), 12.0))
-    result = set_inits(state, geometry, conf, phys)
+    result, _conf, _phys = initialize_from_ocean(
+        geometry, settings_overrides={"geometrySurfaceTemperature": 270.0}
+    )
     np.testing.assert_array_equal(result.rAz, np.full((6, 9), 12.0))
     np.testing.assert_array_equal(result.TSurf, np.full((6, 9), 270.0))
 
@@ -120,6 +116,47 @@ def test_uniform_grid_and_configured_surface_temperature(
 def test_invalid_geometry_is_rejected(
     ocean_grid: OceanGeometry, name: str, value: object, reason: str
 ) -> None:
-    state, conf, phys = initialize(2, 5)
     with pytest.raises(ValueError, match=reason):
-        set_inits(state, replace(ocean_grid, **{name: value}), conf, phys)
+        initialize_from_ocean(replace(ocean_grid, **{name: value}))
+
+
+@pytest.mark.parametrize("dtype", ["float32", "float64"])
+def test_external_fields_and_static_overrides(
+    ocean_grid: OceanGeometry, dtype: str
+) -> None:
+    """Allocate forcing, constants and unspecified registry defaults together."""
+    from veris.variables import VARIABLES
+
+    temperature = np.full((6, 9), 271.25)
+    result, conf, phys = initialize_from_ocean(
+        ocean_grid,
+        dtype=dtype,
+        settings_overrides={"nEVPsteps": 3, "nx": 20},
+        physical_overrides={"rhoIce": 920.0},
+        state_overrides={"theta": temperature, "hIceMean": np.ones((6, 9))},
+    )
+    assert (conf.nx, conf.ny, conf.nEVPsteps) == (2, 5, 3)
+    assert conf.dtype == phys.dtype == dtype
+    assert phys.rhoIce == 920
+    np.testing.assert_array_equal(result.theta, temperature)
+    np.testing.assert_array_equal(result.hIceMean, 1)
+    np.testing.assert_array_equal(result.hSnowMean, VARIABLES["hSnowMean"].default)
+    for field in fields(result):
+        assert getattr(result, field.name).dtype == np.dtype(dtype)
+
+
+@pytest.mark.parametrize(
+    "overrides,reason",
+    [
+        ({"state_overrides": {"unknown": np.ones((6, 9))}}, "unknown State"),
+        ({"state_overrides": {"theta": np.ones((2, 5))}}, "theta.*shape"),
+        ({"physical_overrides": {"dtype": "float32"}}, "physical dtype"),
+        ({"dtype": "float16"}, "dtype"),
+    ],
+)
+def test_invalid_initialization_overrides(
+    ocean_grid: OceanGeometry, overrides: dict[str, Any], reason: str
+) -> None:
+    """The ocean entry point retains shared initialization validation."""
+    with pytest.raises(ValueError, match=reason):
+        initialize_from_ocean(ocean_grid, **overrides)

@@ -64,9 +64,9 @@ def validate_scalars(
     accept finite host real scalars, including integers; arrays and tracers are
     not static configuration. Positive names protect denominators and cutoffs.
     """
-    from veris.configuration import PRECISION
+    from veris.configuration import SETTINGS
 
-    dtype = cast(str, getattr(instance, "dtype", PRECISION.default))
+    dtype = cast(str, getattr(instance, "dtype", SETTINGS["dtype"].default))
     if dtype not in ("float32", "float64"):
         raise ValueError("dtype must be float32 or float64")
     for name, metadata in registry.items():
@@ -100,7 +100,7 @@ def validate_scalars(
 
 def validate_derived(instance: object, names: tuple[str, ...]) -> None:
     """Reject overflow in exact dependencies computed from finite input scalars."""
-    from veris.configuration import PRECISION
+    from veris.configuration import SETTINGS
 
     for name in names:
         object.__setattr__(
@@ -108,7 +108,7 @@ def validate_derived(instance: object, names: tuple[str, ...]) -> None:
             name,
             precision_scalar(
                 getattr(instance, name),
-                cast(str, getattr(instance, "dtype", PRECISION.default)),
+                cast(str, getattr(instance, "dtype", SETTINGS["dtype"].default)),
                 name,
             ),
         )

@@ -10,8 +10,8 @@ import pytest
 from veris import heat_flux_CESM as cesm
 from veris.dynsolver import IceVelocities
 from veris.initialization import initialize
-from veris.set_inits import OceanGeometry, set_inits
-from veris.setup import artificial
+from veris.setups import artificial
+from veris.setups.ocean import OceanGeometry, initialize_from_ocean
 
 
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
@@ -107,7 +107,6 @@ def test_alternative_dynamics_keep_precision(dtype: str, solver: str) -> None:
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
 def test_geometry_inputs_convert_to_initialized_precision(dtype: str) -> None:
     """External float64 metrics and integer masks cannot promote State fields."""
-    state, settings, constants = initialize(2, 3, dtype=dtype)
     ones = jnp.ones((6, 7), dtype="float64")
     mask = jnp.ones((6, 7, 2), dtype="int32")
     geometry = OceanGeometry(
@@ -124,7 +123,7 @@ def test_geometry_inputs_convert_to_initialized_precision(dtype: str) -> None:
         area_u=12 * ones,
         area_v=12 * ones,
     )
-    result = set_inits(state, geometry, settings, constants)
+    result, _settings, _constants = initialize_from_ocean(geometry, dtype=dtype)
     for array in jax.tree.leaves(result):
         assert array.dtype == np.dtype(dtype)
         assert np.all(np.isfinite(array))

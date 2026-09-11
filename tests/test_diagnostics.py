@@ -63,7 +63,7 @@ def test_step_returns_separate_periodic_diagnostics_and_identical_state(
 ) -> None:
     """Opting into coupling outputs preserves every calculated state field."""
     from veris.diagnostics import DIAGNOSTICS
-    from veris.setup.artificial import initialize, step, step_with_diagnostics
+    from veris.setups.artificial import initialize, step, step_with_diagnostics
 
     initial, conf, phys = initialize(5, 7)
     expected = step(initial, conf, phys, cooling=25.0)

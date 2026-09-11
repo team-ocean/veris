@@ -31,8 +31,8 @@ truncation and does not change global JAX configuration. Immutable replacement
 preserves precision. Array replacements supplied by callers must use the existing
 array dtype. NetCDF storage uses the actual array dtype, as shown in :doc:`variables`.
 
-``veris.configuration.PRECISION`` is the ``Setting`` metadata entry stored at
-``SETTINGS["dtype"]``. Configuration objects declare their own keyword-only
+Precision is defined directly by the ``Setting`` entry at
+``veris.configuration.SETTINGS["dtype"]``. Configuration objects declare their own keyword-only
 ``dtype`` field using that same default; there is no precision base class.
 
 Registry defaults
