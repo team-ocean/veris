@@ -1,3 +1,4 @@
+import jax.numpy as jnp
 from veros.core.operators import numpy as npx
 from veros import veros_kernel
 
@@ -87,7 +88,7 @@ def basal_drag_coeffs(state, uIce, vIce):
     cBot = npx.where(
         vs.Area > 0.01,
         tmpFld
-        * npx.log(npx.exp(fac * (vs.hIceMean - hCrit)) + 1.0)
+        * jnp.logaddexp(0.0, fac * (vs.hIceMean - hCrit))
         * recip_fac
         * npx.exp(-sett.cBasalStar * (1.0 - vs.Area)),
         0.0,
