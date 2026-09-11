@@ -51,8 +51,8 @@ def evp_solver_body(iEVP, arg_body):
 
     if sett.computeEvpResidual:
         # save previous (p-1) iteration for residual computation
-        sig11Pm1 = sigma11
-        sig22Pm1 = sigma22
+        sig11Pm1 = 0.5 * (sigma1 + sigma2)
+        sig22Pm1 = 0.5 * (sigma1 - sigma2)
         sig12Pm1 = sigma12
         uIcePm1 = uIce
         vIcePm1 = vIce
@@ -191,8 +191,8 @@ def evp_solver_body(iEVP, arg_body):
 
     # residual computation
     if sett.computeEvpResidual:
-        sig11Pm1 = (sigma11 - sig11Pm1) * evpAlphaC * vs.iceMask
-        sig22Pm1 = (sigma22 - sig22Pm1) * evpAlphaC * vs.iceMask
+        sig11Pm1 = (sig11 - sig11Pm1) * evpAlphaC * vs.iceMask
+        sig22Pm1 = (sig22 - sig22Pm1) * evpAlphaC * vs.iceMask
         sig12Pm1 = (sigma12 - sig12Pm1) * evpAlphaZ  # * maskZ
 
         uIcePm1 = vs.iceMaskU * (uIce - uIcePm1) * evpBetaU
@@ -209,26 +209,12 @@ def evp_solver_body(iEVP, arg_body):
         #             - (ForcingY + stressDivY)
         #            ) * iceMaskV
 
-        resSig = update(
-            resSig,
-            at[iEVP],
-            (sig11Pm1**2 + sig22Pm1**2 + sig12Pm1**2)[
-                sett.olx : -sett.olx, sett.oly : -sett.oly
-            ].sum(),
-        )
-        resSig = update(resSig, at[iEVP], global_sum(resSig[iEVP]))
-        resU = update(
-            resU,
-            at[iEVP],
-            (uIcePm1**2 + vIcePm1**2)[
-                sett.olx : -sett.olx, sett.oly : -sett.oly
-            ].sum(),
-        )
-        resU = update(resU, at[iEVP], global_sum(resU[iEVP]))
-
-        resEVP = resU[iEVP]
-        resEVP0 = resU[0]
-        resEVP = resEVP / resEVP0
+        # Halo exchange uses two cells on each side. Residual norms count
+        # each interior cell once, excluding periodic halo duplicates.
+        stress_norm = (sig11Pm1**2 + sig22Pm1**2 + sig12Pm1**2)[2:-2, 2:-2].sum()
+        velocity_norm = (uIcePm1**2 + vIcePm1**2)[2:-2, 2:-2].sum()
+        resSig = resSig.at[iEVP].set(global_sum(stress_norm))
+        resU = resU.at[iEVP].set(global_sum(velocity_norm))
 
         if printEvpResidual:
             print("evp resU, resSigma: %i %e %e" % (iEVP, resU[iEVP], resSig[iEVP]))
