@@ -59,8 +59,8 @@ def calc_Advection(state, field):
             * vs.recip_rA
             * vs.recip_hIceMean
             * (
-                (npx.roll(ZonalFlux, -1, 1) - ZonalFlux)
-                - (npx.roll(vs.uTrans, -1, 0) - vs.uTrans) * field
+                (npx.roll(ZonalFlux, -1, 0) - ZonalFlux)
+                - (npx.roll(vs.uTrans, -1, 0) - uTrans) * field
             )
         )
 
@@ -80,8 +80,8 @@ def calc_Advection(state, field):
             * vs.recip_rA
             * vs.recip_hIceMean
             * (
-                (npx.roll(MeridionalFlux, -1, 0) - MeridionalFlux)
-                - (npx.roll(vs.vTrans, -1, 1) - vs.vTrans) * field
+                (npx.roll(MeridionalFlux, -1, 1) - MeridionalFlux)
+                - (npx.roll(vs.vTrans, -1, 1) - vTrans) * fieldLoc
             )
         )
 
