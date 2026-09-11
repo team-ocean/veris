@@ -1,5 +1,39 @@
 # Development log
 
+## 2026-09-11 — Remaining physical coefficient ownership
+
+- Audited all 15 remaining float-valued SETTINGS entries and kernel consumers.
+  User clarified that numerical controls and all timesteps remain Configuration,
+  and explicitly kept nITC/recip_nITC together. Adapter initial temperature also
+  remains a configuration input. Independent semantic review identified
+  pressReplFac as the remaining constitutive-law coefficient.
+- Moved pressReplFac with its unchanged 1.0 default to PhysicalConstant metadata
+  and the frozen PhysicalConstants class. Both pressure-law reads now use phys.
+  Metadata-driven documentation and the ownership inventory reflect the change.
+- Ownership regression failed before production changes. Scalar pressure tests
+  now include the fractional weight 0.5, preserving continuous float behavior.
+  Added initialization/precision/validation checks and explicit numerical-control
+  retention assertions. No new physical bounds or numerical tolerances imposed.
+- Rejected broader migration after user clarification: EVP relaxation controls,
+  clipping and sqrt safeguards are numerical parameters; float type alone is
+  not an ownership rule. Temporary broader test/docs edits were reverted.
+- Preliminary narrow migration: 86 focused and 71 fast CPU tests passed;
+  maintained Ruff, formatting and ty passed. Initial .venv activation failed
+  because this checkout uses the established .venv-latest environment.
+- Maintained static checks and warnings-as-errors Sphinx build pass. The first
+  Sphinx attempt could not fetch intersphinx inside the sandbox; the approved
+  network-enabled rebuild passed.
+- The user interruption terminated the first full CPU run at 81% without a final
+  result. Revalidated missing process handle and absence of pytest before
+  restarting the full suite on final files, including the dtype assertion fix.
+- [x] Final full CPU suite: 708/708 passed in 212.06 s. Maintained coverage
+  1441/1452 (99.24%) passes the 80% gate. Evidence is in
+  test_logs/pressure-ownership-full-cpu.log and pressure-ownership-coverage.json.
+- [x] Final independent review found no blockers and confirmed all numerical
+  controls remain in Configuration. Ruff/format/annotations/ty, Sphinx and
+  git diff --check pass. No tests remain live; no production changes after
+  final-suite validation. Ready to commit on jax-only; no remote push.
+
 ## 2026-09-11 — Fresh external ocean initialization and setups package
 
 - Moved precision metadata directly into SETTINGS["dtype"] and removed PRECISION.

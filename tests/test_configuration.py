@@ -6,6 +6,7 @@ from dataclasses import FrozenInstanceError, fields, is_dataclass, replace
 from pathlib import Path
 from types import ModuleType
 
+import numpy as np
 import pytest
 
 
@@ -201,6 +202,7 @@ def test_physics_thresholds_belong_to_constants() -> None:
     """Physical thresholds and closures are independent of execution settings."""
     config, physical = configuration_modules()
     names = [
+        "pressReplFac",
         "minLWdown",
         "maxTIce",
         "minTIce",
@@ -233,7 +235,6 @@ def test_physics_thresholds_belong_to_constants() -> None:
         "ny",
         "printEvpResidual",
         "noSlip",
-        "pressReplFac",
         "CrMax",
         "eps2",
     ):
@@ -246,3 +247,51 @@ def test_physical_temperature_bounds_are_validated_together() -> None:
     _, physical = configuration_modules()
     with pytest.raises(ValueError, match="minTIce must not exceed maxTIce"):
         physical.PhysicalConstants(minTIce=10, maxTIce=5)
+
+
+@pytest.mark.parametrize("dtype", ["float32", "float64"])
+def test_pressure_coefficient_initialization_and_validation(dtype: str) -> None:
+    """Pressure weighting is a validated, precision-aware physical override."""
+    from veris.initialization import initialize
+
+    config, physical = configuration_modules()
+    metadata = physical.PHYSICALCONSTANTS["pressReplFac"]
+    assert isinstance(metadata, physical.PhysicalConstant)
+    assert metadata.type is float
+    assert metadata.default == 1.0
+    _, settings, constants = initialize(
+        2, 3, dtype=dtype, physical_overrides={"pressReplFac": 0.5}
+    )
+    assert not hasattr(settings, "pressReplFac")
+    assert constants.pressReplFac == 0.5
+    assert np.asarray(constants.pressReplFac).dtype.name == dtype
+    assert replace(constants, pressReplFac=0).pressReplFac == 0
+    for value in (float("nan"), float("inf"), True):
+        with pytest.raises((TypeError, ValueError), match="pressReplFac"):
+            physical.PhysicalConstants(pressReplFac=value)
+    with pytest.raises(TypeError, match="pressReplFac"):
+        config.Configuration(pressReplFac=1.0)
+
+
+def test_numerical_controls_and_initial_conditions_remain_settings() -> None:
+    """Floating type alone does not make timesteps or solver controls physical."""
+    config, physical = configuration_modules()
+    names = {
+        "deltatDyn",
+        "recip_deltatDyn",
+        "deltatTherm",
+        "recip_deltatTherm",
+        "nITC",
+        "recip_nITC",
+        "geometrySurfaceTemperature",
+        "evpAlpha",
+        "evpBeta",
+        "aEVPalphaMin",
+        "aEvpCoeff",
+        "CrMax",
+        "eps2",
+        "aEVPmassMin",
+        "aEVPcStar",
+    }
+    assert names <= config.SETTINGS.keys()
+    assert names.isdisjoint(physical.PHYSICALCONSTANTS)

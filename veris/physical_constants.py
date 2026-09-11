@@ -28,6 +28,12 @@ class PhysicalConstant(NamedTuple):
 
 
 PHYSICALCONSTANTS: dict[str, PhysicalConstant] = {
+    "pressReplFac": PhysicalConstant(
+        1.0,
+        float,
+        "Weight of strain-dependent replacement pressure in the ice constitutive law",
+        "1",
+    ),
     "evpStressRelaxation": PhysicalConstant(
         1.0,
         float,
@@ -454,6 +460,7 @@ class PhysicalConstants:
 
     dtype: str = field(default=FROM_REGISTRY, kw_only=True)
 
+    pressReplFac: float = FROM_REGISTRY
     evpStressRelaxation: float = FROM_REGISTRY
     evpShearRelaxation: float = FROM_REGISTRY
     Area_min: float = FROM_REGISTRY

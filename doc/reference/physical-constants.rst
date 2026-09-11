@@ -22,6 +22,11 @@ Ice-removal thresholds such as ``hIce_min``, basal-drag thresholds such as
 the physical parameterizations. Override them through ``physical_overrides``
 at initialization, or replace fields on ``PhysicalConstants``.
 
+``pressReplFac`` weights the strain-dependent replacement pressure in the ice
+constitutive law. Its default remains 1.0; fractional values retain their
+continuous weighting behavior. Configure it through ``physical_overrides``
+or immutable replacement of ``PhysicalConstants``.
+
 ``evpStressRelaxation`` and ``evpShearRelaxation`` also belong here: the first
 scales the equilibrium stresses, while their ratio scales equilibrium
 deviatoric stresses. They retain independent defaults. The numerical EVP

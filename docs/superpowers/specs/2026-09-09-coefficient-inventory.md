@@ -287,7 +287,7 @@ computed at construction rather than accepted as independently stale overrides.
 | `gravity` | `9.81` | P |
 | `PlasDefCoeff` | `2` | P |
 | `deltaMin` | `2e-9` | P |
-| `pressReplFac` | `1` | S |
+| `pressReplFac` | `1` | P |
 | `pStar` | `27.5e3` | P |
 | `cStar` | `20` | P |
 | `basalDragU0` | `5e-5` | P |

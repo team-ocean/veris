@@ -280,8 +280,8 @@ def viscosities(
     press = (
         1
         * (
-            vs.SeaIceStrength * (1 - conf.pressReplFac)
-            + 2.0 * zeta * deltaC * conf.pressReplFac / (1 + phys.tensileStrFac)
+            vs.SeaIceStrength * (1 - phys.pressReplFac)
+            + 2.0 * zeta * deltaC * phys.pressReplFac / (1 + phys.tensileStrFac)
         )
         * (1 - phys.tensileStrFac)
     )

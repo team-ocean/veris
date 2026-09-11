@@ -173,18 +173,17 @@ def test_affine_cartesian_strain_tensor(
 
 
 @pytest.mark.parametrize("strain", [(0, 0, 0), (0.01, 0.01, 0), (0.02, -0.01, 0.03)])
-@pytest.mark.parametrize("replacement", [0, 1])
+@pytest.mark.parametrize("replacement", [0, 0.5, 1])
 @pytest.mark.parametrize("tensile", [0, 0.2])
 def test_uniform_viscosity_and_stress_scalar_equations(
     state: StateFactory,
     conf: Configuration,
     phys: PhysicalConstants,
     strain: tuple[float, float, float],
-    replacement: int,
+    replacement: float,
     tensile: float,
 ) -> None:
-    conf = replace(conf, pressReplFac=replacement)
-    phys = replace(phys, tensileStrFac=tensile)
+    phys = replace(phys, pressReplFac=replacement, tensileStrFac=tensile)
     ones = np.ones((3, 5))
     strength = 1500.0
     vs = state(rAz=ones, recip_rA=ones, SeaIceStrength=strength * ones, iceMask=ones)

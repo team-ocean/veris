@@ -96,7 +96,6 @@ SETTINGS: dict[str, Setting] = {
     "use_sharding": Setting(
         True, bool, "flag for using parallel execution via sharded arrays"
     ),
-    "pressReplFac": Setting(1.0, float, "flag whether to use replacement pressure /-"),
     "CrMax": Setting(1000000.0, float, "advective flux parameter /-"),
     "eps2": Setting(1e-20, float, "threshold value /-"),
     "surfaceTemperatureIterations": Setting(
@@ -150,7 +149,6 @@ class Configuration:
     geometrySurfaceTemperature: float = FROM_REGISTRY
     use_coastline: bool = FROM_REGISTRY
     use_sharding: bool = FROM_REGISTRY
-    pressReplFac: float = FROM_REGISTRY
     CrMax: float = FROM_REGISTRY
     eps2: float = FROM_REGISTRY
 
