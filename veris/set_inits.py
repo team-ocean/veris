@@ -31,7 +31,7 @@ def set_inits(state):
     vs.rAu = vs.area_u
     vs.rAv = vs.area_v
     vs.rAz = vs.rA + npx.roll(vs.rA, 1, 0)
-    vs.rAz = 0.25 * npx.roll(vs.rAz, 1, 1)
+    vs.rAz = 0.25 * (vs.rAz + npx.roll(vs.rAz, 1, 1))
 
     vs.recip_dxC = 1 / vs.dxC
     vs.recip_dyC = 1 / vs.dyC
