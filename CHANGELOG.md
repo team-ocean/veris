@@ -1,5 +1,25 @@
 # Development log
 
+## 2026-09-14 — Review settings and physical-constant units
+
+- Reviewed all 34 SETTINGS and 145 PHYSICALCONSTANTS entries. AST comparison
+  against HEAD confirms identical keys, numerical defaults and declared types;
+  independent review confirms the dataclass schemas and runtime code are unchanged.
+- Completed the pending separation of units from descriptions. Corrected units
+  for linear ocean drag, strain-rate regularization, Dalton transfer, lead-closing
+  thickness and reciprocals, basal drag, coastal drag, and the longwave pressure
+  safeguard using their kernel equations. Clarified cpvir, CrMax and the unused
+  legacy explicitDrag flag. No numerical formulas or tolerances changed.
+- Maintained Ruff, formatting, annotation and ty checks pass. Sphinx builds with
+  warnings as errors. The first sandbox build could not fetch an intersphinx
+  inventory; its attempted dictionary CLI override was unsupported. The normal
+  network-enabled rebuild passed.
+- [x] Full CPU suite: 708/708 passed in 288.38 s; maintained coverage
+  1441/1452 (99.24%) passes the 80% gate. Logs: test_logs/registry-units-full-cpu.log
+  and registry-units-coverage.json. Final independent review found no blockers.
+  Prepared for the requested commit and push to origin/jax-only; local
+  test/profiling artifacts remain untracked.
+
 ## 2026-09-11 — Remaining physical coefficient ownership
 
 - Audited all 15 remaining float-valued SETTINGS entries and kernel consumers.

@@ -27,77 +27,92 @@ class Setting(NamedTuple):
 
 SETTINGS: dict[str, Setting] = {
     "dtype": Setting(
-        "float64", str, "Model floating-point precision: float32 or float64"
+        "float64", str, "Model floating-point precision: float32 or float64", "-"
     ),
     "nx": Setting(8, int, "Local interior grid extent along the x direction", "1"),
     "ny": Setting(12, int, "Local interior grid extent along the y direction", "1"),
     "geometrySurfaceTemperature": Setting(
-        273.0, float, "Initial surface temperature used by the geometry adapter /K"
+        273.0, float, "Initial surface temperature used by the geometry adapter", "K"
     ),
     "printEvpResidual": Setting(
-        False, bool, "Print EVP residual diagnostics during execution"
+        False, bool, "Print EVP residual diagnostics during execution", "-"
     ),
-    "deltatTherm": Setting(86400.0, float, "timestep for thermodynamic equations /s"),
+    "deltatTherm": Setting(86400.0, float, "timestep for thermodynamic equations", "s"),
     "recip_deltatTherm": Setting(
-        1.1574074074074073e-05, float, "Reciprocal thermodynamic timestep /s^-1"
+        1.1574074074074073e-05, float, "Reciprocal thermodynamic timestep", "s^-1"
     ),
-    "deltatDyn": Setting(86400.0, float, "timestep for dynamic equations /s"),
+    "deltatDyn": Setting(86400.0, float, "timestep for dynamic equations", "s"),
     "recip_deltatDyn": Setting(
-        1.1574074074074073e-05, float, "Reciprocal dynamic timestep /s^-1"
+        1.1574074074074073e-05, float, "Reciprocal dynamic timestep", "s^-1"
     ),
-    "nITC": Setting(5, int, "number of ice thickness categories /-"),
-    "recip_nITC": Setting(0.2, float, "1 / nITC /-"),
-    "noSlip": Setting(True, bool, "flag for using the no-slip condition"),
+    "nITC": Setting(5, int, "number of ice thickness categories", "-"),
+    "recip_nITC": Setting(0.2, float, "1 / nITC", "-"),
+    "noSlip": Setting(True, bool, "flag for using the no-slip condition", "-"),
     "useRelativeWind": Setting(
         True,
         bool,
         "Use wind minus ice velocity for stress; otherwise use wind velocity",
+        "-",
     ),
     "secondOrderBC": Setting(
         False,
         bool,
         "flag for using the second order approximation for boundary conditions",
+        "-",
     ),
     "extensiveFld": Setting(
-        True, bool, "flag whether the advective fields are extensive"
+        True,
+        bool,
+        "flag whether the advective fields are extensive",
+        "-",
     ),
     "useRealFreshWaterFlux": Setting(
         False,
         bool,
         "flag for using the sea ice load in the calculation of the ocean surface height",
+        "-",
     ),
-    "useFreedrift": Setting(False, bool, "flag for using the freedrift solver"),
-    "useEVP": Setting(True, bool, "flag for using the EVP solver"),
-    "evpAlpha": Setting(500.0, float, "EVP parameter /-"),
-    "evpBeta": Setting(500.0, float, "EVP parameter /-"),
+    "useFreedrift": Setting(False, bool, "flag for using the freedrift solver", "-"),
+    "useEVP": Setting(True, bool, "flag for using the EVP solver", "-"),
+    "evpAlpha": Setting(500.0, float, "EVP parameter", "-"),
+    "evpBeta": Setting(500.0, float, "EVP parameter", "-"),
     "useAdaptiveEVP": Setting(
-        False, bool, "flag for using adaptive relaxation parameters"
+        False, bool, "flag for using adaptive relaxation parameters", "-"
     ),
-    "aEVPalphaMin": Setting(5.0, float, "lower limit of alpha and beta /-"),
+    "aEVPalphaMin": Setting(5.0, float, "lower limit of alpha and beta", "-"),
     "aEvpCoeff": Setting(
-        0.5, float, "largest stabilized frequency for adaptive EVP /-"
+        0.5, float, "largest stabilized frequency for adaptive EVP", "-"
     ),
     "explicitDrag": Setting(
         True,
         bool,
-        "flag for stepping the momentum equation in a explicit or implicit way",
+        "Reserved legacy explicit-drag flag; currently unused by the solvers",
+        "-",
     ),
     "nEVPsteps": Setting(
-        400, int, "number of sub-cycling iterations of the EVP solver"
+        400, int, "number of sub-cycling iterations of the EVP solver", "-"
     ),
     "computeEvpResidual": Setting(
         False,
         bool,
         "flag for computing the residual of stress and velocity in the EVP loop",
+        "-",
     ),
     "use_coastline": Setting(
-        False, bool, "flag for using the coastline data for lateral drag"
+        False, bool, "flag for using the coastline data for lateral drag", "-"
     ),
     "use_sharding": Setting(
-        True, bool, "flag for using parallel execution via sharded arrays"
+        True, bool, "flag for using parallel execution via sharded arrays", "-"
     ),
-    "CrMax": Setting(1000000.0, float, "advective flux parameter /-"),
-    "eps2": Setting(1e-20, float, "threshold value /-"),
+    "CrMax": Setting(
+        1000000.0, float, "Absolute cap on the advected-field slope ratio", "-"
+    ),
+    "eps2": Setting(
+        1e-20,
+        float,
+        "Additive safeguard for the longwave humidity-pressure square root",
+        "hPa",
+    ),
     "surfaceTemperatureIterations": Setting(
         6, int, "Number of Newton iterations in the ice surface energy balance", "1"
     ),
