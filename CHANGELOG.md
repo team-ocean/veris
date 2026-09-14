@@ -861,3 +861,46 @@
   b6aeb44 (opt-in compiled driver), 7aad88a (CUDA EVP/oracles). Source remained
   unchanged after final full-suite validation. Large local artifacts and the
   user-provided AGENTS.md remain untracked. No remote push performed.
+
+### 2026-09-14 — Standalone reference cases
+
+- Active goal: adapt dynamics/growth notebooks and parallel runner from the
+  reference jax_halo_exchange branch into veris/setups; CPU jobs on aegir/v3,
+  GPUs on the current node. Previous implementation absent in current checkout.
+- IN PROGRESS: root owns dynamics/parallel and test scheduling; reference_audit
+  reviews source fidelity. Plan: docs/superpowers/plans/2026-09-14-reference-cases.md.
+- Source audit: dynamics uses fixed snapshot 15, 120 adaptive EVP substeps and
+  600-second steps. Growth feeds returned Qnet/Qsw into subsequent days. Parallel
+  reference imports missing generated initialize_dyn_1024; replace with CLI.
+- [x] Implemented separate run_dyn/run_growth/run_parallel cases using existing
+  initialization and kernels; reference-used forcing fields and sequence reviewed.
+  Unused State fields intentionally retain shared VARIABLES defaults.
+- [x] Initial serial tests 12/12 and parallel contracts 6/6 passed. Four-CPU
+  single-process sharding matched serial after two steps on a rectangular grid.
+- [x] Real aegir/v3 two-rank job 65253021 completed (1x2 mesh,12x16,2 steps,
+  4 EVP iterations). Output agrees with serial CPU: maximum absolute error
+  1.78e-15. Local GPU dynamics agrees within3.64e-12; full150-day growth
+  CPU/GPU trajectories agree within2.28e-13. Artifacts: test_logs/reference-cases.
+- Found and regression-tested nested output/nonfinite-output issues; fixed.
+- AD validation: exact reference initial dynamics state yields NaN reverse AD
+  already inside existing IceVelocities (before the new composition's transport).
+  Wind forcing derivative is finite/matches FD; EVP velocity reverse derivative
+  NaN versus FD0.101145633. Existing zero-norm singularities documented in
+  test_evp_optimization; preserve reference physics, test new composition on its
+  established smooth oracle. That smooth dynamics derivative test passes.
+- Actual GPU parallel CLI exposed JAX explicit platform alias gpu expanding
+  both CUDA and ROCm with strict initialization. Regression test reproduced;
+  select cuda explicitly for the current NVIDIA node. No physics changes.
+- [x] Final full CPU suite:731 passed,1 GPU-only test skipped; maintained
+  coverage1709/1814=94.21%, whole-package1709/2167=78.86%. Dedicated GPU
+  launcher regression then passed after CUDA selection fix. No pytest remains.
+- [x] Corrected two-GPU parallel output matches serial CPU within4.17e-17.
+  Runtime comparisons and source hashes saved in
+  test_logs/reference-cases/runtime-validation.json. SLURM accounting confirms
+  job65253021 COMPLETED exit0:0 on node453, partition aegir (constraint v3).
+- [x] Maintained Ruff/format/annotation/ty checks and bash syntax pass. Sphinx
+  rebuild with -E -W passes; initial sandbox-only inventory network warning
+  resolved by native rebuild. Rendered page includes both scenario registries.
+- [x] Independent final review found no blocker. Documented reference adaptations,
+  CLI/local GPU/CPU queue usage, outputs, and pre-existing EVP AD limitation.
+  Implementation complete on jax-only; local runtime artifacts remain untracked.

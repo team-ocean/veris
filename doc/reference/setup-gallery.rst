@@ -9,3 +9,4 @@ and fields. It requires no geographic datasets or external ocean model.
 
    setups/artificial
    setups/ocean
+   setups/reference-cases
