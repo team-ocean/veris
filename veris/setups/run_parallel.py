@@ -104,8 +104,9 @@ def remove_halos(array: jax.Array, mesh: Mesh) -> jax.Array:
     def interior(local: jax.Array) -> jax.Array:
         return local[2:-2, 2:-2]
 
-    with jax.set_mesh(mesh):
-        return interior(array)
+    # The explicit shard_map mesh also works while JVP/VJP/JIT trace callers.
+    # Entering a new set_mesh context here would reject those transformations.
+    return interior(array)
 
 
 def gather_output(state: State, mesh: Mesh) -> dict[str, np.ndarray]:
