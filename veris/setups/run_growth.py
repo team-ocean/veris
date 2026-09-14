@@ -22,27 +22,31 @@ import jax.numpy as jnp
 import numpy as np
 
 from veris._metadata import FROM_REGISTRY, registry_defaults, validate_scalars
-from veris._typing import State, jit
-from veris.configuration import SETTINGS, Configuration, Setting
+from veris._typing import Parameter, State, jit
+from veris.configuration import SETTINGS, Configuration
 from veris.diagnostics import Diagnostics
 from veris.growth import Growth
 from veris.initialization import initialize as initialize_model
 from veris.physical_constants import PhysicalConstants
 
-GROWTH_SETTINGS: dict[str, Setting] = {
-    "nx": Setting(2, int, "Uniform column interior extent along x", "1"),
-    "ny": Setting(2, int, "Uniform column interior extent along y", "1"),
-    "steps": Setting(150, int, "Default number of thermodynamic steps", "1"),
-    "hIceMean": Setting(1.3, float, "Initial grid-cell mean ice thickness", "m"),
-    "hSnowMean": Setting(0.1, float, "Initial grid-cell mean snow thickness", "m"),
-    "Area": Setting(0.9, float, "Initial ice concentration", "1"),
-    "TSurf": Setting(273.0, float, "Initial ice surface temperature", "K"),
-    "wSpeed": Setting(2.0, float, "Prescribed wind speed", "m s-1"),
-    "ocSalt": Setting(29.0, float, "Prescribed ocean salinity", "g kg-1"),
-    "oceanTemperatureC": Setting(-1.66, float, "Prescribed ocean temperature", "degC"),
-    "Qnet": Setting(173.03212617345582, float, "Initial net upward heat flux", "W m-2"),
-    "LWdown": Setting(80.0, float, "Prescribed downward longwave flux", "W m-2"),
-    "ATemp": Setting(253.0, float, "Prescribed air temperature", "K"),
+GROWTH_SETTINGS: dict[str, Parameter] = {
+    "nx": Parameter(2, int, "Uniform column interior extent along x", "1"),
+    "ny": Parameter(2, int, "Uniform column interior extent along y", "1"),
+    "steps": Parameter(150, int, "Default number of thermodynamic steps", "1"),
+    "hIceMean": Parameter(1.3, float, "Initial grid-cell mean ice thickness", "m"),
+    "hSnowMean": Parameter(0.1, float, "Initial grid-cell mean snow thickness", "m"),
+    "Area": Parameter(0.9, float, "Initial ice concentration", "1"),
+    "TSurf": Parameter(273.0, float, "Initial ice surface temperature", "K"),
+    "wSpeed": Parameter(2.0, float, "Prescribed wind speed", "m s-1"),
+    "ocSalt": Parameter(29.0, float, "Prescribed ocean salinity", "g kg-1"),
+    "oceanTemperatureC": Parameter(
+        -1.66, float, "Prescribed ocean temperature", "degC"
+    ),
+    "Qnet": Parameter(
+        173.03212617345582, float, "Initial net upward heat flux", "W m-2"
+    ),
+    "LWdown": Parameter(80.0, float, "Prescribed downward longwave flux", "W m-2"),
+    "ATemp": Parameter(253.0, float, "Prescribed air temperature", "K"),
 }
 
 

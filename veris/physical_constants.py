@@ -7,7 +7,6 @@ construction and dataclasses.replace; instances are hashable static JAX argument
 
 import math
 from dataclasses import dataclass, field
-from typing import NamedTuple
 
 from veris._metadata import (
     FROM_REGISTRY,
@@ -15,493 +14,440 @@ from veris._metadata import (
     validate_derived,
     validate_scalars,
 )
+from veris._typing import Parameter
 from veris.configuration import SETTINGS
 
-
-class PhysicalConstant(NamedTuple):
-    """Default, scalar type and description of a physical or empirical constant."""
-
-    default: float | tuple[float, ...]
-    type: type[float] | type[tuple[float, ...]]
-    description: str
-    units: str = ""
-
-
-PHYSICALCONSTANTS: dict[str, PhysicalConstant] = {
-    "pressReplFac": PhysicalConstant(
+PHYSICALCONSTANTS: dict[str, Parameter] = {
+    "pressReplFac": Parameter(
         1.0,
         float,
         "Weight of strain-dependent replacement pressure in the ice constitutive law",
         "1",
     ),
-    "evpStressRelaxation": PhysicalConstant(
+    "evpStressRelaxation": Parameter(
         1.0,
         float,
         "Stress damping coefficient setting the EVP constitutive equilibrium",
         "1",
     ),
-    "evpShearRelaxation": PhysicalConstant(
+    "evpShearRelaxation": Parameter(
         0.25,
         float,
         "Deviatoric stress forcing coefficient setting the EVP constitutive equilibrium",
         "1",
     ),
-    "minLWdown": PhysicalConstant(
+    "minLWdown": Parameter(
         60.0, float, "minimum downward longwave radiation", ":math:`W/m^2`"
     ),
-    "maxTIce": PhysicalConstant(
+    "maxTIce": Parameter(
         30.0, float, "maximum ice temperature", ":math:`{}^\\circ\\,C`"
     ),
-    "minTIce": PhysicalConstant(
+    "minTIce": Parameter(
         -50.0, float, "minimum ice temperature", ":math:`{}^\\circ\\,C`"
     ),
-    "minTAir": PhysicalConstant(
+    "minTAir": Parameter(
         -50.0, float, "minimum air temperature", ":math:`{}^\\circ\\,C`"
     ),
-    "Area_reg": PhysicalConstant(
+    "Area_reg": Parameter(
         0.0225,
         float,
         "Squared ice-concentration regularization (dimensionless)",
         "-",
     ),
-    "hIce_reg": PhysicalConstant(
+    "hIce_reg": Parameter(
         0.010000000000000002,
         float,
         "regularization value for the ice thickness",
         ":math:`m^2`",
     ),
-    "wSpeedMin": PhysicalConstant(1e-10, float, "minimum wind speed", ":math:`m/s`"),
-    "hIce_min": PhysicalConstant(1e-05, float, "'minimum' ice thickness", ":math:`m`"),
-    "Area_min": PhysicalConstant(1e-05, float, "'minimum' ice cover fraction", "-"),
-    "cDragMin": PhysicalConstant(
+    "wSpeedMin": Parameter(1e-10, float, "minimum wind speed", ":math:`m/s`"),
+    "hIce_min": Parameter(1e-05, float, "'minimum' ice thickness", ":math:`m`"),
+    "Area_min": Parameter(1e-05, float, "'minimum' ice cover fraction", "-"),
+    "cDragMin": Parameter(
         0.25,
         float,
         "minimum of linear ice-ocean drag coefficient",
         ":math:`kg/(m^2\\,s)`",
     ),
-    "seaIceLoadFac": PhysicalConstant(
-        1.0, float, "factor to scale sea ice loading", "-"
-    ),
-    "deltaMin": PhysicalConstant(
+    "seaIceLoadFac": Parameter(1.0, float, "factor to scale sea ice loading", "-"),
+    "deltaMin": Parameter(
         2e-09, float, "Minimum strain-rate invariant", ":math:`s^{-1}`"
     ),
-    "umin_o": PhysicalConstant(
+    "umin_o": Parameter(
         0.5, float, "minimum atm. wind speed over ocean surface", ":math:`m/s`"
     ),
-    "umin_i": PhysicalConstant(
+    "umin_i": Parameter(
         1.0, float, "minimum atm. wind speed over ice surface", ":math:`m/s`"
     ),
-    "zref": PhysicalConstant(
-        10.0, float, "reference height for wind speed", ":math:`m`"
-    ),
-    "ztref": PhysicalConstant(
-        2.0, float, "reference height for air temperature", ":math:`m`"
-    ),
-    "minActualIceThickness": PhysicalConstant(
+    "zref": Parameter(10.0, float, "reference height for wind speed", ":math:`m`"),
+    "ztref": Parameter(2.0, float, "reference height for air temperature", ":math:`m`"),
+    "minActualIceThickness": Parameter(
         0.05,
         float,
         "Minimum actual ice thickness used in thermodynamic growth",
         ":math:`m`",
     ),
-    "basalDragSmoothing": PhysicalConstant(
+    "basalDragSmoothing": Parameter(
         10.0,
         float,
         "Inverse thickness scale of the basal-drag smooth positive part",
         ":math:`m^{-1}`",
     ),
-    "basalDragMinArea": PhysicalConstant(
+    "basalDragMinArea": Parameter(
         0.01, float, "Minimum ice concentration that enables basal drag", "1"
     ),
-    "bulkStabilityLimit": PhysicalConstant(
+    "bulkStabilityLimit": Parameter(
         10.0, float, "Maximum absolute height-to-Obukhov-length ratio", "1"
     ),
-    "lanlMinWindSpeed": PhysicalConstant(
+    "lanlMinWindSpeed": Parameter(
         1.0,
         float,
         "Minimum open-ocean wind speed in LANL bulk fluxes",
         ":math:`m\\,s^{-1}`",
     ),
-    "hCut": PhysicalConstant(
+    "hCut": Parameter(
         0.15,
         float,
         "Snow thickness at the transition to optically opaque snow albedo",
         ":math:`m`",
     ),
-    "rhoIce": PhysicalConstant(900.0, float, "density of ice", ":math:`kg/m^3`"),
-    "rhoFresh": PhysicalConstant(
-        1000.0, float, "density of fresh water", ":math:`kg/m^3`"
-    ),
-    "rhoSea": PhysicalConstant(1026.0, float, "density of sea water", ":math:`kg/m^3`"),
-    "rhoAir": PhysicalConstant(1.3, float, "density of air", ":math:`kg/m^3`"),
-    "rhoSnow": PhysicalConstant(330.0, float, "density of snow", ":math:`kg/m^3`"),
-    "recip_rhoFresh": PhysicalConstant(0.001, float, "1 / rhoFresh", ":math:`m^3/kg`"),
-    "recip_rhoSea": PhysicalConstant(
+    "rhoIce": Parameter(900.0, float, "density of ice", ":math:`kg/m^3`"),
+    "rhoFresh": Parameter(1000.0, float, "density of fresh water", ":math:`kg/m^3`"),
+    "rhoSea": Parameter(1026.0, float, "density of sea water", ":math:`kg/m^3`"),
+    "rhoAir": Parameter(1.3, float, "density of air", ":math:`kg/m^3`"),
+    "rhoSnow": Parameter(330.0, float, "density of snow", ":math:`kg/m^3`"),
+    "recip_rhoFresh": Parameter(0.001, float, "1 / rhoFresh", ":math:`m^3/kg`"),
+    "recip_rhoSea": Parameter(
         0.0009746588693957114, float, "1 / rhoSea", ":math:`m^3/kg`"
     ),
-    "rhoIce2rhoSnow": PhysicalConstant(
+    "rhoIce2rhoSnow": Parameter(
         2.727272727272727, float, "Ice-to-snow density ratio (dimensionless)", "-"
     ),
-    "rhoIce2rhoFresh": PhysicalConstant(
+    "rhoIce2rhoFresh": Parameter(
         0.9, float, "Ice-to-freshwater density ratio (dimensionless)", "-"
     ),
-    "rhoFresh2rhoSnow": PhysicalConstant(
+    "rhoFresh2rhoSnow": Parameter(
         3.0303030303030303,
         float,
         "Freshwater-to-snow density ratio (dimensionless)",
         "-",
     ),
-    "dryIceAlb": PhysicalConstant(0.75, float, "albedo of dry ice", "-"),
-    "dryIceAlb_south": PhysicalConstant(
+    "dryIceAlb": Parameter(0.75, float, "albedo of dry ice", "-"),
+    "dryIceAlb_south": Parameter(
         0.75, float, "albedo of dry ice in the southern hemisphere", "-"
     ),
-    "wetIceAlb": PhysicalConstant(0.66, float, "albedo of wet ice", "-"),
-    "wetIceAlb_south": PhysicalConstant(
+    "wetIceAlb": Parameter(0.66, float, "albedo of wet ice", "-"),
+    "wetIceAlb_south": Parameter(
         0.66, float, "albedo of wet ice in the southern hemisphere", "-"
     ),
-    "drySnowAlb": PhysicalConstant(0.84, float, "albedo of dry snow", "-"),
-    "drySnowAlb_south": PhysicalConstant(
+    "drySnowAlb": Parameter(0.84, float, "albedo of dry snow", "-"),
+    "drySnowAlb_south": Parameter(
         0.84, float, "albedo of dry snow in the southern hemisphere", "-"
     ),
-    "wetSnowAlb": PhysicalConstant(0.7, float, "albedo of wet snow", "-"),
-    "wetSnowAlb_south": PhysicalConstant(
+    "wetSnowAlb": Parameter(0.7, float, "albedo of wet snow", "-"),
+    "wetSnowAlb_south": Parameter(
         0.7, float, "albedo of wet snow in the southern hemisphere", "-"
     ),
-    "wetAlbTemp": PhysicalConstant(
+    "wetAlbTemp": Parameter(
         0.0,
         float,
         "temperature above which the wet albedos are used",
         ":math:`{}^\\circ\\,C`",
     ),
-    "lhFusion": PhysicalConstant(
-        334000.0, float, "latent heat of fusion", ":math:`J/kg`"
-    ),
-    "lhEvap": PhysicalConstant(
-        2500000.0, float, "latent heat of evaporation", ":math:`J/kg`"
-    ),
-    "lhSublim": PhysicalConstant(
+    "lhFusion": Parameter(334000.0, float, "latent heat of fusion", ":math:`J/kg`"),
+    "lhEvap": Parameter(2500000.0, float, "latent heat of evaporation", ":math:`J/kg`"),
+    "lhSublim": Parameter(
         2834000.0, float, "latent heat of sublimation", ":math:`J/kg`"
     ),
-    "cpAir": PhysicalConstant(
-        1005.0, float, "heat capacity of air", ":math:`J/(kg\\,K)`"
-    ),
-    "cpWater": PhysicalConstant(
-        3986.0, float, "heat capacity of water", ":math:`J/(kg\\,K)`"
-    ),
-    "stefBoltz": PhysicalConstant(
+    "cpAir": Parameter(1005.0, float, "heat capacity of air", ":math:`J/(kg\\,K)`"),
+    "cpWater": Parameter(3986.0, float, "heat capacity of water", ":math:`J/(kg\\,K)`"),
+    "stefBoltz": Parameter(
         5.67e-08, float, "Stefan-Boltzmann constant", ":math:`W/m^2/K^4`"
     ),
-    "iceEmiss": PhysicalConstant(0.95, float, "longwave ice emissivity", "-"),
-    "snowEmiss": PhysicalConstant(0.95, float, "longwave snow emissivity", "-"),
-    "iceConduct": PhysicalConstant(
+    "iceEmiss": Parameter(0.95, float, "longwave ice emissivity", "-"),
+    "snowEmiss": Parameter(0.95, float, "longwave snow emissivity", "-"),
+    "iceConduct": Parameter(
         2.1656, float, "Sea ice thermal conductivity", ":math:`W/m/K`"
     ),
-    "snowConduct": PhysicalConstant(
-        0.31, float, "Snow thermal conductivity", ":math:`W/m/K`"
-    ),
-    "shortwave": PhysicalConstant(0.3, float, "shortwave ice penetration factor", "-"),
-    "tempFrz": PhysicalConstant(
-        -1.96, float, "freezing temperature", ":math:`{}^\\circ\\,C`"
-    ),
-    "dtempFrz_dS": PhysicalConstant(
+    "snowConduct": Parameter(0.31, float, "Snow thermal conductivity", ":math:`W/m/K`"),
+    "shortwave": Parameter(0.3, float, "shortwave ice penetration factor", "-"),
+    "tempFrz": Parameter(-1.96, float, "freezing temperature", ":math:`{}^\\circ\\,C`"),
+    "dtempFrz_dS": Parameter(
         0.0,
         float,
         "Derivative of freezing temperature with respect to salinity",
         ":math:`{}^\\circ\\,C/(g/kg)`",
     ),
-    "saltIce_ref": PhysicalConstant(
+    "saltIce_ref": Parameter(
         0.0, float, "reference salinity of sea ice", ":math:`g/kg`"
     ),
-    "dalton": PhysicalConstant(
+    "dalton": Parameter(
         0.00175,
         float,
         "Dalton number for sensible and latent heat transfer",
         "-",
     ),
-    "celsius2K": PhysicalConstant(
+    "celsius2K": Parameter(
         273.15,
         float,
         "Offset added to Celsius temperature to obtain kelvin",
         ":math:`K`",
     ),
-    "stantonNr": PhysicalConstant(0.0056, float, "stanton number", "-"),
-    "uStarBase": PhysicalConstant(
+    "stantonNr": Parameter(0.0056, float, "stanton number", "-"),
+    "uStarBase": Parameter(
         0.0125, float, "typical friction velocity beneath sea ice", ":math:`m/s`"
     ),
-    "McPheeTaperFac": PhysicalConstant(
-        12.5, float, "tapering factor at the ice bottom", "-"
-    ),
-    "h0": PhysicalConstant(0.5, float, "Lead-closing ice thickness", ":math:`m`"),
-    "recip_h0": PhysicalConstant(2.0, float, "1 / h0", ":math:`m^{-1}`"),
-    "h0_south": PhysicalConstant(
+    "McPheeTaperFac": Parameter(12.5, float, "tapering factor at the ice bottom", "-"),
+    "h0": Parameter(0.5, float, "Lead-closing ice thickness", ":math:`m`"),
+    "recip_h0": Parameter(2.0, float, "1 / h0", ":math:`m^{-1}`"),
+    "h0_south": Parameter(
         0.5, float, "Lead-closing ice thickness in the southern hemisphere", ":math:`m`"
     ),
-    "recip_h0_south": PhysicalConstant(2.0, float, "1 / h0_south", ":math:`m^{-1}`"),
-    "airTurnAngle": PhysicalConstant(
+    "recip_h0_south": Parameter(2.0, float, "1 / h0_south", ":math:`m^{-1}`"),
+    "airTurnAngle": Parameter(
         0.0, float, "turning angle of air-ice stress", ":math:`{}^\\circ`"
     ),
-    "waterTurnAngle": PhysicalConstant(
+    "waterTurnAngle": Parameter(
         0.0, float, "turning angle of water-ice stress", ":math:`{}^\\circ`"
     ),
-    "sinWat": PhysicalConstant(0.0, float, "sin of waterTurnAngle", "-"),
-    "cosWat": PhysicalConstant(1.0, float, "cos of waterTurnAngle", "-"),
-    "airIceDrag": PhysicalConstant(0.0012, float, "air-ice drag coefficient", "-"),
-    "airIceDrag_south": PhysicalConstant(
+    "sinWat": Parameter(0.0, float, "sin of waterTurnAngle", "-"),
+    "cosWat": Parameter(1.0, float, "cos of waterTurnAngle", "-"),
+    "airIceDrag": Parameter(0.0012, float, "air-ice drag coefficient", "-"),
+    "airIceDrag_south": Parameter(
         0.0012, float, "air-ice drag coefficient in the southern hemisphere", "-"
     ),
-    "waterIceDrag": PhysicalConstant(0.0055, float, "water-ice drag coefficient", "-"),
-    "waterIceDrag_south": PhysicalConstant(
+    "waterIceDrag": Parameter(0.0055, float, "water-ice drag coefficient", "-"),
+    "waterIceDrag_south": Parameter(
         0.0055, float, "water-ice drag coefficient in the southern hemisphere", "-"
     ),
-    "gravity": PhysicalConstant(
-        9.81, float, "gravitational acceleration", ":math:`m/s^2`"
-    ),
-    "PlasDefCoeff": PhysicalConstant(
+    "gravity": Parameter(9.81, float, "gravitational acceleration", ":math:`m/s^2`"),
+    "PlasDefCoeff": Parameter(
         2.0, float, "axes ratio of the elliptical yield curve", "-"
     ),
-    "pStar": PhysicalConstant(
-        27500.0, float, "sea ice strength parameter", ":math:`Pa`"
-    ),
-    "cStar": PhysicalConstant(20.0, float, "sea ice strength parameter", "-"),
-    "basalDragU0": PhysicalConstant(
-        5e-05, float, "basal drag parameter", ":math:`m/s`"
-    ),
-    "basalDragK1": PhysicalConstant(8.0, float, "basal drag parameter", "-"),
-    "basalDragK2": PhysicalConstant(
+    "pStar": Parameter(27500.0, float, "sea ice strength parameter", ":math:`Pa`"),
+    "cStar": Parameter(20.0, float, "sea ice strength parameter", "-"),
+    "basalDragU0": Parameter(5e-05, float, "basal drag parameter", ":math:`m/s`"),
+    "basalDragK1": Parameter(8.0, float, "basal drag parameter", "-"),
+    "basalDragK2": Parameter(
         0.0, float, "Basal stress per unit keel excess thickness", ":math:`Pa/m`"
     ),
-    "cBasalStar": PhysicalConstant(20.0, float, "basal drag parameter", "-"),
-    "tensileStrFac": PhysicalConstant(
-        0.0, float, "sea ice tensile strength factor", "-"
-    ),
-    "sideDragCoeff": PhysicalConstant(
+    "cBasalStar": Parameter(20.0, float, "basal drag parameter", "-"),
+    "tensileStrFac": Parameter(0.0, float, "sea ice tensile strength factor", "-"),
+    "sideDragCoeff": Parameter(
         0.001, float, "Coastal drag acceleration coefficient", ":math:`m/s^2`"
     ),
-    "sideDragU0": PhysicalConstant(
-        0.01, float, "side drag critical velocity", ":math:`m/s`"
-    ),
-    "bolzc": PhysicalConstant(
+    "sideDragU0": Parameter(0.01, float, "side drag critical velocity", ":math:`m/s`"),
+    "bolzc": Parameter(
         1.38065e-23, float, "Boltzmann's constant", ":math:`J/K/molecule`"
     ),
-    "avogad": PhysicalConstant(
+    "avogad": Parameter(
         6.02214e26, float, "Avogadro number", ":math:`molecules/kmole`"
     ),
-    "rgas": PhysicalConstant(
+    "rgas": Parameter(
         8314.47, float, "avogad * bolzc - Ideal gas constant", ":math:`J/K/kmole`"
     ),
-    "mwdair": PhysicalConstant(
+    "mwdair": Parameter(
         28.966, float, "molecular weight of dry air", ":math:`kg/kmole`"
     ),
-    "mwwv": PhysicalConstant(
+    "mwwv": Parameter(
         18.016, float, "molecular weight water vapor", ":math:`kg/kmole`"
     ),
-    "rdair": PhysicalConstant(
+    "rdair": Parameter(
         287.042, float, "RGAS / MWDAIR - dry air gas constant", ":math:`J/K/kg`"
     ),
-    "rwv": PhysicalConstant(
+    "rwv": Parameter(
         461.505, float, "RGAS / MWWV - water vapor constant", ":math:`J/K/kg`"
     ),
-    "zvir": PhysicalConstant(
+    "zvir": Parameter(
         0.608,
         float,
         "(RWV / RDAIR) - 1.0 - Dry-air water-vapor molecular mass ratio",
         "-",
     ),
-    "cpdair": PhysicalConstant(
-        1004.64, float, "specific heat of dry air", ":math:`J/K/kg`"
-    ),
-    "cpwv": PhysicalConstant(
-        1810.0, float, "specific heat of water vapor", ":math:`J/K/kg`"
-    ),
-    "cpvir": PhysicalConstant(
+    "cpdair": Parameter(1004.64, float, "specific heat of dry air", ":math:`J/K/kg`"),
+    "cpwv": Parameter(1810.0, float, "specific heat of water vapor", ":math:`J/K/kg`"),
+    "cpvir": Parameter(
         0.802,
         float,
         "Humidity correction to dry-air specific heat (cpwv / cpdair - 1)",
         "-",
     ),
-    "karman": PhysicalConstant(0.4, float, "von Karman constant", "-"),
-    "latvap": PhysicalConstant(
-        2501000.0, float, "latent heat of evaporation", ":math:`J/kg`"
-    ),
-    "p0": PhysicalConstant(
+    "karman": Parameter(0.4, float, "von Karman constant", "-"),
+    "latvap": Parameter(2501000.0, float, "latent heat of evaporation", ":math:`J/kg`"),
+    "p0": Parameter(
         100000.0,
         float,
         "reference pressure to compute potential temperature",
         ":math:`Pa`",
     ),
-    "cappa": PhysicalConstant(0.286, float, "R/Cp", "-"),
-    "zzsice": PhysicalConstant(0.0005, float, "ice surface roughness", ":math:`m`"),
-    "ch": PhysicalConstant(
-        0.001, float, "bulk transfer coefficient for sensible heat", "-"
-    ),
-    "ce": PhysicalConstant(
-        0.00115, float, "bulk transfer coefficient for latent heat", "-"
-    ),
-    "emissivity": PhysicalConstant(1.0, float, "surface emissivity", "-"),
-    "ocean_emissivity": PhysicalConstant(0.985, float, "ocean surface emissivity", "-"),
-    "snow_emissivity": PhysicalConstant(0.98, float, "snow surface emissivity", "-"),
-    "ice_emissivity": PhysicalConstant(0.98, float, "ice surface emissivity", "-"),
-    "tf0kel": PhysicalConstant(
-        273.15, float, "freezing temp of fresh water", ":math:`K`"
-    ),
-    "gamma_blk": PhysicalConstant(
+    "cappa": Parameter(0.286, float, "R/Cp", "-"),
+    "zzsice": Parameter(0.0005, float, "ice surface roughness", ":math:`m`"),
+    "ch": Parameter(0.001, float, "bulk transfer coefficient for sensible heat", "-"),
+    "ce": Parameter(0.00115, float, "bulk transfer coefficient for latent heat", "-"),
+    "emissivity": Parameter(1.0, float, "surface emissivity", "-"),
+    "ocean_emissivity": Parameter(0.985, float, "ocean surface emissivity", "-"),
+    "snow_emissivity": Parameter(0.98, float, "snow surface emissivity", "-"),
+    "ice_emissivity": Parameter(0.98, float, "ice surface emissivity", "-"),
+    "tf0kel": Parameter(273.15, float, "freezing temp of fresh water", ":math:`K`"),
+    "gamma_blk": Parameter(
         0.01, float, "adiabatic lapse rate", ":math:`{}^\\circ\\,C/m`"
     ),
-    "ocean_albedo": PhysicalConstant(0.1, float, "ocean albedo", "-"),
-    "ice_albedo": PhysicalConstant(0.7, float, "ice albedo", "-"),
-    "radius": PhysicalConstant(
+    "ocean_albedo": Parameter(0.1, float, "ocean albedo", "-"),
+    "ice_albedo": Parameter(0.7, float, "ice albedo", "-"),
+    "radius": Parameter(
         6371000.0,
         float,
         "Mean spherical Earth radius used by geopotential-height conversion",
         ":math:`m`",
     ),
-    "iceVaporPressureTemperature": PhysicalConstant(
+    "iceVaporPressureTemperature": Parameter(
         2663.5,
         float,
         "Ice saturation vapor-pressure inverse-temperature coefficient",
         ":math:`K`",
     ),
-    "iceVaporPressureLog10Offset": PhysicalConstant(
+    "iceVaporPressureLog10Offset": Parameter(
         12.537, float, "Ice saturation vapor-pressure base-10 logarithmic offset", "1"
     ),
-    "waterVaporDryAirMassRatio": PhysicalConstant(
+    "waterVaporDryAirMassRatio": Parameter(
         0.622,
         float,
         "Water-vapor to dry-air molecular mass ratio in saturation laws",
         "1",
     ),
-    "iceSurfacePressure": PhysicalConstant(
+    "iceSurfacePressure": Parameter(
         100000.0,
         float,
         "Fixed pressure for the ice-surface humidity parameterization",
         ":math:`Pa`",
     ),
-    "iceShortwaveExtinction": PhysicalConstant(
+    "iceShortwaveExtinction": Parameter(
         1.5,
         float,
         "Exponential shortwave attenuation coefficient within ice",
         ":math:`m^{-1}`",
     ),
-    "McPheeTaperArea": PhysicalConstant(
+    "McPheeTaperArea": Parameter(
         0.4, float, "Ice concentration scale of the McPhee bottom-melt taper", "1"
     ),
-    "McPheeTaperSteepness": PhysicalConstant(
+    "McPheeTaperSteepness": Parameter(
         7.0,
         float,
         "McPhee bottom-melt taper numerator, divided by McPheeTaperArea",
         "1",
     ),
-    "lateralMeltAreaFactor": PhysicalConstant(
+    "lateralMeltAreaFactor": Parameter(
         0.5,
         float,
         "Lateral concentration-loss factor multiplying reciprocal ice thickness",
         "1",
     ),
-    "cesmSaturationHumidityScale": PhysicalConstant(
+    "cesmSaturationHumidityScale": Parameter(
         640380.0,
         float,
         "CESM exponential saturation specific-humidity scale",
         ":math:`kg\\,m^{-3}`",
     ),
-    "cesmSaturationHumidityTemperature": PhysicalConstant(
+    "cesmSaturationHumidityTemperature": Parameter(
         5107.4,
         float,
         "CESM saturation humidity inverse-temperature coefficient",
         ":math:`K`",
     ),
-    "augustVaporPressureLog10Offset": PhysicalConstant(
+    "augustVaporPressureLog10Offset": Parameter(
         9.4051, float, "August saturation vapor-pressure logarithmic offset", "1"
     ),
-    "augustVaporPressureTemperature": PhysicalConstant(
+    "augustVaporPressureTemperature": Parameter(
         2353.0,
         float,
         "August saturation vapor-pressure inverse-temperature coefficient",
         ":math:`K`",
     ),
-    "mmHgToPa": PhysicalConstant(
+    "mmHgToPa": Parameter(
         133.322,
         float,
         "Conversion from millimetres of mercury to pascals",
         ":math:`Pa\\,mmHg^{-1}`",
     ),
-    "neutralDragInverseWind": PhysicalConstant(
+    "neutralDragInverseWind": Parameter(
         0.0027,
         float,
         "Reciprocal-wind coefficient in the neutral ocean drag law",
         ":math:`m\\,s^{-1}`",
     ),
-    "neutralDragConstant": PhysicalConstant(
+    "neutralDragConstant": Parameter(
         0.000142, float, "Constant coefficient in the neutral ocean drag law", "1"
     ),
-    "neutralDragLinearWind": PhysicalConstant(
+    "neutralDragLinearWind": Parameter(
         7.64e-05,
         float,
         "Linear-wind coefficient in the neutral ocean drag law",
         ":math:`s\\,m^{-1}`",
     ),
-    "cesmUnstableMomentumOffset": PhysicalConstant(
+    "cesmUnstableMomentumOffset": Parameter(
         1.571, float, "Historically rounded CESM unstable momentum angle offset", "1"
     ),
-    "longwaveHumidityPressureScale": PhysicalConstant(
+    "longwaveHumidityPressureScale": Parameter(
         1000.0,
         float,
         "Humidity pressure scale in the ocean longwave parameterization",
         ":math:`hPa`",
     ),
-    "longwaveClearSkyOffset": PhysicalConstant(
+    "longwaveClearSkyOffset": Parameter(
         0.39, float, "Clear-sky offset in the ocean longwave parameterization", "1"
     ),
-    "longwaveHumidityCoefficient": PhysicalConstant(
+    "longwaveHumidityCoefficient": Parameter(
         0.05,
         float,
         "Humidity coefficient in the ocean longwave parameterization",
         ":math:`hPa^{-0.5}`",
     ),
-    "seawaterHumidityFactor": PhysicalConstant(
+    "seawaterHumidityFactor": Parameter(
         0.98,
         float,
         "Salinity reduction factor for ocean surface saturation humidity",
         "1",
     ),
-    "cesmNeutralHeatUnstable": PhysicalConstant(
+    "cesmNeutralHeatUnstable": Parameter(
         0.0327,
         float,
         "CESM unstable neutral heat-transfer square-root coefficient",
         "1",
     ),
-    "cesmNeutralHeatStable": PhysicalConstant(
+    "cesmNeutralHeatStable": Parameter(
         0.018, float, "CESM stable neutral heat-transfer square-root coefficient", "1"
     ),
-    "cesmNeutralMoisture": PhysicalConstant(
+    "cesmNeutralMoisture": Parameter(
         0.0346, float, "CESM neutral moisture-transfer square-root coefficient", "1"
     ),
-    "bulkUnstableStabilityCoefficient": PhysicalConstant(
+    "bulkUnstableStabilityCoefficient": Parameter(
         16.0, float, "Unstable Monin-Obukhov similarity coefficient", "1"
     ),
-    "bulkStableStabilityCoefficient": PhysicalConstant(
+    "bulkStableStabilityCoefficient": Parameter(
         5.0, float, "Magnitude of the negative stable similarity coefficient", "1"
     ),
-    "lanlSaturationHumidityScale": PhysicalConstant(
+    "lanlSaturationHumidityScale": Parameter(
         3.797915, float, "LANL saturation specific-humidity scale", "1"
     ),
-    "lanlSaturationExponentOffset": PhysicalConstant(
+    "lanlSaturationExponentOffset": Parameter(
         7.93252e-06,
         float,
         "LANL saturation exponent offset multiplying latent heat",
         ":math:`kg\\,J^{-1}`",
     ),
-    "lanlSaturationExponentTemperature": PhysicalConstant(
+    "lanlSaturationExponentTemperature": Parameter(
         0.002166847,
         float,
         "LANL inverse-temperature exponent coefficient multiplying latent heat",
         ":math:`K\\,kg\\,J^{-1}`",
     ),
-    "lanlReferencePressure": PhysicalConstant(
+    "lanlReferencePressure": Parameter(
         1013.0,
         float,
         "LANL humidity reference pressure in its original hPa convention",
         ":math:`hPa`",
     ),
-    "longwaveCloudLatitudes": PhysicalConstant(
+    "longwaveCloudLatitudes": Parameter(
         (
             -90.0,
             -80.0,
@@ -529,7 +475,7 @@ PHYSICALCONSTANTS: dict[str, PhysicalConstant] = {
         "Latitude knots for the ocean longwave cloud correction",
         ":math:`{}^\\circ\\mathrm{N}`",
     ),
-    "longwaveCloudCoefficients": PhysicalConstant(
+    "longwaveCloudCoefficients": Parameter(
         (
             0.88,
             0.84,
@@ -560,7 +506,7 @@ PHYSICALCONSTANTS: dict[str, PhysicalConstant] = {
 }
 
 
-__all__ = ["PHYSICALCONSTANTS", "PhysicalConstant", "PhysicalConstants"]
+__all__ = ["PHYSICALCONSTANTS", "Parameter", "PhysicalConstants"]
 
 
 @dataclass(frozen=True)

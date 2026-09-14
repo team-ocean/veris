@@ -19,41 +19,43 @@ from jax.sharding import Mesh, NamedSharding
 from jax.sharding import PartitionSpec as P
 
 from veris._metadata import FROM_REGISTRY, registry_defaults, validate_scalars
-from veris._typing import State
-from veris.configuration import Configuration, Setting
+from veris._typing import Parameter, State
+from veris.configuration import Configuration
 from veris.diagnostics import Diagnostics
 from veris.initialization import initialize as initialize_model
 from veris.physical_constants import PhysicalConstants
 from veris.variables import VARIABLES
 
 DYNAMICS_SETTINGS = {
-    "length": Setting(
+    "length": Parameter(
         512000.0, float, "Basin length in each horizontal direction", "m"
     ),
-    "wind_time": Setting(5.875, float, "Fixed reference wind snapshot time", "day"),
-    "wind_speed": Setting(15.0, float, "Wind amplitude", "m s-1"),
-    "wind_angle": Setting(0.4 * np.pi, float, "Wind rotation angle", "rad"),
-    "wind_scale": Setting(50000.0, float, "Wind radial normalization length", "m"),
-    "wind_decay": Setting(100000.0, float, "Wind exponential decay length", "m"),
-    "center_offset": Setting(0.1, float, "Initial wind center as basin fraction", "1"),
-    "center_rate": Setting(
+    "wind_time": Parameter(5.875, float, "Fixed reference wind snapshot time", "day"),
+    "wind_speed": Parameter(15.0, float, "Wind amplitude", "m s-1"),
+    "wind_angle": Parameter(0.4 * np.pi, float, "Wind rotation angle", "rad"),
+    "wind_scale": Parameter(50000.0, float, "Wind radial normalization length", "m"),
+    "wind_decay": Parameter(100000.0, float, "Wind exponential decay length", "m"),
+    "center_offset": Parameter(
+        0.1, float, "Initial wind center as basin fraction", "1"
+    ),
+    "center_rate": Parameter(
         0.1, float, "Wind center translation as basin fraction per day", "day-1"
     ),
-    "ocean_speed": Setting(0.01, float, "Ocean circulation speed scale", "m s-1"),
-    "depth": Setting(1000.0, float, "Ocean basin depth", "m"),
-    "ice_thickness": Setting(
+    "ocean_speed": Parameter(0.01, float, "Ocean circulation speed scale", "m s-1"),
+    "depth": Parameter(1000.0, float, "Ocean basin depth", "m"),
+    "ice_thickness": Parameter(
         0.3, float, "Initial ice thickness including wall cells", "m"
     ),
-    "surface_temperature": Setting(
+    "surface_temperature": Parameter(
         273.0, float, "Initial ice surface temperature", "K"
     ),
-    "coriolis_start": Setting(
+    "coriolis_start": Parameter(
         1.4604e-4, float, "Coriolis frequency at first y cell", "s-1"
     ),
-    "coriolis_offset": Setting(
+    "coriolis_offset": Parameter(
         1.4596e-4, float, "Reference last-cell Coriolis intercept", "s-1"
     ),
-    "coriolis_increment": Setting(
+    "coriolis_increment": Parameter(
         8.0e-8, float, "Reference Coriolis increment per y cell", "s-1"
     ),
 }

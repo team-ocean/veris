@@ -7,7 +7,7 @@ Artificial experiment types belong to their setup module.
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import ParamSpec, Protocol, TypeVar, cast
+from typing import NamedTuple, ParamSpec, Protocol, TypeVar, cast
 
 import jax
 import numpy as np
@@ -15,6 +15,20 @@ from jax import Array
 from jax.stages import Lowered, Traced
 from jax.typing import ArrayLike
 from numpy.typing import NDArray
+
+
+class Parameter(NamedTuple):
+    """Default, declared type, description and units for registry parameters.
+
+    Shared by model settings and physical constants. Defaults are immutable
+    scalars or tuples of coefficients; omitted units default to an empty string.
+    """
+
+    default: float | int | bool | str | tuple[float, ...]
+    type: type[float] | type[int] | type[bool] | type[str] | type[tuple[float, ...]]
+    description: str
+    units: str = ""
+
 
 type ArrayInput = Array | NDArray[np.number]
 """Indexable numerical input accepted by JAX at a compiled-kernel boundary."""

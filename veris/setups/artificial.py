@@ -9,7 +9,7 @@ Five EVP substeps keep this example small; they are not a convergence criterion.
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
-from typing import Any
+from typing import Any, cast
 
 import jax
 import jax.numpy as jnp
@@ -21,65 +21,65 @@ from veris._metadata import (
     registry_defaults,
     validate_scalars,
 )
-from veris._typing import State, jit
-from veris.configuration import SETTINGS, Configuration, Setting
+from veris._typing import Parameter, State, jit
+from veris.configuration import SETTINGS, Configuration
 from veris.diagnostics import Diagnostics
 from veris.initialization import initialize as initialize_model
 from veris.physical_constants import PhysicalConstants
 
-ARTIFICIAL_SETTINGS: dict[str, Setting] = {
-    "saltOcn_ref": Setting(
+ARTIFICIAL_SETTINGS: dict[str, Parameter] = {
+    "saltOcn_ref": Parameter(
         34.7, float, "Prescribed ocean salinity in the artificial example", "g kg-1"
     ),
-    "artificialGridSpacing": Setting(
+    "artificialGridSpacing": Parameter(
         8000.0, float, "Uniform Cartesian grid spacing in the artificial example", "m"
     ),
-    "artificialWindSpeed": Setting(
+    "artificialWindSpeed": Parameter(
         5.0, float, "Prescribed signed zonal wind in the artificial example", "m s-1"
     ),
-    "artificialAirTemperature": Setting(
+    "artificialAirTemperature": Parameter(
         260.0,
         float,
         "Prescribed atmosphere and initial ice-surface temperature in the artificial example",
         "K",
     ),
-    "artificialIceThickness": Setting(
+    "artificialIceThickness": Parameter(
         1.0,
         float,
         "Initial grid-cell mean ice thickness over ocean in the artificial example",
         "m",
     ),
-    "artificialSnowThickness": Setting(
+    "artificialSnowThickness": Parameter(
         0.05,
         float,
         "Initial grid-cell mean snow thickness over ocean in the artificial example",
         "m",
     ),
-    "artificialIceArea": Setting(
+    "artificialIceArea": Parameter(
         0.8,
         float,
         "Initial ocean-cell ice concentration in the artificial example",
         "1",
     ),
-    "artificialOceanDepth": Setting(
+    "artificialOceanDepth": Parameter(
         -100.0, float, "Signed ocean bottom elevation in the artificial example", "m"
     ),
-    "artificialCoriolis": Setting(
+    "artificialCoriolis": Parameter(
         0.0001, float, "Uniform Coriolis frequency in the artificial example", "s-1"
     ),
-    "artificialCooling": Setting(
+    "artificialCooling": Parameter(
         100.0,
         float,
         "Default upward open-water cooling imposed each artificial step",
         "W m-2",
     ),
-    "artificialTimeStep": Setting(
+    "artificialTimeStep": Parameter(
         600.0,
         float,
         "Default dynamics and thermodynamics timestep for the artificial example",
         "s",
     ),
-    "artificialEVPsteps": Setting(
+    "artificialEVPsteps": Parameter(
         5, int, "Default EVP substeps in the artificial example", "1"
     ),
 }
@@ -274,7 +274,7 @@ def step_with_diagnostics(
     and penetrating shortwave outputs. Only calculation fields enter State.
     """
     if cooling is None:
-        cooling = float(ARTIFICIAL_SETTINGS["artificialCooling"].default)
+        cooling = float(cast(float, ARTIFICIAL_SETTINGS["artificialCooling"].default))
     if conf.use_sharding:
         mesh = jax.sharding.get_abstract_mesh()
         if set(mesh.axis_names) != {"x", "y"}:

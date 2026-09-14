@@ -6,7 +6,6 @@ updates through dataclasses.replace.
 """
 
 from dataclasses import dataclass, field
-from typing import NamedTuple
 
 from veris._metadata import (
     FROM_REGISTRY,
@@ -14,130 +13,123 @@ from veris._metadata import (
     validate_derived,
     validate_scalars,
 )
+from veris._typing import Parameter
 
-
-class Setting(NamedTuple):
-    """Default, scalar type and human-readable description of a model setting."""
-
-    default: float | int | bool | str
-    type: type[float] | type[int] | type[bool] | type[str]
-    description: str
-    units: str = ""
-
-
-SETTINGS: dict[str, Setting] = {
-    "dtype": Setting(
+SETTINGS: dict[str, Parameter] = {
+    "dtype": Parameter(
         "float64", str, "Model floating-point precision: float32 or float64", "-"
     ),
-    "nx": Setting(8, int, "Local interior grid extent along the x direction", "1"),
-    "ny": Setting(12, int, "Local interior grid extent along the y direction", "1"),
-    "geometrySurfaceTemperature": Setting(
+    "nx": Parameter(8, int, "Local interior grid extent along the x direction", "1"),
+    "ny": Parameter(12, int, "Local interior grid extent along the y direction", "1"),
+    "geometrySurfaceTemperature": Parameter(
         273.0,
         float,
         "Initial surface temperature used by the geometry adapter",
         ":math:`K`",
     ),
-    "printEvpResidual": Setting(
+    "printEvpResidual": Parameter(
         False, bool, "Print EVP residual diagnostics during execution", "-"
     ),
-    "deltatTherm": Setting(
+    "deltatTherm": Parameter(
         86400.0, float, "timestep for thermodynamic equations", ":math:`s`"
     ),
-    "recip_deltatTherm": Setting(
+    "recip_deltatTherm": Parameter(
         1.1574074074074073e-05,
         float,
         "Reciprocal thermodynamic timestep",
         ":math:`s^{-1}`",
     ),
-    "deltatDyn": Setting(86400.0, float, "timestep for dynamic equations", ":math:`s`"),
-    "recip_deltatDyn": Setting(
+    "deltatDyn": Parameter(
+        86400.0, float, "timestep for dynamic equations", ":math:`s`"
+    ),
+    "recip_deltatDyn": Parameter(
         1.1574074074074073e-05, float, "Reciprocal dynamic timestep", ":math:`s^{-1}`"
     ),
-    "nITC": Setting(5, int, "number of ice thickness categories", "-"),
-    "recip_nITC": Setting(0.2, float, "1 / nITC", "-"),
-    "noSlip": Setting(True, bool, "flag for using the no-slip condition", "-"),
-    "useRelativeWind": Setting(
+    "nITC": Parameter(5, int, "number of ice thickness categories", "-"),
+    "recip_nITC": Parameter(0.2, float, "1 / nITC", "-"),
+    "noSlip": Parameter(True, bool, "flag for using the no-slip condition", "-"),
+    "useRelativeWind": Parameter(
         True,
         bool,
         "Use wind minus ice velocity for stress; otherwise use wind velocity",
         "-",
     ),
-    "secondOrderBC": Setting(
+    "secondOrderBC": Parameter(
         False,
         bool,
         "flag for using the second order approximation for boundary conditions",
         "-",
     ),
-    "extensiveFld": Setting(
+    "extensiveFld": Parameter(
         True,
         bool,
         "flag whether the advective fields are extensive",
         "-",
     ),
-    "useRealFreshWaterFlux": Setting(
+    "useRealFreshWaterFlux": Parameter(
         False,
         bool,
         "flag for using the sea ice load in the calculation of the ocean surface height",
         "-",
     ),
-    "useFreedrift": Setting(False, bool, "flag for using the freedrift solver", "-"),
-    "useEVP": Setting(True, bool, "flag for using the EVP solver", "-"),
-    "evpAlpha": Setting(500.0, float, "EVP parameter", "-"),
-    "evpBeta": Setting(500.0, float, "EVP parameter", "-"),
-    "useAdaptiveEVP": Setting(
+    "useFreedrift": Parameter(False, bool, "flag for using the freedrift solver", "-"),
+    "useEVP": Parameter(True, bool, "flag for using the EVP solver", "-"),
+    "evpAlpha": Parameter(500.0, float, "EVP parameter", "-"),
+    "evpBeta": Parameter(500.0, float, "EVP parameter", "-"),
+    "useAdaptiveEVP": Parameter(
         False, bool, "flag for using adaptive relaxation parameters", "-"
     ),
-    "aEVPalphaMin": Setting(5.0, float, "lower limit of alpha and beta", "-"),
-    "aEvpCoeff": Setting(
+    "aEVPalphaMin": Parameter(5.0, float, "lower limit of alpha and beta", "-"),
+    "aEvpCoeff": Parameter(
         0.5, float, "largest stabilized frequency for adaptive EVP", "-"
     ),
-    "explicitDrag": Setting(
+    "explicitDrag": Parameter(
         True,
         bool,
         "Reserved legacy explicit-drag flag; currently unused by the solvers",
         "-",
     ),
-    "nEVPsteps": Setting(
+    "nEVPsteps": Parameter(
         400, int, "number of sub-cycling iterations of the EVP solver", "-"
     ),
-    "computeEvpResidual": Setting(
+    "computeEvpResidual": Parameter(
         False,
         bool,
         "flag for computing the residual of stress and velocity in the EVP loop",
         "-",
     ),
-    "use_coastline": Setting(
+    "use_coastline": Parameter(
         False, bool, "flag for using the coastline data for lateral drag", "-"
     ),
-    "use_sharding": Setting(
+    "use_sharding": Parameter(
         True, bool, "flag for using parallel execution via sharded arrays", "-"
     ),
-    "CrMax": Setting(
+    "CrMax": Parameter(
         1000000.0, float, "Absolute cap on the advected-field slope ratio", "-"
     ),
-    "eps2": Setting(
+    "eps2": Parameter(
         1e-20,
         float,
         "Additive safeguard for the longwave humidity-pressure square root",
         ":math:`hPa`",
     ),
-    "surfaceTemperatureIterations": Setting(
+    "surfaceTemperatureIterations": Parameter(
         6, int, "Number of Newton iterations in the ice surface energy balance", "1"
     ),
-    "aEVPmassMin": Setting(
+    "aEVPmassMin": Parameter(
         0.0001,
         float,
         "Minimum cell ice mass used in adaptive EVP relaxation",
         ":math:`kg\\,m^{-2}`",
     ),
-    "aEVPcStar": Setting(4.0, float, "Adaptive EVP relaxation multiplier", "1"),
-    "lanlBulkIterations": Setting(
+    "aEVPcStar": Parameter(4.0, float, "Adaptive EVP relaxation multiplier", "1"),
+    "lanlBulkIterations": Parameter(
         5, int, "Number of LANL Monin-Obukhov stability iterations", "1"
     ),
 }
 
 
-__all__ = ["SETTINGS", "Configuration", "Setting"]
+__all__ = ["SETTINGS", "Configuration", "Parameter"]
 
 
 @dataclass(frozen=True)

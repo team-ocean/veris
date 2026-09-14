@@ -1,5 +1,26 @@
 # Development log
 
+## 2026-09-14 — Shared Parameter metadata
+
+- Replaced Setting and PhysicalConstant with one Parameter named tuple in
+  _typing.py, retaining default, type, description and optional units fields.
+  Both main registries, setup registries, metadata helpers and public settings
+  exports now use Parameter. Updated ownership tests and current documentation.
+- The new shared-registry regression failed before implementation; all 51
+  focused ownership/configuration tests pass. Independent review found no
+  blockers and confirmed all 219 registry entries preserve their keys, defaults,
+  types, descriptions, units and ordering against HEAD.
+- Broader tuple-capable default typing exposed one scalar setup read; added an
+  explicit float cast. Maintained Ruff, formatting, annotation and ty checks pass.
+- Warnings-as-errors Sphinx build passes after a network-enabled retry for the
+  intersphinx inventory. Initial full CPU run completed with only the sandbox
+  denying a local socket in the two-process reduction test.
+- [x] Unrestricted full CPU suite: 785 passed, 1 skipped in 370.34 s.
+  Maintained coverage: 1755/1860 statements (94.35%), passing the 80% gate.
+  Logs: test_logs/parameter-full-cpu.log and parameter-coverage.json.
+  Completed on jax-only for the requested commit and push; local test artifacts
+  remain untracked.
+
 ## 2026-09-14 — Review settings and physical-constant units
 
 - Reviewed all 34 SETTINGS and 145 PHYSICALCONSTANTS entries. AST comparison

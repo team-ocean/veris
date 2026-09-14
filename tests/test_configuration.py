@@ -9,6 +9,8 @@ from types import ModuleType
 import numpy as np
 import pytest
 
+from veris._typing import Parameter
+
 
 def configuration_modules() -> tuple[ModuleType, ModuleType]:
     """Load the public contracts so missing implementations fail explicitly."""
@@ -159,11 +161,10 @@ def test_registry_defaults_populate_dataclass_fields() -> None:
     from inspect import signature
 
     from veris._metadata import FROM_REGISTRY, registry_defaults
-    from veris.configuration import Setting
 
     registry = {
-        "count": Setting(3, int, "Example count"),
-        "inverse": Setting(1 / 3, float, "Reciprocal count"),
+        "count": Parameter(3, int, "Example count"),
+        "inverse": Parameter(1 / 3, float, "Reciprocal count"),
     }
 
     @dataclass(frozen=True)
@@ -188,12 +189,11 @@ def test_registry_defaults_populate_dataclass_fields() -> None:
 def test_registry_defaults_reject_schema_drift(registry_names: tuple[str, ...]) -> None:
     """A metadata entry and class field must always describe the same schema."""
     from veris._metadata import FROM_REGISTRY, registry_defaults
-    from veris.configuration import Setting
 
     class Example:
         count: int = FROM_REGISTRY
 
-    registry = {name: Setting(3, int, "Example") for name in registry_names}
+    registry = {name: Parameter(3, int, "Example") for name in registry_names}
     with pytest.raises(ValueError, match="registry.*fields"):
         registry_defaults(registry)(Example)
 
@@ -256,7 +256,7 @@ def test_pressure_coefficient_initialization_and_validation(dtype: str) -> None:
 
     config, physical = configuration_modules()
     metadata = physical.PHYSICALCONSTANTS["pressReplFac"]
-    assert isinstance(metadata, physical.PhysicalConstant)
+    assert isinstance(metadata, Parameter)
     assert metadata.type is float
     assert metadata.default == 1.0
     _, settings, constants = initialize(

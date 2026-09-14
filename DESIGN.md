@@ -25,8 +25,9 @@ add halo and transport checks; test dynamic and thermodynamic equations and
 smooth-region gradients; review test quality, measure coverage, and close gaps.
 Known broken branches need reproducing tests before production fixes.
 
-Type ownership: Configuration, Setting and SETTINGS live in configuration.py;
-PhysicalConstants and PhysicalConstant in physical_constants.py; Variable in
+Type ownership: Configuration and SETTINGS live in configuration.py;
+PhysicalConstants and PHYSICALCONSTANTS in physical_constants.py;
+shared Parameter metadata in _typing.py; Variable in
 variables.py; Diagnostics in diagnostics.py. Precision metadata is defined
 directly in SETTINGS["dtype"]. State, OceanGeometry and shared kernel contracts
 live in _typing.py. Artificial-only configuration remains in setups/artificial.py.

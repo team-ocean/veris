@@ -11,9 +11,7 @@ import pytest
 @pytest.mark.parametrize(
     "module,name",
     [
-        ("configuration", "Setting"),
         ("configuration", "Configuration"),
-        ("physical_constants", "PhysicalConstant"),
         ("physical_constants", "PhysicalConstants"),
         ("variables", "Variable"),
         ("diagnostics", "Diagnostics"),
@@ -28,7 +26,7 @@ def test_registry_types_have_local_owners(module: str, name: str) -> None:
 def test_precision_is_setting_metadata_without_a_base_class() -> None:
     from veris import _typing, configuration
 
-    assert isinstance(configuration.SETTINGS["dtype"], configuration.Setting)
+    assert isinstance(configuration.SETTINGS["dtype"], _typing.Parameter)
     assert not hasattr(configuration, "PRECISION")
     assert not hasattr(_typing, "Precision")
     assert not hasattr(_typing, "PRECISION")
@@ -63,8 +61,10 @@ import importlib
 importlib.import_module('veris.{first}')
 from dataclasses import replace
 from veris._typing import State, OceanGeometry
-from veris.configuration import Setting
-from veris.physical_constants import PhysicalConstant
+from veris._typing import Parameter
+from veris.configuration import SETTINGS
+from veris.physical_constants import PHYSICALCONSTANTS
+assert all(type(value) is Parameter for value in (*SETTINGS.values(), *PHYSICALCONSTANTS.values()))
 from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 assert Configuration().deltatDyn == 86400
@@ -91,3 +91,14 @@ def test_configuration_types_live_with_their_registries(module: str, name: str) 
     cls = getattr(importlib.import_module(f"veris.{module}"), name)
     assert cls.__module__ == f"veris.{module}"
     assert not hasattr(importlib.import_module("veris._typing"), name)
+
+
+def test_registries_share_parameter_metadata() -> None:
+    from veris import _typing, configuration, physical_constants
+
+    assert hasattr(_typing, "Parameter")
+    assert _typing.Parameter.__module__ == "veris._typing"
+    for registry in (configuration.SETTINGS, physical_constants.PHYSICALCONSTANTS):
+        assert all(type(value) is _typing.Parameter for value in registry.values())
+    assert not hasattr(configuration, "Setting")
+    assert not hasattr(physical_constants, "PhysicalConstant")

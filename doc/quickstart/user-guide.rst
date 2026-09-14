@@ -62,7 +62,8 @@ consistent geometry and intermediate fields before running kernels.
 Their classes mark regular fields with ``FROM_REGISTRY``; ``registry_defaults``
 copies the matching metadata defaults before the standard frozen dataclass is
 created. ``Configuration`` and ``PhysicalConstants`` are defined beside their
-respective registries, along with ``Setting`` and ``PhysicalConstant`` metadata.
+respective registries. Both registries use ``Parameter`` metadata defined in
+``veris._typing`` (default, type, description and units).
 ``Variable`` lives in ``variables.py`` and ``Diagnostics`` in ``diagnostics.py``.
 ``State``, ``OceanGeometry`` and shared array contracts live in ``veris._typing``.
 Derived fields retain ``field(init=False)`` and are recomputed during

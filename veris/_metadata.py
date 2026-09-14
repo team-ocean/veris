@@ -11,8 +11,7 @@ from typing import TYPE_CHECKING, Any, cast
 import numpy as np
 
 if TYPE_CHECKING:
-    from veris.configuration import Setting
-    from veris.physical_constants import PhysicalConstant
+    from veris._typing import Parameter
 
 # An explicit default keeps dataclass constructor arguments optional to static
 # type checkers. The decorator replaces this marker before dataclass runs.
@@ -29,7 +28,7 @@ def precision_scalar(value: Any, dtype: str, name: str) -> Any:
 
 
 def registry_defaults[T](
-    registry: Mapping[str, Setting | PhysicalConstant],
+    registry: Mapping[str, Parameter],
 ) -> Callable[[type[T]], type[T]]:
     """Populate annotated fields before applying the standard dataclass decorator.
 
@@ -54,7 +53,7 @@ def registry_defaults[T](
 
 def validate_scalars(
     instance: object,
-    registry: Mapping[str, Setting | PhysicalConstant],
+    registry: Mapping[str, Parameter],
     *,
     positive: frozenset[str],
 ) -> None:
