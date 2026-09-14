@@ -8,6 +8,7 @@ from typing import cast
 import jax.numpy as jnp
 from jax import Array
 
+from veris._ad import norm_sqrt
 from veris._typing import ArrayInput, State, jit
 from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
@@ -55,7 +56,7 @@ def ocean_drag_coeffs(
     # calculate linear drag coefficient and apply mask
     cDrag = jnp.where(
         dragCoeff**2 * tmpVar > phys.cDragMin**2,
-        dragCoeff * jnp.sqrt(tmpVar),
+        dragCoeff * norm_sqrt(tmpVar),
         phys.cDragMin,
     )
     cDrag = cDrag * vs.iceMask
@@ -120,7 +121,7 @@ def side_drag(
     """
 
     # calculate total ice speed at c-points
-    iceSpeed = 0.5 * jnp.sqrt(
+    iceSpeed = 0.5 * norm_sqrt(
         (uIce + jnp.roll(uIce, -1, 0)) ** 2 + (vIce + jnp.roll(vIce, -1, 1)) ** 2
     )
 
@@ -264,7 +265,7 @@ def viscosities(
     deltaSq = (e11 + e22) ** 2 + recip_PlasDefCoeffSq * (
         (e11 - e22) ** 2 + 4.0 * e12Csq
     )
-    deltaC = jnp.sqrt(deltaSq)
+    deltaC = norm_sqrt(deltaSq)
 
     # use regularization to avoid singularies of zeta
     deltaCreg = deltaC + phys.deltaMin

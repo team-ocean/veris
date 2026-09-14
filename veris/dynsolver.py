@@ -7,6 +7,7 @@ from functools import partial
 import jax.numpy as jnp
 from jax import Array
 
+from veris._ad import norm_sqrt
 from veris._typing import State, jit
 from veris.configuration import Configuration
 from veris.evp_solver import evp_solver
@@ -35,7 +36,7 @@ def tauXY(
     # calculate wind speed and set lower boundary
     windSpeed_sq = urel**2 + vrel**2
     windSpeed = jnp.where(
-        windSpeed_sq < phys.wSpeedMin**2, phys.wSpeedMin, jnp.sqrt(windSpeed_sq)
+        windSpeed_sq < phys.wSpeedMin**2, phys.wSpeedMin, norm_sqrt(windSpeed_sq)
     )
 
     # calculate air-ice drag coefficient

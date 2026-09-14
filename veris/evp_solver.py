@@ -8,6 +8,7 @@ import jax
 import jax.numpy as jnp
 from jax import Array
 
+from veris._ad import norm_sqrt
 from veris._typing import EVPCarry, State, jit
 from veris.averaging import c_point_to_z_point
 from veris.configuration import Configuration
@@ -81,7 +82,7 @@ def evp_solver(
         # calculate adaptive relaxation parameters
         if conf.useAdaptiveEVP:
             evpAlphaC = (
-                jnp.sqrt(
+                norm_sqrt(
                     zeta
                     * EVPcFac
                     / jnp.maximum(vs.SeaIceMassC, conf.aEVPmassMin)

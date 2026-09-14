@@ -22,7 +22,9 @@ def c_point_to_z_point(
     sumNorm = vs.iceMask + jnp.roll(vs.iceMask, 1, 0)
     sumNorm = sumNorm + jnp.roll(sumNorm, 1, 1)
     if conf.noSlip:
-        sumNorm = jnp.where(sumNorm > 0, 1.0 / sumNorm, 0.0)
+        sumNorm = jnp.where(
+            sumNorm > 0, 1.0 / jnp.where(sumNorm > 0, sumNorm, 1.0), 0.0
+        )
     else:
         sumNorm = jnp.where(sumNorm == 4.0, 0.25, 0.0)
 

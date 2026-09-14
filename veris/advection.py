@@ -126,7 +126,7 @@ def calc_ZonalFlux(
     Cr = jnp.where(uTrans[2:-1, :] > 0, Rjm, Rjp)
     Cr = jnp.where(
         jnp.abs(Rj) * conf.CrMax > jnp.abs(Cr),
-        Cr / Rj,
+        Cr / jnp.where(jnp.abs(Rj) * conf.CrMax > jnp.abs(Cr), Rj, 1.0),
         jnp.sign(Cr) * conf.CrMax * jnp.sign(Rj),
     )
     Cr = limiter(Cr)
@@ -165,7 +165,7 @@ def calc_MeridionalFlux(
     Cr = jnp.where(vTrans[:, 2:-1] > 0, Rjm, Rjp)
     Cr = jnp.where(
         jnp.abs(Rj) * conf.CrMax > jnp.abs(Cr),
-        Cr / Rj,
+        Cr / jnp.where(jnp.abs(Rj) * conf.CrMax > jnp.abs(Cr), Rj, 1.0),
         jnp.sign(Cr) * conf.CrMax * jnp.sign(Rj),
     )
     Cr = limiter(Cr)
