@@ -56,7 +56,10 @@ def Growth(vs: State, conf: Configuration, phys: PhysicalConstants) -> GrowthRes
     # ice or snow thickness divided by Area does not work if Area -> 0,
     # therefore the regularization
     isIce = hIceMeanpreTH > 0
-    regArea = jnp.sqrt(AreapreTH**2 + phys.Area_reg)
+    area_squared = AreapreTH**2 + phys.Area_reg
+    # With regularization disabled, absent ice still has no per-ice-area
+    # flux. Give that inactive denominator a finite value before sqrt/division.
+    regArea = jnp.sqrt(jnp.where(area_squared == 0, 1, area_squared))
     recip_regArea = 1 / regArea
 
     hIceActual = jnp.where(isIce, hIceMeanpreTH * recip_regArea, 0)
@@ -344,7 +347,7 @@ def Growth(vs: State, conf: Configuration, phys: PhysicalConstants) -> GrowthRes
         * phys.rhoIce2rhoFresh
         * jnp.where(
             ((vs.ocSalt > 0) & (vs.ocSalt > phys.saltIce_ref)),
-            (1 - phys.saltIce_ref / vs.ocSalt),
+            (1 - phys.saltIce_ref / jnp.where(vs.ocSalt > 0, vs.ocSalt, 1)),
             1,
         )
     )

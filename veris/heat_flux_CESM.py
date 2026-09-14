@@ -14,6 +14,7 @@ import jax.numpy as npx
 from jax import Array
 from jax.typing import ArrayLike
 
+from veris._ad import norm_sqrt
 from veris._typing import ArrayInput, CESMFluxes, HeatFluxes, MaskInput, jit
 from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
@@ -161,9 +162,20 @@ def dqnetdt(
         Journal of Marine Systems, 6, p. 363-380.
     """
 
+    # Only wet-cell forcing is meaningful; guard inactive operands before
+    # evaluating saturation pressure or wind-speed derivatives.
+    wet = mask != 0
+    ps = npx.where(wet, ps, 100000.0)
+    rbot = npx.where(wet, rbot, 1.3)
+    sst = npx.where(wet, sst, 275.0)
+    ubot = npx.where(wet, ubot, 1.0)
+    vbot = npx.where(wet, vbot, 1.0)
+    us = npx.where(wet, us, 0.0)
+    vs = npx.where(wet, vs, 0.0)
+
     vmag = npx.maximum(
         phys.umin_o,
-        npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2),
+        norm_sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2),
     )
 
     # long-wave radiation correction (IR)
@@ -185,7 +197,7 @@ def dqnetdt(
         * mask
     )
 
-    return cast(Array, dqir_dt), cast(Array, dqh_dt), cast(Array, dqe_dt)
+    return dqir_dt, dqh_dt, dqe_dt
 
 
 @partial(jit, static_argnames=["conf", "phys"])
@@ -218,7 +230,17 @@ def net_lw_ocn(
         NOAA Technical report No. NMFS SSRF-682.
     """
 
+    wet = mask != 0
+    qbot = npx.where(wet, qbot, 0.003)
+    sst = npx.where(wet, sst, 275.0)
+    tbot = npx.where(wet, tbot, 270.0)
+    tcc = npx.where(wet, tcc, 0.5)
+
     # Interpolate each latitude independently, including both polar endpoints.
+    # Latitude is shared down columns: retain coastal coordinates whenever
+    # any cell in that column is wet, and ignore undefined wholly dry columns.
+    wet_columns = npx.any(npx.atleast_2d(wet), axis=0)
+    lat = npx.where(wet_columns, lat, 0.0)
     ccint = npx.interp(
         lat,
         npx.asarray(phys.longwaveCloudLatitudes),
@@ -236,8 +258,7 @@ def net_lw_ocn(
         + conf.eps2
     )
 
-    return cast(
-        Array,
+    return (
         -phys.emissivity
         * phys.stefBoltz
         * tbot[...] ** 3
@@ -250,7 +271,7 @@ def net_lw_ocn(
             * frac_cloud_cover
             + 4.0 * (sst[...] - tbot[...])
         )
-        * mask[...],
+        * mask[...]
     )
 
 
@@ -350,9 +371,22 @@ def flux_atmOcn(
 
     al2 = npx.log(phys.zref / phys.ztref)
 
+    # A land cell may carry zero or undefined atmospheric data. Evaluate its
+    # inactive nonlinear branches at a finite state, then zero diagnostics.
+    wet = mask != 0
+    rbot = npx.where(wet, rbot, 1.3)
+    zbot = npx.where(wet, zbot, 10.0)
+    ubot = npx.where(wet, ubot, 1.0)
+    vbot = npx.where(wet, vbot, 1.0)
+    qbot = npx.where(wet, qbot, 0.003)
+    thbot = npx.where(wet, thbot, 270.0)
+    us = npx.where(wet, us, 0.0)
+    vs = npx.where(wet, vs, 0.0)
+    ts = npx.where(wet, ts, 275.0)
+
     vmag = npx.maximum(
         phys.umin_o,
-        npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2),
+        norm_sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2),
     )
 
     # sea surface humidity (kg/kg)
@@ -392,7 +426,7 @@ def flux_atmOcn(
     hol = npx.minimum(npx.abs(hol[...]), phys.bulkStabilityLimit) * npx.sign(hol[...])
     stable = 0.5 + 0.5 * npx.sign(hol[...])
     xsq = npx.maximum(
-        npx.sqrt(npx.abs(1.0 - phys.bulkUnstableStabilityCoefficient * hol[...])), 1.0
+        norm_sqrt(npx.abs(1.0 - phys.bulkUnstableStabilityCoefficient * hol[...])), 1.0
     )
     xqq = npx.sqrt(xsq[...])
     psimh = -phys.bulkStableStabilityCoefficient * hol[...] * stable[...] + (
@@ -436,7 +470,7 @@ def flux_atmOcn(
     hol = npx.minimum(npx.abs(hol[...]), phys.bulkStabilityLimit) * npx.sign(hol[...])
     stable = 0.5 + 0.5 * npx.sign(hol[...])
     xsq = npx.maximum(
-        npx.sqrt(npx.abs(1.0 - phys.bulkUnstableStabilityCoefficient * hol[...])), 1.0
+        norm_sqrt(npx.abs(1.0 - phys.bulkUnstableStabilityCoefficient * hol[...])), 1.0
     )
     xqq = npx.sqrt(xsq[...])
     psimh = -phys.bulkStableStabilityCoefficient * hol[...] * stable[...] + (
@@ -487,7 +521,7 @@ def flux_atmOcn(
 
     hol = hol[...] * phys.ztref / zbot[...]
     xsq = npx.maximum(
-        1.0, npx.sqrt(npx.abs(1.0 - phys.bulkUnstableStabilityCoefficient * hol[...]))
+        1.0, norm_sqrt(npx.abs(1.0 - phys.bulkUnstableStabilityCoefficient * hol[...]))
     )
     xqq = npx.sqrt(xsq)
     psix2 = -phys.bulkStableStabilityCoefficient * hol[...] * stable[...] + (
@@ -509,16 +543,16 @@ def flux_atmOcn(
     return (
         sen,
         lat,
-        cast(Array, lwup),
+        lwup,
         evap,
         taux,
         tauy,
-        cast(Array, tref),
-        cast(Array, qref),
+        tref,
+        qref,
         duu10n,
-        ustar,
-        tstar,
-        qstar,
+        npx.where(wet, ustar, 0.0),
+        npx.where(wet, tstar, 0.0),
+        npx.where(wet, qstar, 0.0),
     )
 
 
@@ -562,9 +596,20 @@ def flux_atmOcn_simple(
         Journal of Marine Systems, 6, p. 363-380.
     """
 
+    wet = mask != 0
+    ps = npx.where(wet, ps, 100000.0)
+    qbot = npx.where(wet, qbot, 0.003)
+    rbot = npx.where(wet, rbot, 1.3)
+    ubot = npx.where(wet, ubot, 1.0)
+    vbot = npx.where(wet, vbot, 1.0)
+    tbot = npx.where(wet, tbot, 270.0)
+    us = npx.where(wet, us, 0.0)
+    vs = npx.where(wet, vs, 0.0)
+    ts = npx.where(wet, ts, 275.0)
+
     vmag = npx.maximum(
         phys.umin_o,
-        npx.sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2),
+        norm_sqrt((ubot[...] - us[...]) ** 2 + (vbot[...] - vs[...]) ** 2),
     )
 
     # long-wave radiation (IR)
@@ -590,4 +635,4 @@ def flux_atmOcn_simple(
         * mask[...]
     )
 
-    return cast(Array, qir), cast(Array, qh), cast(Array, qe)
+    return qir, qh, qe

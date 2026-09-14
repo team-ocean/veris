@@ -53,17 +53,23 @@ def solve4temp(
     # temperature threshold for when to use wet albedo
     SurfMeltTemp = Tmelt + phys.wetAlbTemp
 
+    isIce = hIceActual > 0
+    isSnow = hSnowActual > 0
+
+    # Atmospheric forcing has no role over absent ice. Guard before products
+    # so undefined inactive data cannot contaminate another input's pullback.
+    air_temperature = jnp.where(isIce, vs.ATemp, Tmelt)
+    air_humidity = jnp.where(isIce, vs.aqh, 0)
+    wind_speed = jnp.where(isIce, vs.wSpeed, 0)
+
     # make local copies of downward longwave radiation, surface
     # and atmospheric temperatures
     TSurfLoc = TSurfIn
     LWdownLocCapped = jnp.maximum(phys.minLWdown, vs.LWdown)
-    ATempLoc = jnp.maximum(phys.celsius2K + phys.minTAir, vs.ATemp)
+    ATempLoc = jnp.maximum(phys.celsius2K + phys.minTAir, air_temperature)
 
     # set wind speed with lower boundary
-    ug = jnp.maximum(phys.wSpeedMin, vs.wSpeed)
-
-    isIce = hIceActual > 0
-    isSnow = hSnowActual > 0
+    ug = jnp.maximum(phys.wSpeedMin, wind_speed)
 
     d3 = jnp.where(isSnow, phys.snowEmiss, phys.iceEmiss) * phys.stefBoltz
 
@@ -122,7 +128,9 @@ def solve4temp(
         isIce,
         phys.iceConduct
         * phys.snowConduct
-        / (phys.snowConduct * hIceActual + phys.iceConduct * hSnowActual),
+        / jnp.where(
+            isIce, phys.snowConduct * hIceActual + phys.iceConduct * hSnowActual, 1
+        ),
         0,
     )
 
@@ -130,6 +138,9 @@ def solve4temp(
 
     def fluxes(t1: ArrayInput) -> tuple[Array, Array, Array, Array]:
         """Evaluate conductive/latent/net atmospheric flux and its derivative."""
+        # Ice-free temperatures are pass-through data, possibly zero. Evaluate
+        # their inactive vapor-pressure branch at a valid absolute temperature.
+        t1 = jnp.where(isIce, t1, Tmelt)
         t2 = t1 * t1
         t3 = t2 * t1
         t4 = t2 * t2
@@ -150,7 +161,7 @@ def solve4temp(
         F_c = jnp.where(isIce, effConduct * (TempFrz - t1), 0)
 
         # latent heat flux (sublimation) (+ = upward)
-        F_lh = jnp.where(isIce, d1i * ug * (q_s - vs.aqh), 0)
+        F_lh = jnp.where(isIce, d1i * ug * (q_s - air_humidity), 0)
 
         # long-wave surface heat flux (+ = upward)
         F_lwu = jnp.where(isIce, t4 * d3, 0)
@@ -173,7 +184,9 @@ def solve4temp(
         # update surface temperature as solution of
         # F_c = F_ia + d/dT (F_c - F_ia) * delta T
         TSurfLoc = jnp.where(
-            isIce, TSurfLoc + (F_c - F_ia) / (effConduct + dFia_dTs), 0
+            isIce,
+            TSurfLoc + (F_c - F_ia) / jnp.where(isIce, effConduct + dFia_dTs, 1),
+            0,
         )
 
         # add upper and lower boundary

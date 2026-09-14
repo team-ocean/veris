@@ -9,6 +9,7 @@ from functools import partial
 import jax.numpy as npx
 from jax.typing import ArrayLike
 
+from veris._ad import norm_sqrt
 from veris._typing import LANLFluxes, jit
 from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
@@ -78,7 +79,7 @@ def bulkf_formula_lanl(
     lath = npx.ones_like(ocn_mask) * phys.latvap
 
     # wind speed
-    us = npx.sqrt(uw[...] * uw[...] + vw[...] * vw[...])
+    us = norm_sqrt(uw[...] * uw[...] + vw[...] * vw[...])
     usm = npx.maximum(us[...], phys.lanlMinWindSpeed)
 
     t0 = ta[...] * (1.0 + phys.zvir * qa[...])
@@ -118,7 +119,7 @@ def bulkf_formula_lanl(
         )
         stable = 0.5 + 0.5 * npx.sign(huol[...])
         xsq = npx.maximum(
-            npx.sqrt(npx.abs(1.0 - phys.bulkUnstableStabilityCoefficient * huol[...])),
+            norm_sqrt(npx.abs(1.0 - phys.bulkUnstableStabilityCoefficient * huol[...])),
             1.0,
         )
         x = npx.sqrt(xsq[...])
