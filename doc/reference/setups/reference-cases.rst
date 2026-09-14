@@ -138,14 +138,12 @@ constants stay in PhysicalConstants. No changes to the physics kernels are neede
 Derivative validation
 ---------------------
 
-The exact dynamics initial state has zero strain and closed walls. Existing EVP
-norm derivatives can produce NaN in reverse mode at that state, even when the
-forward solution is finite. The new driver preserves those equations; it does
-not regularize this singularity. Case-level derivative tests use the established
-smooth, nonuniform open-ocean fixture and compare against finite differences.
-The reference growth column also has a finite-difference-checked longwave
-sensitivity. These checks do not imply differentiability across every clipping
-threshold or zero-norm state.
+The exact dynamics initial state has zero strain and closed walls. Guarded
+norm operations now provide finite selected linearizations there; tests check
+the actual initial State, its full pullback, and evolving wind sensitivities.
+Smooth reference oracles and the growth column's longwave sensitivity remain
+finite-difference checked. See :doc:`../automatic-differentiation` for zero-norm
+conventions, physical branch thresholds and the genuine free-drift degeneracy.
 
 Scenario registries
 -------------------

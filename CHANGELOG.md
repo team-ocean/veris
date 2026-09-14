@@ -904,3 +904,61 @@
 - [x] Independent final review found no blocker. Documented reference adaptations,
   CLI/local GPU/CPU queue usage, outputs, and pre-existing EVP AD limitation.
   Implementation complete on jax-only; local runtime artifacts remain untracked.
+
+### 2026-09-14 — AD boundary repairs
+
+- New user goal: fix zero-strain AD itself and related AD limitations.
+- Root owns dynamics, regression tests and pytest scheduling; ad_thermo_audit
+  audits thermodynamics and atmosphere. Plan: docs/superpowers/plans/2026-09-14-ad-boundaries.md.
+- Initial scan found unguarded zero norms in viscosity, ocean/side/wind drag,
+  adaptive EVP and free drift; inactive reciprocal branches in averaging/growth.
+  Preserve forward equations and smooth derivatives, explicitly define finite
+  origin linearizations for genuine norm kinks rather than hiding NaN results.
+- [x] Reproduced all5 initial zero-state AD failures. Added exact-primal guarded
+  norm sqrt with explicit zero origin linearization; zero-state tests plus
+  float32/64 primitive tests and all12 EVP oracles pass (19 tests total).
+- [x] Reproduced inactive slope-ratio and dry-corner reciprocal AD failures;
+  guarded denominators before division. Corrected test oracle to35 wet cells,
+  not48 storage-interior cells, because advection applies basin land masks.
+- [x] Thermodynamic audit reproduced14 cases: absent ice/snow, zero salinity,
+  calm winds in four atmosphere APIs, both precisions. Initial repairs plus
+  existing thermo/transport tests passed204/205; sole failure was the wet-cell
+  test-oracle error above. No tolerances relaxed.
+- IN PROGRESS: free-drift Cartesian reformulation to recover actual nonzero
+  Coriolis response at zero forcing (polar form loses it); nine new tests.
+  Both zero forcing and zero mass-Coriolis remain a true square-root response
+  singularity, to be tested/documented with an explicit finite AD convention.
+- IN PROGRESS: masked CESM invalid land inputs, supported Area_reg=0 open-water
+  behavior, capped stability square-root branches; reproductions added first.
+  Full-State pullback and zero-strain shear-response regressions added after
+  independent review requested stronger coverage than wind sensitivity alone.
+- [x] Expanded focused run214/214 passed, including 25 thermodynamic cases, original thermo/free-drift oracles, explicit zero-strain
+  shear response, and full-State pullbacks with fixed/adaptive EVP and both
+  slip settings. Float32 weak-forcing test initially mixed float64 constants;
+  corrected fixture dtype consistently rather than changing production casts.
+- [x] Six further inactive-data regressions found4 failing cases (ice-free
+  air temperature/humidity/wind and dry-column latitude); implemented targeted
+  guards. Active-cell inputs and fractional-mask equations remain unchanged.
+- [x] Sharded AD probe exposed run_parallel.remove_halos entering set_mesh
+  inside a traced JVP/VJP. Explicit shard_map already owns its mesh; removing
+  the nested context fixes it. Four-CPU and two-GPU evolving value/JVP/VJP/FD
+  checks pass. Parallel contracts pass8/8 with1 GPU-only skip on CPU.
+- [x] Independent review found no blocker. AD documentation now distinguishes
+  finite selected origin/branch conventions from genuine classical derivatives;
+  joint-zero quadratic free drift has a divergent one-sided sensitivity.
+  Sphinx -E -W build passes. Full CPU suite currently running; GPU regressions
+  and final checks/commits follow. No commits of these AD changes yet.
+- [x] Final full CPU suite: 786 passed, 1 GPU-only test skipped. Maintained
+  coverage 1756/1861 = 94.36%; whole package 1756/2214 = 79.31% (generated
+  _version.py omitted only from maintained gate). GPU AD/EVP/precision suite:
+  101/101 passed. All tests use final production sources; no pytest remains.
+- [x] Additional nonuniform spatially weighted advection objective verifies
+  JVP/VJP -1.26997263976 against FD -1.2699726315. This supplements total-mass
+  testing, which alone cannot establish local derivative correctness.
+- [x] Final maintained Ruff, format, annotation and ty checks pass. Production
+  SHA256 hashes still match the full-suite snapshot. Evidence and documentation
+  build retained in test_logs/ad-boundaries/. No forward tolerances relaxed.
+- [x] All identified avoidable first-order AD failures repaired, including the
+  actual stationary coastal State rather than substituting a smooth fixture.
+  True norm/threshold conventions and the joint-zero free-drift degeneracy are
+  explicitly documented and tested; forward physical thresholds are retained.

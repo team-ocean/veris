@@ -150,9 +150,8 @@ def test_dynamics_wind_sensitivity_matches_finite_difference() -> None:
     module = case()
     from test_evp_optimization import oracle_state
 
-    # The exact notebook starts at zero strain and has closed walls; existing
-    # EVP norm derivatives are singular there. Validate this composition on
-    # the established smooth, unmasked nonuniform oracle instead.
+    # This smooth oracle complements the stationary, coastal zero-strain
+    # and full-State pullback regressions in test_ad_zero_states.py.
     state, conf, phys = oracle_state(False)
     conf = replace(conf, nEVPsteps=2)
 

@@ -24,5 +24,6 @@ implementation as part of his Master's thesis.
    reference/settings
    reference/physical-constants
    reference/variables
+   reference/automatic-differentiation
 
 Source code: `team-ocean/veris <https://github.com/team-ocean/veris>`_.
