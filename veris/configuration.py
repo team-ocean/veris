@@ -32,18 +32,26 @@ SETTINGS: dict[str, Setting] = {
     "nx": Setting(8, int, "Local interior grid extent along the x direction", "1"),
     "ny": Setting(12, int, "Local interior grid extent along the y direction", "1"),
     "geometrySurfaceTemperature": Setting(
-        273.0, float, "Initial surface temperature used by the geometry adapter", "K"
+        273.0,
+        float,
+        "Initial surface temperature used by the geometry adapter",
+        ":math:`K`",
     ),
     "printEvpResidual": Setting(
         False, bool, "Print EVP residual diagnostics during execution", "-"
     ),
-    "deltatTherm": Setting(86400.0, float, "timestep for thermodynamic equations", "s"),
-    "recip_deltatTherm": Setting(
-        1.1574074074074073e-05, float, "Reciprocal thermodynamic timestep", "s^-1"
+    "deltatTherm": Setting(
+        86400.0, float, "timestep for thermodynamic equations", ":math:`s`"
     ),
-    "deltatDyn": Setting(86400.0, float, "timestep for dynamic equations", "s"),
+    "recip_deltatTherm": Setting(
+        1.1574074074074073e-05,
+        float,
+        "Reciprocal thermodynamic timestep",
+        ":math:`s^{-1}`",
+    ),
+    "deltatDyn": Setting(86400.0, float, "timestep for dynamic equations", ":math:`s`"),
     "recip_deltatDyn": Setting(
-        1.1574074074074073e-05, float, "Reciprocal dynamic timestep", "s^-1"
+        1.1574074074074073e-05, float, "Reciprocal dynamic timestep", ":math:`s^{-1}`"
     ),
     "nITC": Setting(5, int, "number of ice thickness categories", "-"),
     "recip_nITC": Setting(0.2, float, "1 / nITC", "-"),
@@ -111,7 +119,7 @@ SETTINGS: dict[str, Setting] = {
         1e-20,
         float,
         "Additive safeguard for the longwave humidity-pressure square root",
-        "hPa",
+        ":math:`hPa`",
     ),
     "surfaceTemperatureIterations": Setting(
         6, int, "Number of Newton iterations in the ice surface energy balance", "1"
@@ -120,7 +128,7 @@ SETTINGS: dict[str, Setting] = {
         0.0001,
         float,
         "Minimum cell ice mass used in adaptive EVP relaxation",
-        "kg m^-2",
+        ":math:`kg\\,m^{-2}`",
     ),
     "aEVPcStar": Setting(4.0, float, "Adaptive EVP relaxation multiplier", "1"),
     "lanlBulkIterations": Setting(

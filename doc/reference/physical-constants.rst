@@ -43,10 +43,11 @@ Registry defaults
    print("")
    print("   * - Constant")
    print("     - Default")
-   print("     - Type")
+   print("     - Unit")
    print("     - Description")
    for name, metadata in PHYSICALCONSTANTS.items():
        print(f"   * - ``{name}``")
        print(f"     - ``{metadata.default!r}``")
-       print(f"     - ``{metadata.type.__name__}``")
+       units = "``-``" if metadata.units in ("1", "-", "") else metadata.units
+       print(f"     - {units}")
        print(f"     - {metadata.description}")

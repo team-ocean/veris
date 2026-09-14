@@ -962,3 +962,29 @@
   actual stationary coastal State rather than substituting a smooth fixture.
   True norm/threshold conventions and the joint-zero free-drift degeneracy are
   explicitly documented and tested; forward physical thresholds are retained.
+
+### 2026-09-14 — Math-formatted registry units in documentation
+
+- [x] Replaced Type with Unit in Model settings and Physical constants tables;
+  both tables read the corresponding registry entry's units field.
+- [x] Wrapped all 87 dimensional units in Setting/PhysicalConstant registries
+  with Sphinx math roles, grouping negative/fractional exponents and formatting
+  degree symbols. All 179 entries retain defaults, types and descriptions;
+  dimensionless `1` and `-` metadata remain unchanged.
+- [x] Generated-document audit caught bare `-` being parsed as an empty list;
+  table generation now renders dimensionless markers as literals.
+- [x] Sphinx clean rebuild with warnings as errors passed. Inspected every
+  generated Unit cell (34 settings, 145 constants), math nodes and MathJax HTML.
+  Fast correctness suite passed (79 selected tests); Ruff, format and diff checks
+  passed. Artifacts: test_logs/unit-columns/ and test_logs/unit-columns-*.log.
+  Initial inventory-fetch warning resolved with an authorized network rebuild.
+- [x] Follow-up: both Unit columns now display `-` for all dimensionless
+  entries (including metadata `1`), per user request. Sphinx -E -W rebuild
+  passed; all 179 generated rows verified, with 92 dimensionless cells showing
+  a visible dash and dimensional math units preserved.
+- [x] Pre-push full CPU correctness run: 785 passed, 1 GPU-only skip, and
+  1 sandbox socket-permission failure. The affected two-process reduction/AD
+  test passed unsandboxed (1/1), yielding 786 passing tests overall. Maintained
+  coverage: 1756/1861 = 94.36%. No source changes were needed for the rerun.
+  Full-run and rerun logs: test_logs/unit-columns-full-tests.log and
+  test_logs/unit-columns-reduction.log. Ruff/format and diff checks passed.
