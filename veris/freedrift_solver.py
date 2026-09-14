@@ -7,6 +7,7 @@ from functools import partial
 import jax.numpy as jnp
 from jax import Array
 
+from veris._ad import norm_sqrt
 from veris._typing import State, jit
 from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
@@ -33,32 +34,31 @@ def freedrift_solver(
     rhsX = -tauXIceCenter - mIceCor * vOceanCenter
     rhsY = -tauYIceCenter + mIceCor * uOceanCenter
 
-    # norm of angle of rhs
-    tmp1 = rhsX**2 + rhsY**2
-    where1 = tmp1 > 0
-    rhsN = jnp.where(where1, jnp.sqrt(tmp1), 0)
-    rhsA = jnp.where(where1, jnp.arctan2(rhsY, rhsX), 0)
-
-    # solve for norm
-    south = vs.fCori < 0
-    tmp1 = 1 / (
-        jnp.where(south, phys.waterIceDrag_south, phys.waterIceDrag) * phys.rhoSea
+    # For y = ocean - ice, the Cartesian balance is
+    # (drag * |y| I + mIceCor J) y = rhs, with J(x, y) = (-y, x).
+    # Rationalizing the positive quadratic root avoids cancellation at weak
+    # forcing. Cartesian inversion retains the finite Coriolis response at
+    # rhs == 0, where the polar angle representation is singular.
+    drag = phys.rhoSea * jnp.where(
+        vs.fCori < 0, phys.waterIceDrag_south, phys.waterIceDrag
     )
-    tmp2 = tmp1**2 * mIceCor**2
-    tmp3 = tmp1**2 * rhsN**2
-    tmp4 = tmp2**2 + 4 * tmp3
-    solNorm = jnp.where(tmp3 > 0, jnp.sqrt(0.5 * (jnp.sqrt(tmp4) - tmp2)), 0)
+    rhs_squared = rhsX**2 + rhsY**2
+    coriolis_squared = mIceCor**2
+    root_denominator = coriolis_squared + norm_sqrt(
+        coriolis_squared**2 + 4 * drag**2 * rhs_squared
+    )
+    safe_root_denominator = jnp.where(root_denominator == 0, 1, root_denominator)
+    relative_speed = norm_sqrt(2 * rhs_squared / safe_root_denominator)
+    drag_speed = drag * relative_speed
+    denominator = drag_speed**2 + coriolis_squared
+    safe_denominator = jnp.where(denominator == 0, 1, denominator)
 
-    # solve for angle
-    tmp1 = 1 / tmp1
-    tmp2 = tmp1 * solNorm**2
-    tmp3 = mIceCor * solNorm
-    tmp4 = tmp2**2 + tmp3**2
-    solAngle = jnp.where(tmp4 > 0, rhsA - jnp.arctan2(tmp3, tmp2), 0)
-
-    # calculate velocities at c-points
-    uIceCenter = uOceanCenter - solNorm * jnp.cos(solAngle)
-    vIceCenter = vOceanCenter - solNorm * jnp.sin(solAngle)
+    # Simultaneous zero rhs and zero mass-Coriolis is a genuine square-root
+    # response to forcing: no finite classical forcing derivative exists.
+    # The guarded zero solution selects a zero forcing tangent at that point;
+    # a differentiable physical response there would require drag regularization.
+    uIceCenter = uOceanCenter - (drag_speed * rhsX + mIceCor * rhsY) / safe_denominator
+    vIceCenter = vOceanCenter - (drag_speed * rhsY - mIceCor * rhsX) / safe_denominator
 
     # interpolate to velocity points
     uIceFD = 0.5 * (jnp.roll(uIceCenter, 1, 0) + uIceCenter)
