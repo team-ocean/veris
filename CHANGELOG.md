@@ -27,6 +27,11 @@
 - [x] Full CPU suite: 874 passed, one existing GPU-only skip, zero failures/errors
   in 407.52 s, including the two-process reduction/AD tests. Maintained coverage
   2338/2416 = 96.77%; whole-package coverage 84.43%. No additional exclusions.
+- [x] Follow-up GPU validation: GPU-only parallel CLI/netCDF test passed (1/1,
+  zero skips) on two Tesla P100 GPUs. Output fields are finite and have the
+  physical 12 by 16 shape. Initial sandbox CUDA access failed before testing;
+  rerun with device access succeeded. Evidence: test_logs/migration-gpu-test.log
+  and migration-gpu-results.xml. Production sources unchanged.
 - [x] Final independent review verified the parallel finite-check repair and all
   five source requirements. Source archive includes docs/ and no doc/. Production
   and test hashes match the full-suite snapshot; no pytest process remains.
