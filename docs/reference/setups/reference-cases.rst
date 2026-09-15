@@ -13,7 +13,7 @@ Activate the installed environment from the Veris project root::
    source .venv-latest/bin/activate
 
 The commands below select float64 explicitly at runtime. Use ``--help`` for
-arguments. Output is a NumPy NPZ archive; the examples need no plotting packages.
+Click options. Output is netCDF; the examples need no plotting packages.
 
 Dynamics only
 -------------
@@ -25,7 +25,7 @@ adaptive EVP iterations per step (alpha/beta 500, absolute wind forcing).
 There is no thermodynamic growth. A small local CPU run is::
 
    python -m veris.setups.run_dyn --nx 32 --ny 48 --steps 2 --evp-steps 4 \
-       --backend cpu --output output/dynamics.npz
+       --backend cpu --output output/dynamics.nc
 
 Use ``--backend gpu`` for a GPU directly on the current node. If the environment
 already sets ``JAX_PLATFORMS=cpu``, unset it or set ``JAX_PLATFORMS=cuda`` first.
@@ -53,25 +53,33 @@ The reference column starts with 1.3 m ice, 0.1 m snow, concentration 0.9,
 253 K air and 80 W/m2 downward longwave radiation. It executes 150 daily Growth
 steps with no dynamics or transport::
 
-   python -m veris.setups.run_growth --backend cpu --output output/growth.npz
-   python -m veris.setups.run_growth --backend gpu --output output/growth-gpu.npz
+   python -m veris.setups.run_growth --backend cpu --output output/growth.nc
+   python -m veris.setups.run_growth --backend gpu --output output/growth-gpu.nc
 
-The NPZ ``days`` and ``ice`` arrays hold pre-step samples (days 0 through 149
-by default); final State arrays are at day 150. Returned Qnet/Qsw feed the next
-step exactly as in the original notebook. They are not reset to initial forcing.
-The shared allocator requires at least two cells per interior axis, so the
-single-column experiment uses a uniform 2 by 2 interior with two halos per edge;
-its pointwise equations are identical to a single column. Final State arrays
-include these halos. ``initialize``, ``step``, ``compiled_step`` and
-``step_with_diagnostics`` are also available for interactive use and AD.
+Returned Qnet/Qsw feed the next step exactly as in the original notebook.
+They are not reset to initial forcing. The shared allocator requires at least
+two cells per interior axis, so the single-column experiment uses a uniform
+2 by 2 interior with two halos per edge; its pointwise equations are identical
+to a single column. Output always removes those storage halos.
+``initialize``, ``step``, ``compiled_step`` and ``step_with_diagnostics`` are also
+available for interactive use and AD.
 
-For example, plot the saved notebook results without requiring Jupyter::
+To record and plot the evolving ice thickness, request a history stream::
 
-   import numpy as np
+   python -m veris.setups.run_growth --backend cpu \
+       --output output/growth.nc --netcdf output/growth-history.nc \
+       --io-variables hIceMean
+
+Then read the netCDF time series without requiring Jupyter::
+
+   import h5netcdf
    import matplotlib.pyplot as plt
 
-   with np.load("output/growth.npz") as result:
-       plt.plot(result["days"], result["ice"])
+   with h5netcdf.File("output/growth-history.nc", "r") as result:
+       history = result.groups["instantaneous"]
+       days = history.variables["time"][:] / 86400
+       ice = history.variables["hIceMean"][:, 0, 0]
+       plt.plot(days, ice)
    plt.xlabel("days")
    plt.ylabel("ice thickness / m")
    plt.show()
@@ -91,16 +99,16 @@ Local CPU and local GPU examples::
 
    JAX_NUM_CPU_DEVICES=4 python -m veris.setups.run_parallel \
        --backend cpu --nx 32 --ny 48 --mesh 2 2 --steps 2 --evp-steps 4 \
-       --output output/parallel-cpu.npz
+       --output output/parallel-cpu.nc
    python -m veris.setups.run_parallel --backend gpu --nx 32 --ny 48 \
-       --steps 2 --evp-steps 4 --output output/parallel-gpu.npz
+       --steps 2 --evp-steps 4 --output output/parallel-gpu.nc
 
 The CPU scheduler script is ``veris/setups/run_parallel.slurm``. Submit from
 the project root::
 
    sbatch veris/setups/run_parallel.slurm
    sbatch veris/setups/run_parallel.slurm --nx 256 --steps 100 --evp-steps 120 \
-       --output output/parallel-production.npz
+       --output output/parallel-production.nc
 
 It requests ``aegir``, ``--constraint=v3``, one node, two tasks and four CPU cores
 per task. GPUs are used directly on the local node, never requested by this
@@ -120,7 +128,7 @@ The CPU environment must be available on all participating nodes.
 Output contains the nine reference fields: hIceMean, Area, hSnowMean, uIce,
 vIce, uWind, vWind, uOcean and vOcean. Each partition's halos are removed before
 gathering; arrays have the global physical shape. All ranks participate in the
-gather, and only rank zero writes the archive. Warmup is synchronized and
+gather, and only rank zero writes the netCDF file. Warmup is synchronized and
 discarded; the reported integration time includes exactly the requested steps.
 
 Reference adaptations

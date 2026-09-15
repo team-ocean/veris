@@ -11,8 +11,10 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import timedelta
 from functools import partial
+from types import SimpleNamespace
 from typing import Any
 
+import click
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -24,7 +26,7 @@ from veris._typing import Parameter, State
 from veris.configuration import Configuration
 from veris.diagnostics import Diagnostics
 from veris.initialization import initialize as initialize_model
-from veris.io.cli import add_output_arguments, make_output, save_final
+from veris.io.cli import make_output, output_options, parse_options, save_final
 from veris.physical_constants import PhysicalConstants
 from veris.variables import VARIABLES
 
@@ -312,23 +314,23 @@ def step(vs: State, conf: Configuration, phys: PhysicalConstants) -> State:
 compiled_step = jax.jit(step, static_argnames=("conf", "phys"))
 
 
+@click.command(help=__doc__)
+@click.option("--steps", type=click.IntRange(min=0), default=100)
+@click.option("--backend", type=click.Choice(["cpu", "gpu"]), default="cpu")
+@click.option("--nx", type=click.IntRange(min=2), default=1024)
+@click.option("--ny", type=click.IntRange(min=2))
+@click.option("--evp-steps", type=click.IntRange(min=1), default=120)
+@output_options("dynamics.nc", tuple(VARIABLES))
+def cli(**kwargs: Any) -> SimpleNamespace:
+    """Parse the standalone experiment options."""
+    return SimpleNamespace(**kwargs)
+
+
 def main(argv: list[str] | None = None) -> None:
-    """Run the dynamics notebook experiment on a local CPU or GPU."""
-    import argparse
-    from pathlib import Path
+    """Integrate the reference experiment and save physical fields as netCDF."""
     from time import perf_counter
 
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--nx", type=int, default=1024)
-    parser.add_argument("--ny", type=int)
-    parser.add_argument("--steps", type=int, default=100)
-    parser.add_argument("--evp-steps", type=int, default=120)
-    parser.add_argument("--backend", choices=("cpu", "gpu"), default="cpu")
-    parser.add_argument("--output", type=Path, default=Path("dynamics.npz"))
-    add_output_arguments(parser)
-    args = parser.parse_args(argv)
-    if args.steps < 0:
-        parser.error("--steps must be nonnegative")
+    args = parse_options(cli, argv)
     jax.config.update("jax_enable_x64", True)
     with jax.default_device(jax.devices(args.backend)[0]):
         state, conf, phys = initialize(
@@ -345,14 +347,6 @@ def main(argv: list[str] | None = None) -> None:
                 manager.sample(
                     state, timedelta(seconds=(iteration + 1) * conf.deltatDyn)
                 )
-        save_final(
-            args,
-            state,
-            timedelta(seconds=args.steps * conf.deltatDyn),
-            manager.settings,
-            conf,
-            phys,
-        )
         jax.block_until_ready(state)
         elapsed = perf_counter() - started
         output = {
@@ -360,8 +354,14 @@ def main(argv: list[str] | None = None) -> None:
         }
     if not all(np.isfinite(value).all() for value in output.values()):
         raise RuntimeError("nonfinite dynamics output")
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    np.savez(args.output, **output)
+    save_final(
+        args,
+        state,
+        timedelta(seconds=args.steps * conf.deltatDyn),
+        manager.settings,
+        conf,
+        phys,
+    )
     print(
         f"dynamics: {args.steps} steps, {args.backend}, compile {compiled:.3f}s, run {elapsed:.3f}s, {args.output}"
     )

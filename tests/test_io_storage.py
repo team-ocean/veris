@@ -102,21 +102,27 @@ def test_full_snapshot_roundtrip_and_selected_physical_snapshot(tmp_path: Path) 
     )
     record = read_record(path)
     assert set(record.fields) == set(VARIABLES)
-    assert record.include_halos and not record.mean
+    assert not record.mean
     assert record.time == 172800
     assert record.configuration["nx"] == 3
     assert record.physical_constants["rhoIce"] == phys.rhoIce
-    restored = update_state(replace(state, hIceMean=jnp.zeros((7, 8))), record)
+    target = replace(state, hIceMean=jnp.full((7, 8), -99.0))
+    restored = update_state(target, record)
+    expected = np.full((7, 8), -99.0)
+    expected[2:-2, 2:-2] = np.asarray(state.hIceMean)[2:-2, 2:-2]
+    np.testing.assert_array_equal(restored.hIceMean, expected)
     for name in VARIABLES:
-        np.testing.assert_array_equal(getattr(restored, name), getattr(state, name))
+        np.testing.assert_array_equal(
+            getattr(restored, name)[2:-2, 2:-2], getattr(state, name)[2:-2, 2:-2]
+        )
     physical = tmp_path / "physical.nc"
-    write_snapshot(physical, state, variables=("hIceMean",), include_halos=False)
+    write_snapshot(physical, state, variables=("hIceMean",))
     np.testing.assert_array_equal(
         read_record(physical).fields["hIceMean"],
         np.arange(56.0).reshape(7, 8)[2:-2, 2:-2],
     )
-    with pytest.raises(ValueError, match="halo"):
-        update_state(state, read_record(physical))
+    restored = update_state(state, read_record(physical))
+    np.testing.assert_array_equal(restored.hIceMean, state.hIceMean)
 
 
 def test_reader_rejects_unknown_selection_and_mean_as_restart(tmp_path: Path) -> None:
@@ -133,7 +139,6 @@ def test_reader_rejects_unknown_selection_and_mean_as_restart(tmp_path: Path) ->
             time=5,
             bounds=(0, 10),
             mean=True,
-            include_halos=True,
         )
     with pytest.raises(ValueError, match="variable"):
         read_record(path, stream="daily", variables=("theta",))
@@ -179,7 +184,7 @@ def test_final_snapshot_after_value_and_grad(tmp_path: Path) -> None:
     assert value == 72 and gradient == 36
     write_snapshot(tmp_path / "final.nc", final)
     np.testing.assert_array_equal(
-        read_record(tmp_path / "final.nc").fields["Area"], np.full((6, 6), 2.0)
+        read_record(tmp_path / "final.nc").fields["Area"], np.full((2, 2), 2.0)
     )
 
 
@@ -230,3 +235,33 @@ def test_snapshot_update_rejects_incompatible_initialized_shape(tmp_path: Path) 
     write_snapshot(tmp_path / "shape.nc", source, variables=("Area",))
     with pytest.raises(ValueError, match="shape"):
         update_state(target, read_record(tmp_path / "shape.nc"))
+
+
+def test_snapshot_discards_nonuniform_storage_halos(tmp_path: Path) -> None:
+    from veris.io import read_record, write_snapshot
+
+    values = np.arange(72.0).reshape(8, 9)
+    write_snapshot(tmp_path / "trimmed.nc", {"Area": values})
+    record = read_record(tmp_path / "trimmed.nc")
+    np.testing.assert_array_equal(record.fields["Area"], values[2:-2, 2:-2])
+
+
+def test_writer_rejects_partial_mean_before_creating_file(tmp_path: Path) -> None:
+    from veris.io.storage import NetCDFWriter
+
+    path = tmp_path / "partial.nc"
+    with (
+        NetCDFWriter(
+            path, calendar="noleap", units="seconds since 2001-01-01"
+        ) as writer,
+        pytest.raises(ValueError, match="partial"),
+    ):
+        writer.append(
+            "mean",
+            {"Area": np.ones((3, 4))},
+            time=1,
+            bounds=(0, 2),
+            mean=True,
+            partial=True,
+        )
+    assert not path.exists()

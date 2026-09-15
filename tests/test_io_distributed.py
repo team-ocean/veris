@@ -21,7 +21,6 @@ def test_collector_removes_halos_for_snapshot_and_preserves_requested_names(
             tmp_path / "physical.nc",
             state,
             variables=("hIceMean",),
-            include_halos=False,
             conf=conf,
             phys=phys,
             collector=collect,

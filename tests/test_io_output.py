@@ -89,24 +89,21 @@ def test_monthly_mean_uses_calendar_window(
     )
 
 
-def test_partial_windows_and_close_without_an_extra_sample(tmp_path: Path) -> None:
-    from veris.io import OutputManager, OutputSettings, Stream, read_record
+def test_initial_and_final_incomplete_windows_create_no_file(tmp_path: Path) -> None:
+    from veris.io import OutputManager, OutputSettings, Stream
 
+    path = tmp_path / "partial.nc"
     settings = OutputSettings(
         start=datetime(2001, 1, 1, 12),
         streams=(Stream("day", ("Area",), timedelta(hours=6), "daily"),),
     )
-    with OutputManager(tmp_path / "partial.nc", settings) as output:
+    with OutputManager(path, settings) as output:
         output.sample(fields(2), timedelta(0))
         output.sample(fields(6), timedelta(hours=6))
         output.sample(fields(20), timedelta(hours=12))
         output.close(timedelta(hours=15))
-    first = read_record(tmp_path / "partial.nc", stream="day", index=0)
-    last = read_record(tmp_path / "partial.nc", stream="day", index=1)
-    assert first.partial and first.bounds == (0, 43200) and first.count == 2
-    assert last.partial and last.bounds == (43200, 54000) and last.count == 1
-    np.testing.assert_array_equal(first.fields["Area"], np.full((2, 3), 4.0))
-    np.testing.assert_array_equal(last.fields["Area"], np.full((2, 3), 20.0))
+    assert not path.exists()
+    assert output.buffer_nbytes == 0
 
 
 def test_fixed_period_non_sampling_boundary_and_empty_windows(tmp_path: Path) -> None:
@@ -154,7 +151,6 @@ def test_no_initial_sample_and_discard_partial_do_not_create_empty_file(
 
     settings = OutputSettings(
         sample_initial=False,
-        write_partial=False,
         streams=(Stream("day", ("Area",), timedelta(hours=1), "daily"),),
     )
     with OutputManager(tmp_path / "none.nc", settings) as output:
@@ -167,12 +163,15 @@ def test_mean_buffer_memory_does_not_grow_with_samples(tmp_path: Path) -> None:
     from veris.io import OutputManager, OutputSettings, Stream, read_record
 
     settings = OutputSettings(
-        streams=(Stream("annual", ("Area",), timedelta(seconds=1), "annual"),)
+        streams=(
+            Stream("annual", ("Area",), timedelta(seconds=1), timedelta(seconds=1001)),
+        )
     )
     with OutputManager(tmp_path / "bounded.nc", settings) as output:
         for second in range(1001):
             output.sample(fields(second), timedelta(seconds=second))
             assert output.buffer_nbytes == 2 * 3 * 8
+        output.close(timedelta(seconds=1001))
     record = read_record(tmp_path / "bounded.nc", stream="annual")
     np.testing.assert_array_equal(record.fields["Area"], np.full((2, 3), 500.0))
     assert record.count == 1001
@@ -188,7 +187,7 @@ def test_transforms_and_explicit_ad_mode_do_not_sample_even_constant_fields(
     path = tmp_path / "ad.nc"
     settings = OutputSettings(
         enabled=not disabled,
-        streams=(Stream("day", ("Area",), timedelta(seconds=1), "daily"),),
+        streams=(Stream("day", ("Area",), timedelta(seconds=1), timedelta(seconds=1)),),
     )
     with OutputManager(path, settings) as output:
 
@@ -211,6 +210,7 @@ def test_transforms_and_explicit_ad_mode_do_not_sample_even_constant_fields(
             output.sample(
                 fields(2), timedelta(0)
             )  # tracing did not change the schedule
+            output.close(timedelta(seconds=1))
     assert path.exists() == (not disabled)
 
 
@@ -258,7 +258,8 @@ def test_annual_sample_mean_and_year_rollover(
     np.testing.assert_array_equal(
         record.fields["Area"], np.full((2, 3), (days - 1) / 2)
     )
-    assert read_record(tmp_path / "annual.nc", stream="year", index=1).count == 1
+    with h5netcdf.File(tmp_path / "annual.nc") as file:
+        assert len(file.groups["year"].dimensions["time"]) == 1
 
 
 def test_independent_subsecond_schedules(tmp_path: Path) -> None:
@@ -271,13 +272,14 @@ def test_independent_subsecond_schedules(tmp_path: Path) -> None:
                 "slow",
                 ("hIceMean",),
                 timedelta(microseconds=200000),
-                timedelta(seconds=1),
+                timedelta(microseconds=500000),
             ),
         )
     )
     with OutputManager(tmp_path / "micro.nc", settings) as output:
         for step in range(5):
             output.sample(fields(step), timedelta(microseconds=step * 100000))
+        output.close(timedelta(microseconds=500000))
     record = read_record(tmp_path / "micro.nc", stream="slow")
     assert record.count == 3
     np.testing.assert_array_equal(record.fields["hIceMean"], np.full((2, 3), 4.0))
@@ -287,22 +289,36 @@ def test_independent_subsecond_schedules(tmp_path: Path) -> None:
         )
 
 
-def test_discard_final_partial_retains_completed_initial_partial(
+def test_only_complete_window_between_partial_windows_is_written(
     tmp_path: Path,
 ) -> None:
     from veris.io import OutputManager, OutputSettings, Stream, read_record
 
+    path = tmp_path / "complete.nc"
     settings = OutputSettings(
         start=datetime(2000, 1, 1, 12),
-        write_partial=False,
         streams=(Stream("day", ("Area",), timedelta(hours=12), "daily"),),
     )
-    with OutputManager(tmp_path / "first.nc", settings) as output:
-        output.sample(fields(3), timedelta(0))
-        output.sample(fields(9), timedelta(hours=12))
-    record = read_record(tmp_path / "first.nc", stream="day")
-    assert record.partial and record.bounds == (0, 43200) and record.count == 1
-    np.testing.assert_array_equal(record.fields["Area"], np.full((2, 3), 3.0))
+    with OutputManager(path, settings) as output:
+        for hour, value in [(0, 100), (12, 3), (24, 9), (36, 200)]:
+            output.sample(fields(value), timedelta(hours=hour))
+        output.close(timedelta(hours=42))
+    record = read_record(path, stream="day")
+    assert not record.partial and record.bounds == (43200, 129600)
+    assert record.count == 2
+    np.testing.assert_array_equal(record.fields["Area"], np.full((2, 3), 6.0))
+    with h5netcdf.File(path) as file:
+        assert len(file.groups["day"].dimensions["time"]) == 1
+
+
+@pytest.mark.parametrize("removed_option", ["include_halos", "write_partial"])
+def test_removed_output_options_are_not_accepted(removed_option: str) -> None:
+    from veris.io import OUTPUT_SETTINGS, OutputSettings
+
+    assert removed_option not in OUTPUT_SETTINGS
+    options: dict[str, Any] = {removed_option: True}
+    with pytest.raises(TypeError):
+        OutputSettings(**options)
 
 
 def test_rejected_dtype_cannot_contaminate_an_earlier_mean_stream(
@@ -312,7 +328,7 @@ def test_rejected_dtype_cannot_contaminate_an_earlier_mean_stream(
 
     settings = OutputSettings(
         streams=(
-            Stream("mean", ("Area",), timedelta(seconds=1), "daily"),
+            Stream("mean", ("Area",), timedelta(seconds=1), timedelta(seconds=2)),
             Stream("instant", ("Area",), timedelta(seconds=1)),
         )
     )
@@ -321,6 +337,7 @@ def test_rejected_dtype_cannot_contaminate_an_earlier_mean_stream(
         with pytest.raises(ValueError, match="dtype"):
             output.sample({"Area": np.full((6, 7), 1.5)}, timedelta(seconds=1))
         output.sample({"Area": np.full((6, 7), 2, dtype="int32")}, timedelta(seconds=1))
+        output.close(timedelta(seconds=2))
     record = read_record(tmp_path / "retry.nc", stream="mean")
     np.testing.assert_array_equal(record.fields["Area"], np.full((2, 3), 1.5))
     assert record.count == 2
@@ -330,7 +347,7 @@ def test_float32_samples_accumulate_in_float64(tmp_path: Path) -> None:
     from veris.io import OutputManager, OutputSettings, Stream, read_record
 
     settings = OutputSettings(
-        streams=(Stream("mean", ("Area",), timedelta(seconds=1), "daily"),)
+        streams=(Stream("mean", ("Area",), timedelta(seconds=1), timedelta(seconds=3)),)
     )
     with OutputManager(tmp_path / "precision.nc", settings) as output:
         for step, value in enumerate([2**24, 1, -(2**24)]):
@@ -338,6 +355,31 @@ def test_float32_samples_accumulate_in_float64(tmp_path: Path) -> None:
                 {"Area": np.full((6, 7), value, dtype="float32")},
                 timedelta(seconds=step),
             )
+        output.close(timedelta(seconds=3))
     record = read_record(tmp_path / "precision.nc", stream="mean")
     assert record.fields["Area"].dtype == np.float64
     np.testing.assert_array_equal(record.fields["Area"], np.full((2, 3), 1 / 3))
+
+
+def test_collector_returns_physical_cells_without_further_trimming(
+    tmp_path: Path,
+) -> None:
+    from veris.io import OutputManager, OutputSettings, Stream, read_record
+
+    physical = np.arange(30.0).reshape(5, 6)
+    source = {"Area": np.pad(physical, 2, constant_values=-999)}
+    calls = []
+
+    def collect(state: Any, names: tuple[str, ...]) -> dict[str, NDArray[Any]]:
+        calls.append((state, names))
+        return {"Area": physical}
+
+    path = tmp_path / "collected.nc"
+    settings = OutputSettings(streams=(Stream("instant", ("Area",)),))
+    with OutputManager(path, settings, collector=collect) as output:
+        output.sample(source, timedelta(0))
+    assert len(calls) == 1 and calls[0][0] is source
+    assert calls[0][1] == ("Area",)
+    np.testing.assert_array_equal(
+        read_record(path, stream="instant").fields["Area"], physical
+    )

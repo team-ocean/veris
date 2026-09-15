@@ -12,9 +12,9 @@ Run `pytest tests/ --fast` during development. `VERIS_TEST_SEED` varies the stab
 ```sh
 pytest tests/ --cov=veris --cov-report=term:skip-covered
 coverage report --omit=veris/_version.py --fail-under=80
-ruff check veris tests doc/conf.py setup.py --exclude veris/_version.py --ignore N999
-ruff format --check veris tests doc/conf.py setup.py --exclude veris/_version.py
-ty check veris tests doc/conf.py setup.py --exclude veris/_version.py
+ruff check veris tests docs/conf.py setup.py --exclude veris/_version.py --ignore N999
+ruff format --check veris tests docs/conf.py setup.py --exclude veris/_version.py
+ty check veris tests docs/conf.py setup.py --exclude veris/_version.py
 ```
 
 Tests execute actual compiled JAX functions on small rectangular grids,

@@ -9,7 +9,6 @@ latency includes compilation and execution and can share cached inner kernels
 between variants. Steady timing excludes validation, initialization and tracing.
 """
 
-import argparse
 import importlib.metadata
 import json
 import os
@@ -20,34 +19,35 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, replace
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
+import click
 import jax
 import numpy as np
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Validate a bounded single-device benchmark configuration."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--backend", choices=("cpu", "gpu"), default="cpu")
-    for name, default in (
-        ("nx", 64),
-        ("ny", 64),
-        ("evp-steps", 400),
-        ("repeats", 12),
-        ("warmup", 3),
-    ):
-        parser.add_argument("--" + name, type=int, default=default)
-    parser.add_argument("--mode", choices=("fixed", "evolving"), default="fixed")
-    parser.add_argument("--validation", choices=("each", "final"), default="each")
-    parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--trace", action="store_true")
-    args = parser.parse_args(argv)
-    for name in ("nx", "ny", "evp_steps", "repeats", "warmup"):
-        minimum = 4 if name in ("nx", "ny") else 1
-        if getattr(args, name) < minimum:
-            parser.error(f"{name} must be at least {minimum}")
-    return args
+@click.command(help=__doc__)
+@click.option("--backend", type=click.Choice(["cpu", "gpu"]), default="cpu")
+@click.option("--nx", type=click.IntRange(min=4), default=64)
+@click.option("--ny", type=click.IntRange(min=4), default=64)
+@click.option("--evp-steps", type=click.IntRange(min=1), default=400)
+@click.option("--repeats", type=click.IntRange(min=1), default=12)
+@click.option("--warmup", type=click.IntRange(min=1), default=3)
+@click.option("--mode", type=click.Choice(["fixed", "evolving"]), default="fixed")
+@click.option("--validation", type=click.Choice(["each", "final"]), default="each")
+@click.option("--output", type=click.Path(path_type=Path), required=True)
+@click.option("--trace", is_flag=True)
+def cli(**kwargs: Any) -> SimpleNamespace:
+    """Parse a bounded single-device benchmark configuration."""
+    return SimpleNamespace(**kwargs)
+
+
+def parse_args(argv: list[str] | None = None) -> SimpleNamespace:
+    """Validate benchmark arguments through Click."""
+    from veris.io.cli import parse_options
+
+    return parse_options(cli, argv)
 
 
 def _equivalence(reference: Any, candidate: Any) -> float:
@@ -153,7 +153,7 @@ def measure_pair(
 
 
 def _metadata(
-    args: argparse.Namespace, device: jax.Device, conf: Any, phys: Any
+    args: SimpleNamespace, device: jax.Device, conf: Any, phys: Any
 ) -> dict[str, Any]:
     cpu_model = platform.processor()
     # Read this single kernel metadata file; never scan the host filesystem.

@@ -19,7 +19,13 @@ from veris._typing import State
 from veris.io.calendar import Calendar, duration_us
 from veris.io.configuration import OutputSettings, Stream
 from veris.io.guard import under_transform
-from veris.io.storage import ArrayFields, Collector, NetCDFWriter, selected_fields
+from veris.io.storage import (
+    ArrayFields,
+    Collector,
+    NetCDFWriter,
+    selected_fields,
+    storage_fields,
+)
 
 
 @dataclass
@@ -35,7 +41,7 @@ class OutputManager:
     """Sample after concrete model steps; disable explicitly around AD loops.
 
     ``collector`` optionally gathers selected arrays collectively and returns
-    fields only on the writing rank. It must honor the include_halos argument.
+    physical cells only on the writing rank, with storage halos removed.
     All ranks must call sample with identical schedules when using collectives.
     """
 
@@ -93,10 +99,8 @@ class OutputManager:
         if accumulator.window is None or not accumulator.count:
             return
         left, right = accumulator.window
-        start = max(0, left)
         end = min(right, end)
-        partial = left < 0 or end < right
-        if accumulator.sums and (end == right or self.settings.write_partial):
+        if accumulator.sums and left >= 0 and end == right:
             means = {
                 name: value / accumulator.count
                 for name, value in accumulator.sums.items()
@@ -104,12 +108,10 @@ class OutputManager:
             self._writer.append(
                 accumulator.stream.name,
                 means,
-                time=(start + end) / 2e6,
-                bounds=(start / 1e6, end / 1e6),
+                time=(left + end) / 2e6,
+                bounds=(left / 1e6, end / 1e6),
                 count=accumulator.count,
-                partial=partial,
                 mean=True,
-                include_halos=self.settings.include_halos,
             )
         accumulator.sums.clear()
         accumulator.count = 0
@@ -142,11 +144,9 @@ class OutputManager:
         arrays: dict[str, NDArray[Any]] = {}
         if names:
             if self._collector is None:
-                arrays = selected_fields(
-                    state, names, include_halos=self.settings.include_halos
-                )
+                arrays = storage_fields(state, names)
             else:
-                collected = self._collector(state, names, self.settings.include_halos)
+                collected = self._collector(state, names)
                 if collected is not None:
                     arrays = selected_fields(collected, names)
         # Preflight shapes and new windows before any record or accumulator mutation.
@@ -167,7 +167,6 @@ class OutputManager:
                     {name: arrays[name] for name in stream.variables},
                     mean=stream.period != "instantaneous",
                     mean_samples=stream.period != "instantaneous",
-                    include_halos=self.settings.include_halos,
                     time=now / 1e6 if stream.period == "instantaneous" else None,
                 )
         for accumulator in self._streams:
@@ -183,7 +182,6 @@ class OutputManager:
                         {n: arrays[n] for n in stream.variables},
                         time=now / 1e6,
                         bounds=(now / 1e6, now / 1e6),
-                        include_halos=self.settings.include_halos,
                     )
             else:
                 accumulator.window = windows[stream.name]
@@ -205,7 +203,8 @@ class OutputManager:
 
         A close at the next sample time ends the half-open interval without
         requiring a sample at its right endpoint. Later closes would skip samples
-        and are rejected. Repeated closes are harmless.
+        and are rejected. Incomplete first and last averaging windows are
+        discarded. Repeated closes are harmless.
         """
         if not self.settings.enabled or under_transform() or self._closed:
             return

@@ -1,5 +1,38 @@
 # Development log
 
+## 2026-09-15 — Documentation and output policy migration
+
+- [x] Implemented all five requested changes on jax-only.
+  Docs agent owns Sphinx migration; CLI agent owns Click/netCDF drivers;
+  averaging agent owns complete-window scheduling; root owns halo-free storage
+  and serialized test execution.
+- Moved doc/ content to docs/, preserving existing Superpowers records; updated
+  CI, Read the Docs, source packaging and build instructions.
+- Regression tests reproduced halo-inclusive snapshots, partial mean writes,
+  old NPZ driver output and obsolete options. Storage/distributed focused checks
+  now pass 21 tests after always trimming serial/partition halos. Snapshot input
+  inserts physical interiors while preserving initialized halos for exchange.
+- Environment: established .venv-latest is active; .venv does not exist.
+- [x] Click replaces argparse in drivers, benchmark and reduction probe. Final
+  driver output defaults to netCDF; --final-netcdf aliases --output. No NPZ
+  writer remains (the immutable numerical-reference NPZ input is retained).
+- [x] Removed include_halos/write_partial configuration and API arguments.
+  All 34 averaging tests pass; incomplete initial/final windows are discarded.
+- [x] Driver/integration/benchmark checks pass 39 tests with one GPU-only skip.
+  Independent review caught bypassed parallel finite validation; a new main-path
+  regression reproduced it, then passed after restoring physical-field checks.
+- [x] Sphinx -E -W build passes with network inventory access. All 18 original
+  tracked source files have docs/ destinations; rendered registry tables omit
+  removed options. Ruff, formatting, annotations and ty checks pass.
+- [x] Full CPU suite: 874 passed, one existing GPU-only skip, zero failures/errors
+  in 407.52 s, including the two-process reduction/AD tests. Maintained coverage
+  2338/2416 = 96.77%; whole-package coverage 84.43%. No additional exclusions.
+- [x] Final independent review verified the parallel finite-check repair and all
+  five source requirements. Source archive includes docs/ and no doc/. Production
+  and test hashes match the full-suite snapshot; no pytest process remains.
+  Evidence: test_logs/migration-{full-tests.log,results.xml,coverage.json,
+  source-hashes.json,docs.log}, migration-docs/ and migration-dist/.
+
 ## 2026-09-15 — Calendar-aware I/O design
 
 - [x] Implemented veris.io calendars, immutable registry-backed output options,

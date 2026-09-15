@@ -43,3 +43,18 @@ stub for generated version metadata. Project-owned packaging uses a Versioneer
 stub; generated `_version.py` and vendored Versioneer/Font Awesome internals are
 excluded from annotation work and the maintained lint/type targets. CI checks
 function annotation coverage as well as type consistency.
+
+### Documentation
+
+Sphinx sources live in [`docs/`](docs/index.rst), including model registries,
+standalone examples and calendar-aware netCDF input/output. Build them with:
+
+```bash
+python -m pip install -r docs/requirements.txt
+sphinx-build -E -W -b html docs docs/_build/html
+```
+
+Open `docs/_build/html/index.html` to browse the documentation. Maintained
+command-line drivers use Click; run a driver with `--help` for its options.
+All output uses netCDF and contains physical cells without storage halos.
+Averaged records are written only when their full averaging window is covered.

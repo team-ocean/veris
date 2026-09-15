@@ -21,7 +21,7 @@ def distributed_collector(mesh: Mesh) -> Collector:
     """Build the collective callback accepted by OutputManager and write_snapshot."""
 
     def collect(
-        source: State | ArrayFields, names: tuple[str, ...], include_halos: bool
+        source: State | ArrayFields, names: tuple[str, ...]
     ) -> dict[str, Any] | None:
         require_host()
         from jax.experimental import multihost_utils
@@ -33,8 +33,7 @@ def distributed_collector(mesh: Mesh) -> Collector:
             array = (
                 source[name] if isinstance(source, Mapping) else getattr(source, name)
             )
-            if not include_halos:
-                array = remove_halos(array, mesh)
+            array = remove_halos(array, mesh)
             global_array = multihost_utils.process_allgather(array, tiled=True)
             if jax.process_index() == 0:
                 result[name] = np.asarray(global_array)

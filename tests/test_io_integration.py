@@ -26,19 +26,15 @@ def test_serial_driver_writes_selected_stream_and_final_snapshot(
     extra = (
         [] if driver == "run_growth" else ["--nx", "3", "--ny", "4", "--evp-steps", "2"]
     )
-    history, final, legacy = (
-        tmp_path / n for n in ("history.nc", "final.nc", "legacy.npz")
-    )
+    history, final = (tmp_path / n for n in ("history.nc", "final.nc"))
     module.main(
         [
             "--steps",
             "1",
             "--output",
-            str(legacy),
+            str(final),
             "--netcdf",
             str(history),
-            "--final-netcdf",
-            str(final),
             "--io-variables",
             "hIceMean,Area",
             "--sample-seconds",
@@ -55,11 +51,8 @@ def test_serial_driver_writes_selected_stream_and_final_snapshot(
     np.testing.assert_array_equal(
         sampled.fields["hIceMean"], snapshot.fields["hIceMean"]
     )
-    with np.load(legacy) as data:
-        expected = data["hIceMean"]
-        if driver == "run_growth":
-            expected = expected[2:-2, 2:-2]
-        np.testing.assert_array_equal(snapshot.fields["hIceMean"], expected)
+    expected_shape = (2, 2) if driver == "run_growth" else (3, 4)
+    assert snapshot.fields["hIceMean"].shape == expected_shape
 
 
 def test_real_growth_ad_disables_output_and_writes_auxiliary_final_state(
@@ -86,7 +79,8 @@ def test_real_growth_ad_disables_output_and_writes_auxiliary_final_state(
         tmp_path / "after_ad.nc", final, conf=conf, phys=phys, elapsed=timedelta(days=2)
     )
     np.testing.assert_array_equal(
-        read_record(tmp_path / "after_ad.nc").fields["hIceMean"], final.hIceMean
+        read_record(tmp_path / "after_ad.nc").fields["hIceMean"],
+        final.hIceMean[2:-2, 2:-2],
     )
 
 
@@ -97,9 +91,7 @@ def test_parallel_driver_gathers_each_partition_before_netcdf(tmp_path: Path) ->
     environment = dict(
         os.environ, JAX_PLATFORMS="cpu", JAX_NUM_CPU_DEVICES="4", PYTHONPATH=str(root)
     )
-    final, history, legacy = (
-        tmp_path / n for n in ("final.nc", "history.nc", "legacy.npz")
-    )
+    final, history = (tmp_path / n for n in ("final.nc", "history.nc"))
     result = subprocess.run(
         [
             sys.executable,
@@ -117,11 +109,9 @@ def test_parallel_driver_gathers_each_partition_before_netcdf(tmp_path: Path) ->
             "--evp-steps",
             "2",
             "--output",
-            str(legacy),
+            str(final),
             "--netcdf",
             str(history),
-            "--final-netcdf",
-            str(final),
             "--io-variables",
             "hIceMean,uIce",
             "--sample-seconds",
@@ -138,11 +128,9 @@ def test_parallel_driver_gathers_each_partition_before_netcdf(tmp_path: Path) ->
     )
     snapshot = read_record(final)
     sampled = read_record(history, stream="instantaneous")
-    with np.load(legacy) as expected:
-        for name in ("hIceMean", "uIce"):
-            assert snapshot.fields[name].shape == (8, 8)
-            np.testing.assert_array_equal(snapshot.fields[name], expected[name])
-            np.testing.assert_array_equal(sampled.fields[name], expected[name])
+    for name in ("hIceMean", "uIce"):
+        assert snapshot.fields[name].shape == (8, 8)
+        np.testing.assert_array_equal(sampled.fields[name], snapshot.fields[name])
 
 
 def test_driver_rejects_unreachable_sampling_time_before_creating_output(
@@ -156,7 +144,7 @@ def test_driver_rejects_unreachable_sampling_time_before_creating_output(
                 "--steps",
                 "1",
                 "--output",
-                str(tmp_path / "old.npz"),
+                str(tmp_path / "final.nc"),
                 "--netcdf",
                 str(tmp_path / "bad.nc"),
                 "--sample-seconds",

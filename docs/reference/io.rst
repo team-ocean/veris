@@ -28,15 +28,14 @@ float64 running sum per selected variable and a count, then writes sum/count.
 Memory therefore depends on field sizes and stream count, not integration
 duration. These are arithmetic sample means, not time-weighted averages.
 
-If the simulation begins or ends inside a calendar window, records describe the
-actual simulation coverage and carry a partial flag. ``write_partial=False``
-discards an incomplete final window. An initial partial window is written once
-its calendar boundary is reached. Call
-``close(final_elapsed)`` to record an explicit endpoint; without it, context
-exit uses the last observed model time. Closing at the next sampling boundary
-does not require a sample at that endpoint, but closing beyond a missed sample
-is rejected. Exceptions during integration discard pending averages and close
-the file.
+If the simulation begins or ends inside an averaging window, that incomplete
+window is discarded. This includes the initial calendar window when the model
+starts after its boundary. No record or output file is created for a stream
+that has no complete windows. Call ``close(final_elapsed)`` to record an explicit
+endpoint; without it, context exit uses the last observed model time. Closing
+at the next sampling boundary does not require a sample at that endpoint, but
+closing beyond a missed sample is rejected. Exceptions during integration
+discard pending averages and close the file.
 
 Gregorian aliases ``gregorian``, ``standard`` and ``proleptic_gregorian`` use
 timezone-naive standard-library ``datetime`` and are encoded as
@@ -81,20 +80,19 @@ interval. Initial samples are included by default::
        output.close(30 * interval)
    write_snapshot("final.nc", state, elapsed=30 * interval, conf=conf, phys=phys)
 
-History output removes the two-cell serial halos by default. Each stream group
+History output always removes the two-cell serial halos. Each stream group
 has its own unlimited time dimension, calendar, time units, bounds, sample
-counts and partial flags. Field dimensions and attributes come from
+counts and coverage metadata. Field dimensions and attributes come from
 :doc:`variables`, preserving staggered ``x_center``, ``x_face``, ``y_center`` and
 ``y_face`` names. ``cell_methods`` distinguishes point values from means.
 
 Final snapshots and selected input
 ----------------------------------
 
-``write_snapshot`` operates independently of sampling and mean buffers. Its
-default ``include_halos=True`` writes all State fields with storage halos for a
-lossless array round trip. Supply ``conf`` and ``phys`` to retain configuration
-and physical constants as file metadata. ``variables=("hIceMean", "Area")``
-selects fields; ``include_halos=False`` writes physical cells only.
+``write_snapshot`` operates independently of sampling and mean buffers and
+writes physical cells only, removing storage halos from every State field.
+Supply ``conf`` and ``phys`` to retain configuration and physical constants as
+file metadata. ``variables=("hIceMean", "Area")`` selects fields.
 
 ``read_record`` returns a ``Record`` containing named NumPy arrays and time,
 calendar, coverage and snapshot metadata. Choose a group with ``stream`` and a
@@ -107,13 +105,14 @@ record with ``index`` (default: last). For example::
    snapshot = read_record("final.nc", variables=("hIceMean", "Area"))
    state = update_state(state, snapshot)
 
-``update_state`` checks variable names and shapes against an initialized State;
-the reader checks staggered dimensions. Updates require halo-inclusive
-instantaneous fields. Mean records cannot be used as instantaneous restarts.
-Physical selected fields can be read as arrays, but cannot directly update a
-halo-inclusive State through this helper. Selected-field input leaves unselected
-fields intact and is not a complete restart. Configuration metadata is returned
-for inspection; reading does not rebuild model initialization or output clocks.
+``update_state`` checks variable names and shapes against an initialized serial
+State; the reader checks staggered dimensions. It inserts instantaneous fields
+into the physical interior and preserves the existing storage halos. Refresh
+those halos with the model's boundary exchange before continuing integration.
+The helper rejects distributed States and mean records. Selected-field input
+leaves unselected fields intact and is not a complete restart. Configuration
+metadata is returned for inspection; reading does not rebuild model
+initialization or output clocks.
 
 Automatic differentiation
 --------------------------
@@ -166,7 +165,7 @@ Packed sharded States contain halos around every partition. Use
 halos and gather the physical grid correctly; ordinary outer-edge slicing is
 insufficient. Pass the callback as ``collector`` to both ``OutputManager`` and
 ``write_snapshot``. All ranks must call them with matching schedules; only rank
-zero writes. The collector honors ``include_halos`` for complete storage
+zero writes. Every partition's halos are removed for both histories and
 snapshots. No gathering occurs during AD::
 
    from veris.io.distributed import distributed_collector
@@ -183,8 +182,7 @@ snapshots. No gathering occurs during AD::
 Driver options
 --------------
 
-Maintained drivers retain their existing NPZ output and accept these additional
-netCDF controls. The CLI sampling default is the driver's model timestep, while
+Maintained drivers use Click and write netCDF output. The CLI sampling default is the driver's model timestep, while
 the Python ``Stream`` default is shown in the registry below.
 
 .. list-table::
@@ -194,8 +192,8 @@ the Python ``Stream`` default is shown in the registry below.
      - Meaning
    * - ``--netcdf PATH``
      - History output file.
-   * - ``--final-netcdf PATH``
-     - Independent final State snapshot.
+   * - ``--output PATH`` (alias ``--final-netcdf``)
+     - Final State snapshot; each driver supplies a default netCDF path.
    * - ``--io-variables hIceMean,Area``
      - Comma-separated State variables for history streams.
    * - ``--sample-seconds NUMBER``

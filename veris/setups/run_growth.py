@@ -11,13 +11,13 @@ Importing this module neither allocates model arrays nor selects a JAX backend.
 
 from __future__ import annotations
 
-import argparse
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass, field, fields, replace
 from datetime import timedelta
-from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
+import click
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -28,7 +28,7 @@ from veris.configuration import SETTINGS, Configuration
 from veris.diagnostics import Diagnostics
 from veris.growth import Growth
 from veris.initialization import initialize as initialize_model
-from veris.io.cli import add_output_arguments, make_output, save_final
+from veris.io.cli import make_output, output_options, parse_options, save_final
 from veris.physical_constants import PhysicalConstants
 
 GROWTH_SETTINGS: dict[str, Parameter] = {
@@ -178,28 +178,35 @@ compiled_step = jit(step, static_argnames=["conf", "phys"])
 """Compiled thermodynamic step with static configuration and physical constants."""
 
 
-def main(argv: Sequence[str] | None = None) -> None:
-    """Run the reference experiment and save days, pre-step ice and final fields."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--steps", type=int, default=GROWTH_SETTINGS["steps"].default)
-    parser.add_argument("--backend", choices=("cpu", "gpu"), default="cpu")
-    parser.add_argument("--output", type=Path, default=Path("growth.npz"))
-    add_output_arguments(parser)
-    args = parser.parse_args(argv)
-    if args.steps < 0:
-        parser.error("--steps must be nonnegative")
+@click.command(help=__doc__)
+@click.option(
+    "--steps", type=click.IntRange(min=0), default=GROWTH_SETTINGS["steps"].default
+)
+@click.option("--backend", type=click.Choice(["cpu", "gpu"]), default="cpu")
+@output_options("growth.nc", tuple(item.name for item in fields(State)))
+def cli(**kwargs: Any) -> SimpleNamespace:
+    """Parse the standalone experiment options."""
+    return SimpleNamespace(**kwargs)
+
+
+def main(argv: list[str] | None = None) -> None:
+    """Integrate the reference experiment and save physical fields as netCDF."""
+    args = parse_options(cli, argv)
     jax.config.update("jax_enable_x64", True)
     with jax.default_device(jax.devices(args.backend)[0]):
         state, conf, phys = initialize()
-        history = []
         with make_output(args, conf.deltatTherm) as output:
             output.sample(state, timedelta(0))
             for iteration in range(args.steps):
-                history.append(state.hIceMean[2, 2])
                 state = compiled_step(state, conf, phys)
                 output.sample(
                     state, timedelta(seconds=(iteration + 1) * conf.deltatTherm)
                 )
+        arrays = {
+            item.name: np.asarray(getattr(state, item.name)) for item in fields(State)
+        }
+        if any(not np.isfinite(array).all() for array in arrays.values()):
+            raise FloatingPointError("growth simulation produced nonfinite output")
         save_final(
             args,
             state,
@@ -208,18 +215,6 @@ def main(argv: Sequence[str] | None = None) -> None:
             conf,
             phys,
         )
-        arrays = {
-            item.name: np.asarray(getattr(state, item.name)) for item in fields(State)
-        }
-        arrays.update(
-            days=np.arange(args.steps) * conf.deltatTherm / 86400.0,
-            ice=np.asarray(history),
-        )
-        if any(not np.isfinite(array).all() for array in arrays.values()):
-            raise FloatingPointError("growth simulation produced nonfinite output")
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        with args.output.open("wb") as output:
-            np.savez(output, **arrays)
     print(f"Saved {args.steps} growth steps to {args.output}")
 
 

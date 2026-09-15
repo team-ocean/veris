@@ -10,6 +10,7 @@ import pytest
 from veris._typing import State
 from veris.diagnostics import Diagnostics
 from veris.growth import Growth
+from veris.io import read_record
 
 
 def test_growth_case_matches_reference_initial_column() -> None:
@@ -84,22 +85,24 @@ def test_growth_driver_preserves_recursive_fluxes_and_separate_diagnostics() -> 
         state = actual
 
 
-def test_growth_cli_records_pre_step_history_and_final_state(tmp_path: Path) -> None:
-    """Save notebook history before each update and the completed State."""
+def test_growth_cli_records_physical_final_state(tmp_path: Path) -> None:
+    """Save the completed State without storage halos in netCDF."""
     from veris.setups import run_growth
 
-    path = tmp_path / "growth.npz"
+    path = tmp_path / "growth.nc"
     run_growth.main(["--steps", "2", "--backend", "cpu", "--output", str(path)])
     initial, conf, phys = run_growth.initialize()
     first = run_growth.step(initial, conf, phys)
     final = run_growth.step(first, conf, phys)
-    with np.load(path) as saved:
-        np.testing.assert_allclose(saved["days"], [0, 1])
-        np.testing.assert_allclose(saved["ice"], [1.3, first.hIceMean[2, 2]])
-        for field in fields(State):
-            np.testing.assert_allclose(
-                saved[field.name], getattr(final, field.name), rtol=1e-12, atol=1e-12
-            )
+    saved = read_record(path)
+    assert saved.time == 2 * conf.deltatTherm
+    for field in fields(State):
+        np.testing.assert_allclose(
+            saved.fields[field.name],
+            getattr(final, field.name)[2:-2, 2:-2],
+            rtol=1e-12,
+            atol=1e-12,
+        )
 
 
 def test_growth_cli_rejects_negative_steps(tmp_path: Path) -> None:
@@ -107,7 +110,7 @@ def test_growth_cli_rejects_negative_steps(tmp_path: Path) -> None:
     from veris.setups import run_growth
 
     with pytest.raises(SystemExit):
-        run_growth.main(["--steps", "-1", "--output", str(tmp_path / "bad.npz")])
+        run_growth.main(["--steps", "-1", "--output", str(tmp_path / "bad.nc")])
 
 
 def test_growth_initialize_accepts_model_overrides() -> None:
@@ -125,22 +128,21 @@ def test_growth_cli_zero_steps_saves_initial_column(tmp_path: Path) -> None:
     """Permit initialization-only output with an empty history."""
     from veris.setups import run_growth
 
-    path = tmp_path / "initial.npz"
+    path = tmp_path / "initial.nc"
     run_growth.main(["--steps", "0", "--backend", "cpu", "--output", str(path)])
-    with np.load(path) as saved:
-        assert saved["days"].shape == (0,)
-        assert saved["ice"].shape == (0,)
-        np.testing.assert_allclose(saved["hIceMean"], 1.3)
+    saved = read_record(path)
+    assert saved.time == 0
+    assert saved.fields["hIceMean"].shape == (2, 2)
+    np.testing.assert_allclose(saved.fields["hIceMean"], 1.3)
 
 
 def test_growth_cli_creates_output_parent(tmp_path: Path) -> None:
     """Create missing directories for a caller-selected output path."""
     from veris.setups import run_growth
 
-    path = tmp_path / "nested" / "outputs" / "growth.npz"
+    path = tmp_path / "nested" / "outputs" / "growth.nc"
     run_growth.main(["--steps", "0", "--output", str(path)])
-    with np.load(path) as saved:
-        np.testing.assert_allclose(saved["hIceMean"], 1.3)
+    np.testing.assert_allclose(read_record(path).fields["hIceMean"], 1.3)
 
 
 def test_growth_cli_rejects_nonfinite_output(
@@ -152,7 +154,7 @@ def test_growth_cli_rejects_nonfinite_output(
     state, conf, phys = run_growth.initialize()
     invalid = replace(state, hIceMean=state.hIceMean.at[2, 2].set(np.nan))
     monkeypatch.setattr(run_growth, "initialize", lambda: (invalid, conf, phys))
-    path = tmp_path / "invalid.npz"
+    path = tmp_path / "invalid.nc"
     with pytest.raises(FloatingPointError, match="nonfinite"):
         run_growth.main(["--steps", "1", "--output", str(path)])
     assert not path.exists()

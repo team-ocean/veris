@@ -2,7 +2,7 @@
 
 Arrays use the VARIABLES registry's (x, y) C-grid dimensions. File records are
 append-only, selected-field inputs update an already initialized State, and
-full halo-inclusive snapshots preserve its arrays. No numerical kernels or
+snapshots contain physical cells only. No numerical kernels or
 source-reference equations are changed by this storage layer.
 """
 
@@ -30,18 +30,14 @@ from veris.physical_constants import PhysicalConstants
 from veris.variables import VARIABLES
 
 ArrayFields = Mapping[str, Any]
-Collector = Callable[
-    [State | ArrayFields, tuple[str, ...], bool], Mapping[str, Any] | None
-]
+Collector = Callable[[State | ArrayFields, tuple[str, ...]], Mapping[str, Any] | None]
 
 
 def selected_fields(
     source: State | ArrayFields,
     names: Sequence[str] | None = None,
-    *,
-    include_halos: bool = True,
 ) -> dict[str, NDArray[Any]]:
-    """Validate and materialize selected arrays; optionally trim serial halos."""
+    """Validate and materialize already physical selected arrays."""
     require_host()
     if names is None:
         names = tuple(source) if isinstance(source, Mapping) else tuple(VARIABLES)
@@ -72,14 +68,19 @@ def selected_fields(
         if shape is not None and shape != array.shape:
             raise ValueError(f"variable {name} has inconsistent grid shape")
         shape = array.shape
-        if not include_halos:
-            if min(array.shape) <= 4:
-                raise ValueError(
-                    f"variable {name} has no interior beyond two-cell halos"
-                )
-            array = array[2:-2, 2:-2]
         result[name] = array
     return result
+
+
+def storage_fields(
+    source: State | ArrayFields, names: Sequence[str] | None = None
+) -> dict[str, NDArray[Any]]:
+    """Extract physical cells from serial arrays with two-cell storage halos."""
+    arrays = selected_fields(source, names)
+    for name, array in arrays.items():
+        if min(array.shape) <= 4:
+            raise ValueError(f"variable {name} has no interior beyond two-cell halos")
+    return {name: array[2:-2, 2:-2] for name, array in arrays.items()}
 
 
 class NetCDFWriter:
@@ -119,7 +120,6 @@ class NetCDFWriter:
         fields: ArrayFields,
         *,
         mean: bool = False,
-        include_halos: bool = False,
         time: float | None = None,
         mean_samples: bool = False,
     ) -> None:
@@ -140,11 +140,7 @@ class NetCDFWriter:
         group = self._file.groups[stream]
         arrays = fields
         expected = {name for name in group.variables if name in VARIABLES}
-        if (
-            expected != set(arrays)
-            or bool(group.attrs["mean"]) != mean
-            or bool(group.attrs["include_halos"]) != include_halos
-        ):
+        if expected != set(arrays) or bool(group.attrs["mean"]) != mean:
             raise ValueError("stream variables and record kind cannot change")
         for name, array in arrays.items():
             if group.variables[name].shape[1:] != array.shape:
@@ -169,7 +165,6 @@ class NetCDFWriter:
         count: int = 1,
         partial: bool = False,
         mean: bool = False,
-        include_halos: bool = False,
     ) -> None:
         """Append one validated record with equal-weight sample count and bounds."""
         require_host()
@@ -177,6 +172,8 @@ class NetCDFWriter:
             raise RuntimeError("writer is closed")
         if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", stream):
             raise ValueError("stream name must be a simple netCDF identifier")
+        if partial:
+            raise ValueError("partial records cannot be written")
         arrays = selected_fields(fields)
         if (
             not np.isfinite((time, *bounds)).all()
@@ -188,9 +185,7 @@ class NetCDFWriter:
             raise ValueError(
                 "record requires finite ordered time bounds and positive sample count"
             )
-        self.validate_schema(
-            stream, arrays, mean=mean, include_halos=include_halos, time=time
-        )
+        self.validate_schema(stream, arrays, mean=mean, time=time)
         if self._file is None:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self._file = h5netcdf.File(self.path, "x")
@@ -199,7 +194,7 @@ class NetCDFWriter:
         if stream not in file.groups:
             group = file.create_group(stream)
             group.dimensions = {"time": None, "bounds": 2}
-            group.attrs.update({"include_halos": int(include_halos), "mean": int(mean)})
+            group.attrs.update({"mean": int(mean)})
             for name, array in arrays.items():
                 for dim, size in zip(
                     VARIABLES[name].dimensions, array.shape, strict=True
@@ -256,7 +251,6 @@ class Record:
     count: int
     partial: bool
     mean: bool
-    include_halos: bool
     calendar: str
     units: str
     configuration: dict[str, Any]
@@ -304,7 +298,6 @@ def read_record(
             int(group.variables["sample_count"][index]),
             bool(group.variables["partial"][index]),
             bool(group.attrs["mean"]),
-            bool(group.attrs["include_halos"]),
             str(group.variables["time"].attrs["calendar"]),
             str(group.variables["time"].attrs["units"]),
             json.loads(file.attrs.get("configuration", "{}")),
@@ -313,20 +306,27 @@ def read_record(
 
 
 def update_state(state: State, record: Record) -> State:
-    """Apply halo-inclusive instantaneous fields to an initialized compatible State."""
+    """Insert physical fields into a serial State, preserving its existing halos.
+
+    Refresh boundary halos with the model boundary exchange before integration.
+    Distributed State reconstruction requires a separate initialization step.
+    """
     require_host()
     if record.mean:
         raise ValueError("a mean record is not an instantaneous State snapshot")
-    if not record.include_halos:
-        raise ValueError("State updates require halo-inclusive snapshots")
     arrays = selected_fields(record.fields)
     for name, value in arrays.items():
-        if value.shape != getattr(state, name).shape:
+        target = getattr(state, name)
+        if getattr(getattr(target, "sharding", None), "num_devices", 1) > 1:
+            raise ValueError("State updates require a serial initialized State")
+        if value.shape != tuple(size - 4 for size in target.shape):
             raise ValueError(f"variable {name} shape does not match initialized State")
     return replace(
         state,
         **{
-            name: jnp.asarray(value, dtype=getattr(state, name).dtype)
+            name: getattr(state, name)
+            .at[2:-2, 2:-2]
+            .set(jnp.asarray(value, dtype=getattr(state, name).dtype))
             for name, value in arrays.items()
         },
     )
@@ -340,7 +340,6 @@ def write_snapshot(
     start: datetime | FixedDate = datetime(2000, 1, 1),
     calendar: str = "gregorian",
     variables: Sequence[str] | None = None,
-    include_halos: bool = True,
     conf: Configuration | None = None,
     phys: PhysicalConstants | None = None,
     collector: Collector | None = None,
@@ -352,7 +351,7 @@ def write_snapshot(
     if collector is None:
         if conf is not None and conf.use_sharding:
             raise ValueError("sharded State output requires a distributed collector")
-        fields = selected_fields(state, variables, include_halos=include_halos)
+        fields = storage_fields(state, variables)
     else:
         names = (
             tuple(variables)
@@ -365,7 +364,7 @@ def write_snapshot(
             or any(name not in VARIABLES for name in names)
         ):
             raise ValueError("invalid variable selection")
-        collected = collector(state, names, include_halos)
+        collected = collector(state, names)
         if collected is None:
             return
         fields = selected_fields(collected, names)
@@ -383,5 +382,4 @@ def write_snapshot(
             fields,
             time=time,
             bounds=(time, time),
-            include_halos=include_halos,
         )

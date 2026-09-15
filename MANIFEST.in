@@ -1,2 +1,3 @@
 include versioneer.py versioneer.pyi
 recursive-include veris *.pyi py.typed
+recursive-include docs *.rst *.py *.txt *.conf Makefile LICENSE

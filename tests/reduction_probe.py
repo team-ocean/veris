@@ -5,7 +5,6 @@ pytest. JAX_PLATFORMS selects CPU or CUDA before initialization. Packed local
 blocks include poisoned halos; only their interiors belong in residual norms.
 """
 
-import argparse
 import os
 import socket
 import subprocess
@@ -16,6 +15,8 @@ from collections.abc import Callable
 from contextlib import ExitStack
 from pathlib import Path
 from typing import Literal, TextIO, cast
+
+import click
 
 
 def launch_processes(
@@ -180,28 +181,27 @@ def check_layout(px: int, py: int) -> None:
         np.testing.assert_allclose(shard.data, gradient[shard.index], rtol=1e-13)
 
 
-def main() -> None:
+@click.command(help=__doc__)
+@click.option("--rank", type=click.IntRange(min=0), default=0)
+@click.option("--count", type=click.IntRange(min=1), default=1)
+@click.option("--coordinator")
+def main(rank: int, count: int, coordinator: str | None) -> None:
     """Initialize before backend access and verify every rank's local gradients."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--rank", type=int, default=0)
-    parser.add_argument("--count", type=int, default=1)
-    parser.add_argument("--coordinator")
-    args = parser.parse_args()
     import jax
 
     jax.config.update("jax_enable_x64", True)
-    if args.count > 1:
+    if count > 1:
         jax.distributed.initialize(
-            coordinator_address=args.coordinator,
-            num_processes=args.count,
-            process_id=args.rank,
+            coordinator_address=coordinator,
+            num_processes=count,
+            process_id=rank,
             initialization_timeout=45,
             local_device_ids=[0]
             if os.environ.get("JAX_PLATFORMS") in ("cuda", "gpu")
             else None,
         )
     try:
-        assert jax.process_count() == args.count
+        assert jax.process_count() == count
         n = len(jax.devices())
         layouts = [(n, 1), (1, n)]
         if n == 4:
@@ -209,11 +209,11 @@ def main() -> None:
         for layout in layouts:
             check_layout(*layout)
         print(
-            f"rank {args.rank}: reduction values, gradients, and halo exclusion passed",
+            f"rank {rank}: reduction values, gradients, and halo exclusion passed",
             flush=True,
         )
     finally:
-        if args.count > 1:
+        if count > 1:
             jax.distributed.shutdown()
 
 

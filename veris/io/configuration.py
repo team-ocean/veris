@@ -87,12 +87,6 @@ OUTPUT_SETTINGS = {
     "sample_initial": OutputOption(
         True, bool, "Include the initial State at elapsed zero."
     ),
-    "write_partial": OutputOption(
-        True, bool, "Write a nonempty incomplete last averaging window at close."
-    ),
-    "include_halos": OutputOption(
-        False, bool, "Preserve storage halos; False writes only physical cells."
-    ),
     "enabled": OutputOption(
         True,
         bool,
@@ -109,8 +103,6 @@ class OutputSettings:
     calendar: str = OUTPUT_SETTINGS["calendar"].default
     streams: tuple[Stream, ...] = OUTPUT_SETTINGS["streams"].default
     sample_initial: bool = OUTPUT_SETTINGS["sample_initial"].default
-    write_partial: bool = OUTPUT_SETTINGS["write_partial"].default
-    include_halos: bool = OUTPUT_SETTINGS["include_halos"].default
     enabled: bool = OUTPUT_SETTINGS["enabled"].default
 
     def __post_init__(self) -> None:
@@ -121,6 +113,6 @@ class OutputSettings:
             raise ValueError("at least one Stream is required")
         if len({s.name for s in self.streams}) != len(self.streams):
             raise ValueError("stream names must be unique")
-        for name in ("sample_initial", "write_partial", "include_halos", "enabled"):
+        for name in ("sample_initial", "enabled"):
             if not isinstance(getattr(self, name), bool):
                 raise TypeError(f"{name} must be bool")

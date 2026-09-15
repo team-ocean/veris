@@ -11,23 +11,25 @@ Distributed initialization precedes backend allocation.
 
 from __future__ import annotations
 
-import argparse
 import os
 from collections.abc import Callable, Mapping
 from datetime import timedelta
 from functools import partial
 from pathlib import Path
 from time import perf_counter
+from types import SimpleNamespace
 from typing import Any, TypeVar
 
+import click
 import jax
 import numpy as np
 from jax.sharding import Mesh
 from jax.sharding import PartitionSpec as P
 
 from veris._typing import State
-from veris.io.cli import add_output_arguments, make_output, save_final
+from veris.io.cli import make_output, output_options, parse_options, save_final
 from veris.io.distributed import distributed_collector
+from veris.io.storage import selected_fields, write_snapshot
 
 OUTPUT_FIELDS = (
     "hIceMean",
@@ -129,14 +131,12 @@ def gather_output(state: State, mesh: Mesh) -> dict[str, np.ndarray]:
 def save_output(
     path: Path, fields: Mapping[str, np.ndarray], *, process_index: int
 ) -> None:
-    """Reject nonfinite results and write one NPZ on process zero."""
+    """Reject nonfinite physical fields and write netCDF on process zero."""
     if process_index == 0:
         for name, field in fields.items():
             if not np.all(np.isfinite(field)):
                 raise ValueError(f"nonfinite output in {name}")
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("wb") as output:
-            np.savez(output, allow_pickle=False, **fields)
+        write_snapshot(path, fields, collector=selected_fields)
 
 
 def run_timed(
@@ -163,25 +163,22 @@ def run_timed(
     return state, warmup_seconds, perf_counter() - started
 
 
-def _positive_integer(value: str) -> int:
-    parsed = int(value)
-    if parsed < 1:
-        raise argparse.ArgumentTypeError("must be a positive integer")
-    return parsed
-
-
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+@click.command(help=__doc__)
+@click.option("--nx", type=click.IntRange(min=2), default=1024)
+@click.option("--ny", type=click.IntRange(min=2))
+@click.option("--mesh", nargs=2, type=click.IntRange(min=1), metavar="PX PY")
+@click.option("--steps", type=click.IntRange(min=1), default=1000)
+@click.option("--evp-steps", type=click.IntRange(min=1), default=120)
+@click.option("--backend", type=click.Choice(["cpu", "gpu"]), default="cpu")
+@output_options("parallel.nc", OUTPUT_FIELDS)
+def cli(**kwargs: Any) -> SimpleNamespace:
     """Parse global physical grid, device topology and integration options."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--nx", type=_positive_integer, default=1024)
-    parser.add_argument("--ny", type=_positive_integer)
-    parser.add_argument("--mesh", nargs=2, type=_positive_integer, metavar=("PX", "PY"))
-    parser.add_argument("--steps", type=_positive_integer, default=1000)
-    parser.add_argument("--evp-steps", type=_positive_integer, default=120)
-    parser.add_argument("--backend", choices=("cpu", "gpu"), default="cpu")
-    parser.add_argument("--output", type=Path, default=Path("parallel.npz"))
-    add_output_arguments(parser)
-    return parser.parse_args(argv)
+    return SimpleNamespace(**kwargs)
+
+
+def parse_args(argv: list[str] | None = None) -> SimpleNamespace:
+    """Validate command arguments before distributed initialization."""
+    return parse_options(cli, argv)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -234,9 +231,7 @@ def main(argv: list[str] | None = None) -> None:
                 physical,
                 collector=collect,
             )
-            gathered = gather_output(state, mesh)
         rank = jax.process_index()
-        save_output(arguments.output, gathered, process_index=rank)
         if rank == 0:
             print(
                 f"mesh={mesh.shape['x']}x{mesh.shape['y']} backend={arguments.backend} steps={arguments.steps}"
