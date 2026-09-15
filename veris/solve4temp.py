@@ -38,9 +38,6 @@ def solve4temp(
     bb1 = phys.waterVaporDryAirMassRatio
     bb2 = 1 - bb1
     Ppascals = phys.iceSurfacePressure
-    cc0 = 10**aa2
-    cc1 = cc0 * aa1 * bb1 * Ppascals * jnp.log(10)
-    cc2 = cc0 * bb2
 
     # sensible heat constant
     d1 = phys.dalton * phys.cpAir * phys.rhoAir
@@ -152,8 +149,19 @@ def solve4temp(
         q_s = jnp.where(isIce, bb1 * svp / (Ppascals - (1 - bb1) * svp), 0)
 
         # derivative of q_s w.r.t snow/ice surface temperature
-        cc3t = 10 ** (aa1 / t1)
-        dqs_dTs = jnp.where(isIce, cc1 * cc3t / ((cc2 - cc3t * Ppascals) ** 2 * t2), 0)
+        # Use vapor pressure directly. The equivalent inverse-power expression
+        # squares intermediates near 1e15; differentiating its denominator can
+        # overflow float32 even when the humidity slope itself remains finite.
+        dqs_dTs = jnp.where(
+            isIce,
+            bb1
+            * Ppascals
+            * svp
+            * aa1
+            * jnp.log(10)
+            / ((Ppascals - bb2 * svp) ** 2 * t2),
+            0,
+        )
 
         # calculate the fluxes based on the surface temperature
 
