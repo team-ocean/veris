@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, fields, replace
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,7 @@ from veris.configuration import SETTINGS, Configuration
 from veris.diagnostics import Diagnostics
 from veris.growth import Growth
 from veris.initialization import initialize as initialize_model
+from veris.io.cli import add_output_arguments, make_output, save_final
 from veris.physical_constants import PhysicalConstants
 
 GROWTH_SETTINGS: dict[str, Parameter] = {
@@ -182,6 +184,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--steps", type=int, default=GROWTH_SETTINGS["steps"].default)
     parser.add_argument("--backend", choices=("cpu", "gpu"), default="cpu")
     parser.add_argument("--output", type=Path, default=Path("growth.npz"))
+    add_output_arguments(parser)
     args = parser.parse_args(argv)
     if args.steps < 0:
         parser.error("--steps must be nonnegative")
@@ -189,9 +192,22 @@ def main(argv: Sequence[str] | None = None) -> None:
     with jax.default_device(jax.devices(args.backend)[0]):
         state, conf, phys = initialize()
         history = []
-        for _ in range(args.steps):
-            history.append(state.hIceMean[2, 2])
-            state = compiled_step(state, conf, phys)
+        with make_output(args, conf.deltatTherm) as output:
+            output.sample(state, timedelta(0))
+            for iteration in range(args.steps):
+                history.append(state.hIceMean[2, 2])
+                state = compiled_step(state, conf, phys)
+                output.sample(
+                    state, timedelta(seconds=(iteration + 1) * conf.deltatTherm)
+                )
+        save_final(
+            args,
+            state,
+            timedelta(seconds=args.steps * conf.deltatTherm),
+            output.settings,
+            conf,
+            phys,
+        )
         arrays = {
             item.name: np.asarray(getattr(state, item.name)) for item in fields(State)
         }

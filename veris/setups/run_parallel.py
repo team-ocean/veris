@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import os
 from collections.abc import Callable, Mapping
+from datetime import timedelta
 from functools import partial
 from pathlib import Path
 from time import perf_counter
@@ -25,6 +26,8 @@ from jax.sharding import Mesh
 from jax.sharding import PartitionSpec as P
 
 from veris._typing import State
+from veris.io.cli import add_output_arguments, make_output, save_final
+from veris.io.distributed import distributed_collector
 
 OUTPUT_FIELDS = (
     "hIceMean",
@@ -137,7 +140,11 @@ def save_output(
 
 
 def run_timed(
-    state: _T, advance: Callable[[_T], _T], steps: int
+    state: _T,
+    advance: Callable[[_T], _T],
+    steps: int,
+    *,
+    observe: Callable[[_T, int], None] | None = None,
 ) -> tuple[_T, float, float]:
     """Discard synchronized warmup, then time the requested evolving trajectory."""
     if steps < 1:
@@ -146,8 +153,12 @@ def run_timed(
     jax.block_until_ready(advance(state))
     warmup_seconds = perf_counter() - started
     started = perf_counter()
-    for _ in range(steps):
+    if observe is not None:
+        observe(state, 0)
+    for iteration in range(steps):
         state = advance(state)
+        if observe is not None:
+            observe(state, iteration + 1)
     jax.block_until_ready(state)
     return state, warmup_seconds, perf_counter() - started
 
@@ -169,6 +180,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--evp-steps", type=_positive_integer, default=120)
     parser.add_argument("--backend", choices=("cpu", "gpu"), default="cpu")
     parser.add_argument("--output", type=Path, default=Path("parallel.npz"))
+    add_output_arguments(parser)
     return parser.parse_args(argv)
 
 
@@ -201,7 +213,27 @@ def main(argv: list[str] | None = None) -> None:
                 settings_overrides={"nEVPsteps": arguments.evp_steps},
             )
             advance = partial(run_dyn.compiled_step, conf=settings, phys=physical)
-            state, warmup, elapsed = run_timed(state, advance, arguments.steps)
+            collect = distributed_collector(mesh)
+            with make_output(
+                arguments, settings.deltatDyn, collector=collect
+            ) as output:
+                state, warmup, elapsed = run_timed(
+                    state,
+                    advance,
+                    arguments.steps,
+                    observe=lambda result, iteration: output.sample(
+                        result, timedelta(seconds=iteration * settings.deltatDyn)
+                    ),
+                )
+            save_final(
+                arguments,
+                state,
+                timedelta(seconds=arguments.steps * settings.deltatDyn),
+                output.settings,
+                settings,
+                physical,
+                collector=collect,
+            )
             gathered = gather_output(state, mesh)
         rank = jax.process_index()
         save_output(arguments.output, gathered, process_index=rank)

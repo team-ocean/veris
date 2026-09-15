@@ -9,6 +9,7 @@ Scenario coefficients are experimental controls, not universal physical laws.
 
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
+from datetime import timedelta
 from functools import partial
 from typing import Any
 
@@ -23,6 +24,7 @@ from veris._typing import Parameter, State
 from veris.configuration import Configuration
 from veris.diagnostics import Diagnostics
 from veris.initialization import initialize as initialize_model
+from veris.io.cli import add_output_arguments, make_output, save_final
 from veris.physical_constants import PhysicalConstants
 from veris.variables import VARIABLES
 
@@ -323,6 +325,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--evp-steps", type=int, default=120)
     parser.add_argument("--backend", choices=("cpu", "gpu"), default="cpu")
     parser.add_argument("--output", type=Path, default=Path("dynamics.npz"))
+    add_output_arguments(parser)
     args = parser.parse_args(argv)
     if args.steps < 0:
         parser.error("--steps must be nonnegative")
@@ -335,8 +338,21 @@ def main(argv: list[str] | None = None) -> None:
         jax.block_until_ready(compiled_step(state, conf, phys))
         compiled = perf_counter() - started
         started = perf_counter()
-        for _ in range(args.steps):
-            state = compiled_step(state, conf, phys)
+        with make_output(args, conf.deltatDyn) as manager:
+            manager.sample(state, timedelta(0))
+            for iteration in range(args.steps):
+                state = compiled_step(state, conf, phys)
+                manager.sample(
+                    state, timedelta(seconds=(iteration + 1) * conf.deltatDyn)
+                )
+        save_final(
+            args,
+            state,
+            timedelta(seconds=args.steps * conf.deltatDyn),
+            manager.settings,
+            conf,
+            phys,
+        )
         jax.block_until_ready(state)
         elapsed = perf_counter() - started
         output = {

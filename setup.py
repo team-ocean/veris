@@ -25,7 +25,12 @@ Operating System :: Unix
 Operating System :: MacOS
 """
 
-INSTALL_REQUIRES: Final[list[str]] = ["jax>=0.11.1", "numpy>=2.0"]
+INSTALL_REQUIRES: Final[list[str]] = [
+    "jax>=0.11.1",
+    "numpy>=2.0",
+    "h5netcdf>=1.8.1",
+    "h5py>=3.7",
+]
 
 with open(os.path.join(here, "README.md"), encoding="utf-8") as f:
     long_description: str = f.read()

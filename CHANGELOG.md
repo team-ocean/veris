@@ -1,5 +1,59 @@
 # Development log
 
+## 2026-09-15 — Calendar-aware I/O design
+
+- [x] Implemented veris.io calendars, immutable registry-backed output options,
+  per-stream exact sampling, float64 sum/count means, h5netcdf storage/input and
+  independent final snapshots. State and numerical kernels stay unchanged.
+- [x] Added opt-in netCDF controls to growth/dynamics/parallel drivers; collective
+  output removes every partition halo and writes only on rank zero. Retained NPZ.
+- [x] Focused checks cover Gregorian/fixed dates, daily/monthly/annual/custom
+  means, subsecond/multiple schedules, constant buffer size, snapshots/input,
+  grad/JVP/JIT no-effects (including constants), actual growth AD final State,
+  and four-local-CPU physical output. Baseline fast suite passed 79 tests.
+- [x] Independent review reproduced silent dtype loss and a rejected sample
+  contaminating an earlier mean stream. Added regressions, reject unsafe storage
+  casts and preflight all stream schemas before updating accumulators.
+  Another regression corrected discard-final-partial behavior to retain a
+  completed initial partial period. No physics equations or tolerances changed.
+- [x] Ruff/annotations/ty pass; Sphinx clean warnings-as-errors build passes.
+  Initial docs attempt found a short heading underline and sandbox inventory
+  access failure; repaired heading and rebuilt with network access.
+- [x] Full CPU correctness: 868 passed, 1 existing GPU-only test skipped,
+  0 failures/errors. SLURM job 65265147 COMPLETED exit 0:0 in 6m51s on node453,
+  partition aegir with constraint v3, exactly as requested.
+- [x] Coverage: maintained 2312/2415 = 95.73%; whole package 2312/2768 =
+  83.53%; new I/O package 495/530 = 93.40%. No omissions beyond the existing
+  generated _version.py exclusion for the maintained metric.
+- [x] True two-process CPU output matches the physical NPZ fields exactly;
+  instantaneous/final timestamps, three-sample daily mean metadata and 360_day
+  February 30 verified. Both ranks participated; one netCDF writer succeeded.
+  CPU validation used the requested aegir/v3 allocation; no GPU partition used.
+- [x] Sphinx clean build and rendered registry-table inspection pass. Independent
+  re-review found no remaining blocker; tested production/source hashes match.
+  Evidence: test_logs/io-validation-65265147/, test_logs/io-docs.log and
+  test_logs/io-source-hashes.json. No pytest process remains in the completed job.
+- [x] Requirement audit recorded in docs/superpowers/plans/2026-09-15-io.md;
+  verified implementation ready for local integration back to jax-only.
+
+
+- User explicitly approved design; implementation resumed. Root owns storage,
+  scheduling, drivers and pytest scheduling; calendar specialist owns calendar
+  module/tests. Plan: docs/superpowers/plans/2026-09-15-io.md.
+
+- Inspected authoritative jax-only tree: no existing I/O/calendar subsystem;
+  maintained examples currently write NPZ. VARIABLES supplies netCDF metadata,
+  and the parallel runner already provides partition-aware halo removal/gather.
+- Proposed complete I/O design in
+  docs/superpowers/specs/2026-09-15-io-design.md, including input, calendar
+  sampling, sum/count means, distributed output and strict AD separation.
+- Awaiting design approval required by the explicitly invoked Superpowers
+  brainstorming skill. No implementation or test run yet.
+- Blocked audit: approval remains absent across the initial design turn and two
+  automatic continuations. Previous turn made no implementation progress;
+  rechecked worktree and proposed spec. Goal marked blocked pending explicit
+  design approval; full implementation scope remains unchanged.
+
 ## 2026-09-14 — Shared Parameter metadata
 
 - Replaced Setting and PhysicalConstant with one Parameter named tuple in
