@@ -332,6 +332,13 @@ def update_state(state: State, record: Record) -> State:
     )
 
 
+def _json_scalar(value: Any) -> float:
+    """Encode precision-normalized static floats as numeric JSON metadata."""
+    if isinstance(value, np.floating):
+        return float(value)
+    raise TypeError(f"unsupported snapshot metadata type: {type(value).__name__}")
+
+
 def write_snapshot(
     path: str | Path,
     state: State | ArrayFields,
@@ -370,9 +377,11 @@ def write_snapshot(
         fields = selected_fields(collected, names)
     attributes = {}
     if conf is not None:
-        attributes["configuration"] = json.dumps(asdict(conf))
+        attributes["configuration"] = json.dumps(asdict(conf), default=_json_scalar)
     if phys is not None:
-        attributes["physical_constants"] = json.dumps(asdict(phys))
+        attributes["physical_constants"] = json.dumps(
+            asdict(phys), default=_json_scalar
+        )
     time = duration_us(elapsed) / 1e6
     with NetCDFWriter(
         path, calendar=clock.name, units=clock.units, attributes=attributes

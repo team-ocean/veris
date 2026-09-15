@@ -265,3 +265,29 @@ def test_writer_rejects_partial_mean_before_creating_file(tmp_path: Path) -> Non
             partial=True,
         )
     assert not path.exists()
+
+
+def test_float32_snapshot_preserves_settings_and_constants_metadata(
+    tmp_path: Path,
+) -> None:
+    """NumPy float32 static parameters remain numeric JSON values in a snapshot."""
+    from veris.initialization import initialize
+    from veris.io import read_record, write_snapshot
+
+    state, conf, phys = initialize(
+        nx=3,
+        ny=4,
+        dtype="float32",
+        settings_overrides={"use_sharding": False, "deltatTherm": 123.5},
+        physical_overrides={"rhoAir": 1.25},
+    )
+    path = tmp_path / "float32.nc"
+    write_snapshot(path, state, conf=conf, phys=phys)
+    record = read_record(path)
+    assert record.configuration["dtype"] == "float32"
+    assert record.configuration["deltatTherm"] == 123.5
+    assert record.physical_constants["rhoAir"] == 1.25
+    assert record.physical_constants["longwaveCloudCoefficients"] == list(
+        phys.longwaveCloudCoefficients
+    )
+    assert record.fields["hIceMean"].dtype == np.float32

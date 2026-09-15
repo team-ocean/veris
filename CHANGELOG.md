@@ -1,5 +1,32 @@
 # Development log
 
+## 2026-09-15 — Uninterrupted versus restarted integration
+
+- [x] New full-State equivalence test uses coupled artificial
+  dynamics, advection and growth on a nonuniform 6 by 8 island grid. Checkpoints
+  after steps 1 and 3, float32/float64, and changing cooling exercise physical
+  netCDF fields, configuration/constants, elapsed time and explicit halo rebuild.
+- Fresh State arrays are poisoned before loading so successful continuation
+  cannot rely on retained arrays. Compare all State fields exactly, and include
+  an omitted-halo-rebuild negative control. All 25 focused CPU tests pass.
+- Initial test construction exposed derived dataclass fields and JSON tuple
+  conversion: restore constructor fields only and convert coefficient lists
+  back to tuples. Nondefault rhoAir and exact time assertions prevent silent
+  fallback to default constants or an incorrect forcing step.
+- [x] New float32 case exposed a production metadata serialization failure.
+  Dedicated storage test reproduced it; a narrow np.floating-to-float JSON
+  handler fixes scalar and nested tuple metadata without changing numerics.
+- [x] Independent review found no remaining blocker. All four restart cases
+  also pass on CUDA (Tesla P100), with exact same-backend State comparisons
+  and no skips. Full CPU suite: 879 passed, one existing GPU-only skip, zero
+  failures/errors in 422.52 s. Maintained coverage 2341/2420 =
+  96.74%; whole-package 84.42%. All maintained Ruff/format/annotation/ty
+  gates pass. Source and test hashes match the full-suite inputs.
+- Evidence: test_logs/restart-focused-green.log, restart-gpu-results.xml,
+  restart-full-results.xml, restart-coverage.json and restart-source-hashes.json.
+  Tests establish manual serial same-backend restart equivalence on CPU/CUDA;
+  automatic distributed restart remains outside the existing input API.
+
 ## 2026-09-15 — Documentation and output policy migration
 
 - [x] Implemented all five requested changes on jax-only.
