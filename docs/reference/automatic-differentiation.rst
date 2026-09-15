@@ -78,3 +78,27 @@ Validate a sensitivity with finite differences on the same smooth branch,
 using the initialized precision for State, Configuration and PhysicalConstants.
 At an exact kink, compare against the stated convention and one-sided behavior
 separately. A finite gradient alone is insufficient evidence of correctness.
+
+Float32 surface-temperature derivatives
+---------------------------------------
+
+The Newton surface-temperature solver evaluates the humidity slope directly
+from saturation vapor pressure. The equivalent inverse-vapor-pressure form
+produced large intermediates whose forward-mode derivatives overflowed float32,
+even when the slope itself was finite. The reformulation retains the same
+humidity equation, masks and temperature limits. Solver tests compare forward
+and reverse derivatives with finite differences and an independent derivative
+of the conductive/atmospheric heat balance.
+
+Differentiating complete rollouts
+---------------------------------
+
+Use the public ``veris.step`` for a fixed-length scan through any setup kernel.
+Checkpointing is enabled by default; it recomputes step intermediates during
+reverse AD without changing the physics sequence. State and time-indexed forcing
+remain differentiable. See :doc:`integration` for a cooling-gradient example,
+auxiliary diagnostic histories, mesh contexts and checkpoint memory limits.
+
+The observer is part of the differentiated scan body. Select a small array
+PyTree when a loss needs intermediate states; omit it for a final-state loss.
+Keep OutputManager and the host timing runner outside JAX transformations.

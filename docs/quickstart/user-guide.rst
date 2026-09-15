@@ -10,14 +10,16 @@ Initialize the model and run the artificial island example::
    import jax
    jax.config.update("jax_enable_x64", True)
 
-   from veris.setups.artificial import initialize, step
+   from functools import partial
+   from veris import step
+   from veris.setups.artificial import initialize, step as advance_artificial
 
    state, settings, constants = initialize(
        nx=8, ny=12, wind=5.0,
        scenario_overrides={"artificialGridSpacing": 8000.0},
    )
-   for _ in range(3):
-       state = step(state, settings, constants, cooling=100.0)
+   advance = partial(advance_artificial, conf=settings, phys=constants, cooling=100.0)
+   state = step(state, advance, 3)
    jax.block_until_ready(state)
    print(float(state.hIceMean[2:-2, 2:-2].mean()))
 
@@ -104,12 +106,13 @@ stores its own two-cell halos, so global array storage has shape
 ``(mesh.shape["x"] * (nx + 4), mesh.shape["y"] * (ny + 4))``. State overrides
 must already use that packed layout. Mesh resources remain outside State.
 
-After supplying consistent geometry, masks and forcing in that layout, call
-``step`` or ``step_with_diagnostics`` inside the same ``jax.set_mesh(mesh)``
-context. The driver maps its stencil calculations over local partitions and
-exchanges their halos; EVP residual reductions use the mesh axes. The regular
+After supplying consistent geometry, masks and forcing in that layout, bind
+``artificial.step`` or ``artificial.step_with_diagnostics`` and call the shared
+``veris.step`` inside the same ``jax.set_mesh(mesh)`` context. The driver maps its stencil calculations over local partitions and
+exchanges their halos; EVP residual reductions use the mesh axes. The setup-level
 ``step`` returns State, while ``step_with_diagnostics`` returns State and the
-separate coupling diagnostics. ``compiled_step`` provides an optional compiled
+separate coupling diagnostics. The shared rollout selects diagnostics using
+``has_aux=True`` and a pure observer; see :doc:`/reference/integration`. ``compiled_step`` provides an optional compiled
 version of the same driver. Sharded execution currently accepts spatially
 uniform cooling as a scalar or replicated scalar JAX array.
 

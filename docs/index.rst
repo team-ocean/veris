@@ -21,6 +21,7 @@ implementation as part of his Master's thesis.
    :caption: Reference
 
    reference/setup-gallery
+   reference/integration
    reference/settings
    reference/physical-constants
    reference/variables

@@ -26,6 +26,7 @@ from veris._typing import Parameter, State
 from veris.configuration import Configuration
 from veris.diagnostics import Diagnostics
 from veris.initialization import initialize as initialize_model
+from veris.integration_output import output_callbacks, run_timed
 from veris.io.cli import make_output, output_options, parse_options, save_final
 from veris.physical_constants import PhysicalConstants
 from veris.variables import VARIABLES
@@ -328,27 +329,21 @@ def cli(**kwargs: Any) -> SimpleNamespace:
 
 def main(argv: list[str] | None = None) -> None:
     """Integrate the reference experiment and save physical fields as netCDF."""
-    from time import perf_counter
-
     args = parse_options(cli, argv)
     jax.config.update("jax_enable_x64", True)
     with jax.default_device(jax.devices(args.backend)[0]):
         state, conf, phys = initialize(
             args.nx, args.ny, settings_overrides={"nEVPsteps": args.evp_steps}
         )
-        started = perf_counter()
-        jax.block_until_ready(compiled_step(state, conf, phys))
-        compiled = perf_counter() - started
-        started = perf_counter()
         with make_output(args, conf.deltatDyn) as manager:
-            manager.sample(state, timedelta(0))
-            for iteration in range(args.steps):
-                state = compiled_step(state, conf, phys)
-                manager.sample(
-                    state, timedelta(seconds=(iteration + 1) * conf.deltatDyn)
-                )
-        jax.block_until_ready(state)
-        elapsed = perf_counter() - started
+            observe, select = output_callbacks(manager, conf.deltatDyn)
+            state, compiled, elapsed = run_timed(
+                state,
+                partial(compiled_step, conf=conf, phys=phys),
+                args.steps,
+                observe=observe,
+                select=select,
+            )
         output = {
             name: np.asarray(getattr(state, name))[2:-2, 2:-2] for name in VARIABLES
         }

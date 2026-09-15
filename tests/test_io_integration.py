@@ -7,6 +7,7 @@ from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
+import h5netcdf
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -14,8 +15,9 @@ import pytest
 
 
 @pytest.mark.parametrize("driver", ["run_growth", "run_dyn"])
+@pytest.mark.parametrize("steps", [0, 9])
 def test_serial_driver_writes_selected_stream_and_final_snapshot(
-    tmp_path: Path, driver: str
+    tmp_path: Path, driver: str, steps: int
 ) -> None:
     from importlib import import_module
 
@@ -30,7 +32,7 @@ def test_serial_driver_writes_selected_stream_and_final_snapshot(
     module.main(
         [
             "--steps",
-            "1",
+            str(steps),
             "--output",
             str(final),
             "--netcdf",
@@ -47,7 +49,12 @@ def test_serial_driver_writes_selected_stream_and_final_snapshot(
     sampled = read_record(history, stream="instantaneous")
     snapshot = read_record(final)
     assert set(sampled.fields) == {"hIceMean", "Area"}
-    assert sampled.time == float(interval) and snapshot.time == float(interval)
+    assert sampled.time == snapshot.time == steps * float(interval)
+    with h5netcdf.File(history) as dataset:
+        np.testing.assert_array_equal(
+            dataset.groups["instantaneous"].variables["time"][:],
+            np.arange(steps + 1) * float(interval),
+        )
     np.testing.assert_array_equal(
         sampled.fields["hIceMean"], snapshot.fields["hIceMean"]
     )
@@ -105,7 +112,7 @@ def test_parallel_driver_gathers_each_partition_before_netcdf(tmp_path: Path) ->
             "2",
             "2",
             "--steps",
-            "1",
+            "9",
             "--evp-steps",
             "2",
             "--output",
@@ -126,6 +133,11 @@ def test_parallel_driver_gathers_each_partition_before_netcdf(tmp_path: Path) ->
     assert result.returncode == 0, (
         f"ERROR netCDF parallel driver: {result.stderr[-1800:]}"
     )
+    with h5netcdf.File(history) as dataset:
+        np.testing.assert_array_equal(
+            dataset.groups["instantaneous"].variables["time"][:],
+            np.arange(10) * 600.0,
+        )
     snapshot = read_record(final)
     sampled = read_record(history, stream="instantaneous")
     for name in ("hIceMean", "uIce"):

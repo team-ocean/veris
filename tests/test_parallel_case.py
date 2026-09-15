@@ -64,18 +64,19 @@ def test_local_and_slurm_bootstrap() -> None:
 
 
 def test_timed_loop_discards_warmup_and_evolves_state() -> None:
-    """Warmup compiles once without advancing the requested simulated duration."""
-    inputs = []
+    """A pure recurrence detects accidental warmup advancement under scan.
+
+    Python side effects cannot count traced transitions; the nonlinear final
+    value distinguishes the original three-step trajectory from warmed state.
+    """
 
     def increment(state: jax.Array) -> jax.Array:
-        inputs.append(int(state))
-        return state + 1
+        return 2 * state + 1
 
     state, warmup_seconds, elapsed_seconds = run_parallel.run_timed(
         jax.numpy.asarray(0), increment, 3
     )
-    assert inputs == [0, 0, 1, 2]
-    assert int(state) == 3
+    assert int(state) == 7
     assert warmup_seconds >= 0
     assert elapsed_seconds >= 0
 

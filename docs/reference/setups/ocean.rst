@@ -31,4 +31,18 @@ geometry and nonpositive spacings or areas are rejected on the host.
 The former ``veris.set_inits.set_inits`` entry point has been removed, and all
 setup modules now live under ``veris.setups``.
 
+For a rollout, bind a physics kernel to the initialized model objects::
+
+   from functools import partial
+   from veris import step
+   from veris.setups import artificial
+
+   advance = partial(artificial.step, conf=conf, phys=phys, cooling=100.0)
+   final = step(state, advance, 3)
+
+Choose and supply the ice and forcing fields needed by that kernel; geometry
+initialization alone does not define the experiment. The example uses the
+coupled artificial physics sequence. See :doc:`../integration` for the common
+rollout contract and AD.
+
 .. autofunction:: veris.setups.ocean.initialize_from_ocean

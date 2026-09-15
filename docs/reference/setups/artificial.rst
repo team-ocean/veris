@@ -24,6 +24,10 @@ The example initializes separate settings and physical constants and selects
 serial halos. It does not initialize a distributed mesh.
 The same JAX kernels can execute on a supported CPU or GPU device.
 
+Use the public ``veris.step`` to repeat this setup kernel with scan and
+checkpointing. See :doc:`../integration` for selected diagnostics and
+time-varying cooling, and :doc:`/quickstart/user-guide` for a complete example.
+
 Scenario controls
 -----------------
 

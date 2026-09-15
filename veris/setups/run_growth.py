@@ -14,6 +14,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields, replace
 from datetime import timedelta
+from functools import partial
 from types import SimpleNamespace
 from typing import Any
 
@@ -28,6 +29,7 @@ from veris.configuration import SETTINGS, Configuration
 from veris.diagnostics import Diagnostics
 from veris.growth import Growth
 from veris.initialization import initialize as initialize_model
+from veris.integration_output import output_callbacks, run_timed
 from veris.io.cli import make_output, output_options, parse_options, save_final
 from veris.physical_constants import PhysicalConstants
 
@@ -196,12 +198,14 @@ def main(argv: list[str] | None = None) -> None:
     with jax.default_device(jax.devices(args.backend)[0]):
         state, conf, phys = initialize()
         with make_output(args, conf.deltatTherm) as output:
-            output.sample(state, timedelta(0))
-            for iteration in range(args.steps):
-                state = compiled_step(state, conf, phys)
-                output.sample(
-                    state, timedelta(seconds=(iteration + 1) * conf.deltatTherm)
-                )
+            observe, select = output_callbacks(output, conf.deltatTherm)
+            state, _, _ = run_timed(
+                state,
+                partial(compiled_step, conf=conf, phys=phys),
+                args.steps,
+                observe=observe,
+                select=select,
+            )
         arrays = {
             item.name: np.asarray(getattr(state, item.name)) for item in fields(State)
         }

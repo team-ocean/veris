@@ -1,5 +1,62 @@
 # Development log
 
+## 2026-09-15 — Universal scan step and checkpointed AD
+
+- [x] Implemented public `veris.step(initial, advance, steps, ...)` with lax.scan,
+  default-enabled JAX checkpointing, optional time-indexed forcing and selected
+  observation histories. Auxiliary diagnostics stay outside the State carry.
+  Static count/forcing validation and zero-step behavior are documented/tested.
+- [x] Shared host runner migrates growth, dynamics and parallel CLIs to scans.
+  History output uses at most eight samples per chunk, selecting only requested
+  fields; disabled histories allocate no observations. Warmup covers full/tail
+  shapes without advancing the requested trajectory. Sampling stays host-only.
+- [x] Fixed a newly exposed float32 JVP overflow in solve4temp with equivalent
+  vapor-pressure algebra. Reproduced first in a dedicated public solver test,
+  then verified using JVP/VJP/FD and an independent heat-balance derivative.
+  Repair committed separately as a8b4361.
+- Approved design and implementation plan: docs/superpowers/specs/2026-09-15-universal-step-design.md
+  and docs/superpowers/plans/2026-09-15-universal-step.md. Root coordinated pytest;
+  specialized agents implemented/reviewed setup validation, host I/O and docs.
+
+### Final verification
+- [x] Full CPU suite: 943 passed, one GPU-only skip, zero failures/errors in
+  1520.53 s. Maintained coverage 2406/2482 = 96.94%; whole-package coverage
+  84.87%. Full-suite XML and coverage: test_logs/scan-full-results.xml and
+  test_logs/scan-full-coverage.json. New distributed AD cases account for much
+  of the added runtime; ordinary development should retain --fast selection.
+- [x] All 18 GPU regression assertions passed: all four setup types in both
+  precisions, explicit-step field comparisons, checkpoint on/off JVP/VJP/FD,
+  recursive growth heat-flux behavior, and the GPU-only CLI test skipped on CPU.
+  These use the actual pytest test functions in a standalone GPU harness while
+  only one CPU pytest instance runs. Evidence: test_logs/scan-gpu-cases.json.
+- [x] Actual two-P100 sharded dynamics and coupled probes pass both precisions;
+  actual four-CPU-device forward/AD probes pass both precisions in the full suite.
+- [x] Growth, dynamics and two-GPU parallel CLIs each ran nine timesteps with
+  netCDF histories, crossing an eight-step chunk and a one-step tail. All ten
+  sample times, finite physical shapes and final/history equality verified.
+  Evidence: test_logs/scan-gpu-cli-validation.log and scan-gpu-*.nc.
+- [x] Provided SLURM launcher job 65267175 completed on node453 with exit0:0.
+  Two-process nine-step output and history match serial explicit steps within
+  5.56e-17 for hIceMean/uIce; all timestamps verified. Evidence:
+  test_logs/scan-multiprocess-validation.json and scan-multiprocess-65267175.log.
+- [x] Independent implementation and numerical-fix reviews found no blocker.
+  Sphinx -E -W, maintained Ruff/format/annotation/ty and 80% coverage gate pass.
+  All 121 source/test/document hashes match the full-suite input snapshot.
+  No forward tolerances relaxed; no physics thresholds changed. Validation is
+  complete; local artifacts remain under untracked test_logs/.
+
+### Failed approaches resolved
+
+- Initial setup run: 35 passed, 3 failed. Float32 coupled/growth/ocean JVPs were
+  NaN with finite VJPs; the same defect reproduced in explicit Growth without
+  scan. The inverse-vapor-power humidity derivative caused intermediate overflow;
+  no tolerances or fixtures were relaxed to hide it. A pre-repair sharded probe
+  reproduced the same defect; all post-repair checks above pass.
+- JAX 0.11 Jaxpr.jaxpr is self-referential; the test-only program walker now
+  handles equations before following that property. Initial doc builds exposed
+  short title underlines and sandbox inventory DNS restrictions; corrected
+  headings and a native inventory-enabled rebuild pass.
+
 ## 2026-09-15 — Uninterrupted versus restarted integration
 
 - [x] New full-State equivalence test uses coupled artificial

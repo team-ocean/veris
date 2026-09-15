@@ -2,7 +2,8 @@
 
 Adapted from ``jax_halo_exchange:run_parallel.py``. Global physical nx/ny are
 partitioned by run_dyn.initialize; each device stores its own two-cell halos.
-The timed integration discards a synchronized compilation step. Output contains
+The timed integration discards warmup scans for every executed chunk length.
+Output contains
 the nine reference fields after removing every partition's halos, in (x, y)
 order. CPU ranks use one device each; local runs may expose several devices via
 JAX_NUM_CPU_DEVICES. GPU execution targets the local NVIDIA CUDA devices.
@@ -12,13 +13,12 @@ Distributed initialization precedes backend allocation.
 from __future__ import annotations
 
 import os
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from datetime import timedelta
 from functools import partial
 from pathlib import Path
-from time import perf_counter
 from types import SimpleNamespace
-from typing import Any, TypeVar
+from typing import Any
 
 import click
 import jax
@@ -27,6 +27,7 @@ from jax.sharding import Mesh
 from jax.sharding import PartitionSpec as P
 
 from veris._typing import State
+from veris.integration_output import output_callbacks, run_timed
 from veris.io.cli import make_output, output_options, parse_options, save_final
 from veris.io.distributed import distributed_collector
 from veris.io.storage import selected_fields, write_snapshot
@@ -42,7 +43,6 @@ OUTPUT_FIELDS = (
     "uOcean",
     "vOcean",
 )
-_T = TypeVar("_T")
 
 
 def distributed_options(
@@ -139,30 +139,6 @@ def save_output(
         write_snapshot(path, fields, collector=selected_fields)
 
 
-def run_timed(
-    state: _T,
-    advance: Callable[[_T], _T],
-    steps: int,
-    *,
-    observe: Callable[[_T, int], None] | None = None,
-) -> tuple[_T, float, float]:
-    """Discard synchronized warmup, then time the requested evolving trajectory."""
-    if steps < 1:
-        raise ValueError("steps must be positive")
-    started = perf_counter()
-    jax.block_until_ready(advance(state))
-    warmup_seconds = perf_counter() - started
-    started = perf_counter()
-    if observe is not None:
-        observe(state, 0)
-    for iteration in range(steps):
-        state = advance(state)
-        if observe is not None:
-            observe(state, iteration + 1)
-    jax.block_until_ready(state)
-    return state, warmup_seconds, perf_counter() - started
-
-
 @click.command(help=__doc__)
 @click.option("--nx", type=click.IntRange(min=2), default=1024)
 @click.option("--ny", type=click.IntRange(min=2))
@@ -214,13 +190,13 @@ def main(argv: list[str] | None = None) -> None:
             with make_output(
                 arguments, settings.deltatDyn, collector=collect
             ) as output:
+                observe, select = output_callbacks(output, settings.deltatDyn)
                 state, warmup, elapsed = run_timed(
                     state,
                     advance,
                     arguments.steps,
-                    observe=lambda result, iteration: output.sample(
-                        result, timedelta(seconds=iteration * settings.deltatDyn)
-                    ),
+                    observe=observe,
+                    select=select,
                 )
             save_final(
                 arguments,

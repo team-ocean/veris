@@ -35,13 +35,18 @@ order. The discarded, synchronized warmup does not count as a simulation step.
 The Python API returns independent model objects::
 
    import jax
+   from functools import partial
+   from veris import step
    from veris.setups import run_dyn
 
    jax.config.update("jax_enable_x64", True)
    state, settings, constants = run_dyn.initialize(32, 48)
-   state, diagnostics = run_dyn.step_with_diagnostics(state, settings, constants)
+   advance = partial(run_dyn.step, conf=settings, phys=constants)
+   state = step(state, advance, 3)
 
-``step`` returns just State; ``compiled_step`` compiles the same calculation.
+The setup-level ``step`` returns just State; ``compiled_step`` compiles the same
+calculation. The public ``veris.step`` runs a scan with checkpointing; see
+:doc:`../integration` for forcing, diagnostic histories and sharded rollouts.
 Ocean stresses are separate Diagnostics fields. No coupling output is added to
 State. ``settings_overrides``, ``physical_overrides`` and ``scenario_overrides``
 allow controlled experiments without changing source files.
