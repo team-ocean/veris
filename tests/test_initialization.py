@@ -17,6 +17,7 @@ def test_initialize_allocates_complete_minimal_frozen_state() -> None:
 
     state, settings, constants = initialize(nx=4, ny=7)
     assert all(is_dataclass(value) for value in (state, settings, constants))
+    assert "dtype" not in VARIABLES
     assert tuple(field.name for field in fields(state)) == tuple(VARIABLES)
     leaves, structure = jax.tree.flatten(state)
     assert len(leaves) == len(VARIABLES)

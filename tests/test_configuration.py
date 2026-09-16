@@ -54,6 +54,8 @@ def test_registry_defaults_are_disjoint_complete_and_frozen() -> None:
             assert isinstance(metadata, tuple)
             assert metadata.description
             assert isinstance(getattr(instance, name), metadata.type)
+            if metadata.type not in (float, tuple):
+                assert type(getattr(instance, name)) is metadata.type
             assert getattr(instance, name) == metadata.default
         with pytest.raises(FrozenInstanceError):
             setattr(instance, next(iter(registry)), 1)
@@ -76,6 +78,7 @@ def test_replace_recomputes_dependencies_and_preserves_rounded_constants() -> No
         h0_south=0.25,
         lhFusion=334001,
     )
+    assert hash(constants)
     assert constants.rhoIce2rhoSnow == 910 / 300
     assert constants.rhoIce2rhoFresh == 910 / 999
     assert constants.rhoFresh2rhoSnow == 999 / 300
@@ -233,6 +236,17 @@ def test_physics_thresholds_belong_to_constants() -> None:
     constants = physical.PhysicalConstants(hIce_min=0.1, basalDragMinArea=0.2)
     assert constants.hIce_min == 0.1
     assert constants.basalDragMinArea == 0.2
+    metadata = physical.PHYSICALCONSTANTS["pressReplFac"]
+    assert isinstance(metadata, Parameter)
+    assert metadata.type is float
+    assert metadata.default == 1.0
+    assert not hasattr(config.Configuration(), "pressReplFac")
+    assert replace(constants, pressReplFac=0).pressReplFac == 0
+    for value in (float("nan"), float("inf"), True):
+        with pytest.raises((TypeError, ValueError), match="pressReplFac"):
+            physical.PhysicalConstants(pressReplFac=value)
+    with pytest.raises(TypeError, match="pressReplFac"):
+        config.Configuration(pressReplFac=1.0)
     for name in (
         "nx",
         "ny",
@@ -253,27 +267,15 @@ def test_physical_temperature_bounds_are_validated_together() -> None:
 
 
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
-def test_pressure_coefficient_initialization_and_validation(dtype: str) -> None:
-    """Pressure weighting is a validated, precision-aware physical override."""
+def test_pressure_coefficient_initialization_preserves_precision(dtype: str) -> None:
+    """A physical coefficient override converts to the selected scalar dtype."""
     from veris.initialization import initialize
 
-    config, physical = configuration_modules()
-    metadata = physical.PHYSICALCONSTANTS["pressReplFac"]
-    assert isinstance(metadata, Parameter)
-    assert metadata.type is float
-    assert metadata.default == 1.0
-    _, settings, constants = initialize(
+    _, _, constants = initialize(
         2, 3, dtype=dtype, physical_overrides={"pressReplFac": 0.5}
     )
-    assert not hasattr(settings, "pressReplFac")
     assert constants.pressReplFac == 0.5
     assert np.asarray(constants.pressReplFac).dtype.name == dtype
-    assert replace(constants, pressReplFac=0).pressReplFac == 0
-    for value in (float("nan"), float("inf"), True):
-        with pytest.raises((TypeError, ValueError), match="pressReplFac"):
-            physical.PhysicalConstants(pressReplFac=value)
-    with pytest.raises(TypeError, match="pressReplFac"):
-        config.Configuration(pressReplFac=1.0)
 
 
 def test_numerical_controls_and_initial_conditions_remain_settings() -> None:

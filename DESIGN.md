@@ -1,9 +1,12 @@
 # Test harness design
 
 The `jax-only` source is the initial numerical reference. Tests belong in
-`tests/`, mirror physics modules, and execute real JAX kernels with float64
-arrays. Use frozen dataclasses for separate static Configuration and PhysicalConstants and
-for the minimal array-only State PyTree. Initialize defaults from SETTINGS,
+`tests/`, mirror physics modules, and execute real JAX kernels. Run
+precision-independent validation, metadata, shapes, masks and indexing once. Use float64 for precise equation and gradient
+references, and float32 for representative operational and stability checks.
+Use both only for dtype propagation, conversion, sensitive thresholds and a
+small integration sample. Use frozen dataclasses for separate static Configuration
+and PhysicalConstants and for the minimal array-only State PyTree. Initialize defaults from SETTINGS,
 PHYSICALCONSTANTS and VARIABLES; metadata also generates reference documentation.
 Output-only coupling diagnostics stay outside State. Compare against independent scalar equations,
 explicit index-based stencils, conservation laws, and finite differences.

@@ -106,13 +106,11 @@ def test_invalid_geometry_is_rejected(
         initialize_from_ocean(replace(ocean_grid, **{name: value}))
 
 
-@pytest.mark.parametrize("dtype", ["float32", "float64"])
-def test_external_fields_and_static_overrides(
-    ocean_grid: OceanGeometry, dtype: str
-) -> None:
+def test_external_fields_and_static_overrides(ocean_grid: OceanGeometry) -> None:
     """Allocate forcing, constants and unspecified registry defaults together."""
     from veris.variables import VARIABLES
 
+    dtype = "float32"
     temperature = np.full((6, 9), 271.25)
     result, conf, phys = initialize_from_ocean(
         ocean_grid,

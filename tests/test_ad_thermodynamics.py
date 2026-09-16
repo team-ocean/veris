@@ -23,12 +23,12 @@ from veris.physical_constants import PhysicalConstants
 from veris.solve4temp import solve4temp
 
 
-@pytest.mark.parametrize("dtype", ["float32", "float64"])
 @pytest.mark.parametrize("temperature", [0.0, 265.0])
 def test_absent_ice_surface_fluxes_have_finite_branch_derivatives(
-    state: StateFactory, dtype: str, temperature: float
+    state: StateFactory, temperature: float
 ) -> None:
     """Inactive conductivity and Newton divisions must not poison pullbacks."""
+    dtype = "float64"
     conf = Configuration(use_sharding=False, dtype=dtype)
     phys = PhysicalConstants(dtype=dtype)
     vs = state(LWdown=300, SWdown=200, ATemp=270, aqh=0.003, wSpeed=0, fCori=1e-4)
@@ -55,11 +55,11 @@ def test_absent_ice_surface_fluxes_have_finite_branch_derivatives(
     np.testing.assert_array_equal(jax.jacrev(surface)(inputs), expected)
 
 
-@pytest.mark.parametrize("dtype", ["float32", "float64"])
 def test_growth_freshwater_salinity_has_finite_one_sided_sensitivity(
-    state: StateFactory, dtype: str
+    state: StateFactory,
 ) -> None:
     """Inactive sea-ice salt rejection cannot divide by freshwater salinity."""
+    dtype = "float64"
     conf = Configuration(use_sharding=False, dtype=dtype, nITC=1)
     phys = PhysicalConstants(dtype=dtype)
     vs = equilibrium_state(state, conf, phys, ocSalt=0, theta=275, TSurf=260, Qnet=100)
@@ -73,21 +73,19 @@ def test_growth_freshwater_salinity_has_finite_one_sided_sensitivity(
     salt = jnp.asarray(0.0, dtype=dtype)
     _, forward = jax.jvp(freshwater, (salt,), (jnp.ones_like(salt),))
     reverse = jax.grad(freshwater)(salt)
-    step = 0.01 if dtype == "float32" else 1e-4
+    step = 1e-4
     finite_difference = (freshwater(salt + step) - freshwater(salt)) / step
     assert np.isfinite(reverse), "ERROR freshwater salinity pullback is nonfinite"
     np.testing.assert_allclose(reverse, forward, rtol=2e-5, atol=1e-9)
     np.testing.assert_allclose(reverse, finite_difference, rtol=0.01, atol=1e-7)
 
 
-@pytest.mark.parametrize("dtype", ["float32", "float64"])
 @pytest.mark.parametrize(
     "kernel", ["cesm_simple", "cesm_correction", "cesm_bulk", "lanl"]
 )
-def test_calm_wind_fluxes_have_finite_selected_linearizations(
-    dtype: str, kernel: str
-) -> None:
+def test_calm_wind_fluxes_have_finite_selected_linearizations(kernel: str) -> None:
     """An inactive speed floor must not leave sqrt(0) in forward/reverse AD."""
+    dtype = "float64"
     conf = Configuration(use_sharding=False, dtype=dtype)
     phys = PhysicalConstants(dtype=dtype)
     one = jnp.ones((1, 1), dtype=dtype)
@@ -139,7 +137,7 @@ def test_calm_wind_fluxes_have_finite_selected_linearizations(
     wind = jnp.asarray(0, dtype=dtype)
     primal, forward = jax.jvp(flux, (wind,), (jnp.ones_like(wind),))
     reverse = jax.jacrev(flux)(wind)
-    step = 1e-4 if dtype == "float32" else 1e-6
+    step = 1e-6
     finite_difference = (flux(wind + step) - flux(wind - step)) / (2 * step)
     assert np.isfinite(primal).all(), "ERROR calm wind flux is nonfinite"
     assert np.isfinite(forward).all(), "ERROR calm wind tangent is nonfinite"

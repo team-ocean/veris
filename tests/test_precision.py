@@ -1,6 +1,6 @@
 """One initialization precision governs scalar coefficients and model calculations."""
 
-from dataclasses import fields, replace
+from dataclasses import replace
 
 import jax
 import jax.numpy as jnp
@@ -25,13 +25,9 @@ def test_policy_types_every_array_and_static_coefficient(dtype: str) -> None:
             value = getattr(instance, name)
             if metadata.type is float or metadata.type is tuple:
                 assert np.asarray(value).dtype == np.dtype(dtype), name
-            else:
-                assert type(value) is metadata.type
     changed = replace(constants, rhoIce=920.0)
     assert changed.dtype == dtype
     assert np.asarray(changed.rhoIce2rhoSnow).dtype == np.dtype(dtype)
-    assert hash(changed)
-    assert {field.name for field in fields(state)}.isdisjoint({"dtype"})
 
 
 @pytest.mark.parametrize("dtype", ["float32", "float64"])

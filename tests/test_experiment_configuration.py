@@ -1,5 +1,7 @@
 """Registered experiment controls must describe the arrays actually allocated."""
 
+from dataclasses import FrozenInstanceError, replace
+
 import numpy as np
 import pytest
 
@@ -28,6 +30,10 @@ def test_all_experiment_defaults_are_registered() -> None:
     assert EXPERIMENT_DEFAULTS.keys() == artificial.ARTIFICIAL_SETTINGS.keys()
     assert not EXPERIMENT_DEFAULTS.keys() & SETTINGS.keys()
     assert not EXPERIMENT_DEFAULTS.keys() & PHYSICALCONSTANTS.keys()
+    scenario = artificial.ArtificialSettings()
+    with pytest.raises(FrozenInstanceError):
+        scenario.artificialGridSpacing = 2  # ty: ignore[invalid-assignment]
+    assert replace(scenario, artificialGridSpacing=2000).artificialGridSpacing == 2000
     settings = Configuration()
     for name, value in EXPERIMENT_DEFAULTS.items():
         assert artificial.ARTIFICIAL_SETTINGS[name].default == value
@@ -158,11 +164,6 @@ def test_initializer_rejects_step_only_cooling_override() -> None:
 
 
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
-def test_scenario_config_is_frozen_and_uses_model_precision(dtype: str) -> None:
-    from dataclasses import FrozenInstanceError, replace
-
+def test_scenario_config_uses_model_precision(dtype: str) -> None:
     scenario = artificial.ArtificialSettings(dtype=dtype)
     assert isinstance(scenario.artificialGridSpacing, np.dtype(dtype).type)
-    with pytest.raises(FrozenInstanceError):
-        scenario.artificialGridSpacing = 2  # ty: ignore[invalid-assignment]
-    assert replace(scenario, artificialGridSpacing=2000).artificialGridSpacing == 2000

@@ -42,12 +42,12 @@ def assert_same_state(actual: State, expected: State) -> None:
         )
 
 
-@pytest.mark.parametrize("dtype", ["float32", "float64"])
 @pytest.mark.parametrize("checkpoint_step", [1, 3])
 def test_coupled_restart_matches_uninterrupted_run(
-    tmp_path: Path, dtype: str, checkpoint_step: int
+    tmp_path: Path, checkpoint_step: int
 ) -> None:
-    """A full physical snapshot plus reconstructed halos resumes the same trajectory."""
+    """Float32 snapshots and reconstructed halos resume the same trajectory."""
+    dtype = "float32"
     initial, conf, phys = artificial.initialize(
         nx=6,
         ny=8,
@@ -111,7 +111,7 @@ def test_coupled_restart_matches_uninterrupted_run(
     resume_step = int(record.time / restored_conf.deltatTherm)
     assert resume_step == checkpoint_step
 
-    if dtype == "float64" and checkpoint_step == 1:
+    if checkpoint_step == 1:
         stale = artificial.compiled_step(
             restored, restored_conf, restored_phys, cooling[resume_step]
         )

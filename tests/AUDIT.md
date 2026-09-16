@@ -1,6 +1,51 @@
 # Test suite redundancy audit — 2026-09-16
 
-## Decision rule
+## Precision follow-up
+
+The follow-up starts from local commit `62749ef` (950 cases). It assigns dtype
+by contract, rather than repeating each test at every supported precision.
+Collection is now **921 cases**, 29 fewer (3.1%). Three-step setup forward
+scan calls fall from 16 to 10; real setup AD cases from six to three; the
+four-device rollout/AD subprocess runs once instead of twice; full restart
+trajectories fall from four to two. Further savings occur inside tests by
+removing repeated metadata/validation and float32 analytic/FD reference work.
+The earlier audit and its measured results below remain historical evidence.
+
+| Owner | Precision policy and retained coverage |
+| --- | --- |
+| Configuration, scenario and State schema | Metadata, validation, exact nonfloating types, frozen fields and hashing run once in their schema owners. Narrow scalar dtype/override checks still use both. |
+| Ocean initialization | External field/default/static override behavior runs once in float32. `test_geometry_inputs_convert_to_initialized_precision` keeps both conversions; the nonuniform reciprocal/indexing oracle remains in `test_ocean_setup`. |
+| Thermodynamic branch AD | Absent-ice Jacobians, freshwater one-sided derivative and four calm-wind API linearizations use float64. No physical branch or input case was removed. |
+| Norm primitive | Values, origin convention and positive analytic slopes use float64 once. Actual float32 solver/AD behavior remains in the coupled dtype, surface-temperature and free-drift stability checks. |
+| Basal drag | All 15 area/thickness equation and analytic-gradient reference cases use float64. Float32 checks finite drag and both sensitivities at 1/10/90 metres, plus disabled drag. Both precisions test the strict active-area cutoff and coefficient/gradient dtype. |
+| Surface Newton solver | Float64 retains independent energy-balance and centered-FD references. Float32 retains the humidity-JVP overflow regression, nonzero sensitivity and reverse consistency without repeating those reference calculations. |
+| Setup rollouts | Four float32 setups cover operational three-step field/diagnostic agreement in both checkpoint modes. Artificial float64 is the small cross-precision rollout sample. Three real setup JVP/VJP/FD checks and the four-device scan/AD probe use float64. |
+| Restart | Two restart times use float32; exact all-State/dtype equality and the deliberately omitted halo reconstruction check remain. Snapshot I/O separately owns float64 roundtrip and float32 storage/metadata preservation. |
+| CESM precision paths | Both atmospheric branches keep dtype checks in each precision. The independent latent-heat equation is checked in float64 only. |
+
+Remaining dual-precision owners are deliberately narrow:
+
+- `test_precision`: scalar/array policy, coupled State/Diagnostics/AD dtypes and
+  mesh placement without promotion.
+- `test_precision_paths`: CESM and alternate dynamics dtype propagation,
+  external geometry conversion, mixed State/scalar overrides and policy conflicts.
+- Configuration pressure override and scenario scalar dtype tests.
+- Basal active-area cutoff and primal/gradient dtype.
+- One artificial setup forward rollout sample.
+- `test_output_scan_physics` and `output_scan_probe`: float64 accumulation under
+  float32/float64 physics, preserved global x64 mode, real sharded collectors.
+
+There is no global collection filter, skipped precision case, tolerance
+relaxation or production change. Unique numerical oracles and branch cases
+remain active. Full CPU verification passed **919 tests with two expected
+GPU-only skips** in **1241.78 seconds**, down from 1654.90 seconds (25.0%).
+Maintained coverage remains **2668/2746 = 97.16%**, with exactly the same
+executed-line set in every maintained source file. Source/test hashes match
+the tested snapshot. Unsandboxed CUDA verification passed **192 selected
+tests with no skips**, including both GPU-only cases omitted by the CPU run.
+Evidence: `test_logs/precision-compaction/`; final status is in CHANGELOG.md.
+
+## First compaction: decision rule and recorded results
 
 A second call is redundant when its inputs, branch and assertions establish
 an already-owned contract. Shared source lines alone do not establish that:
@@ -69,7 +114,7 @@ Numerical changes remove 80 cases; schema/type/initialization changes remove
 11; output changes remove 15; scenario/rollout changes remove three. No deleted
 test is retained under an opt-in marker or moved to an unexecuted archive.
 
-## Reviewed and deliberately retained
+## Reviewed and deliberately retained in the first compaction
 
 All 66 baseline `test_*.py` modules were inspected, including both setup modules.
 The table covers changed files. The following groups retain distinct contracts:
@@ -97,7 +142,8 @@ The table covers changed files. The following groups retain distinct contracts:
 - `test_integration`, remaining `test_rollout_setups` and
   `rollout_parallel_probe`: independent recurrence arithmetic, rematerialization,
   evolving forcing, real multi-step physics and distributed scan derivatives
-  each catch different failures. Both device precisions remain.
+  each catch different failures. The precision follow-up above narrows their
+  dtype matrix according to the contract.
 - `test_variables`, `test_typing_contracts` and remaining schema tests: metadata,
   public type contracts, validation and registry-to-instance fidelity remain.
 - `test_io_calendar`, `test_io_distributed`, `test_io_integration`,

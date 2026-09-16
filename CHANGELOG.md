@@ -1,5 +1,44 @@
 # Development log
 
+## 2026-09-16 — Precision-focused test compaction
+
+- IN PROGRESS: assign precision by contract, per user request. Validation,
+  metadata, shapes, masks and indexing run once; float64 owns precise equation
+  and derivative references; float32 owns operational/stability checks. Both
+  remain only for dtype/conversion, sensitive thresholds and a small integration
+  sample. Production code and numerical tolerances remain unchanged.
+- Baseline: local jax-only commit 62749ef, 950 collected cases, 948 CPU passes
+  plus two GPU-only skips; maintained coverage 2668/2746 (97.16%). Existing
+  evidence: test_logs/test-compaction/. GitHub does not yet resolve this local
+  commit; it is not evidence of a published change.
+- Task ownership: root handles rollout/restart, documentation and all pytest
+  scheduling; precision_numerics handles numerical precision sweeps;
+  precision_schema handles validation/metadata mixed into dtype tests.
+- [x] Collection reduced 950 → 921 (29 cases); additional reduction inside
+  tests removes repeated metadata/validation and float32 analytic/FD work.
+  Exact ownership and retained both-precision contracts: tests/AUDIT.md.
+- [x] Fast suite: 93 passed, 828 deselected in 90.96 seconds. Maintained Ruff,
+  formatting, annotations and ty checks pass. Independent scientific review
+  found no coverage blocker or over-removal. Production hashes exactly match
+  the previously verified baseline.
+- [x] Full CPU correctness: 919 passed, two expected GPU-only skips in
+  1241.78 seconds (20m42s), versus 1654.90 seconds (27m35s) before this pass:
+  413.12 seconds shorter (25.0%). This is end-to-end test timing, not a solver
+  benchmark. Native local socket access enabled the distributed JAX tests.
+- [x] Maintained coverage remains 2668/2746 = 97.16%; whole-package coverage
+  remains 86.09%. Exact executed-line sets are unchanged in every maintained
+  source file. Tested source/test hashes match; the 80% gate passes. Evidence:
+  test_logs/precision-compaction/{full.log,full.xml,coverage.json,comparison.json}.
+- [x] Unsandboxed CUDA verification: 192 passed, no skips/errors/failures,
+  including both GPU-only cases skipped on CPU, in 788.50 seconds.
+  CUDA was explicitly required and both Tesla P100 GPUs were detected. The
+  selected modules also retain their explicit CPU subprocess checks. Evidence:
+  test_logs/precision-compaction/{gpu.log,gpu.xml,gpu-summary.json}.
+- [x] Independent scientific and documentation reviews found no blocker.
+  All test processes completed; final source/test hashes still match. User
+  requested committing and pushing the verified changes to remote jax-only.
+  Fetched remote 4246f23; local history is a fast-forward extension.
+
 ## 2026-09-16 — Test suite compaction
 
 - [x] Audited and compacted repeated assertions/trajectories; root owned

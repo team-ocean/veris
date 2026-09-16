@@ -98,8 +98,18 @@ def assert_tree_close(actual: object, expected: object, dtype: str) -> None:
         )
 
 
-@pytest.mark.parametrize("case", ["artificial", "dynamics", "growth", "ocean"])
-@pytest.mark.parametrize("dtype", ["float32", "float64"])
+# Exercise each setup operationally in float32; one coupled case is the
+# cross-precision integration sample. Equations and FD references use float64.
+@pytest.mark.parametrize(
+    ("case", "dtype"),
+    [
+        ("artificial", "float32"),
+        ("dynamics", "float32"),
+        ("growth", "float32"),
+        ("ocean", "float32"),
+        ("artificial", "float64"),
+    ],
+)
 def test_setup_rollout_matches_explicit_steps(case: str, dtype: str) -> None:
     """Every setup retains all fields and selected diagnostics over three steps.
 
@@ -139,9 +149,9 @@ def test_setup_rollout_matches_explicit_steps(case: str, dtype: str) -> None:
 # Ocean initialization is checked above. It uses the same coupled advance and
 # derivative regime as artificial (float32 metrics only differ by rounding).
 @pytest.mark.parametrize("case", ["artificial", "dynamics", "growth"])
-@pytest.mark.parametrize("dtype", ["float32", "float64"])
-def test_real_rollout_state_and_forcing_derivatives(case: str, dtype: str) -> None:
-    """Independent spatial directions and time forcing exercise JVP, VJP and FD."""
+def test_real_rollout_state_and_forcing_derivatives(case: str) -> None:
+    """Float64 spatial directions and time forcing exercise JVP, VJP and FD."""
+    dtype = "float64"
     initial, advance = make_case(case, dtype)
     x, y = jnp.indices(initial.hIceMean.shape, dtype=dtype)
     direction = (0.3 + 0.07 * jnp.cos(2 * x - y)) * initial.iceMask
@@ -175,7 +185,7 @@ def test_real_rollout_state_and_forcing_derivatives(case: str, dtype: str) -> No
         value, pullback = jax.vjp(function, point)
         gradient = pullback(jnp.ones_like(value))[0]
         assert np.isfinite(gradient).all(), "ERROR nonfinite rollout VJP"
-        epsilon = 0.01 if dtype == "float32" else 1e-4
+        epsilon = 1e-4
         for axis in range(2):
             tangent = jnp.eye(2, dtype=dtype)[axis]
             _, derivative = jax.jvp(function, (point,), (tangent,))
@@ -188,17 +198,17 @@ def test_real_rollout_state_and_forcing_derivatives(case: str, dtype: str) -> No
             np.testing.assert_allclose(
                 derivative,
                 finite_difference,
-                rtol=0.02 if dtype == "float32" else 2e-4,
-                atol=2e-5 if dtype == "float32" else 2e-8,
+                rtol=2e-4,
+                atol=2e-8,
                 err_msg=f"ERROR {case} {dtype} sensitivity axis {axis}",
             )
         results.append((value, gradient))
     assert_tree_close(results[0], results[1], dtype)
 
 
-@pytest.mark.parametrize("dtype", ["float32", "float64"])
-def test_four_cpu_device_rollout_and_derivatives(dtype: str, tmp_path: Path) -> None:
-    """Exercise real halo exchange and scan AD in a fresh four-device CPU process."""
+def test_four_cpu_device_rollout_and_derivatives(tmp_path: Path) -> None:
+    """Check halo exchange and precise scan AD on four CPU devices in float64."""
+    dtype = "float64"
     root = Path(__file__).resolve().parents[1]
     environment = dict(
         os.environ,

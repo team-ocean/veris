@@ -22,7 +22,23 @@ ty check veris tests docs/conf.py setup.py --exclude veris/_version.py
 ```
 
 Tests execute actual compiled JAX functions on small rectangular grids,
-primarily in float64 with additional float32 stability and communication checks.
+with precision chosen by the assertion's contract:
+
+- Run validation, metadata, shape, mask and indexing checks once. These tests
+  normally use the default dtype; do not add a precision Cartesian product.
+- Use float64 for independent equations and precise JVP/VJP/finite-difference
+  references, including distributed gradient comparisons.
+- Use float32 for representative operational rollouts, restart equivalence and
+  overflow/stability checks.
+- Test both only for dtype propagation, conversion, precision-sensitive
+  thresholds and the small coupled integration sample. Scheduled-output tests
+  retain both because they check float64 accumulation with each physics dtype
+  and preservation of the global x64 policy.
+
+Keep dtype assertions explicit in precision tests. A structural assertion used
+inside a numerical comparison (for example, equal leaf shapes before comparing
+values) is still required to prevent broadcasting from hiding a failure.
+
 Expected results come from explicit neighborhood indexing, scalar threshold
 rules, momentum balance, and finite differences. Nonsmooth tests check selected
 AD linearizations and one-sided slopes separately.

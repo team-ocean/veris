@@ -8,13 +8,13 @@ import numpy as np
 import pytest
 
 
-@pytest.mark.parametrize("dtype", [jnp.float32, jnp.float64])
-def test_norm_sqrt_preserves_values_and_finite_origin_ad(dtype: type) -> None:
+def test_norm_sqrt_preserves_values_and_finite_origin_ad() -> None:
     """Squared-norm origin chooses zero; positive inputs keep sqrt's derivative."""
     try:
         norm_sqrt = import_module("veris._ad").norm_sqrt
     except ModuleNotFoundError:
         pytest.fail("AD norm primitive is missing")
+    dtype = jnp.float64
     x = jnp.asarray([0.0, 1e-12, 2.0, 4.0], dtype=dtype)
     np.testing.assert_array_equal(norm_sqrt(x), jnp.sqrt(x))
     derivative = jax.grad(lambda v: jnp.sum(norm_sqrt(v)))(x)
