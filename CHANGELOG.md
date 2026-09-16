@@ -46,6 +46,13 @@
   `closed-y-coverage.json`, `closed-y-reduction-rerun.log`, `closed-y-float32.log`,
   `closed-y-shear-halos.log`, `closed-y-docs.log`, and `closed-y-test-inputs.json`.
   Development reproductions are retained in `test_logs/closed-y-development/`.
+- [x] Follow-up GPU validation: the CPU-skipped
+  `test_gpu_cli_writes_finite_output` passed on the two local Tesla P100 GPUs
+  using `.venv-latest` and an explicitly required GPU backend (no CPU fallback).
+  Its two-step parallel CLI output has finite 12-by-16 physical fields. XML
+  confirms one pass, zero skips/errors/failures. All 109 source/test hashes still
+  match the CPU suite, giving 960 passing tests across CPU/GPU verification.
+  Evidence: `test_logs/closed-y-gpu-test.log` and `closed-y-gpu-results.xml`.
 
 ## 2026-09-15 — Universal scan step and checkpointed AD
 
