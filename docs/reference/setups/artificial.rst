@@ -1,7 +1,7 @@
 Artificial island
 =================
 
-``veris.setups.artificial`` provides a small periodic Cartesian sea surrounding
+``veris.setups.artificial`` provides a small Cartesian sea, periodic by default, surrounding
 a two-by-two-cell island. The default interior is 8 by 12 cells at 8 km spacing;
 arrays include two halo cells on each side. Face masks prevent transport across
 the coastline. Temperatures are in kelvin and thicknesses are grid-cell means.
@@ -16,7 +16,9 @@ The numerical State retains ice velocity and stress fields between steps.
 Output-only ocean coupling stresses and fluxes are returned separately by
 ``step_with_diagnostics``. Its sequence is mass and area
 averaging, wind forcing, ice strength, EVP dynamics, ocean stress, advection,
-cleanup, ridging, growth, and periodic halo refresh. It restores prescribed
+cleanup, ridging, growth, and boundary halo refresh. Set
+``settings_overrides={"enable_cyclic_y": False}`` to close the global y edges;
+see :doc:`../settings`. It restores prescribed
 open-water heat forcing each step because growth returns ocean-coupling fluxes
 in the same state fields.
 

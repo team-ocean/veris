@@ -21,6 +21,9 @@ SETTINGS: dict[str, Parameter] = {
     ),
     "nx": Parameter(8, int, "Local interior grid extent along the x direction", "1"),
     "ny": Parameter(12, int, "Local interior grid extent along the y direction", "1"),
+    "enable_cyclic_y": Parameter(
+        True, bool, "Wrap global y edges; otherwise use closed, impermeable walls", "-"
+    ),
     "geometrySurfaceTemperature": Parameter(
         273.0,
         float,
@@ -138,6 +141,7 @@ class Configuration:
     """Validated immutable model settings initialized from the registry."""
 
     dtype: str = field(default=FROM_REGISTRY, kw_only=True)
+    enable_cyclic_y: bool = field(default=FROM_REGISTRY, kw_only=True)
 
     deltatTherm: float = FROM_REGISTRY
     recip_deltatTherm: float = field(init=False)

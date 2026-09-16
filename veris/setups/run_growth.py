@@ -27,6 +27,7 @@ from veris._metadata import FROM_REGISTRY, registry_defaults, validate_scalars
 from veris._typing import Parameter, State, jit
 from veris.configuration import SETTINGS, Configuration
 from veris.diagnostics import Diagnostics
+from veris.fill_overlap import fill_state_overlap
 from veris.growth import Growth
 from veris.initialization import initialize as initialize_model
 from veris.integration_output import output_callbacks, run_timed
@@ -125,7 +126,10 @@ def initialize(
         state.SeaIceLoad,
         phys.rhoIce * scenario.hIceMean + phys.rhoSnow * scenario.hSnowMean,
     )
-    return replace(state, **values), conf, phys
+    state = replace(state, **values)
+    if not conf.enable_cyclic_y:
+        state = fill_state_overlap(state, conf)
+    return state, conf, phys
 
 
 def step_with_diagnostics(
@@ -167,6 +171,9 @@ def step_with_diagnostics(
         EmPmR=freshwater,
         forc_salt_surface=salt,
     )
+    if not conf.enable_cyclic_y:
+        result = fill_state_overlap(result, conf)
+        diagnostics = fill_state_overlap(diagnostics, conf)
     return result, diagnostics
 
 

@@ -18,6 +18,48 @@ Use immutable updates; dependent reciprocals are recomputed::
 Configuration objects are static JIT arguments; changing a value may trigger compilation.
 The artificial example overrides timesteps and EVP iteration count.
 
+Horizontal boundaries
+---------------------
+
+The x direction is always periodic. ``enable_cyclic_y=True`` (the default)
+also wraps the global y edges. Set it to ``False`` at initialization to use
+closed, impermeable southern and northern walls::
+
+   from veris.setups.artificial import initialize
+   state, settings, constants = initialize(
+       settings_overrides={"enable_cyclic_y": False}
+   )
+
+Closed walls retain every interior tracer row. Exterior masks are dry, normal
+ice velocities and meridional transport vanish at both walls, and ``noSlip``
+selects the existing tangential coastline treatment. This is a solid-wall
+condition, not an open boundary or a polar-fold grid.
+
+Serial and sharded execution use the same conditions. Only the global y edge
+partitions apply walls; internal partitions continue exchanging their halos.
+The static switch adds no State leaves and supports JVP and VJP differentiation.
+Generic scalar halos extend the nearest interior value so temperatures and
+metrics remain valid. Masks, ice amounts, velocities and fluxes receive their
+corresponding wall conditions.
+Wall shear stress is handled separately: no-slip retains the calculated
+traction, including the northern physical face stored in a halo column;
+free-slip sets both wall shear stresses to zero.
+
+Select the boundary topology at initialization. Reinitialize the geometry and
+masks when changing it: switching a closed State back to periodic does not
+restore the southern face masks that were closed during allocation.
+
+After manually replacing State fields or loading selected physical fields,
+refresh the whole State
+before integration using ``veris.fill_overlap.fill_state_overlap(state, settings)``.
+For sharded arrays, call it inside the active ``jax.set_mesh(mesh)`` context.
+The maintained coupled drivers refresh State and diagnostic halos after each
+step. Low-level custom drivers should use this field-aware helper instead of
+applying the generic scalar halo fill to every field.
+Selected-field snapshots are not complete restarts (see :doc:`io`). In
+particular, trimming halos omits the northern no-slip shear-stress value;
+halo refresh preserves that independent traction but cannot reconstruct it.
+
 Floating-point precision
 ------------------------
 

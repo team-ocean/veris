@@ -50,6 +50,8 @@ def calc_Advection(
     # calculate ice transport
     uTrans = vs.uIce * xA
     vTrans = vs.vIce * yA
+    if not conf.enable_cyclic_y:
+        vTrans = fill_overlap(vTrans, conf, boundary="normal")
 
     # make local copy of field prior to advective changes
     fieldLoc = field
@@ -176,7 +178,7 @@ def calc_MeridionalFlux(
         vTrans[:, 2:-1] * (field[:, 2:-1] + field[:, 1:-2]) * 0.5
         - jnp.abs(vTrans[:, 2:-1]) * ((1 - Cr) + vCFL[:, 2:-1] * Cr) * Rj * 0.5,
     )
-    MeridionalFlux = fill_overlap(MeridionalFlux, conf)
+    MeridionalFlux = fill_overlap(MeridionalFlux, conf, boundary="normal")
 
     return MeridionalFlux
 

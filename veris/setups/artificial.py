@@ -239,7 +239,12 @@ def initialize(
         / (phys.iceSurfacePressure - (1 - phys.waterVaporDryAirMassRatio) * vapor)
         * ones,
     )
-    return replace(vs, **fields), conf, phys
+    vs = replace(vs, **fields)
+    if not conf.enable_cyclic_y:
+        from veris.fill_overlap import fill_state_overlap
+
+        vs = fill_state_overlap(vs, conf)
+    return vs, conf, phys
 
 
 def step(
@@ -303,7 +308,7 @@ def _step_local(
     from veris.clean_up import clean_up_advection, ridging
     from veris.dynamics_routines import SeaIceStrength
     from veris.dynsolver import IceVelocities, WindForcingXY
-    from veris.fill_overlap import fill_overlap
+    from veris.fill_overlap import fill_state_overlap
     from veris.growth import Growth
     from veris.ocean_stress import OceanStressUV
 
@@ -361,7 +366,7 @@ def _step_local(
         EmPmR=freshwater,
         forc_salt_surface=salt,
     )
-    return jax.tree.map(lambda array: fill_overlap(array, conf), (vs, diagnostics))
+    return fill_state_overlap(vs, conf), fill_state_overlap(diagnostics, conf)
 
 
 compiled_step = jit(step, static_argnames=["conf", "phys"])

@@ -7,6 +7,7 @@ immutable objects, so neither adds leaves to the differentiable state.
 """
 
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any
 
 import jax
@@ -16,6 +17,7 @@ from jax.sharding import PartitionSpec as P
 
 from veris._typing import State
 from veris.configuration import Configuration
+from veris.fill_overlap import fill_state_overlap
 from veris.physical_constants import PhysicalConstants
 from veris.variables import VARIABLES
 
@@ -108,4 +110,11 @@ def initialize(
         arrays[name] = (
             jax.device_put(array, sharding) if sharding is not None else array
         )
-    return State(**arrays), settings, constants
+    state = State(**arrays)
+    if not settings.enable_cyclic_y:
+        if mesh is not None:
+            with jax.set_mesh(mesh):
+                state = fill_state_overlap(state, settings)
+        else:
+            state = fill_state_overlap(state, replace(settings, use_sharding=False))
+    return state, settings, constants

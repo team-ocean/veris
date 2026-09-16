@@ -1,6 +1,6 @@
 """State metadata for the Cartesian Arakawa C grid used by Veris.
 
-Arrays store x on axis zero and y on axis one, including two periodic halo
+Arrays store x on axis zero and y on axis one, including two boundary halo
 cells at each boundary. Face and center dimensions have equal storage lengths.
 Mass and stress units describe vertically integrated ice equations. Only fields
 read by the maintained numerical kernels are allocated in State.

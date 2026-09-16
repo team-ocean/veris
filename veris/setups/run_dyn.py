@@ -257,7 +257,7 @@ def _step_local(
     from veris.clean_up import clean_up_advection, ridging
     from veris.dynamics_routines import SeaIceStrength
     from veris.dynsolver import IceVelocities, WindForcingXY
-    from veris.fill_overlap import fill_overlap
+    from veris.fill_overlap import fill_state_overlap
     from veris.ocean_stress import OceanStressUV
 
     def assign(state: State, names: str, values: tuple[jax.Array, ...]) -> State:
@@ -284,7 +284,7 @@ def _step_local(
     vs = replace(vs, Area=ridging(vs, conf, phys))
     zeros = jnp.zeros_like(vs.Area)
     diagnostics = Diagnostics(zeros, stress_u, stress_v, zeros, zeros)
-    return jax.tree.map(lambda array: fill_overlap(array, conf), (vs, diagnostics))
+    return fill_state_overlap(vs, conf), fill_state_overlap(diagnostics, conf)
 
 
 def step_with_diagnostics(

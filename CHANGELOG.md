@@ -1,5 +1,52 @@
 # Development log
 
+## 2026-09-16 — Optional closed global y boundaries
+
+- Root implements `enable_cyclic_y=True` registry/configuration option on branch
+  `optional-closed-y`, based on `jax-only`; boundary_review independently audits
+  C-grid wall indexing and writes distributed value/AD probes. Root owns pytest.
+- Closed mode keeps x periodic and exchanges internal y partitions, with dry
+  global exterior masks and impermeable normal faces. Generic scalar halos use
+  nearest-edge extension to retain valid temperatures and metrics; masks, ice
+  amounts, velocities and meridional fluxes receive explicit wall treatment.
+- Reproduced missing configuration in four serial tests before implementation.
+  Coupled tests then reproduced artificial setup overwriting closed masks;
+  initialization and whole-step field-aware refreshes now address that path.
+- First transport FD fixture had constant slopes at the Superbee kink; changed
+  to unequal quadratic slopes to test smooth derivatives, without relaxing
+  tolerances. Conservation and its JVP/VJP passed before this fixture change.
+- Environment: `.venv` absent; using established `.venv-latest` as instructed.
+  Full regression, distributed/AD checks and documentation are complete below.
+- [x] Serial focused checks pass: two-step coupled JVP/VJP/FD with both slip
+  settings; mass and intensive-field conservation; closed setup/allocation.
+- [x] Independent distributed halo oracles exposed a two-cell partition edge
+  case: close the owned south normal face before sending it to a neighbor.
+  After correction, all six layout/size combinations pass values and JVP/VJP.
+- [x] Numerical review exposed generic refresh overwriting physical north-wall
+  shear. Four regressions reproduced it; dedicated shear policy now retains
+  no-slip traction and zeros free-slip wall stress. Thirteen focused serial
+  boundary/stress tests pass. Distributed shear coverage added for final suite.
+- Sphinx initial build encountered sandbox DNS failure fetching Python's
+  intersphinx inventory; network-enabled retry passed. No content warning found.
+- [x] Final Sphinx `-E -W` build passes with network inventory access. Fresh
+  independent review found no numerical blocker; documented initialization-time
+  topology changes and selected-field snapshot limits for northern wall shear.
+- [x] All six four-CPU halo cases pass edge/zero/normal/shear value and independent
+  JVP/VJP oracles. Two-CPU float32 coupled runs pass both slip modes, two steps,
+  all-field serial agreement, wall shear and initial-state/forcing JVP/VJP/FD.
+  Four-CPU float64 coupled tests also pass both slip modes in the full suite.
+- [x] Full CPU suite: 958 passed, one GPU-only skip, one sandbox socket-permission
+  failure in the existing two-process reduction test (1898.27 s). That test
+  passed with socket access on rerun, giving 959 passing tests overall. No
+  source change, tolerance change or test exclusion was needed for the rerun.
+- [x] Maintained coverage 2450/2535 = 96.65%; whole package 2450/2888 = 84.83%.
+  Maintained Ruff, formatting, annotation and ty checks pass; 80% coverage gate
+  passes. All 109 source/test hashes still match full-suite inputs.
+- Evidence: `test_logs/closed-y-full.log`, `closed-y-results.xml`,
+  `closed-y-coverage.json`, `closed-y-reduction-rerun.log`, `closed-y-float32.log`,
+  `closed-y-shear-halos.log`, `closed-y-docs.log`, and `closed-y-test-inputs.json`.
+  Development reproductions are retained in `test_logs/closed-y-development/`.
+
 ## 2026-09-15 — Universal scan step and checkpointed AD
 
 - [x] Implemented public `veris.step(initial, advance, steps, ...)` with lax.scan,
