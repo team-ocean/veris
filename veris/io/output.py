@@ -67,6 +67,7 @@ class OutputManager:
         ]
         self._last: int | None = None
         self._closed = False
+        self._reduced = False
 
     def __enter__(self) -> Self:
         """Return the lazy output manager."""
@@ -93,6 +94,61 @@ class OutputManager:
         """Current array bytes held for means, independent of sample count."""
         return sum(
             array.nbytes for stream in self._streams for array in stream.sums.values()
+        )
+
+    def begin_reduced(self) -> None:
+        """Reserve a fresh manager for records reduced by the scheduled runner.
+
+        Reduced writing and direct sampling are exclusive. Disabled output and
+        transformed calls remain inert, as they do for :meth:`sample`.
+        """
+        if not self.settings.enabled or under_transform():
+            return
+        if self._closed:
+            raise RuntimeError("output manager is closed")
+        if self._reduced:
+            raise RuntimeError("output manager is already in reduced mode")
+        if self._last is not None:
+            raise RuntimeError("output manager has already sampled directly")
+        self._reduced = True
+
+    def write_reduced(
+        self,
+        name: str,
+        fields: ArrayFields,
+        *,
+        time: float,
+        bounds: tuple[float, float],
+        count: int,
+        mean: bool,
+    ) -> None:
+        """Collect and write an already reduced, halo-bearing stream record.
+
+        Times and bounds are seconds. The scheduled runner owns sampling and
+        window completion; means are already divided by their sample count.
+        Collectors must commute with averaging and remove storage halos. Every
+        rank must enter collection in the same order, including nonwriters.
+        """
+        if not self.settings.enabled or under_transform():
+            return
+        if self._closed:
+            raise RuntimeError("output manager is closed")
+        if not self._reduced:
+            raise RuntimeError("begin_reduced must select reduced writing first")
+        stream = next((s for s in self.settings.streams if s.name == name), None)
+        if stream is None:
+            raise ValueError(f"unknown output stream {name}")
+        if mean != (stream.period != "instantaneous"):
+            raise ValueError("record kind does not match configured stream")
+        if self._collector is None:
+            arrays = storage_fields(fields, stream.variables)
+        else:
+            collected = self._collector(fields, stream.variables)
+            if collected is None:
+                return
+            arrays = selected_fields(collected, stream.variables)
+        self._writer.append(
+            name, arrays, time=time, bounds=bounds, count=count, mean=mean
         )
 
     def _flush(self, accumulator: _Accumulator, end: int) -> None:
@@ -128,6 +184,8 @@ class OutputManager:
             return
         if self._closed:
             raise RuntimeError("output manager is closed")
+        if self._reduced:
+            raise RuntimeError("direct sampling is unavailable in reduced mode")
         now = duration_us(elapsed)
         if now < 0 or (self._last is not None and now <= self._last):
             raise ValueError(
@@ -207,6 +265,10 @@ class OutputManager:
         discarded. Repeated closes are harmless.
         """
         if not self.settings.enabled or under_transform() or self._closed:
+            return
+        if self._reduced:
+            self._writer.close()
+            self._closed = True
             return
         end = self._last if elapsed is None else duration_us(elapsed)
         if end is not None:

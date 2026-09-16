@@ -30,7 +30,9 @@ There is no thermodynamic growth. A small local CPU run is::
 Use ``--backend gpu`` for a GPU directly on the current node. If the environment
 already sets ``JAX_PLATFORMS=cpu``, unset it or set ``JAX_PLATFORMS=cuda`` first.
 The output contains all final State fields with halos removed, in ``(x, y)``
-order. The discarded, synchronized warmup does not count as a simulation step.
+order. The runner reports compilation and integration times separately.
+Compilation lowers and compiles the required scan shapes without executing a
+warmup trajectory; integration executes exactly the requested model steps.
 
 The Python API returns independent model objects::
 
@@ -133,8 +135,17 @@ The CPU environment must be available on all participating nodes.
 Output contains the nine reference fields: hIceMean, Area, hSnowMean, uIce,
 vIce, uWind, vWind, uOcean and vOcean. Each partition's halos are removed before
 gathering; arrays have the global physical shape. All ranks participate in the
-gather, and only rank zero writes the netCDF file. Warmup is synchronized and
-discarded; the reported integration time includes exactly the requested steps.
+gather, and only rank zero writes the netCDF file. Compilation executes no
+trajectory or collection. The reported integration time includes exactly the
+requested steps and any scheduled output. Final snapshot writing follows the
+timed integration.
+
+Adding ``--netcdf`` enables scheduled output. Scan chunks end at requested
+instantaneous samples or averaging-window boundaries. Means use device running
+sums and sample counts, without storing timestep field histories; unfinished
+windows carry across chunks. Without scheduled output, the runner executes one
+full-length scan. See :doc:`../integration` for Python chunk caps, collector
+requirements and the exclusive reduced-writing OutputManager lifecycle.
 
 Reference adaptations
 ---------------------

@@ -2,7 +2,7 @@
 
 Adapted from ``jax_halo_exchange:run_parallel.py``. Global physical nx/ny are
 partitioned by run_dyn.initialize; each device stores its own two-cell halos.
-The timed integration discards warmup scans for every executed chunk length.
+The timed integration compiles scan shapes before executing the trajectory.
 Output contains
 the nine reference fields after removing every partition's halos, in (x, y)
 order. CPU ranks use one device each; local runs may expose several devices via
@@ -191,7 +191,7 @@ def main(argv: list[str] | None = None) -> None:
                 arguments, settings.deltatDyn, collector=collect
             ) as output:
                 observe, select = output_callbacks(output, settings.deltatDyn)
-                state, warmup, elapsed = run_timed(
+                state, compilation, elapsed = run_timed(
                     state,
                     advance,
                     arguments.steps,
@@ -213,7 +213,7 @@ def main(argv: list[str] | None = None) -> None:
                 f"mesh={mesh.shape['x']}x{mesh.shape['y']} backend={arguments.backend} steps={arguments.steps}"
             )
             print(
-                f"warmup={warmup:.3f}s integration={elapsed:.3f}s output={arguments.output}"
+                f"compilation={compilation:.3f}s integration={elapsed:.3f}s output={arguments.output}"
             )
     finally:
         if started_distributed:

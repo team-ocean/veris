@@ -1,5 +1,58 @@
 # Development log
 
+## 2026-09-16 — Scheduled output reductions
+
+- User approved device-side mean sums/counts, schedule-driven chunks and
+  compilation without duplicate warmup execution. Spec and plan:
+  `docs/superpowers/specs/2026-09-16-scheduled-output-design.md` and
+  `docs/superpowers/plans/2026-09-16-scheduled-output.md`.
+- Branch `scheduled-output-reductions` starts from verified/pushed `jax-only`
+  aba67ef. Root owns implementation orchestration and all pytest processes;
+  schedule_audit independently checked sampling/calendar/collector invariants.
+- Preserve float64 means, half-open windows, complete-window filtering and
+  initial-sample behavior. Existing arbitrary callbacks retain bounded histories;
+  maintained OutputManager callbacks select the new reduced scan path.
+- Environment: all Python/tests/checks use `.venv-latest`. Initial precision
+  probe tried the removed `jax.experimental.enable_x64`; installed JAX exposes
+  the scoped context at `jax.enable_x64` instead.
+
+- [x] Compilation-only preparation: runtime regression reproduced duplicate
+  transitions in the old warmup. Lower/compile now precedes the single actual
+  trajectory, including generic observed chunks and no-output full scans.
+- [x] Exact calendar planner and exclusive reduced writer: all 42 focused cases
+  pass after observed missing-implementation failures. Device sums/counts replace
+  histories for scheduled callbacks, with event-aligned chunks and optional cap.
+- [x] All 27 initial output oracle cases pass; JAX scan structure confirms no
+  history or timestep input vector, and constant spatial storage for 10/1000 steps.
+  Four-device CPU output matches serial records, with eight record-only gathers.
+- [x] Review regressions reproduced missing checkpoint/callable validation,
+  complex/Boolean means silently cast to real, and late manager freshness checks.
+  Host preflight now rejects these before physics tracing or output effects.
+- [x] Real two-step growth final State is bitwise equal with/without scheduled
+  output in both precisions; direct half-open mean records agree. Float64 sums
+  preserve float32 cancellation and the caller's original x64 tracing context.
+- Validation notes: installed JAX scan metadata uses FTTuple.unpack(), not tuple
+  indexing. GPU alias tried unavailable ROCm; explicit CUDA selection works.
+  First CUDA run passed 29 cases; new sharded GPU test was skipped by its overly
+  narrow environment marker, now corrected to recognize comma-separated backends.
+- Maintained Ruff/format/annotation/ty and Sphinx warnings-as-errors pass.
+- [x] Required two-GPU output reduction and real-physics checks passed (three
+  tests, no skips). Two-process CPU probe also passed: non-addressable State/sum
+  arrays, replicated counts, exactly five record collections and no nonwriter file.
+  Probe logs: `test_logs/scheduled-gpu-sharded.log` and
+  `test_logs/scheduled-multihost.log`.
+- [x] Full CPU correctness: 1057 passed, 2 GPU-only skips, no failures/errors in
+  1951.70 s. Maintained coverage: 2668/2746 = 97.16%; whole-package coverage
+  86.09%. The 80% gate passes without additional exclusions.
+- [x] All 150 tested source/test/documentation hashes match the final files.
+  Evidence: `test_logs/scheduled-full-cpu.log`, `scheduled-full-results.xml`,
+  `scheduled-coverage.json` and `scheduled-source-hashes.json`.
+- [x] Final-source GPU CLI recheck passed without skips after explicitly
+  confirming the GPU backend. Both GPU-only cases skipped by the CPU suite have
+  passed on CUDA; logs include `test_logs/scheduled-final-gpu.log` and XML.
+- Independent numerical, test-quality and documentation review is complete;
+  reproduced review findings were fixed before the full run.
+
 ## 2026-09-16 — Optional closed global y boundaries
 
 - Root implements `enable_cyclic_y=True` registry/configuration option on branch
