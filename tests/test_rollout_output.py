@@ -153,9 +153,11 @@ def test_invalid_chunk_size_is_rejected(chunk_size: Any) -> None:
         run_timed(jnp.array(0), lambda s: s + 1, 2, chunk_size=chunk_size)
 
 
-@pytest.mark.parametrize("steps", [0, 1])
-@pytest.mark.parametrize("scheduled", [False, True])
-@pytest.mark.parametrize("checkpoint", [0, 1, None, "false"])
+# Checkpoint validation precedes both zero-step and scheduled dispatch.
+@pytest.mark.parametrize(
+    "steps,scheduled,checkpoint",
+    [(0, False, 0), (0, True, 1), (1, False, None), (1, True, "false")],
+)
 def test_invalid_checkpoint_fails_before_compilation_or_output(
     tmp_path: Path, steps: int, scheduled: bool, checkpoint: Any
 ) -> None:

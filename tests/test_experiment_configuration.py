@@ -145,14 +145,6 @@ def test_artificial_rejects_sharding_without_mesh_support() -> None:
         artificial.initialize(settings_overrides={"use_sharding": True})
 
 
-def test_omitted_cooling_uses_local_experiment_default() -> None:
-    state, settings, constants = artificial.initialize(nx=4, ny=4)
-    implicit = artificial.step(state, settings, constants)
-    explicit = artificial.step(state, settings, constants, cooling=100.0)
-    np.testing.assert_array_equal(implicit.hIceMean, explicit.hIceMean)
-    np.testing.assert_array_equal(implicit.Qnet, explicit.Qnet)
-
-
 def test_artificial_controls_cannot_enter_model_settings() -> None:
     with pytest.raises(TypeError, match="artificialWindSpeed"):
         initialize(settings_overrides={"artificialWindSpeed": 4})

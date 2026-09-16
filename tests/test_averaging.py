@@ -12,16 +12,20 @@ from veris.physical_constants import PhysicalConstants
 
 
 @pytest.mark.parametrize("no_slip", [True, False])
-@pytest.mark.parametrize("seed", range(6))
 def test_corner_average_with_land(
     state: StateFactory,
     conf: Configuration,
     phys: PhysicalConstants,
     no_slip: bool,
-    seed: int,
 ) -> None:
-    rng = np.random.default_rng(seed)
-    mask = rng.integers(0, 2, (4, 7))
+    rng = np.random.default_rng(0)
+    # Every binary four-cell coastline orientation occurs at an odd/odd corner.
+    mask = np.zeros((8, 12), dtype=int)
+    for pattern in range(16):
+        row, column = 2 * (pattern // 6), 2 * (pattern % 6)
+        mask[row : row + 2, column : column + 2] = np.array(
+            [(pattern >> bit) & 1 for bit in range(4)]
+        ).reshape(2, 2)
     field = rng.normal(size=mask.shape) * mask
     result = c_point_to_z_point(
         state(iceMask=mask), replace(conf, noSlip=no_slip), phys, field

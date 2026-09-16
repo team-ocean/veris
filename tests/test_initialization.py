@@ -18,7 +18,11 @@ def test_initialize_allocates_complete_minimal_frozen_state() -> None:
     state, settings, constants = initialize(nx=4, ny=7)
     assert all(is_dataclass(value) for value in (state, settings, constants))
     assert tuple(field.name for field in fields(state)) == tuple(VARIABLES)
-    assert len(jax.tree.leaves(state)) == len(VARIABLES)
+    leaves, structure = jax.tree.flatten(state)
+    assert len(leaves) == len(VARIABLES)
+    rebuilt = jax.tree.unflatten(structure, leaves)
+    assert isinstance(rebuilt, State)
+    assert all(getattr(rebuilt, name) is getattr(state, name) for name in VARIABLES)
     for name, metadata in VARIABLES.items():
         array = getattr(state, name)
         assert isinstance(array, jax.Array)

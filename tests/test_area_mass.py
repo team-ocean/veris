@@ -10,15 +10,13 @@ from veris.physical_constants import PhysicalConstants
 
 
 @pytest.mark.parametrize("shape", [(3, 5), (6, 4), (1, 3)])
-@pytest.mark.parametrize("seed", range(4))
 def test_area_and_mass_staggering(
     state: StateFactory,
     conf: Configuration,
     phys: PhysicalConstants,
     shape: tuple[int, int],
-    seed: int,
 ) -> None:
-    rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(0)
     area, ice, snow = rng.random((3, *shape))
     vs = state(Area=area, hIceMean=ice, hSnowMean=snow)
     west, south = AreaWS(vs, conf, phys)

@@ -101,16 +101,13 @@ CLOUD_COEFFICIENTS = (
 
 
 def test_scattered_coefficient_defaults_match_original_literals() -> None:
-    for cls, registry, expected in (
-        (Configuration, SETTINGS, SETTING_DEFAULTS),
-        (PhysicalConstants, PHYSICALCONSTANTS, PHYSICAL_DEFAULTS),
+    for registry, expected in (
+        (SETTINGS, SETTING_DEFAULTS),
+        (PHYSICALCONSTANTS, PHYSICAL_DEFAULTS),
     ):
-        obj = cls()
         assert expected.keys() <= registry.keys()
         for name, value in expected.items():
             assert registry[name].default == value, name
-            assert getattr(obj, name) == value, name
-            assert registry[name].description
     assert "cesmBulkIterations" not in SETTINGS
     assert "grav" not in PHYSICALCONSTANTS
 

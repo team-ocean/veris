@@ -48,7 +48,7 @@ def test_bulk_heat_flux_contract(tmp_path: Path, case: str) -> None:
 from jax import Array
 from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
-from veris.heat_flux_CESM import dqnetdt, get_press_levs, qsat, qsat_august_eqn, cdn
+from veris.heat_flux_CESM import dqnetdt, get_press_levs, qsat, qsat_august_eqn, cdn, compute_z_level
 from veris.heat_flux_MITgcm import bulkf_formula_lanl
 
 def evaluate(conf: Configuration, phys: PhysicalConstants) -> tuple[Array, Array, Array]:
@@ -57,6 +57,9 @@ def evaluate(conf: Configuration, phys: PhysicalConstants) -> tuple[Array, Array
 
 def pressure_levels() -> Array:
     return get_press_levs(np.ones((2, 3)), np.ones(4), np.ones(4))
+
+def height(phys: PhysicalConstants, t: Array, q: Array, ph: Array) -> Array:
+    return compute_z_level(phys, t, q, ph)
 
 def scalar_helpers(phys: PhysicalConstants) -> tuple[Array, Array, Array]:
     return qsat(phys, 275.0), qsat_august_eqn(phys, 100000.0, 275.0), cdn(phys, 5.0)
@@ -107,17 +110,3 @@ def growth(state: State, conf: Configuration, phys: PhysicalConstants) -> {"tupl
     elif case == "wrong-arity":
         expected = ("invalid-return-type", "tuple of length 11")
     _check_contract(tmp_path, source, expected)
-
-
-def test_height_uses_initialized_physical_constants(tmp_path: Path) -> None:
-    """The height helper consumes the same initialized physical constants."""
-    _check_contract(
-        tmp_path,
-        """from jax import Array
-from veris.physical_constants import PhysicalConstants
-from veris.heat_flux_CESM import compute_z_level
-def evaluate(phys: PhysicalConstants, t: Array, q: Array, ph: Array) -> Array:
-    return compute_z_level(phys, t, q, ph)
-""",
-        None,
-    )

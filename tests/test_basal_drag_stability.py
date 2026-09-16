@@ -64,7 +64,7 @@ def stable_reference(
 @pytest.mark.parametrize("dtype", [np.float32, np.float64], ids=["float32", "float64"])
 @pytest.mark.parametrize("area", [0.0, 0.01, 0.0101, 0.5, 1.0])
 @pytest.mark.parametrize("thickness", [1.0, 10.0, 90.0])
-def test_basal_drag_finite_and_matches_stable_keel_law(
+def test_basal_drag_value_and_gradients_match_stable_keel_law(
     state: StateFactory,
     conf: Configuration,
     phys: PhysicalConstants,
@@ -76,9 +76,21 @@ def test_basal_drag_finite_and_matches_stable_keel_law(
     phys = replace(reference_phys, dtype=np.dtype(dtype).name)
     conf = replace(conf, dtype=np.dtype(dtype).name)
     vs = basal_case(state, dtype, area, thickness)
-    u = jnp.full(vs.Area.shape, 0.03, dtype=dtype)
-    v = jnp.full(vs.Area.shape, 0.04, dtype=dtype)
-    coefficient = basal_drag_coeffs(vs, conf, phys, u, v)
+
+    def mean_drag(height: ArrayLike, velocity: ArrayLike) -> tuple[Array, Array]:
+        current = replace(vs, hIceMean=jnp.full_like(vs.hIceMean, height))
+        coefficient = basal_drag_coeffs(
+            current,
+            conf,
+            phys,
+            jnp.full_like(vs.Area, velocity),
+            jnp.full_like(vs.Area, 0.04),
+        )
+        return jnp.mean(coefficient), coefficient
+
+    (_, coefficient), derivatives = jax.value_and_grad(
+        mean_drag, argnums=(0, 1), has_aux=True
+    )(jnp.asarray(thickness, dtype=dtype), jnp.asarray(0.03, dtype=dtype))
     expected = (
         stable_reference(
             conf,
@@ -87,62 +99,17 @@ def test_basal_drag_finite_and_matches_stable_keel_law(
             float(dtype(area)),
             float(dtype(0.03)),
             float(dtype(0.04)),
-        )[0]
+        )
         if area > 0.01
-        else 0
+        else (0, 0, 0)
     )
     assert coefficient.dtype == dtype
     assert np.all(np.isfinite(coefficient)), (
         "ERROR basal drag overflowed for finite keel"
     )
-    np.testing.assert_allclose(coefficient, expected, rtol=3e-6, atol=1e-15)
+    np.testing.assert_allclose(coefficient, expected[0], rtol=3e-6, atol=1e-15)
     assert np.all(np.asarray(coefficient) >= 0), "ERROR basal drag must oppose motion"
-
-
-@pytest.mark.parametrize("dtype", [np.float32, np.float64], ids=["float32", "float64"])
-@pytest.mark.parametrize("area", [0.0, 0.01, 0.0101, 0.5, 1.0])
-@pytest.mark.parametrize("thickness", [1.0, 10.0, 90.0])
-def test_basal_drag_gradients_are_finite_and_match_analytic_law(
-    state: StateFactory,
-    conf: Configuration,
-    phys: PhysicalConstants,
-    dtype: type[np.float32] | type[np.float64],
-    area: float,
-    thickness: float,
-) -> None:
-    reference_phys = replace(phys, basalDragK2=0.7)
-    phys = replace(reference_phys, dtype=np.dtype(dtype).name)
-    conf = replace(conf, dtype=np.dtype(dtype).name)
-    vs = basal_case(state, dtype, area, thickness)
-
-    def mean_drag(height: ArrayLike, velocity: ArrayLike) -> Array:
-        current = replace(vs, hIceMean=jnp.full_like(vs.hIceMean, height))
-        return jnp.mean(
-            basal_drag_coeffs(
-                current,
-                conf,
-                phys,
-                jnp.full_like(vs.Area, velocity),
-                jnp.full_like(vs.Area, 0.04),
-            )
-        )
-
-    derivatives = jax.grad(mean_drag, argnums=(0, 1))(
-        jnp.asarray(thickness, dtype=dtype), jnp.asarray(0.03, dtype=dtype)
-    )
-    expected = (
-        stable_reference(
-            conf,
-            reference_phys,
-            thickness,
-            float(dtype(area)),
-            float(dtype(0.03)),
-            float(dtype(0.04)),
-        )[1:]
-        if area > 0.01
-        else (0, 0)
-    )
-    for actual, reference in zip(derivatives, expected):
+    for actual, reference in zip(derivatives, expected[1:]):
         assert actual.dtype == dtype
         assert np.isfinite(actual), "ERROR nonfinite basal drag sensitivity"
         np.testing.assert_allclose(actual, reference, rtol=3e-6, atol=1e-15)

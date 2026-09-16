@@ -1,5 +1,9 @@
 # Numerical tests
 
+See [AUDIT.md](AUDIT.md) for the redundancy audit and test ownership rules.
+Add assertions to an existing run when inputs and trajectories are identical;
+retain separate tests for distinct physical branches, precision and AD contracts.
+
 Activate `.venv-latest` before commands. Install the reproducible initial CPU environment
 with `module load uv/latest` and `uv pip install -r requirements-test.txt`.
 The lock targets Python 3.14 with JAX 0.11.1, the latest stable releases

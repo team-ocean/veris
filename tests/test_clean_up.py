@@ -3,7 +3,6 @@
 from dataclasses import replace
 
 import numpy as np
-import pytest
 from conftest import StateFactory
 
 from veris.clean_up import clean_up_advection, ridging
@@ -11,24 +10,39 @@ from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 
-@pytest.mark.parametrize("ice", [-0.2, 0, 0.5, 1, 2])
-@pytest.mark.parametrize("snow", [-0.1, 0, 0.3])
 def test_cleanup_thresholds_and_overshoots(
     state: StateFactory,
     conf: Configuration,
     phys: PhysicalConstants,
-    ice: float,
-    snow: float,
 ) -> None:
+    """Batch all ice/snow threshold combinations through the pointwise kernel."""
     phys = replace(phys, hIce_min=0.5, Area_min=0.01)
-    vs = state(hIceMean=[[ice]], hSnowMean=[[snow]], Area=[[-0.2]], TSurf=[[260]])
+    ice, snow = np.meshgrid([-0.2, 0, 0.5, 1, 2], [-0.1, 0, 0.3], indexing="ij")
+    vs = state(
+        hIceMean=ice,
+        hSnowMean=snow,
+        Area=np.full_like(ice, -0.2),
+        TSurf=np.full_like(ice, 260),
+    )
     result = clean_up_advection(vs, conf, phys)
-    expected = (0, 0, 0, phys.celsius2K, max(-ice, 0), max(-snow, 0))
-    if ice > phys.hIce_min:
-        expected = (ice, max(snow, 0), phys.Area_min, 260, 0, max(-snow, 0))
+    expected = [np.empty_like(ice) for _ in range(6)]
+    for index in np.ndindex(ice.shape):
+        height, snowfall = ice[index], snow[index]
+        reference = (0, 0, 0, phys.celsius2K, max(-height, 0), max(-snowfall, 0))
+        if height > phys.hIce_min:
+            reference = (
+                height,
+                max(snowfall, 0),
+                phys.Area_min,
+                260,
+                0,
+                max(-snowfall, 0),
+            )
+        for field, value in zip(expected, reference, strict=True):
+            field[index] = value
     assert len(result) == len(expected)
-    for value, reference in zip(result, expected):
-        assert value.shape == (1, 1)
+    for value, reference in zip(result, expected, strict=True):
+        assert value.shape == ice.shape
         np.testing.assert_allclose(value, reference)
 
 

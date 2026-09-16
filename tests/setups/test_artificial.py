@@ -81,18 +81,18 @@ def test_too_small_grid_has_clear_error(example: ModuleType, nx: int, ny: int) -
         example.initialize(nx=nx, ny=ny)
 
 
-def test_prescribed_forcing_replaces_previous_ocean_flux_outputs(
+def test_default_cooling_and_prescribed_forcing_replace_previous_outputs(
     example: ModuleType,
 ) -> None:
-    """Ocean coupling outputs must not become next-step atmospheric forcing."""
+    """Default cooling matches explicit 100 and overwrites old coupling fluxes."""
     import jax.numpy as jnp
 
     vs, conf, phys = example.initialize()
     changed = replace(
         vs, Qnet=jnp.full_like(vs.Qnet, -999), Qsw=jnp.full_like(vs.Qsw, -888)
     )
-    expected = example.step(vs, conf, phys, cooling=25)
-    actual = example.step(changed, conf, phys, cooling=25)
+    expected = example.step(vs, conf, phys)
+    actual = example.step(changed, conf, phys, cooling=100)
     for first, second in zip(
         jax.tree.leaves(actual), jax.tree.leaves(expected), strict=True
     ):

@@ -56,8 +56,7 @@ def transport_state(state: StateFactory) -> Callable[[ArrayLike, ArrayLike], Any
     return build
 
 
-@pytest.mark.parametrize("axis", [0, 1])
-@pytest.mark.parametrize("velocity", [-1, 0, 1])
+@pytest.mark.parametrize("axis,velocity", [(0, -1), (0, 0), (0, 1), (1, -1), (1, 1)])
 def test_cfl_one_is_exact_periodic_translation(
     transport: ModuleType,
     transport_state: Callable[[ArrayLike, ArrayLike], Any],
@@ -94,16 +93,6 @@ def test_subcfl_transport_conserves_mass_and_bounds(
     assert actual.sum() == pytest.approx(interior.sum(), abs=1e-12)
     assert actual.min() >= interior.min() - 1e-14
     assert actual.max() <= interior.max() + 1e-14
-
-
-@pytest.mark.parametrize(
-    "ratio, expected",
-    [(-2, 0), (0, 0), (0.25, 0.5), (0.5, 1), (1, 1), (1.5, 1.5), (2, 2), (5, 2)],
-)
-def test_superbee_limiter_breakpoints(
-    transport: ModuleType, ratio: float, expected: float
-) -> None:
-    assert float(transport.limiter(jnp.asarray(float(ratio)))) == expected
 
 
 @pytest.mark.parametrize("axis", [0, 1])

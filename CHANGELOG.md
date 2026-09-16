@@ -1,5 +1,38 @@
 # Development log
 
+## 2026-09-16 — Test suite compaction
+
+- [x] Audited and compacted repeated assertions/trajectories; root owned
+  setup/integration and pytest scheduling, audit_physics reviewed numerical tests,
+  audit_types reviewed schema/initialization, audit_output reviewed output/storage.
+- Baseline HEAD 4246f23 matches all recorded source/test hashes from the passing
+  1057-test CPU run (two GPU-only skips), 1951.70 seconds, maintained coverage
+  2668/2746 = 97.16%. GitHub confirms the published commit.
+- Plan: `docs/superpowers/plans/2026-09-16-test-compaction.md`. Preserve unique
+  branches and independent oracles; measure repeated actions as well as cases.
+- [x] Reviewed all 66 original test modules. Collection reduced 1059 → 950
+  (109 cases, 10.3%); 65 test modules remain. Removal-to-retained mappings
+  are in `tests/AUDIT.md`. No production changes or relaxed tolerances.
+- [x] Fast development suite: 95 passed, 855 deselected in 65.73 seconds.
+  Maintained Ruff, format, annotation and ty checks pass. Independent review
+  preserved exact shape checks in the rollout comparison helper and corrected
+  the ocean duplicate explanation to acknowledge float32 metric rounding.
+- [x] Full CPU correctness: 948 passed, two expected GPU-only skips in
+  1654.90 seconds (27m35s), versus recorded baseline 1951.70 seconds (32m32s).
+  This measures end-to-end tests; solver performance remains in its benchmark.
+- [x] Maintained coverage unchanged at 2668/2746 = 97.16%; exact executed-line
+  sets match the baseline for every maintained source file. Whole-package
+  coverage remains 86.09%. All tested source/test hashes still match; 80% gate,
+  final Ruff/format/annotation/ty and diff checks pass. Evidence in
+  `test_logs/test-compaction/{full.log,full.xml,coverage.json,comparison.json}`.
+- [x] Focused CUDA verification: 211 passed, no skips/errors/failures, in
+  211.57 seconds, including both GPU-only cases omitted by the CPU run.
+  Evidence: `test_logs/test-compaction/{gpu.log,gpu.xml,gpu-summary.json}`.
+- [x] Independent numerical and test-ownership reviews found no blocker. Final
+  hash/coverage comparison remains exact; all test processes finished. The
+  verified compaction is committed back to `jax-only`; local runtime artifacts
+  remain untracked.
+
 ## 2026-09-16 — Scheduled output reductions
 
 - User approved device-side mean sums/counts, schedule-driven chunks and

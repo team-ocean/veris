@@ -102,12 +102,14 @@ def test_hybrid_pressure_levels(cesm: ModuleType) -> None:
         )
 
 
-@pytest.mark.parametrize("wind", [0.5, 3.0, 12.0])
 def test_drag_and_neutral_stability_functions(
-    cesm: ModuleType, phys: PhysicalConstants, wind: float
+    cesm: ModuleType, phys: PhysicalConstants
 ) -> None:
-    assert float(cesm.cdn(phys, wind)) == pytest.approx(
-        0.0027 / wind + 0.000142 + 0.0000764 * wind
+    wind = jnp.array([0.5, 3.0, 12.0])
+    np.testing.assert_allclose(
+        cesm.cdn(phys, wind),
+        0.0027 / wind + 0.000142 + 0.0000764 * wind,
+        rtol=1e-13,
     )
     assert float(cesm.psixhu(1.0)) == pytest.approx(0)
     # The reference uses rounded pi/2 (1.571), leaving this known small offset.

@@ -97,8 +97,10 @@ def test_wind_speed_floor_preserves_zero_stress_at_rest(
     np.testing.assert_array_equal(ty, 0)
 
 
-@pytest.mark.parametrize("real_freshwater", [False, True])
-@pytest.mark.parametrize("source", ["elevation", "pressure", "load"])
+@pytest.mark.parametrize(
+    "source,real_freshwater",
+    [("elevation", False), ("pressure", False), ("load", False), ("load", True)],
+)
 def test_affine_hydrostatic_tilt_and_wind_force(
     state: StateFactory,
     conf: Configuration,

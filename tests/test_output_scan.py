@@ -195,8 +195,9 @@ def test_float32_cancellation_and_physics_precision_are_preserved(
 
 def test_collectors_receive_only_completed_reductions_and_instant_records(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Collection cost scales with records; each supplied array retains halos."""
+    """Collect completed reductions once without replaying direct samples."""
     calls = []
 
     def collect(fields: Any, names: tuple[str, ...]) -> dict[str, Any]:
@@ -209,6 +210,11 @@ def test_collectors_receive_only_completed_reductions_and_instant_records(
         streams=(Stream("mean", ("Area",), timedelta(seconds=1), timedelta(seconds=4)),)
     )
     with OutputManager(tmp_path / "reduced.nc", output, collector=collect) as manager:
+
+        def reject_sample(*args: Any, **kwargs: Any) -> None:
+            raise AssertionError("scheduled output replayed a direct sample")
+
+        monkeypatch.setattr(manager, "sample", reject_sample)
         observe, select = output_callbacks(manager, 1)
         run_timed(
             jax.tree.map(jnp.asarray, _fields(0)),
@@ -220,29 +226,6 @@ def test_collectors_receive_only_completed_reductions_and_instant_records(
     assert len(calls) == 2
     np.testing.assert_array_equal(calls[0], _fields(0)["Area"] + 1.5)
     np.testing.assert_array_equal(calls[1], _fields(0)["Area"] + 5.5)
-
-
-def test_scheduled_output_does_not_replay_direct_samples(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The public callbacks must dispatch reductions rather than sample replay."""
-    output = OutputSettings(
-        streams=(Stream("mean", ("Area",), timedelta(seconds=1), timedelta(seconds=4)),)
-    )
-    with OutputManager(tmp_path / "reduced.nc", output) as manager:
-
-        def reject_sample(*args: Any, **kwargs: Any) -> None:
-            raise AssertionError("scheduled output replayed a direct sample")
-
-        monkeypatch.setattr(manager, "sample", reject_sample)
-        observe, select = output_callbacks(manager, 1)
-        run_timed(
-            jax.tree.map(jnp.asarray, _fields(0)),
-            _advance,
-            5,
-            observe=observe,
-            select=select,
-        )
 
 
 def test_scheduled_runtime_advances_exactly_requested_steps(tmp_path: Path) -> None:

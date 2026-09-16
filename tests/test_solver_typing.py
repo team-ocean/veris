@@ -7,9 +7,15 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize("valid", [True, False], ids=["valid", "invalid"])
 @pytest.mark.parametrize(
-    "contract", ["iteration-count", "evp-result", "dispatcher-result"]
+    "valid,contract",
+    [
+        (True, "evp-result"),
+        (True, "dispatcher-result"),
+        (False, "iteration-count"),
+        (False, "evp-result"),
+        (False, "dispatcher-result"),
+    ],
 )
 def test_solver_contract(tmp_path: Path, valid: bool, contract: str) -> None:
     """Reject fractional substep counts and incorrectly sized solver results."""
@@ -20,6 +26,8 @@ from veris.dynsolver import IceVelocities
 
 from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
+
+settings = Configuration(nEVPsteps=10)
 
 def evaluate(state: State, constants: Configuration, phys: PhysicalConstants) -> RETURN_TYPE:
     return SOLVER(state, constants, phys)

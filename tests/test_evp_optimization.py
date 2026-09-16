@@ -144,8 +144,9 @@ def evaluate(
         atol=2e-10,
         err_msg="ERROR EVP JVP finite-difference mismatch",
     )
+    reverse = pullback(weights)[0]
     np.testing.assert_allclose(
-        pullback(weights)[0],
+        reverse,
         finite_vjp,
         rtol=3e-6,
         atol=2e-10,
@@ -154,7 +155,7 @@ def evaluate(
     return {
         "value": np.asarray(value),
         "jvp": np.asarray(tangent),
-        "vjp": np.asarray(pullback(weights)[0]),
+        "vjp": np.asarray(reverse),
     }
 
 

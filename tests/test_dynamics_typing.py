@@ -7,16 +7,10 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize("valid", [True, False], ids=["immutable", "wrong-state"])
-@pytest.mark.parametrize("kernel", ["strength", "stress"])
-def test_concrete_dynamics_contract(tmp_path: Path, valid: bool, kernel: str) -> None:
-    """Accept the concrete State and reject invalid state arguments."""
-    expression = (
-        "SeaIceStrength(state, settings, phys)"
-        if kernel == "strength"
-        else "stress(state, settings, phys, field, field, field, field, field, field)"
-    )
-    returns = "Array" if kernel == "strength" else "tuple[Array, Array, Array]"
+@pytest.mark.parametrize("case", ["immutable", "wrong-strength", "wrong-stress"])
+def test_concrete_dynamics_contract(tmp_path: Path, case: str) -> None:
+    """Check both public signatures in one valid module; reject each wrong input."""
+    valid = case == "immutable"
     source = f"""from jax import Array
 from veris._typing import State
 from numpy import float64
@@ -25,8 +19,11 @@ from veris.dynamics_routines import SeaIceStrength, stress
 from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
-def evaluate(state: {"State" if valid else "str"}, settings: Configuration, phys: PhysicalConstants, field: NDArray[float64]) -> {returns}:
-    return {expression}
+def strength(state: {"str" if case == "wrong-strength" else "State"}, settings: Configuration, phys: PhysicalConstants) -> Array:
+    return SeaIceStrength(state, settings, phys)
+
+def stresses(state: {"str" if case == "wrong-stress" else "State"}, settings: Configuration, phys: PhysicalConstants, field: NDArray[float64]) -> tuple[Array, Array, Array]:
+    return stress(state, settings, phys, field, field, field, field, field, field)
 """
     root = Path(__file__).resolve().parents[1]
     path = tmp_path / "dynamics_contract.py"

@@ -144,12 +144,12 @@ def test_invalid_counts_even_with_no_output(steps: Any, max_steps: Any) -> None:
         list(iter_segments(settings(mean(2)), 1, steps, max_steps=max_steps))
 
 
-def test_incompatible_sampling_rejected_before_first_segment() -> None:
+def test_incompatible_sampling_rejected_before_iterator_consumption() -> None:
     from veris.io.schedule import iter_segments
 
     for steps in (0, 5):
         with pytest.raises(ValueError, match="sampling"):
-            next(iter(iter_segments(settings(mean(2, interval=1.5)), 1, steps)))
+            iter_segments(settings(mean(2, interval=1.5)), 1, steps)
 
 
 def test_calendar_range_rejected_before_first_segment() -> None:
@@ -181,11 +181,3 @@ def test_planner_is_incremental_for_a_long_trajectory() -> None:
     first = next(segments)
     second = next(segments)
     assert (first.start, first.stop, second.start, second.stop) == (0, 4, 4, 8)
-
-
-def test_validation_is_eager_before_iterator_consumption() -> None:
-    """Callers may validate before compiling without advancing the iterator."""
-    from veris.io.schedule import iter_segments
-
-    with pytest.raises(ValueError, match="sampling"):
-        iter_segments(settings(mean(2, interval=1.5)), 1, 0)

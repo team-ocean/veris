@@ -16,13 +16,11 @@ from veris.physical_constants import PhysicalConstants
 
 
 @pytest.mark.parametrize("snow", [False, True])
-@pytest.mark.parametrize("thickness", [0.1, 0.5, 2.0])
 def test_mass_gradient(
     state: StateFactory,
     conf: Configuration,
     phys: PhysicalConstants,
     snow: bool,
-    thickness: float,
 ) -> None:
     def total(value: ArrayLike) -> Array:
         vs = state(
@@ -31,6 +29,8 @@ def test_mass_gradient(
         )
         return jnp.sum(SeaIceMass(vs, conf, phys)[0])
 
+    # This map is linear: one point determines the constant density sensitivity.
+    thickness = 0.5
     derivative = jax.grad(total)(thickness)
     finite_difference = (total(thickness + 1e-4) - total(thickness - 1e-4)) / 2e-4
     np.testing.assert_allclose(derivative, finite_difference, rtol=1e-10)

@@ -237,15 +237,6 @@ def test_snapshot_update_rejects_incompatible_initialized_shape(tmp_path: Path) 
         update_state(target, read_record(tmp_path / "shape.nc"))
 
 
-def test_snapshot_discards_nonuniform_storage_halos(tmp_path: Path) -> None:
-    from veris.io import read_record, write_snapshot
-
-    values = np.arange(72.0).reshape(8, 9)
-    write_snapshot(tmp_path / "trimmed.nc", {"Area": values})
-    record = read_record(tmp_path / "trimmed.nc")
-    np.testing.assert_array_equal(record.fields["Area"], values[2:-2, 2:-2])
-
-
 def test_writer_rejects_partial_mean_before_creating_file(tmp_path: Path) -> None:
     from veris.io.storage import NetCDFWriter
 

@@ -74,13 +74,6 @@ def test_initialization_surface_masks_and_reciprocals(
     np.testing.assert_array_equal(result.R_low, ocean_grid.ht)
     np.testing.assert_array_equal(result.fCori, ocean_grid.coriolis_t)
     np.testing.assert_array_equal(result.TSurf, np.full((6, 9), 273))
-    assert len(fields(result)) == 70
-    with pytest.raises(FrozenInstanceError):
-        setattr(ocean_grid, "ht", jnp.zeros((6, 9)))  # noqa: B010 -- test frozen runtime guard
-
-
-def test_corner_area_is_four_cell_mean(ocean_grid: OceanGeometry) -> None:
-    result, _conf, _phys = initialize_from_ocean(ocean_grid)
     area = np.asarray(ocean_grid.area_t)
     expected = np.empty_like(area)
     for i, j in np.ndindex(area.shape):
@@ -89,16 +82,9 @@ def test_corner_area_is_four_cell_mean(ocean_grid: OceanGeometry) -> None:
         ) / 4
     np.testing.assert_allclose(result.rAz, expected, rtol=1e-14)
 
-
-def test_uniform_grid_and_configured_surface_temperature(
-    ocean_grid: OceanGeometry,
-) -> None:
-    geometry = replace(ocean_grid, area_t=jnp.full((6, 9), 12.0))
-    result, _conf, _phys = initialize_from_ocean(
-        geometry, settings_overrides={"geometrySurfaceTemperature": 270.0}
-    )
-    np.testing.assert_array_equal(result.rAz, np.full((6, 9), 12.0))
-    np.testing.assert_array_equal(result.TSurf, np.full((6, 9), 270.0))
+    assert len(fields(result)) == 70
+    with pytest.raises(FrozenInstanceError):
+        setattr(ocean_grid, "ht", jnp.zeros((6, 9)))  # noqa: B010 -- test frozen runtime guard
 
 
 @pytest.mark.parametrize(
@@ -131,13 +117,18 @@ def test_external_fields_and_static_overrides(
     result, conf, phys = initialize_from_ocean(
         ocean_grid,
         dtype=dtype,
-        settings_overrides={"nEVPsteps": 3, "nx": 20},
+        settings_overrides={
+            "nEVPsteps": 3,
+            "nx": 20,
+            "geometrySurfaceTemperature": 270.0,
+        },
         physical_overrides={"rhoIce": 920.0},
         state_overrides={"theta": temperature, "hIceMean": np.ones((6, 9))},
     )
     assert (conf.nx, conf.ny, conf.nEVPsteps) == (2, 5, 3)
     assert conf.dtype == phys.dtype == dtype
     assert phys.rhoIce == 920
+    np.testing.assert_array_equal(result.TSurf, 270.0)
     np.testing.assert_array_equal(result.theta, temperature)
     np.testing.assert_array_equal(result.hIceMean, 1)
     np.testing.assert_array_equal(result.hSnowMean, VARIABLES["hSnowMean"].default)

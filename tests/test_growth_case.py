@@ -125,24 +125,15 @@ def test_growth_initialize_accepts_model_overrides() -> None:
 
 
 def test_growth_cli_zero_steps_saves_initial_column(tmp_path: Path) -> None:
-    """Permit initialization-only output with an empty history."""
+    """Permit initialization-only output and create missing parent directories."""
     from veris.setups import run_growth
 
-    path = tmp_path / "initial.nc"
+    path = tmp_path / "nested" / "outputs" / "initial.nc"
     run_growth.main(["--steps", "0", "--backend", "cpu", "--output", str(path)])
     saved = read_record(path)
     assert saved.time == 0
     assert saved.fields["hIceMean"].shape == (2, 2)
     np.testing.assert_allclose(saved.fields["hIceMean"], 1.3)
-
-
-def test_growth_cli_creates_output_parent(tmp_path: Path) -> None:
-    """Create missing directories for a caller-selected output path."""
-    from veris.setups import run_growth
-
-    path = tmp_path / "nested" / "outputs" / "growth.nc"
-    run_growth.main(["--steps", "0", "--output", str(path)])
-    np.testing.assert_allclose(read_record(path).fields["hIceMean"], 1.3)
 
 
 def test_growth_cli_rejects_nonfinite_output(

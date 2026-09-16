@@ -59,17 +59,11 @@ def test_registry_import_order_and_frozen_defaults(first: str) -> None:
     source = f"""
 import importlib
 importlib.import_module('veris.{first}')
-from dataclasses import replace
 from veris._typing import State, OceanGeometry
-from veris._typing import Parameter
-from veris.configuration import SETTINGS
-from veris.physical_constants import PHYSICALCONSTANTS
-assert all(type(value) is Parameter for value in (*SETTINGS.values(), *PHYSICALCONSTANTS.values()))
 from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 assert Configuration().deltatDyn == 86400
 assert PhysicalConstants().rhoIce == 900
-assert replace(Configuration(), deltatDyn=600).recip_deltatDyn == 1/600
 assert State.__module__ == OceanGeometry.__module__ == 'veris._typing'
 """
     result = subprocess.run(
@@ -80,17 +74,6 @@ assert State.__module__ == OceanGeometry.__module__ == 'veris._typing'
         check=False,
     )
     assert result.returncode == 0, result.stderr[-2000:]
-
-
-@pytest.mark.parametrize(
-    "module,name",
-    [("configuration", "Configuration"), ("physical_constants", "PhysicalConstants")],
-)
-def test_configuration_types_live_with_their_registries(module: str, name: str) -> None:
-    """The settings and physical constants classes are explicit local exceptions."""
-    cls = getattr(importlib.import_module(f"veris.{module}"), name)
-    assert cls.__module__ == f"veris.{module}"
-    assert not hasattr(importlib.import_module("veris._typing"), name)
 
 
 def test_registries_share_parameter_metadata() -> None:

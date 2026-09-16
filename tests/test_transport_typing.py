@@ -7,21 +7,22 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize("valid", [True, False], ids=["immutable", "wrong-state"])
-@pytest.mark.parametrize("direction", ["Zonal", "Meridional"])
-def test_directional_transport_contract(
-    tmp_path: Path, valid: bool, direction: str
-) -> None:
-    """Accept NumPy fields and concrete State, but reject invalid state arguments."""
-    source = f"""from veris._typing import State
+@pytest.mark.parametrize("case", ["immutable", "wrong-Zonal", "wrong-Meridional"])
+def test_directional_transport_contract(tmp_path: Path, case: str) -> None:
+    """Batch valid signatures while checking each direction rejects wrong State."""
+    valid = case == "immutable"
+    source = """from veris._typing import State
 from veris.configuration import Configuration
 from jax import Array
 from numpy import float64
 from numpy.typing import NDArray
-from veris.advection import calc_{direction}Flux
+from veris.advection import calc_ZonalFlux, calc_MeridionalFlux
 from veris.physical_constants import PhysicalConstants
-
-def evaluate(state: {"State" if valid else "str"}, constants: Configuration, field: NDArray[float64]) -> Array:
+"""
+    for direction in ("Zonal", "Meridional"):
+        state_type = "str" if case == f"wrong-{direction}" else "State"
+        source += f"""
+def evaluate_{direction}(state: {state_type}, constants: Configuration, field: NDArray[float64]) -> Array:
     return calc_{direction}Flux(state, constants, PhysicalConstants(), field, field)
 """
     root = Path(__file__).resolve().parents[1]
