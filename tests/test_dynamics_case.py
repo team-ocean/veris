@@ -63,74 +63,41 @@ def test_reference_initial_fields_and_wind() -> None:
     )
 
 
-def test_dynamics_matches_reference_kernel_sequence() -> None:
-    """Every evolving field and returned stress must match the notebook order."""
-    from veris.advection import Advection
-    from veris.area_mass import AreaWS, SeaIceMass
-    from veris.clean_up import clean_up_advection, ridging
-    from veris.dynamics_routines import SeaIceStrength
-    from veris.dynsolver import IceVelocities, WindForcingXY
-    from veris.fill_overlap import fill_overlap
-    from veris.ocean_stress import OceanStressUV
+def test_dynamics_driver_refreshes_state_and_stress_halos() -> None:
+    """The driver wraps the core stage with final State and Diagnostics halos."""
+    import jax.numpy as jnp
+
+    from veris.dynamics import dynamics_transport
 
     module = case()
     initial, conf, phys = module.initialize(6, 8, settings_overrides={"nEVPsteps": 2})
-    expected = initial
-    for names, kernel in [
-        ("SeaIceMassC SeaIceMassU SeaIceMassV", SeaIceMass),
-        ("AreaW AreaS", AreaWS),
-        ("WindForcingX WindForcingY", WindForcingXY),
-    ]:
-        expected = replace(
-            expected,
-            **dict(zip(names.split(), kernel(expected, conf, phys), strict=True)),
-        )
-    expected = replace(expected, SeaIceStrength=SeaIceStrength(expected, conf, phys))
-    expected = replace(
-        expected,
-        **dict(
-            zip(
-                ["uIce", "vIce", "sigma1", "sigma2", "sigma12"],
-                IceVelocities(expected, conf, phys),
-                strict=True,
-            )
+    # A pass-through field with stale halos detects a missing driver refresh.
+    initial = replace(
+        initial,
+        Qnet=jnp.arange(initial.Qnet.size, dtype=initial.Qnet.dtype).reshape(
+            initial.Qnet.shape
         ),
     )
-    stress = OceanStressUV(expected, conf, phys)
-    expected = replace(
-        expected,
-        **dict(
-            zip(
-                ["hIceMean", "hSnowMean", "Area"],
-                Advection(expected, conf, phys),
-                strict=True,
-            )
-        ),
-    )
-    expected = replace(
-        expected,
-        **dict(
-            zip(
-                [
-                    "hIceMean",
-                    "hSnowMean",
-                    "Area",
-                    "TSurf",
-                    "os_hIceMean",
-                    "os_hSnowMean",
-                ],
-                clean_up_advection(expected, conf, phys),
-                strict=True,
-            )
-        ),
-    )
-    expected = replace(expected, Area=ridging(expected, conf, phys))
-    expected = jax.tree.map(lambda a: fill_overlap(a, conf), expected)
+    local, stress_u, stress_v = dynamics_transport(initial, conf, phys)
     actual, diagnostics = module.step_with_diagnostics(initial, conf, phys)
-    for a, b in zip(jax.tree.leaves(actual), jax.tree.leaves(expected), strict=True):
-        np.testing.assert_allclose(a, b, atol=1e-12, rtol=1e-12)
-    np.testing.assert_allclose(diagnostics.OceanStressU, fill_overlap(stress[0], conf))
-    np.testing.assert_array_equal(actual.Qnet, initial.Qnet)
+    for result, reference in zip(
+        jax.tree.leaves(actual), jax.tree.leaves(local), strict=True
+    ):
+        np.testing.assert_allclose(
+            result,
+            np.pad(np.asarray(reference)[2:-2, 2:-2], 2, mode="wrap"),
+            atol=1e-12,
+            rtol=1e-12,
+        )
+    for result, reference in (
+        (diagnostics.OceanStressU, stress_u),
+        (diagnostics.OceanStressV, stress_v),
+    ):
+        np.testing.assert_allclose(
+            result, np.pad(np.asarray(reference)[2:-2, 2:-2], 2, mode="wrap")
+        )
+    for name in ("EmPmR", "forc_salt_surface", "IcePenetSW"):
+        np.testing.assert_array_equal(getattr(diagnostics, name), 0)
     compiled = module.compiled_step(initial, conf, phys)
     for a, b in zip(jax.tree.leaves(compiled), jax.tree.leaves(actual), strict=True):
         np.testing.assert_allclose(a, b, atol=1e-12, rtol=1e-12)

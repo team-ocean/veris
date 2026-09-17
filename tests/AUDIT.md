@@ -1,6 +1,99 @@
-# Test suite redundancy audit — 2026-09-16
+# Test suite redundancy audit
 
-## Precision follow-up
+## Core dynamics and whole-suite follow-up — 2026-09-17
+
+Baseline: published `bc0864f`, 929 collected cases. Reviewed all **66 test
+modules**, their parametrizations, relevant probe helpers and production
+branches. The resulting suite collects **911 cases** (18 fewer), with 330 test
+functions and no identical function bodies after removing names/docstrings in
+an AST inventory. The inventory is a mechanical cross-check, not proof of
+semantic uniqueness; the contract review determines what can be consolidated.
+
+`veris.dynamics.dynamics_transport` now owns the reusable local dynamics and
+transport stage. Its executable AST is unchanged from `setups/_physics.py`.
+The relocated `test_dynamics.py` owns the reference kernel sequence and missing
+final halo refresh; `test_dynamics_case.py` owns the scenario driver's final
+halos, diagnostics and compiled wrapper. Numerical equations remain in their
+kernel tests. Integration necessarily executes these same kernels but checks
+composition and evolving state rather than repeating their equation oracles.
+
+### Removed work and retained contracts
+
+| Removed or consolidated work | Retained owner and preservation evidence |
+| --- | --- |
+| Duplicate dynamics kernel-sequence construction in the setup test | `test_dynamics_transport_preserves_intermediate_state` retains the complete sequence oracle in both y-boundary modes. `test_dynamics_driver_refreshes_state_and_stress_halos` uses independent NumPy wrapping and stale forcing halos; checks both ocean stresses and zero thermodynamic diagnostics. |
+| Four uniform corner-averaging cases | `test_corner_average_with_land` packs all 16 coast patterns for both slip modes. Integer inputs retain exact fully wet averages and exact inactive zeros in the same call, plus the full-grid scalar oracle. |
+| Two free-drift dispatch forcing repetitions | `test_free_drift_dispatch_preserves_internal_stresses` retains nonzero forcing and stress passthrough; `test_uniform_free_drift_momentum_balance` owns all 27 wind/Coriolis/current combinations. |
+| 27 additional all-land free-drift calls inside that matrix | One `test_free_drift_applies_each_staggered_land_mask` checks distinct U/V dry locations, exact zeros and unaffected wet values against independent equatorial balance. |
+| Separate forward/reverse zero-strain viscosity setup and repeated primal calls | `test_zero_strain_viscosity_finite_linearization` runs both modes once and reuses the JVP primal; all derivative and primal expectations remain. |
+| Two float64 basal-cutoff cases | `test_basal_drag_value_and_gradients_match_stable_keel_law` already owns both boundary areas, both derivative dtypes and the float64 equation; now explicitly requires inactive exact zeros. Float32 cutoff cases remain separate. |
+| Separate EVP print-control schema case | Registry owner checks its default; `test_printed_evp_residual_matches_interior_velocity_norm` checks actually enabling it and the resulting residual. |
+| Two pressure-coefficient initialization cases | Both precision cases of `test_state_overrides_and_constants_share_selected_policy` now carry the same override/value/dtype assertions. |
+| Separate hCut classification case | `test_physics_thresholds_belong_to_constants` owns its partition; the complete registry test independently checks the legacy literal 0.15. |
+| Second positive solver type-checker invocation | `test_solver_contract` checks both valid signatures in one generated module. Every negative type/arity case remains separate. |
+| Default cloud-hash repetition and helper dataclass frozen assertion | Registry tests own concrete model hash/frozen contracts; cloud replacement and tuple immutability remain. The helper assertion tested Python's dataclass decorator. |
+| Disabled-output JVP/JIT rows | Disabled grad checks the same unconditional early return, no sampling and no file; all enabled grad/JVP/JIT guards remain. |
+| Toy post-AD snapshot case | `test_real_growth_ad_disables_output_and_writes_auxiliary_final_state` owns actual post-AD writing. Existing selected snapshot roundtrip now takes a mapping, preserving positive inferred-name handling. |
+| Bare halo import subprocess | `test_example_runs_in_fresh_process_without_mesh_helper` imports and executes the same halo module in a fresh standalone process. Mesh validation and multi-device probes remain. |
+| Trivial default final-carry rollout case and forwarding helper | `test_jitted_value_state_and_forcing_derivatives` already asserts the default final result against an independent nonlinear recurrence, in both checkpoint modes. Tests now call `veris.step` directly. |
+| Repeated compiled API availability checks and final Qnet assertion | The forward compiled-step test retains its API contract; AD tests exercise it directly. The dynamics all-State equality already checks Qnet. |
+
+### Whole-suite review coverage
+
+- Numerical review (26 modules): `test_ad_freedrift`, `test_ad_primitives`,
+  `test_ad_sharding`, `test_ad_thermodynamics`, `test_ad_zero_states`,
+  `test_advection`, `test_area_mass`, `test_averaging`,
+  `test_basal_drag_stability`, `test_clean_up`, `test_closed_y`,
+  `test_closed_y_stress`, `test_dynamics_routines`, `test_dynsolver`,
+  `test_evp_optimization`, `test_evp_solver`, `test_freedrift_solver`,
+  `test_global_sum`, `test_gradients`, `test_growth`, `test_heat_flux_CESM`,
+  `test_heat_flux_MITgcm`, `test_nonsmooth_gradients`, `test_ocean_stress`,
+  `test_solve4temp`, `test_surface_temperature_precision`.
+- Contracts (16): `test_central_types`, `test_coefficient_registry`,
+  `test_configuration`, `test_diagnostics`, `test_dynamics_typing`,
+  `test_experiment_configuration`, `test_heat_flux_typing`,
+  `test_initialization`, `test_initialized_sharding`, `test_ocean_setup`,
+  `test_precision`, `test_precision_paths`, `test_solver_typing`,
+  `test_transport_typing`, `test_typing_contracts`, `test_variables`.
+- Output (14): `test_io_calendar`, `test_io_distributed`,
+  `test_io_integration`, `test_io_output`, `test_io_restart`, `test_io_storage`,
+  `test_output_reduced`, `test_output_scan`, `test_output_scan_memory`,
+  `test_output_scan_parallel`, `test_output_scan_physics`,
+  `test_output_scan_validation`, `test_output_schedule`, `test_rollout_output`.
+- Composition/tooling (10): `test_benchmark_profile`, `test_dynamics`,
+  `test_dynamics_case`, `test_fill_overlap`, `test_growth_case`,
+  `test_integration`, `test_parallel_case`, `test_rollout_setups`,
+  `setups/test_artificial`, `setups/test_compiled_step`.
+
+Retained overlaps check distinct failure modes: direct versus composed
+momentum balance; smooth versus singular AD and one-sided limits; selected
+precision policy versus float32 stability; serial walls versus actual
+communication; adapter validation versus base initialization; metadata netCDF
+compatibility versus production storage; direct versus reduced output
+lifecycles; runtime callbacks versus compiled schedules; initial versus evolved
+restart; and public CLI composition versus low-level writer validation.
+Separate negative cases avoid an early exception hiding a missing later guard.
+
+Independent review identified the averaging exactness gap above, which was
+repaired before the full run. No production equations, tolerances, collection
+filters or coverage exclusions changed. Verification evidence is kept under
+`test_logs/dynamics-audit/`; final results are recorded in CHANGELOG.md.
+
+### Verification
+
+Full CPU correctness: **909 passed, two expected GPU-only skips** in 1251.81s.
+Maintained statement coverage is unchanged at **2654/2732 = 97.14%**; whole
+package **2654/3085 = 86.03%**. Every maintained file has exactly the same
+covered, missing and excluded statement sets after mapping the relocated
+module. Source/test hashes match the tested snapshot. No additional coverage
+exclusions or test-selection filters were added. Selected CUDA verification
+passed **120 tests with no skips**, including both GPU-only cases skipped by
+CPU. Ruff, formatting, annotations, ty, clean-wheel contents and Sphinx with
+warnings as errors also pass.
+
+## Historical audits — 2026-09-16
+
+### Precision follow-up
 
 The follow-up starts from local commit `62749ef` (950 cases). It assigns dtype
 by contract, rather than repeating each test at every supported precision.

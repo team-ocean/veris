@@ -10,8 +10,7 @@ import pytest
 @pytest.mark.parametrize(
     "valid,contract",
     [
-        (True, "evp-result"),
-        (True, "dispatcher-result"),
+        (True, "both-results"),
         (False, "iteration-count"),
         (False, "evp-result"),
         (False, "dispatcher-result"),
@@ -43,6 +42,11 @@ def evaluate(state: State, constants: Configuration, phys: PhysicalConstants) ->
         else "tuple[Array, Array, Array, Array, Array]"
     )
     source = source.replace("RETURN_TYPE", result_type)
+    if valid:
+        source += """
+def dispatch(state: State, constants: Configuration, phys: PhysicalConstants) -> tuple[Array, Array, Array, Array, Array]:
+    return IceVelocities(state, constants, phys)
+"""
     root = Path(__file__).resolve().parents[1]
     path = tmp_path / "solver_contract.py"
     path.write_text(source)

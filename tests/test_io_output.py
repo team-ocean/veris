@@ -177,11 +177,14 @@ def test_mean_buffer_memory_does_not_grow_with_samples(tmp_path: Path) -> None:
     assert record.count == 1001
 
 
-@pytest.mark.parametrize("disabled", [False, True])
-@pytest.mark.parametrize("transform", ["grad", "jvp", "jit"])
+@pytest.mark.parametrize(
+    "disabled,transform",
+    [(False, "grad"), (False, "jvp"), (False, "jit"), (True, "grad")],
+)
 def test_transforms_and_explicit_ad_mode_do_not_sample_even_constant_fields(
     tmp_path: Path, disabled: bool, transform: str
 ) -> None:
+    """Each trace guard is exercised; disabled output bypasses all trace guards."""
     from veris.io import OutputManager, OutputSettings, Stream
 
     path = tmp_path / "ad.nc"

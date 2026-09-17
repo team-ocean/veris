@@ -1,7 +1,5 @@
 """Verify free drift against uniform momentum balance and land masks."""
 
-from dataclasses import replace
-
 import numpy as np
 import pytest
 from conftest import StateFactory
@@ -50,7 +48,33 @@ def test_uniform_free_drift_momentum_balance(
         0.3 * wind,
         atol=1e-12,
     )
-    land = replace(vs, iceMaskU=0 * vs.iceMaskU, iceMaskV=0 * vs.iceMaskV)
-    for component in freedrift_solver(land, conf, phys):
+
+
+def test_free_drift_applies_each_staggered_land_mask(
+    state: StateFactory, conf: Configuration, phys: PhysicalConstants
+) -> None:
+    """Local output masks suppress land without altering neighboring wet faces."""
+    ones = np.ones((4, 7))
+    mask_u, mask_v = ones.copy(), ones.copy()
+    mask_u[1, 2] = 0
+    mask_v[2, 3] = 0
+    wind = 0.05
+    vs = state(
+        WindForcingX=wind * ones,
+        WindForcingY=0 * ones,
+        hIceMean=ones,
+        fCori=0 * ones,
+        uOcean=0.15 * ones,
+        vOcean=-0.08 * ones,
+        iceMaskU=mask_u,
+        iceMaskV=mask_v,
+    )
+    expected_u = 0.15 + np.sqrt(wind / (phys.rhoSea * phys.waterIceDrag))
+    for component, expected, mask in zip(
+        freedrift_solver(vs, conf, phys), (expected_u, -0.08), (mask_u, mask_v)
+    ):
         assert component.shape == ones.shape
-        np.testing.assert_array_equal(component, 0)
+        np.testing.assert_array_equal(np.asarray(component)[mask == 0], 0)
+        np.testing.assert_allclose(
+            np.asarray(component)[mask != 0], expected, rtol=1e-13
+        )

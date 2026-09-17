@@ -7,7 +7,7 @@ import pytest
 
 from veris.configuration import SETTINGS, Configuration
 from veris.initialization import initialize
-from veris.physical_constants import PHYSICALCONSTANTS, PhysicalConstants
+from veris.physical_constants import PHYSICALCONSTANTS
 from veris.setups import artificial
 
 EXPERIMENT_DEFAULTS = {
@@ -38,12 +38,6 @@ def test_all_experiment_defaults_are_registered() -> None:
     for name, value in EXPERIMENT_DEFAULTS.items():
         assert artificial.ARTIFICIAL_SETTINGS[name].default == value
         assert not hasattr(settings, name)
-
-
-def test_optical_snow_transition_is_a_physical_constant() -> None:
-    assert "hCut" in PHYSICALCONSTANTS
-    assert "hCut" not in SETTINGS
-    assert PhysicalConstants().hCut == 0.15
 
 
 def test_allocation_extents_are_recorded_and_settings_overrides_are_used() -> None:

@@ -117,7 +117,6 @@ def test_cloud_tables_are_immutable_hashable_and_replaceable() -> None:
     assert hasattr(constants, "longwaveCloudLatitudes")
     assert constants.longwaveCloudLatitudes == CLOUD_LATITUDES
     assert constants.longwaveCloudCoefficients == CLOUD_COEFFICIENTS
-    assert hash(constants) == hash(PhysicalConstants())
     updated = replace(
         constants,
         longwaveCloudLatitudes=(-90, 0, 90),

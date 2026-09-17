@@ -105,24 +105,3 @@ def test_sharded_dispatch_requires_named_mesh(halo: ModuleType) -> None:
     mesh = jax.make_mesh((1,), ("devices",))
     with pytest.raises(ValueError, match="x.*y"):
         halo.make_sharded_fill_overlap(mesh)
-
-
-def test_halo_import_does_not_require_application_mesh_module() -> None:
-    """Import must succeed in a fresh process with default sharding enabled."""
-    import os
-    import subprocess
-    import sys
-    from pathlib import Path
-
-    root = Path(__file__).resolve().parents[1]
-    result = subprocess.run(
-        [sys.executable, "-c", "import veris.fill_overlap"],
-        env=dict(os.environ, JAX_PLATFORMS="cpu", PYTHONPATH=str(root)),
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=False,
-    )
-    assert result.returncode == 0, (
-        f"ERROR standalone halo import: {result.stderr[-2000:]}"
-    )

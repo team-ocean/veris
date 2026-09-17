@@ -1,18 +1,43 @@
 # Development log
 
-## 2026-09-17 — Core dynamics ownership
+## 2026-09-17 — Core dynamics ownership and test redundancy audit
 
-- [x] Moved setups/_physics.py to veris/dynamics.py and updated both callers.
-  The executable stage AST is unchanged. Forcing, thermodynamics, sharding
-  context and final State/Diagnostics halo refresh remain caller-owned.
-- [x] Relocated the existing sequence oracle to tests/test_dynamics.py;
-  new-path tests failed before the move and all 12 focused stage/driver tests
-  passed afterward. DESIGN and integration documentation describe ownership.
-- [x] Final worktree validation, including the companion test audit: 909 CPU
-  passes with two GPU-only skips; 120 CUDA passes including both skipped cases.
-  Maintained coverage 2654/2732 (97.14%) and all covered/missing line sets match
-  baseline. Ruff, format, annotations, ty, Sphinx -E -W and clean wheel pass.
-  Evidence: test_logs/dynamics-audit/. Test compaction is committed separately.
+- [x] Moved setups/_physics.py to veris/dynamics.py, preserving the
+  dynamics_transport interface and numerical ordering. Root handled the move,
+  setup/integration tests, audit documentation and all pytest scheduling.
+- Audit ownership: numerical_audit reviews numerical/gradient/boundary tests;
+  output_audit reviews IO/output/calendar/restart tests; contract_audit reviews
+  configuration/initialization/typing/precision tests. No concurrent pytest.
+- [x] Moved core dynamics and its existing sequence test; both callers import
+  veris.dynamics. New-path test failed first on ModuleNotFoundError, then all 12
+  focused dynamics/compiled tests passed. Executable stage AST is unchanged.
+- [x] Reviewed all 66 modules; consolidated 18 collected cases (929 -> 911) and
+  repeated calls/assertions. Full removed-to-retained mapping is in tests/AUDIT.md.
+  Independent review caught weaker corner-mask equality; restored exact dry/wet
+  assertions inside the packed oracle before full verification.
+- [x] Maintained Ruff, format and ty checks pass. Removing the rollout forwarding
+  helper exposed an inferred keyword-dict type; explicit dict[str, Any] preserves
+  intentional invalid-input test cases. No production typing change needed.
+- [x] Clean wheel contains the new module and both callers verbatim, excludes
+  the old private module. Initial wheel reused stale build/lib content; use a
+  fresh --build-base when checking deleted/renamed modules. Sphinx -E -W passes
+  after allowing its configured remote inventory download; no docs warnings.
+- [x] Full CPU suite: 909 passed, 2 expected GPU-only skips in 1251.81 s.
+  Maintained coverage 2654/2732 = 97.14%; whole-package 2654/3085 = 86.03%.
+  Every covered/missing/excluded line set is identical to baseline after mapping
+  the relocated module. Source/test hashes match the full-run snapshot.
+- [x] CUDA: 120 selected tests passed, no failures/skips in 199.83 s, including
+  both GPU-only cases skipped by CPU. Final review confirms all 66 modules are
+  accounted for and no additional whole-test duplicate is safely removable.
+- [x] Completed verification for the core move and test compaction on jax-only.
+  Evidence: test_logs/dynamics-audit/ (CPU/GPU XML, coverage comparison, module
+  pass counts, source hashes, clean wheel and Sphinx HTML). Runtime artifacts
+  remain untracked. Tests use .venv-latest, not nonexistent .venv.
+- Baseline: jax-only bc0864f; 929 cases, 927 CPU passes and two GPU-only skips;
+  maintained coverage 2654/2732 (97.14%) from the preceding full run.
+- Remove repeated contracts only with explicit retained owners. Independent
+  equation, branch, AD, precision and distributed checks remain meaningful even
+  when they execute common kernels. Record decisions in tests/AUDIT.md.
 
 ## 2026-09-17 — Production simplification
 

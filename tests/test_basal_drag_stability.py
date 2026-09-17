@@ -108,10 +108,14 @@ def test_basal_drag_value_and_gradients_match_stable_keel_law(
     )
     np.testing.assert_allclose(coefficient, expected[0], rtol=3e-6, atol=1e-15)
     assert np.all(np.asarray(coefficient) >= 0), "ERROR basal drag must oppose motion"
+    if area <= 0.01:
+        np.testing.assert_array_equal(coefficient, 0)
     for actual, reference in zip(derivatives, expected[1:]):
         assert actual.dtype == dtype
         assert np.isfinite(actual), "ERROR nonfinite basal drag sensitivity"
         np.testing.assert_allclose(actual, reference, rtol=3e-6, atol=1e-15)
+        if area <= 0.01:
+            np.testing.assert_array_equal(actual, 0)
 
 
 @pytest.mark.parametrize("thickness", [1.0, 10.0, 90.0])
@@ -199,12 +203,12 @@ def test_float32_basal_drag_and_sensitivities_stay_finite(
     assert velocity_slope < 0
 
 
-@pytest.mark.parametrize("dtype", [np.float32, np.float64], ids=["float32", "float64"])
 @pytest.mark.parametrize("area", [0.01, 0.0101])
-def test_basal_drag_active_area_threshold_preserves_precision(
-    state: StateFactory, dtype: type[np.float32] | type[np.float64], area: float
+def test_float32_basal_drag_active_area_threshold_preserves_precision(
+    state: StateFactory, area: float
 ) -> None:
-    """The strict area cutoff and drag/AD dtype are contracts at both precisions."""
+    """Complement the float64 keel-law oracle with the float32 cutoff and AD dtype."""
+    dtype = np.float32
     conf = Configuration(use_sharding=False, dtype=np.dtype(dtype).name)
     phys = PhysicalConstants(dtype=np.dtype(dtype).name, basalDragK2=0.7)
     vs = basal_case(state, dtype, area, 1.0)

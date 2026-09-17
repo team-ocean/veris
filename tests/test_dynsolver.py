@@ -148,14 +148,14 @@ def test_affine_hydrostatic_tilt_and_wind_force(
         np.testing.assert_allclose(value[1:, 1:], reference, rtol=1e-10, atol=1e-12)
 
 
-@pytest.mark.parametrize("forcing", [0, 0.05, 0.3])
 def test_free_drift_dispatch_preserves_internal_stresses(
     state: StateFactory,
     conf: Configuration,
     phys: PhysicalConstants,
     dynamics: ModuleType,
-    forcing: float,
 ) -> None:
+    """Dispatch owns stress passthrough; direct solver tests own forcing regimes."""
+    forcing = 0.05
     conf = replace(conf, useFreedrift=True, useEVP=False)
     ones = np.ones((3, 5))
     sigma = np.arange(15, dtype=float).reshape(ones.shape)

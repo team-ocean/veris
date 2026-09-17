@@ -116,7 +116,7 @@ def test_full_snapshot_roundtrip_and_selected_physical_snapshot(tmp_path: Path) 
             getattr(restored, name)[2:-2, 2:-2], getattr(state, name)[2:-2, 2:-2]
         )
     physical = tmp_path / "physical.nc"
-    write_snapshot(physical, state, variables=("hIceMean",))
+    write_snapshot(physical, {"hIceMean": state.hIceMean})
     np.testing.assert_array_equal(
         read_record(physical).fields["hIceMean"],
         np.arange(56.0).reshape(7, 8)[2:-2, 2:-2],
@@ -171,21 +171,6 @@ def test_snapshot_refuses_transformed_calls_before_file_effects(
         else:
             jax.jit(objective)(2.0)
     assert not path.exists()
-
-
-def test_final_snapshot_after_value_and_grad(tmp_path: Path) -> None:
-    from veris.io.storage import read_record, write_snapshot
-
-    def objective(x: float | jax.Array) -> tuple[jax.Array, dict[str, jax.Array]]:
-        final = {"Area": jnp.ones((6, 6)) * x}
-        return jnp.sum(final["Area"]), final
-
-    (value, final), gradient = jax.value_and_grad(objective, has_aux=True)(2.0)
-    assert value == 72 and gradient == 36
-    write_snapshot(tmp_path / "final.nc", final)
-    np.testing.assert_array_equal(
-        read_record(tmp_path / "final.nc").fields["Area"], np.full((2, 2), 2.0)
-    )
 
 
 def test_writer_rejects_changed_shape_or_unsafe_dtype_before_extending(

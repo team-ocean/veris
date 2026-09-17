@@ -139,13 +139,19 @@ def test_state_overrides_and_constants_share_selected_policy(dtype: str) -> None
         3,
         dtype=dtype,
         state_overrides={"theta": temperature, "iceMask": np.ones((6, 7), dtype=int)},
-        physical_overrides={"rhoIce": np.float64(920), "dtype": dtype},
+        physical_overrides={
+            "rhoIce": np.float64(920),
+            "pressReplFac": 0.5,
+            "dtype": dtype,
+        },
     )
     for array in jax.tree.leaves(state):
         assert array.dtype == np.dtype(dtype)
         assert np.all(np.isfinite(array))
     np.testing.assert_array_equal(state.theta, temperature)
     assert np.asarray(constants.rhoIce).dtype == np.dtype(dtype)
+    assert constants.pressReplFac == 0.5
+    assert np.asarray(constants.pressReplFac).dtype == np.dtype(dtype)
     assert settings.dtype == constants.dtype == dtype
     with pytest.raises(ValueError, match="physical dtype must match"):
         initialize(2, 3, dtype=dtype, physical_overrides={"dtype": source_dtype})

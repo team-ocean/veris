@@ -12,8 +12,7 @@ from veris.dynsolver import tauXY
 from veris.setups.run_dyn import compiled_step, initialize
 
 
-@pytest.mark.parametrize("mode", ["forward", "reverse"])
-def test_zero_strain_viscosity_finite_linearization(mode: str) -> None:
+def test_zero_strain_viscosity_finite_linearization() -> None:
     """Zero is the symmetric norm linearization; primal viscosity is unchanged."""
     state, conf, phys = initialize(4, 6)
     zeros = jnp.zeros_like(state.uIce)
@@ -23,13 +22,12 @@ def test_zero_strain_viscosity_finite_linearization(mode: str) -> None:
         zeta, _, _ = viscosities(state, conf, phys, strain, zeros, zeros)
         return jnp.sum(zeta)
 
-    if mode == "forward":
-        _, derivative = jax.jvp(value, (zeros,), (jnp.ones_like(zeros),))
-    else:
-        derivative = jax.grad(value)(zeros)
-    assert np.isfinite(derivative).all()
-    np.testing.assert_array_equal(derivative, 0.0)
-    np.testing.assert_allclose(value(zeros), zeros.size * 500 / phys.deltaMin)
+    primal, forward = jax.jvp(value, (zeros,), (jnp.ones_like(zeros),))
+    reverse = jax.grad(value)(zeros)
+    for derivative in (forward, reverse):
+        assert np.isfinite(derivative).all()
+        np.testing.assert_array_equal(derivative, 0.0)
+    np.testing.assert_allclose(primal, zeros.size * 500 / phys.deltaMin)
 
 
 @pytest.mark.parametrize("kernel", ["wind", "ocean"])

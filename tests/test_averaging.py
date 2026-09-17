@@ -19,46 +19,30 @@ def test_corner_average_with_land(
     no_slip: bool,
 ) -> None:
     rng = np.random.default_rng(0)
-    # Every binary four-cell coastline orientation occurs at an odd/odd corner.
+    # Every binary four-cell coastline orientation occurs at an odd/odd corner,
+    # including the all-land and all-ocean neighborhoods (patterns 0 and 15).
     mask = np.zeros((8, 12), dtype=int)
     for pattern in range(16):
         row, column = 2 * (pattern // 6), 2 * (pattern % 6)
         mask[row : row + 2, column : column + 2] = np.array(
             [(pattern >> bit) & 1 for bit in range(4)]
         ).reshape(2, 2)
-    field = rng.normal(size=mask.shape) * mask
+    # Integer inputs make four-wet-cell averages exactly representable.
+    field = rng.integers(-20, 21, size=mask.shape) * mask
     result = c_point_to_z_point(
         state(iceMask=mask), replace(conf, noSlip=no_slip), phys, field
     )
     assert result.shape == field.shape
-    expected = np.zeros_like(field)
+    expected = np.zeros_like(field, dtype=float)
+    wet_count = np.zeros_like(mask)
     for i, j in np.ndindex(field.shape):
         cells = [(i, j), (i - 1, j), (i, j - 1), (i - 1, j - 1)]
         count = sum(mask[x, y] for x, y in cells)
+        wet_count[i, j] = count
         if count and (no_slip or count == 4):
             expected[i, j] = sum(field[x, y] for x, y in cells) / count
     np.testing.assert_allclose(result, expected, atol=1e-14)
-
-
-@pytest.mark.parametrize("no_slip", [True, False])
-@pytest.mark.parametrize("ocean", [False, True])
-def test_corner_average_uniform_masks(
-    state: StateFactory,
-    conf: Configuration,
-    phys: PhysicalConstants,
-    no_slip: bool,
-    ocean: bool,
-) -> None:
-    mask = np.full((3, 5), float(ocean))
-    field = np.arange(15, dtype=float).reshape(mask.shape) * mask
-    result = c_point_to_z_point(
-        state(iceMask=mask), replace(conf, noSlip=no_slip), phys, field
+    np.testing.assert_array_equal(np.asarray(result)[expected == 0], 0)
+    np.testing.assert_array_equal(
+        np.asarray(result)[wet_count == 4], expected[wet_count == 4]
     )
-    expected = np.zeros_like(field)
-    if ocean:
-        for i, j in np.ndindex(field.shape):
-            expected[i, j] = (
-                field[i, j] + field[i - 1, j] + field[i, j - 1] + field[i - 1, j - 1]
-            ) / 4
-    assert result.shape == field.shape
-    np.testing.assert_array_equal(result, expected)

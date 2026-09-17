@@ -6,7 +6,6 @@ from dataclasses import FrozenInstanceError, fields, is_dataclass, replace
 from pathlib import Path
 from types import ModuleType
 
-import numpy as np
 import pytest
 
 from veris._typing import Parameter
@@ -29,6 +28,7 @@ def test_registry_defaults_are_disjoint_complete_and_frozen() -> None:
     from veris.settings import Configuration as ModelConfiguration
 
     assert config.Configuration is ModelConfiguration
+    assert config.SETTINGS["printEvpResidual"].default is False
     legacy = json.loads(
         (
             Path(__file__).parent / "reference_data/configuration_pre_dataclass.json"
@@ -152,15 +152,6 @@ def test_derived_nonfinite_values_are_rejected() -> None:
         physical.PhysicalConstants(lhFusion=1e308, lhEvap=1e308)
 
 
-def test_evp_print_control_is_instance_owned() -> None:
-    """Residual reporting is configurable without a mutable module global."""
-    from veris.configuration import SETTINGS, Configuration
-
-    assert "printEvpResidual" in SETTINGS
-    assert Configuration().printEvpResidual is False
-    assert replace(Configuration(), printEvpResidual=True).printEvpResidual is True
-
-
 def test_registry_defaults_populate_dataclass_fields() -> None:
     """Registry values become constructor defaults, including derived fields."""
     from dataclasses import dataclass, field
@@ -187,8 +178,6 @@ def test_registry_defaults_populate_dataclass_fields() -> None:
     assert "inverse" not in signature(Example).parameters
     assert replace(Example(), count=4).inverse == 0.25
     assert fields(Example)[1].default == 1 / 3
-    with pytest.raises(FrozenInstanceError):
-        Example().count = 4  # ty: ignore[invalid-assignment]
 
 
 @pytest.mark.parametrize("registry_names", [(), ("count", "extra")])
@@ -230,6 +219,7 @@ def test_physics_thresholds_belong_to_constants() -> None:
         "basalDragMinArea",
         "bulkStabilityLimit",
         "lanlMinWindSpeed",
+        "hCut",
     ]
     assert set(names) <= physical.PHYSICALCONSTANTS.keys()
     assert not set(names) & config.SETTINGS.keys()
@@ -264,18 +254,6 @@ def test_physical_temperature_bounds_are_validated_together() -> None:
     _, physical = configuration_modules()
     with pytest.raises(ValueError, match="minTIce must not exceed maxTIce"):
         physical.PhysicalConstants(minTIce=10, maxTIce=5)
-
-
-@pytest.mark.parametrize("dtype", ["float32", "float64"])
-def test_pressure_coefficient_initialization_preserves_precision(dtype: str) -> None:
-    """A physical coefficient override converts to the selected scalar dtype."""
-    from veris.initialization import initialize
-
-    _, _, constants = initialize(
-        2, 3, dtype=dtype, physical_overrides={"pressReplFac": 0.5}
-    )
-    assert constants.pressReplFac == 0.5
-    assert np.asarray(constants.pressReplFac).dtype.name == dtype
 
 
 def test_numerical_controls_and_initial_conditions_remain_settings() -> None:

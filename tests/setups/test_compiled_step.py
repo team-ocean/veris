@@ -1,7 +1,6 @@
 """Whole-step compilation must retain the coupled driver and its derivatives."""
 
 from dataclasses import fields, replace
-from types import ModuleType
 
 import jax
 import jax.numpy as jnp
@@ -10,15 +9,10 @@ import pytest
 
 
 @pytest.mark.parametrize("adaptive", [False, True])
-def test_compiled_step_matches_evolving_python_driver(
-    halo: ModuleType, adaptive: bool
-) -> None:
+def test_compiled_step_matches_evolving_python_driver(adaptive: bool) -> None:
     """Compare all fields through changing forcing on a nonuniform masked grid."""
     from veris.setups import artificial
 
-    assert hasattr(artificial, "compiled_step"), (
-        "ERROR explicit compiled driver missing"
-    )
     initialize, step = artificial.initialize, artificial.compiled_step
     assert step.__wrapped__ is artificial.step
     assert not hasattr(artificial.step, "lower"), "ERROR preserve the Python driver"
@@ -41,16 +35,12 @@ def test_compiled_step_matches_evolving_python_driver(
             )
 
 
-def test_compiled_step_cooling_jvp_vjp_and_finite_difference(halo: ModuleType) -> None:
+def test_compiled_step_cooling_jvp_vjp_and_finite_difference() -> None:
     """Dynamic cooling remains differentiable through the compiled growth step."""
     from veris.setups import artificial
 
-    assert hasattr(artificial, "compiled_step"), (
-        "ERROR explicit compiled driver missing"
-    )
     initialize, step = artificial.initialize, artificial.compiled_step
 
-    assert hasattr(step, "lower"), "ERROR coupled step must expose compiled lowering"
     initial, conf, phys = initialize(5, 7)
 
     def compiled(cooling: jax.Array) -> jax.Array:

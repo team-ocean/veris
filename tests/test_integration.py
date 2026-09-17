@@ -10,17 +10,11 @@ import pytest
 import veris
 
 
-def rollout(*args: Any, **kwargs: Any) -> Any:
-    """Fail clearly until the public rollout entry point is implemented."""
-    assert hasattr(veris, "step"), "ERROR universal veris.step missing"
-    return veris.step(*args, **kwargs)
-
-
 @pytest.mark.parametrize("checkpoint", [False, True])
 @pytest.mark.parametrize("steps", [0, 1, 3])
 def test_recurrence_and_selected_observations(steps: int, checkpoint: bool) -> None:
     """Catch incorrect iteration counts, initial samples, and scan carry updates."""
-    result, history = rollout(
+    result, history = veris.step(
         {"value": jnp.array(1.0), "constant": jnp.ones((2, 3))},
         lambda state: {**state, "value": state["value"] * 2},
         steps,
@@ -39,7 +33,7 @@ def test_time_dependent_pytree_forcing_and_auxiliary_outputs() -> None:
     def advance(state: jax.Array, forcing: dict[str, jax.Array]) -> Any:
         return state * forcing["factor"] + forcing["offset"], {"before": state}
 
-    result, history = rollout(
+    result, history = veris.step(
         jnp.array(1.0),
         advance,
         3,
@@ -53,12 +47,12 @@ def test_time_dependent_pytree_forcing_and_auxiliary_outputs() -> None:
     assert float(result) == 47
     np.testing.assert_array_equal(history[0], [3.0, 11.0, 47.0])
     np.testing.assert_array_equal(history[1], [1.0, 3.0, 11.0])
-    assert float(rollout(jnp.array(1.0), lambda s: (s + 2, s), 2, has_aux=True)) == 5
+    assert float(veris.step(jnp.array(1.0), lambda s: (s + 2, s), 2, has_aux=True)) == 5
 
 
 def test_zero_steps_forcing_and_auxiliary_shape() -> None:
     """Empty rollouts retain original carry and correctly typed empty output."""
-    result, history = rollout(
+    result, history = veris.step(
         jnp.ones((2, 3), dtype=jnp.float32),
         lambda state, force: (state + force, jnp.sum(state)),
         0,
@@ -77,7 +71,7 @@ def test_jitted_value_state_and_forcing_derivatives(checkpoint: bool) -> None:
     """A nonlinear recurrence has independent analytic derivatives for all inputs."""
 
     def objective(x: jax.Array, forcing: jax.Array) -> jax.Array:
-        return rollout(
+        return veris.step(
             x, lambda s, f: s * s + f, 2, inputs=forcing, checkpoint=checkpoint
         )
 
@@ -103,7 +97,7 @@ def test_observation_and_closed_over_forcing_gradients() -> None:
     """Checkpoint must preserve gradients of selected histories and captured tracers."""
 
     def objective(force: jax.Array) -> jax.Array:
-        _, history = rollout(
+        _, history = veris.step(
             jnp.array(1.0), lambda s: s * force, 3, observe=lambda s: s
         )
         return history.sum()
@@ -132,7 +126,7 @@ def _primitive_names(program: Any) -> list[str]:
 def test_rollout_uses_scan_and_requested_checkpoint(checkpoint: bool) -> None:
     """Prevent replacing required scan/rematerialization with a Python unroll."""
     program = jax.make_jaxpr(
-        lambda x: rollout(x, lambda s: s * s + 0.1, 3, checkpoint=checkpoint)
+        lambda x: veris.step(x, lambda s: s * s + 0.1, 3, checkpoint=checkpoint)
     )(jnp.array(0.5))
     names = _primitive_names(program)
     assert "scan" in names
@@ -143,7 +137,7 @@ def test_rollout_uses_scan_and_requested_checkpoint(checkpoint: bool) -> None:
 def test_invalid_static_counts(steps: Any) -> None:
     """Host wrappers reject counts that cannot define a static scan length."""
     with pytest.raises((TypeError, ValueError), match="steps"):
-        rollout(jnp.array(1.0), lambda s: s, steps)
+        veris.step(jnp.array(1.0), lambda s: s, steps)
 
 
 @pytest.mark.parametrize(
@@ -153,13 +147,7 @@ def test_invalid_static_counts(steps: Any) -> None:
 def test_invalid_forcing_lengths(inputs: Any) -> None:
     """Do not silently drop forcing slices or accept ambiguous empty PyTrees."""
     with pytest.raises(ValueError, match="inputs"):
-        rollout(jnp.array(1.0), lambda s, f: s, 3, inputs=inputs)
-
-
-def test_no_observation_avoids_history_return() -> None:
-    """The default result is the final calculation carry alone."""
-    result = rollout(jnp.ones((2, 3)), lambda s: s + 1, 2)
-    np.testing.assert_array_equal(result, 3)
+        veris.step(jnp.array(1.0), lambda s, f: s, 3, inputs=inputs)
 
 
 @pytest.mark.parametrize(
@@ -175,12 +163,12 @@ def test_invalid_callables_and_static_switches(
     kwargs: dict[str, Any], message: str
 ) -> None:
     """Reject invalid API choices before tracing a transition."""
-    options = {"advance": lambda s: s, **kwargs}
+    options: dict[str, Any] = {"advance": lambda s: s, **kwargs}
     with pytest.raises(TypeError, match=message):
-        rollout(jnp.array(1.0), steps=0, **options)
+        veris.step(jnp.array(1.0), steps=0, **options)
 
 
 def test_shape_changing_transition_fails_informatively() -> None:
     """A scan cannot silently resize the State partway through integration."""
     with pytest.raises(TypeError, match="(carry|shape)"):
-        rollout(jnp.ones(2), lambda s: jnp.concatenate((s, s)), 2)
+        veris.step(jnp.ones(2), lambda s: jnp.concatenate((s, s)), 2)
