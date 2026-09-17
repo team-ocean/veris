@@ -1,5 +1,19 @@
 # Development log
 
+## 2026-09-17 — Core dynamics ownership
+
+- [x] Moved setups/_physics.py to veris/dynamics.py and updated both callers.
+  The executable stage AST is unchanged. Forcing, thermodynamics, sharding
+  context and final State/Diagnostics halo refresh remain caller-owned.
+- [x] Relocated the existing sequence oracle to tests/test_dynamics.py;
+  new-path tests failed before the move and all 12 focused stage/driver tests
+  passed afterward. DESIGN and integration documentation describe ownership.
+- [x] Final worktree validation, including the companion test audit: 909 CPU
+  passes with two GPU-only skips; 120 CUDA passes including both skipped cases.
+  Maintained coverage 2654/2732 (97.14%) and all covered/missing line sets match
+  baseline. Ruff, format, annotations, ty, Sphinx -E -W and clean wheel pass.
+  Evidence: test_logs/dynamics-audit/. Test compaction is committed separately.
+
 ## 2026-09-17 — Production simplification
 
 - [x] Audited production duplication from published `jax-only` commit `041df78`.

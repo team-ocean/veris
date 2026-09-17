@@ -252,8 +252,8 @@ def _step_local(
     vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[State, Diagnostics]:
     """Compose unchanged physics kernels in the dynamics notebook's order."""
+    from veris.dynamics import dynamics_transport
     from veris.fill_overlap import fill_state_overlap
-    from veris.setups._physics import dynamics_transport
 
     vs, stress_u, stress_v = dynamics_transport(vs, conf, phys)
     zeros = jnp.zeros_like(vs.Area)

@@ -40,6 +40,15 @@ The same driver accepts the maintained setup kernels:
   than a separate time-stepping scheme. Bind a physics kernel appropriate to
   those supplied fields, for example ``artificial.step`` for coupled evolution.
 
+Both ``artificial.step`` and ``run_dyn.step`` use the core
+``veris.dynamics.dynamics_transport(state, settings, constants)`` stage. It
+advances momentum, computes ocean stress before transport, then applies
+advection, cleanup and ridging. It returns ``(state, stress_u, stress_v)`` with
+halo-inclusive arrays. Callers supply atmospheric forcing, optional
+thermodynamic growth, the sharding context and the final State/Diagnostics halo
+refresh. Under sharding, this local stage runs inside the caller's
+``jax.shard_map``.
+
 For example, a growth rollout is::
 
    from veris.setups import run_growth

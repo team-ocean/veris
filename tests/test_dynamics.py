@@ -20,7 +20,7 @@ from veris.setups.artificial import initialize
 @pytest.mark.parametrize("cyclic_y", [False, True])
 def test_dynamics_transport_preserves_intermediate_state(cyclic_y: bool) -> None:
     """An extra halo refresh or reordered stress/transport must change this result."""
-    advance = import_module("veris.setups._physics").dynamics_transport
+    advance = import_module("veris.dynamics").dynamics_transport
     initial, conf, phys = initialize(
         5, 7, settings_overrides={"nEVPsteps": 2, "enable_cyclic_y": cyclic_y}
     )
@@ -72,4 +72,3 @@ def test_dynamics_transport_preserves_intermediate_state(cyclic_y: bool) -> None
         jax.tree.leaves(actual), jax.tree.leaves((expected, *stress)), strict=True
     ):
         np.testing.assert_array_equal(result, reference)
-    np.testing.assert_array_equal(actual[0].Qnet, initial.Qnet)

@@ -1,4 +1,4 @@
-"""Shared local momentum and transport stage of the standalone reference drivers.
+"""Sea-ice dynamics and transport composed from the core numerical kernels.
 
 Compose the existing Hibler/Kimmritz momentum kernels, ocean stress, directional
 advection, cleanup and ridging in reference order. Inputs and returned State and

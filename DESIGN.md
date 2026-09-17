@@ -37,3 +37,9 @@ live in _typing.py. Artificial-only configuration remains in setups/artificial.p
 
 External ocean geometry is initialized from scratch through
 setups/ocean.py:initialize_from_ocean and the shared initialization.initialize.
+
+Core dynamics orchestration lives in dynamics.py:dynamics_transport. It owns
+momentum, pre-transport ocean stresses, advection, cleanup and ridging. Setup
+callers own atmospheric forcing, thermodynamics, sharding context and the final
+State/Diagnostics halo refresh. Tests separate the stage sequence oracle from
+setup-specific wrapping and independent numerical kernel oracles.

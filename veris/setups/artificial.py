@@ -303,9 +303,9 @@ def _step_local(
     vs: State, conf: Configuration, phys: PhysicalConstants, cooling: float | jax.Array
 ) -> tuple[State, Diagnostics]:
     """Execute the reference physics sequence on one local halo-inclusive grid."""
+    from veris.dynamics import dynamics_transport
     from veris.fill_overlap import fill_state_overlap
     from veris.growth import Growth
-    from veris.setups._physics import dynamics_transport
 
     vs = replace(vs, Qnet=jnp.full_like(vs.Qnet, cooling), Qsw=jnp.zeros_like(vs.Qsw))
     vs, ocean_stress_u, ocean_stress_v = dynamics_transport(vs, conf, phys)
