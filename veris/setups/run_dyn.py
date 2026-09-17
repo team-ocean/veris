@@ -8,7 +8,7 @@ Scenario coefficients are experimental controls, not universal physical laws.
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import timedelta
 from functools import partial
 from types import SimpleNamespace
@@ -252,36 +252,10 @@ def _step_local(
     vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[State, Diagnostics]:
     """Compose unchanged physics kernels in the dynamics notebook's order."""
-    from veris.advection import Advection
-    from veris.area_mass import AreaWS, SeaIceMass
-    from veris.clean_up import clean_up_advection, ridging
-    from veris.dynamics_routines import SeaIceStrength
-    from veris.dynsolver import IceVelocities, WindForcingXY
     from veris.fill_overlap import fill_state_overlap
-    from veris.ocean_stress import OceanStressUV
+    from veris.setups._physics import dynamics_transport
 
-    def assign(state: State, names: str, values: tuple[jax.Array, ...]) -> State:
-        return replace(state, **dict(zip(names.split(), values, strict=True)))
-
-    vs = assign(vs, "SeaIceMassC SeaIceMassU SeaIceMassV", SeaIceMass(vs, conf, phys))
-    vs = assign(vs, "AreaW AreaS", AreaWS(vs, conf, phys))
-    vs = assign(vs, "WindForcingX WindForcingY", WindForcingXY(vs, conf, phys))
-    vs = replace(vs, SeaIceStrength=SeaIceStrength(vs, conf, phys))
-    vs = assign(
-        vs,
-        "uIce vIce sigma1 sigma2 sigma12",
-        IceVelocities(
-            vs, conf, phys, axis_names=("x", "y") if conf.use_sharding else ()
-        ),
-    )
-    stress_u, stress_v = OceanStressUV(vs, conf, phys)
-    vs = assign(vs, "hIceMean hSnowMean Area", Advection(vs, conf, phys))
-    vs = assign(
-        vs,
-        "hIceMean hSnowMean Area TSurf os_hIceMean os_hSnowMean",
-        clean_up_advection(vs, conf, phys),
-    )
-    vs = replace(vs, Area=ridging(vs, conf, phys))
+    vs, stress_u, stress_v = dynamics_transport(vs, conf, phys)
     zeros = jnp.zeros_like(vs.Area)
     diagnostics = Diagnostics(zeros, stress_u, stress_v, zeros, zeros)
     return fill_state_overlap(vs, conf), fill_state_overlap(diagnostics, conf)

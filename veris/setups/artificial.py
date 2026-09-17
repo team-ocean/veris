@@ -303,38 +303,12 @@ def _step_local(
     vs: State, conf: Configuration, phys: PhysicalConstants, cooling: float | jax.Array
 ) -> tuple[State, Diagnostics]:
     """Execute the reference physics sequence on one local halo-inclusive grid."""
-    from veris.advection import Advection
-    from veris.area_mass import AreaWS, SeaIceMass
-    from veris.clean_up import clean_up_advection, ridging
-    from veris.dynamics_routines import SeaIceStrength
-    from veris.dynsolver import IceVelocities, WindForcingXY
     from veris.fill_overlap import fill_state_overlap
     from veris.growth import Growth
-    from veris.ocean_stress import OceanStressUV
-
-    def assign(state: State, names: str, values: tuple[jax.Array, ...]) -> State:
-        return replace(state, **dict(zip(names.split(), values, strict=True)))
+    from veris.setups._physics import dynamics_transport
 
     vs = replace(vs, Qnet=jnp.full_like(vs.Qnet, cooling), Qsw=jnp.zeros_like(vs.Qsw))
-    vs = assign(vs, "SeaIceMassC SeaIceMassU SeaIceMassV", SeaIceMass(vs, conf, phys))
-    vs = assign(vs, "AreaW AreaS", AreaWS(vs, conf, phys))
-    vs = assign(vs, "WindForcingX WindForcingY", WindForcingXY(vs, conf, phys))
-    vs = replace(vs, SeaIceStrength=SeaIceStrength(vs, conf, phys))
-    vs = assign(
-        vs,
-        "uIce vIce sigma1 sigma2 sigma12",
-        IceVelocities(
-            vs, conf, phys, axis_names=("x", "y") if conf.use_sharding else ()
-        ),
-    )
-    ocean_stress_u, ocean_stress_v = OceanStressUV(vs, conf, phys)
-    vs = assign(vs, "hIceMean hSnowMean Area", Advection(vs, conf, phys))
-    vs = assign(
-        vs,
-        "hIceMean hSnowMean Area TSurf os_hIceMean os_hSnowMean",
-        clean_up_advection(vs, conf, phys),
-    )
-    vs = replace(vs, Area=ridging(vs, conf, phys))
+    vs, ocean_stress_u, ocean_stress_v = dynamics_transport(vs, conf, phys)
     (
         ice,
         snow,

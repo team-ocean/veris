@@ -53,50 +53,27 @@ def calc_Advection(
     if not conf.enable_cyclic_y:
         vTrans = fill_overlap(vTrans, conf, boundary="normal")
 
-    # make local copy of field prior to advective changes
     fieldLoc = field
-
-    # calculate zonal advective fluxes
-    ZonalFlux = calc_ZonalFlux(vs, conf, phys, fieldLoc, uTrans)
-
-    # update field according to zonal fluxes
-    if conf.extensiveFld:
-        fieldLoc = fieldLoc - conf.deltatTherm * vs.maskInC * vs.recip_rA * (
-            jnp.roll(ZonalFlux, -1, 0) - ZonalFlux
-        )
-    else:
-        fieldLoc = (
-            fieldLoc
-            - conf.deltatTherm
-            * vs.maskInC
-            * vs.recip_rA
-            * vs.recip_hIceMean
-            * (
-                (jnp.roll(ZonalFlux, -1, 0) - ZonalFlux)
-                - (jnp.roll(uTrans, -1, 0) - uTrans) * field
+    for axis, transport, flux_kernel in (
+        (0, uTrans, calc_ZonalFlux),
+        (1, vTrans, calc_MeridionalFlux),
+    ):
+        flux = flux_kernel(vs, conf, phys, fieldLoc, transport)
+        divergence = jnp.roll(flux, -1, axis) - flux
+        if conf.extensiveFld:
+            fieldLoc = (
+                fieldLoc - conf.deltatTherm * vs.maskInC * vs.recip_rA * divergence
             )
-        )
-
-    # calculate meridional advective fluxes
-    MeridionalFlux = calc_MeridionalFlux(vs, conf, phys, fieldLoc, vTrans)
-
-    # update field according to meridional fluxes
-    if conf.extensiveFld:
-        fieldLoc = fieldLoc - conf.deltatTherm * vs.maskInC * vs.recip_rA * (
-            jnp.roll(MeridionalFlux, -1, 1) - MeridionalFlux
-        )
-    else:
-        fieldLoc = (
-            fieldLoc
-            - conf.deltatTherm
-            * vs.maskInC
-            * vs.recip_rA
-            * vs.recip_hIceMean
-            * (
-                (jnp.roll(MeridionalFlux, -1, 1) - MeridionalFlux)
-                - (jnp.roll(vTrans, -1, 1) - vTrans) * fieldLoc
+        else:
+            # Each directional correction uses the field entering that sweep.
+            fieldLoc = (
+                fieldLoc
+                - conf.deltatTherm
+                * vs.maskInC
+                * vs.recip_rA
+                * vs.recip_hIceMean
+                * (divergence - (jnp.roll(transport, -1, axis) - transport) * fieldLoc)
             )
-        )
 
     # apply mask
     fieldLoc = fieldLoc * vs.iceMask
@@ -115,33 +92,7 @@ def calc_ZonalFlux(
 ) -> Array:
     """calculate the zonal advective flux using the second order flux limiter method"""
 
-    maskLocW = vs.iceMaskU * vs.maskInU
-
-    # CFL number of zonal flow
-    uCFL = jnp.abs(vs.uIce * conf.deltatTherm * vs.recip_dxC)
-
-    # calculate slope ratio Cr
-    Rjp = (field[3:, :] - field[2:-1, :]) * maskLocW[3:, :]
-    Rj = (field[2:-1, :] - field[1:-2, :]) * maskLocW[2:-1, :]
-    Rjm = (field[1:-2, :] - field[:-3, :]) * maskLocW[1:-2, :]
-
-    Cr = jnp.where(uTrans[2:-1, :] > 0, Rjm, Rjp)
-    Cr = jnp.where(
-        jnp.abs(Rj) * conf.CrMax > jnp.abs(Cr),
-        Cr / jnp.where(jnp.abs(Rj) * conf.CrMax > jnp.abs(Cr), Rj, 1.0),
-        jnp.sign(Cr) * conf.CrMax * jnp.sign(Rj),
-    )
-    Cr = limiter(Cr)
-
-    # zonal advective flux for the given field
-    ZonalFlux = jnp.zeros_like(vs.iceMask)
-    ZonalFlux = ZonalFlux.at[2:-1, :].set(
-        uTrans[2:-1, :] * (field[2:-1, :] + field[1:-2, :]) * 0.5
-        - jnp.abs(uTrans[2:-1, :]) * ((1 - Cr) + uCFL[2:-1, :] * Cr) * Rj * 0.5,
-    )
-    ZonalFlux = fill_overlap(ZonalFlux, conf)
-
-    return ZonalFlux
+    return _calc_flux(vs, conf, field, uTrans, axis=0)
 
 
 @partial(jit, static_argnames=["conf", "phys"])
@@ -154,33 +105,55 @@ def calc_MeridionalFlux(
 ) -> Array:
     """calculate the meridional advective flux using the second order flux limiter method"""
 
-    maskLocS = vs.iceMaskV * vs.maskInV
+    return _calc_flux(vs, conf, field, vTrans, axis=1)
 
-    # CFL number of meridional flow
-    vCFL = jnp.abs(vs.vIce * conf.deltatTherm * vs.recip_dyC)
 
-    # calculate slope ratio Cr
-    Rjp = (field[:, 3:] - field[:, 2:-1]) * maskLocS[:, 3:]
-    Rj = (field[:, 2:-1] - field[:, 1:-2]) * maskLocS[:, 2:-1]
-    Rjm = (field[:, 1:-2] - field[:, :-3]) * maskLocS[:, 1:-2]
+def _calc_flux(
+    vs: State,
+    conf: Configuration,
+    field: ArrayInput,
+    transport: ArrayInput,
+    *,
+    axis: int,
+) -> Array:
+    """Apply the shared second-order limiter stencil along one C-grid axis.
 
-    Cr = jnp.where(vTrans[:, 2:-1] > 0, Rjm, Rjp)
-    Cr = jnp.where(
-        jnp.abs(Rj) * conf.CrMax > jnp.abs(Cr),
-        Cr / jnp.where(jnp.abs(Rj) * conf.CrMax > jnp.abs(Cr), Rj, 1.0),
-        jnp.sign(Cr) * conf.CrMax * jnp.sign(Rj),
+    Keep storage orientation unchanged for rectangular and sharded grids. The
+    meridional normal-face policy closes global walls; zonal flux extends edges.
+    """
+    if axis == 0:
+        mask = vs.iceMaskU * vs.maskInU
+        cfl = jnp.abs(vs.uIce * conf.deltatTherm * vs.recip_dxC)
+    else:
+        mask = vs.iceMaskV * vs.maskInV
+        cfl = jnp.abs(vs.vIce * conf.deltatTherm * vs.recip_dyC)
+    following, current, previous, before_previous = (
+        tuple(window if dimension == axis else slice(None) for dimension in range(2))
+        for window in (slice(3, None), slice(2, -1), slice(1, -2), slice(None, -3))
     )
-    Cr = limiter(Cr)
-
-    # meridional advective flux for the given field
-    MeridionalFlux = jnp.zeros_like(vs.iceMask)
-    MeridionalFlux = MeridionalFlux.at[:, 2:-1].set(
-        vTrans[:, 2:-1] * (field[:, 2:-1] + field[:, 1:-2]) * 0.5
-        - jnp.abs(vTrans[:, 2:-1]) * ((1 - Cr) + vCFL[:, 2:-1] * Cr) * Rj * 0.5,
+    slope_next = (field[following] - field[current]) * mask[following]
+    slope = (field[current] - field[previous]) * mask[current]
+    slope_previous = (field[previous] - field[before_previous]) * mask[previous]
+    upstream = jnp.where(transport[current] > 0, slope_previous, slope_next)
+    uncapped = jnp.abs(slope) * conf.CrMax > jnp.abs(upstream)
+    ratio = jnp.where(
+        uncapped,
+        upstream / jnp.where(uncapped, slope, 1.0),
+        jnp.sign(upstream) * conf.CrMax * jnp.sign(slope),
     )
-    MeridionalFlux = fill_overlap(MeridionalFlux, conf, boundary="normal")
-
-    return MeridionalFlux
+    limited = limiter(ratio)
+    flux = (
+        jnp.zeros_like(vs.iceMask)
+        .at[current]
+        .set(
+            transport[current] * (field[current] + field[previous]) * 0.5
+            - jnp.abs(transport[current])
+            * ((1 - limited) + cfl[current] * limited)
+            * slope
+            * 0.5,
+        )
+    )
+    return fill_overlap(flux, conf, boundary="edge" if axis == 0 else "normal")
 
 
 @partial(jit)

@@ -1,5 +1,50 @@
 # Development log
 
+## 2026-09-17 — Production simplification
+
+- [x] Audited production duplication from published `jax-only` commit `041df78`.
+  Shared directional advection limiter stencils and sweep updates; preserved
+  public JIT wrappers, arithmetic order, zero-slope AD guards and directional
+  wall policies. Advection shrank by 27 lines.
+- [x] Shared the identical local momentum/transport sequence between artificial
+  and run_dyn in setups/_physics.py. Cooling reset, Growth and final halo
+  refresh remain in the callers at their original positions. No State fields,
+  settings, physical constants or metadata registries changed.
+- [x] Added eight cases: explicit scalar-index flux oracles for both axes/wall
+  modes with signed flow, nonuniform metrics, fractional masks and capped/zero
+  slopes; weighted JVP/VJP/finite differences; exact stage sequence and stale
+  forcing-halo checks. Stage tests failed on the missing module before extraction.
+  All 333 original test bodies/parameters and 113 public function signatures and
+  decorators are unchanged. No tolerances relaxed or existing tests removed.
+- [x] Original-source baseline: 48 checks plus six new flux/gradient cases pass.
+  Post-refactor focused checks: 31 transport and 12 stage/driver cases pass;
+  fast suite: 93 passed. All 72 old/new primal/JVP/VJP comparisons are bitwise
+  equal across float32/64, wall modes, extensive/intensive transport and flux APIs.
+- [x] Final full CPU correctness: 927 passed, two expected GPU-only skips in
+  1253.17 s. Maintained coverage: 2654/2732 = 97.14%; whole package: 86.03%.
+  The 80% gate passes. All 78 previously uncovered maintained statements are
+  unchanged; refactoring removed 14 redundant covered statements. Advection
+  and the new shared stage have 100% coverage.
+- [x] CUDA: 97 selected tests passed, zero failures/skips, in 860.02 s, including
+  both GPU-only cases skipped on CPU. Two duplicate four-CPU cases were
+  deselected only in this CUDA run; both passed in the full CPU suite. Separate
+  two-GPU probe passed both grid orientations, two local y sizes, all four halo
+  policies, both slip modes, two coupled steps, all State fields and JVP/VJP/FD.
+- [x] Final maintained Ruff, format, annotation and ty checks pass. Wheel build
+  succeeds and contains all four changed production modules verbatim. Final
+  source/test hashes match the verified snapshot; all verification processes
+  completed. Integration target is `jax-only`; runtime artifacts stay untracked.
+- Independent transport and setup-stage reviews found no blocker. Keep distinct
+  IO precision/execution paths, wall ordering and cooling shard specifications.
+  Retain EVP carry: existing target-sensitive fusion benchmarks do not justify
+  changing its JAX/AD staging as part of this maintenance refactor.
+- Evidence: test_logs/simplification-{full,gpu,stage,fast}.{log,xml},
+  simplification-gpu-closed.log, simplification-equivalence.{py,log},
+  simplification-{coverage,summary,contract-audit,source-hashes}.json and
+  simplification-build.log. Initial development command referenced nonexistent
+  test_transport_equations.py, collected nothing, and was corrected to actual
+  transport/AD/boundary owners before implementation.
+
 ## 2026-09-16 — Precision-focused test compaction
 
 - IN PROGRESS: assign precision by contract, per user request. Validation,
