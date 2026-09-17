@@ -33,7 +33,7 @@ PhysicalConstants and PHYSICALCONSTANTS in physical_constants.py;
 shared Parameter metadata in _typing.py; Variable in
 variables.py; Diagnostics in diagnostics.py. Precision metadata is defined
 directly in SETTINGS["dtype"]. State, OceanGeometry and shared kernel contracts
-live in _typing.py. Artificial-only configuration remains in setups/artificial.py.
+live in _typing.py. Island-only configuration remains in setups/island.py.
 
 External ocean geometry is initialized from scratch through
 setups/ocean.py:initialize_from_ocean and the shared initialization.initialize.

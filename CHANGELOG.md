@@ -45,7 +45,7 @@
   Shared directional advection limiter stencils and sweep updates; preserved
   public JIT wrappers, arithmetic order, zero-slope AD guards and directional
   wall policies. Advection shrank by 27 lines.
-- [x] Shared the identical local momentum/transport sequence between artificial
+- [x] Shared the identical local momentum/transport sequence between island
   and run_dyn in setups/_physics.py. Cooling reset, Growth and final halo
   refresh remain in the callers at their original positions. No State fields,
   settings, physical constants or metadata registries changed.
@@ -219,7 +219,7 @@
   nearest-edge extension to retain valid temperatures and metrics; masks, ice
   amounts, velocities and meridional fluxes receive explicit wall treatment.
 - Reproduced missing configuration in four serial tests before implementation.
-  Coupled tests then reproduced artificial setup overwriting closed masks;
+  Coupled tests then reproduced island setup overwriting closed masks;
   initialization and whole-step field-aware refreshes now address that path.
 - First transport FD fixture had constant slopes at the Superbee kink; changed
   to unequal quadratic slopes to test smooth derivatives, without relaxing
@@ -322,7 +322,7 @@
 
 ## 2026-09-15 — Uninterrupted versus restarted integration
 
-- [x] New full-State equivalence test uses coupled artificial
+- [x] New full-State equivalence test uses coupled island
   dynamics, advection and growth on a nonuniform 6 by 8 island grid. Checkpoints
   after steps 1 and 3, float32/float64, and changing cooling exercise physical
   netCDF fields, configuration/constants, elapsed time and explicit halo rebuild.
@@ -583,13 +583,13 @@
 - [x] Moved EVP stress/shear coefficients to PhysicalConstants after tracing
   their influence on the converged stress law. Defaults and positive validation
   are preserved; timestep/relaxation-rate/tolerance controls remain Settings.
-- [x] Moved all 12 artificial scenario controls and validation into artificial.py.
+- [x] Moved all 12 island scenario controls and validation into island.py.
   scenario_overrides configures initialization; step(cooling=...) supplies custom
-  cooling. Generic Settings and State contain no artificial-only controls.
+  cooling. Generic Settings and State contain no island-only controls.
 - [x] Centralized shared model/metadata/geometry/diagnostics types in _typing.py.
   Per the user's explicit correction, Settings stays with SETTINGS in
   configuration.py and PhysicalConstants stays with PHYSICALCONSTANTS in
-  physical_constants.py. ArtificialSettings remains local to the setup.
+  physical_constants.py. IslandSettings remains local to the setup.
   Removed state.py, _bulk_types.py, _solver_types.py and _thermodynamic_types.py;
   migrated consumers and documentation.
 - Rejected approach: putting Settings/PhysicalConstants in _typing.py exceeded
@@ -599,10 +599,10 @@
 - The first 123 focused cases, static checks and docs passed before this
   correction. Interrupted the obsolete full CPU run at 359 passing tests;
   those results are not final-source validation. No numerical tolerances changed.
-- Final consumer audit found saltOcn_ref was used only by the artificial setup;
-  moved its unchanged 34.7 default to ARTIFICIAL_SETTINGS and tested scenario
+- Final consumer audit found saltOcn_ref was used only by the island setup;
+  moved its unchanged 34.7 default to ISLAND_SETTINGS and tested scenario
   overrides. Interrupted the second obsolete CPU run at 326 passing tests.
-  An AST audit of every registry key found no other artificial-only consumers.
+  An AST audit of every registry key found no other island-only consumers.
 - [x] Corrected final-source CPU suite passes 688/688 in 209.86 s, including
   distributed collectives. Maintained coverage 1427/1438 (99.24%); whole package
   79.68%. The maintained 80% coverage gate passes. Log and coverage JSON:
@@ -625,7 +625,7 @@
   float64 for all 70 State fields, floating settings/constants, derived values
   and lookup tables. Integer and Boolean controls remain host static values.
 - [x] Removed per-variable float64 policy. NetCDF examples use allocated array
-  dtypes; growth/advection/EVP scratch arrays and artificial masks inherit State
+  dtypes; growth/advection/EVP scratch arrays and island masks inherit State
   precision. Geometry conversion already followed State precision.
 - [x] Added expected-red precision selection tests, then verified 42 focused
   cases and 66 fast regression cases. Review reproduced silent float32 derived
@@ -674,7 +674,7 @@
 - Classification: physical thresholds define the constitutive/thermodynamic
   closure even with converged solvers. Grid sizes, boundary/pressure formulation
   switches, iteration counts, timesteps, EVP relaxation controls, `CrMax` and
-  `eps2` remain numerical or execution configuration. Artificial forcing and
+  `eps2` remain numerical or execution configuration. Island forcing and
   initial conditions remain experiment configuration.
 - Migration-only static type audit found no errors; integrated correctness and
   dtype validation are running in the root agent's single pytest lane.
@@ -722,7 +722,7 @@
   `docs/superpowers/`; no remote push requested.
 - [x] Separate frozen Settings and PhysicalConstants are initialized from
   namedtuple metadata registries. All inventoried physical law coefficients,
-  cloud tables, numerical controls and artificial experiment defaults are
+  cloud tables, numerical controls and island experiment defaults are
   centralized. Exact derived values recompute on immutable replacement;
   independently rounded legacy defaults are preserved and checked against a
   historical 131-value JSON oracle from c39447e.
@@ -731,7 +731,7 @@
   separate Diagnostics with output metadata. No configuration or mesh is in AD
   State. h5netcdf round-trip tests verify usable dimensions and attributes.
 - [x] Migrated all maintained physics, structural protocols, geometry adapter,
-  artificial integration, tests and benchmark callers to separate constants.
+  island integration, tests and benchmark callers to separate constants.
   Removed legacy combined Settings and mutable import-time halo configuration.
   Defaults, reference arrays and numerical tolerances remain unchanged.
 - [x] Serial initialization validates grid extents, overrides and x64 precision.
@@ -751,7 +751,7 @@
   units, stress descriptions and reciprocal thickness description. Preserved
   the historical salt-flux equation; nonzero ice-salinity normalization remains
   ambiguous and its diagnostic units are explicitly documented as unknown.
-- Failed migration approaches: a 59-test fast sample missed old artificial
+- Failed migration approaches: a 59-test fast sample missed old island
   callers; focused integration found them. Reciprocal override tests now change
   independent base values; zero Area_reg remains permitted for existing oracle
   cases. Halo serial oracle inputs must have serial sharding, not partitioned
@@ -959,7 +959,7 @@
 - Test Ruff/format/ty checks pass. Source import sorting passes; the two legacy
   mixed-case heat-flux module names still trigger N999, retained for API stability.
 - Target 80% remains incomplete. Next priority: standalone initialization and
-  integration with artificial ocean masks, remaining boundary/gradient gaps,
+  integration with island ocean masks, remaining boundary/gradient gaps,
   multi-device/GPU verification. Generated version metadata is still included
   in the reported whole-package denominator.
 
@@ -970,7 +970,7 @@
 - [x] Independent corner-area tests then failed 2/3: rAz used two neighbors
   divided by four. Restored the four-neighbor average; uniform grid area and
   nonuniform explicit-index geometry checks now pass.
-- [x] Added tests before the new `veris.setup.artificial` example. An artificial
+- [x] Added tests before the new `veris.setup.island` example. An island
   central island blocks both staggered face directions. The host driver uses
   immutable state, full dynamic stress carryover, transport/cleanup and Growth,
   prescribed heat-forcing restoration, and periodic halo refresh.
@@ -981,11 +981,11 @@
   fresh-process test checks the supported standalone launch path.
 - IN PROGRESS (@root): full correctness/coverage check and final lint checks.
 - Legacy geographic Veros setup remains available but still unported/untested;
-  the artificial example supplies the requested standalone coupled path without
+  the island example supplies the requested standalone coupled path without
   claiming equivalence to a full ocean simulation.
 
 - [x] Full suite **431/431 passed in 52.43 s**; whole-package coverage
-  **886/1567 statements (56.54%)**. Initialization 3/3 and artificial integration
+  **886/1567 statements (56.54%)**. Initialization 3/3 and island integration
   7/7 passed. New example, initializer, and tests pass Ruff/format/ty checks.
 - CI floor raised to 56%. Advection and solver dispatch now reach 100% statement
   coverage through the coupled example. No coverage exclusions added.
@@ -1175,7 +1175,7 @@
   were present. Installed TensorBoard 2.21.0 and XProf 2.23.1 in .venv-latest;
   JAX/jaxlib remain 0.11.1 and pip check passes.
 - [x] Verified two P100 16 GB GPUs, driver 580.173.02. Captured real CPU and
-  single-GPU XPlane/Perfetto traces for a 64x64 artificial coupled step with
+  single-GPU XPlane/Perfetto traces for a 64x64 island coupled step with
   400 EVP iterations. Twelve synchronized, unprofiled calls give baseline
   medians 186.404 ms CPU and 27.900 ms GPU; compilation is recorded separately
   as first-call elapsed time. Raw artifacts: test_logs/profiling/.
@@ -1211,7 +1211,7 @@
   reviewed caveats documented in benchmarks/README.md. Baseline always means
   current Python step body, not historical kernels; artifacts need source patch.
 - [x] Whole-step JIT tests first failed on missing compiled interface; typed JIT
-  added to artificial.step with dynamic cooling. Three CPU tests pass: all-field
+  added to island.step with dynamic cooling. Three CPU tests pass: all-field
   evolving nonuniform/masked fixed+adaptive EVP equivalence, cooling JVP/VJP and
   central differences. Focused lint/format/ty pass. Full suite pending.
 - [x] Paired 256x256 evolving GPU benchmark (12 calls, 400 EVP substeps) gives
@@ -1324,7 +1324,7 @@
 
 ### 2026-09-14 — Standalone reference cases
 
-- Active goal: adapt dynamics/growth notebooks and parallel runner from the
+- Active goal: adapt dynamics/growth experiments and parallel runner from the
   reference jax_halo_exchange branch into veris/setups; CPU jobs on aegir/v3,
   GPUs on the current node. Previous implementation absent in current checkout.
 - IN PROGRESS: root owns dynamics/parallel and test scheduling; reference_audit
@@ -1448,3 +1448,24 @@
   coverage: 1756/1861 = 94.36%. No source changes were needed for the rerun.
   Full-run and rerun logs: test_logs/unit-columns-full-tests.log and
   test_logs/unit-columns-reduction.log. Ruff/format and diff checks passed.
+
+### 2026-09-17 — Island setup and separate model setup documentation
+
+- [x] Renamed the setup module to `veris.setups.island`, its frozen scenario
+  class to `IslandSettings`, registry to `ISLAND_SETTINGS`, and prefixed
+  scenario controls to `island*`. Updated callers, tests, benchmarks and docs.
+  This is a direct rename; callers must use the new module and control names.
+- [x] Replaced the combined experiment page with Dynamics only, Growth only,
+  and Parallel dynamics pages under Model setups. Each page has its own
+  generated scenario table, usage instructions and relevant validation notes.
+- [x] Independent review found no correctness blockers. Retained reference
+  provenance in the gallery and tailored growth documentation after review.
+- [x] Sphinx warnings-as-errors build passed after allowing the external Python
+  inventory fetch; initial restricted-network build failed only on that fetch.
+- [x] Full CPU suite: 908 passed, 2 skipped, and one sandbox socket-permission
+  failure. The affected two-process reduction/AD test passed with socket access
+  (1/1), giving 909 passing tests overall. Maintained coverage: 2654/2732
+  (97.14%); whole-package coverage: 2654/3085 (86.03%). No code fix was needed.
+- [x] CI-scope Ruff, formatting, annotations, ty and diff checks pass. Rendered
+  pages verified: independent tables contain 15 dynamics, 13 growth and 15
+  parallel dynamics controls. Logs/build retained under `test_logs/island-*`.

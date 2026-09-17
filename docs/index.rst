@@ -2,7 +2,7 @@ Veris: a standalone JAX sea-ice model
 =====================================
 
 Veris implements sea-ice dynamics, transport, and thermodynamic growth with JAX
-arrays and compiled kernels. The included artificial-island example runs with
+arrays and compiled kernels. The included island example runs with
 prescribed ocean and atmospheric fields.
 
 The physics derives from the `MITgcm SEAICE package

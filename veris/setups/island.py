@@ -27,105 +27,105 @@ from veris.diagnostics import Diagnostics
 from veris.initialization import initialize as initialize_model
 from veris.physical_constants import PhysicalConstants
 
-ARTIFICIAL_SETTINGS: dict[str, Parameter] = {
+ISLAND_SETTINGS: dict[str, Parameter] = {
     "saltOcn_ref": Parameter(
-        34.7, float, "Prescribed ocean salinity in the artificial example", "g kg-1"
+        34.7, float, "Prescribed ocean salinity in the island example", "g kg-1"
     ),
-    "artificialGridSpacing": Parameter(
-        8000.0, float, "Uniform Cartesian grid spacing in the artificial example", "m"
+    "islandGridSpacing": Parameter(
+        8000.0, float, "Uniform Cartesian grid spacing in the island example", "m"
     ),
-    "artificialWindSpeed": Parameter(
-        5.0, float, "Prescribed signed zonal wind in the artificial example", "m s-1"
+    "islandWindSpeed": Parameter(
+        5.0, float, "Prescribed signed zonal wind in the island example", "m s-1"
     ),
-    "artificialAirTemperature": Parameter(
+    "islandAirTemperature": Parameter(
         260.0,
         float,
-        "Prescribed atmosphere and initial ice-surface temperature in the artificial example",
+        "Prescribed atmosphere and initial ice-surface temperature in the island example",
         "K",
     ),
-    "artificialIceThickness": Parameter(
+    "islandIceThickness": Parameter(
         1.0,
         float,
-        "Initial grid-cell mean ice thickness over ocean in the artificial example",
+        "Initial grid-cell mean ice thickness over ocean in the island example",
         "m",
     ),
-    "artificialSnowThickness": Parameter(
+    "islandSnowThickness": Parameter(
         0.05,
         float,
-        "Initial grid-cell mean snow thickness over ocean in the artificial example",
+        "Initial grid-cell mean snow thickness over ocean in the island example",
         "m",
     ),
-    "artificialIceArea": Parameter(
+    "islandIceArea": Parameter(
         0.8,
         float,
-        "Initial ocean-cell ice concentration in the artificial example",
+        "Initial ocean-cell ice concentration in the island example",
         "1",
     ),
-    "artificialOceanDepth": Parameter(
-        -100.0, float, "Signed ocean bottom elevation in the artificial example", "m"
+    "islandOceanDepth": Parameter(
+        -100.0, float, "Signed ocean bottom elevation in the island example", "m"
     ),
-    "artificialCoriolis": Parameter(
-        0.0001, float, "Uniform Coriolis frequency in the artificial example", "s-1"
+    "islandCoriolis": Parameter(
+        0.0001, float, "Uniform Coriolis frequency in the island example", "s-1"
     ),
-    "artificialCooling": Parameter(
+    "islandCooling": Parameter(
         100.0,
         float,
-        "Default upward open-water cooling imposed each artificial step",
+        "Default upward open-water cooling imposed each island step",
         "W m-2",
     ),
-    "artificialTimeStep": Parameter(
+    "islandTimeStep": Parameter(
         600.0,
         float,
-        "Default dynamics and thermodynamics timestep for the artificial example",
+        "Default dynamics and thermodynamics timestep for the island example",
         "s",
     ),
-    "artificialEVPsteps": Parameter(
-        5, int, "Default EVP substeps in the artificial example", "1"
+    "islandEVPsteps": Parameter(
+        5, int, "Default EVP substeps in the island example", "1"
     ),
 }
 
 
 @dataclass(frozen=True)
-@registry_defaults({"dtype": SETTINGS["dtype"], **ARTIFICIAL_SETTINGS})
-class ArtificialSettings:
+@registry_defaults({"dtype": SETTINGS["dtype"], **ISLAND_SETTINGS})
+class IslandSettings:
     """Validated scenario defaults kept outside model configuration and AD State."""
 
     dtype: str = field(default=FROM_REGISTRY, kw_only=True)
 
     saltOcn_ref: float = FROM_REGISTRY
-    artificialGridSpacing: float = FROM_REGISTRY
-    artificialWindSpeed: float = FROM_REGISTRY
-    artificialAirTemperature: float = FROM_REGISTRY
-    artificialIceThickness: float = FROM_REGISTRY
-    artificialSnowThickness: float = FROM_REGISTRY
-    artificialIceArea: float = FROM_REGISTRY
-    artificialOceanDepth: float = FROM_REGISTRY
-    artificialCoriolis: float = FROM_REGISTRY
-    artificialCooling: float = FROM_REGISTRY
-    artificialTimeStep: float = FROM_REGISTRY
-    artificialEVPsteps: int = FROM_REGISTRY
+    islandGridSpacing: float = FROM_REGISTRY
+    islandWindSpeed: float = FROM_REGISTRY
+    islandAirTemperature: float = FROM_REGISTRY
+    islandIceThickness: float = FROM_REGISTRY
+    islandSnowThickness: float = FROM_REGISTRY
+    islandIceArea: float = FROM_REGISTRY
+    islandOceanDepth: float = FROM_REGISTRY
+    islandCoriolis: float = FROM_REGISTRY
+    islandCooling: float = FROM_REGISTRY
+    islandTimeStep: float = FROM_REGISTRY
+    islandEVPsteps: int = FROM_REGISTRY
 
     def __post_init__(self) -> None:
         """Validate prescribed experiment fields at the selected model precision."""
         validate_scalars(
             self,
-            ARTIFICIAL_SETTINGS,
+            ISLAND_SETTINGS,
             positive=frozenset(
                 {
-                    "artificialGridSpacing",
-                    "artificialAirTemperature",
-                    "artificialTimeStep",
-                    "artificialEVPsteps",
+                    "islandGridSpacing",
+                    "islandAirTemperature",
+                    "islandTimeStep",
+                    "islandEVPsteps",
                 }
             ),
         )
-        for name in ("artificialIceThickness", "artificialSnowThickness"):
+        for name in ("islandIceThickness", "islandSnowThickness"):
             if getattr(self, name) < 0:
                 raise ValueError(f"{name} must be nonnegative")
-        if not 0 <= self.artificialIceArea <= 1:
-            raise ValueError("artificialIceArea must lie between zero and one")
-        if self.artificialOceanDepth > 0:
-            raise ValueError("artificialOceanDepth must be nonpositive")
+        if not 0 <= self.islandIceArea <= 1:
+            raise ValueError("islandIceArea must lie between zero and one")
+        if self.islandOceanDepth > 0:
+            raise ValueError("islandOceanDepth must be nonpositive")
 
 
 def initialize(
@@ -139,12 +139,12 @@ def initialize(
     scenario_overrides: Mapping[str, Any] | None = None,
     physical_overrides: Mapping[str, Any] | None = None,
 ) -> tuple[State, Configuration, PhysicalConstants]:
-    """Return an artificial island experiment with separate local scenario controls.
+    """Return an island experiment with separate local scenario controls.
 
     Registry defaults select an 8-km grid, 600-second timesteps and five EVP
     substeps. Explicit arguments override scenario settings and are recorded in
     the initialized arrays; explicit deltatDyn, deltatTherm and nEVPsteps overrides
-    take precedence over the artificial scenario defaults. Atmosphere is
+    take precedence over the island scenario defaults. Atmosphere is
     saturated at its specified temperature with blackbody downward longwave
     radiation. This setup supports serial execution; use the general initializer
     with supplied mesh geometry for sharded experiments. Scenario overrides stay
@@ -152,8 +152,8 @@ def initialize(
     """
     overrides = dict(settings_overrides or {})
     scenario_values = dict(scenario_overrides or {})
-    if "artificialCooling" in scenario_values:
-        raise ValueError("pass artificialCooling as the cooling argument to step")
+    if "islandCooling" in scenario_values:
+        raise ValueError("pass islandCooling as the cooling argument to step")
     for name, value in (
         ("nx", nx),
         ("ny", ny),
@@ -164,26 +164,26 @@ def initialize(
         overrides["dtype"] = dtype
     controls = Configuration(**overrides)
     for name, value in (
-        ("artificialWindSpeed", wind),
-        ("artificialAirTemperature", air_temperature),
+        ("islandWindSpeed", wind),
+        ("islandAirTemperature", air_temperature),
     ):
         if value is not None:
             scenario_values[name] = value
-    scenario = ArtificialSettings(dtype=controls.dtype, **scenario_values)
+    scenario = IslandSettings(dtype=controls.dtype, **scenario_values)
     if "use_sharding" in overrides and controls.use_sharding:
-        raise ValueError("artificial initialization supports serial execution only")
+        raise ValueError("island initialization supports serial execution only")
     if controls.nx < 4 or controls.ny < 4:
         raise ValueError("grid dimensions must be at least four interior cells")
     overrides["use_sharding"] = False
-    overrides.setdefault("deltatTherm", scenario.artificialTimeStep)
-    overrides.setdefault("deltatDyn", scenario.artificialTimeStep)
-    overrides.setdefault("nEVPsteps", scenario.artificialEVPsteps)
+    overrides.setdefault("deltatTherm", scenario.islandTimeStep)
+    overrides.setdefault("deltatDyn", scenario.islandTimeStep)
+    overrides.setdefault("nEVPsteps", scenario.islandEVPsteps)
     vs, conf, phys = initialize_model(
         settings_overrides=overrides, physical_overrides=physical_overrides
     )
     nx, ny = conf.nx, conf.ny
-    wind = scenario.artificialWindSpeed
-    air_temperature = scenario.artificialAirTemperature
+    wind = scenario.islandWindSpeed
+    air_temperature = scenario.islandAirTemperature
     ones = jnp.ones_like(vs.iceMask)
     fields = {}
     interior = np.ones((nx, ny))
@@ -200,7 +200,7 @@ def initialize(
         maskInV=south,
     )
     # Direct metrics unused by the kernels stay local to initialization.
-    spacing = scenario.artificialGridSpacing
+    spacing = scenario.islandGridSpacing
     cell_area = spacing**2
     for name in ("dxG", "dyG", "dxU", "dyU", "dxV", "dyV"):
         fields[name] = spacing * ones
@@ -215,19 +215,19 @@ def initialize(
         - phys.iceVaporPressureTemperature / air_temperature
     )
     fields.update(
-        hIceMean=scenario.artificialIceThickness * mask,
-        hSnowMean=scenario.artificialSnowThickness * mask,
-        Area=scenario.artificialIceArea * mask,
+        hIceMean=scenario.islandIceThickness * mask,
+        hSnowMean=scenario.islandSnowThickness * mask,
+        Area=scenario.islandIceArea * mask,
         TSurf=air_temperature * ones,
         SeaIceLoad=(
-            scenario.artificialIceThickness * phys.rhoIce
-            + scenario.artificialSnowThickness * phys.rhoSnow
+            scenario.islandIceThickness * phys.rhoIce
+            + scenario.islandSnowThickness * phys.rhoSnow
         )
         * mask,
         recip_hIceMean=1
-        / jnp.sqrt((scenario.artificialIceThickness * mask) ** 2 + phys.hIce_reg),
-        R_low=scenario.artificialOceanDepth * ones,
-        fCori=scenario.artificialCoriolis * ones,
+        / jnp.sqrt((scenario.islandIceThickness * mask) ** 2 + phys.hIce_reg),
+        R_low=scenario.islandOceanDepth * ones,
+        fCori=scenario.islandCoriolis * ones,
         theta=temperature * ones,
         ocSalt=scenario.saltOcn_ref * ones,
         uWind=wind * ones,
@@ -258,7 +258,7 @@ def step(
     The Python driver and compiled_step execute the same dynamics, transport,
     cleanup and growth sequence. Both support AD. Use step_with_diagnostics to
     retain the output-only ice-ocean coupling fields alongside the updated state.
-    Omitted cooling uses ARTIFICIAL_SETTINGS; pass cooling explicitly to change
+    Omitted cooling uses ISLAND_SETTINGS; pass cooling explicitly to change
     the forcing. Cooling resets atmospheric Qnet/Qsw forcing on every call, before Growth
     replaces these state fields with ocean-coupling fluxes.
     """
@@ -279,7 +279,7 @@ def step_with_diagnostics(
     and penetrating shortwave outputs. Only calculation fields enter State.
     """
     if cooling is None:
-        cooling = float(cast(float, ARTIFICIAL_SETTINGS["artificialCooling"].default))
+        cooling = float(cast(float, ISLAND_SETTINGS["islandCooling"].default))
     if conf.use_sharding:
         mesh = jax.sharding.get_abstract_mesh()
         if set(mesh.axis_names) != {"x", "y"}:

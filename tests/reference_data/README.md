@@ -29,7 +29,7 @@ Generated arrays remain under ``/tmp/veris-evp-capture/reference_data`` for
 comparison with the committed fixture; these commands do not replace it.
 
 The generator checks source hashes before writing and rejects a source containing
-the barrier. Only `initialize()` is hashed in the artificial example, because
+the barrier. Only `initialize()` is hashed in the island example, because
 unrelated whole-step compilation was being developed in the same workspace;
 that function was verified identical to the recorded commit. The manifest records
 the JAX version used. These regression values preserve the pre-optimization

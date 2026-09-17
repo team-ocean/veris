@@ -63,7 +63,7 @@ composition and evolving state rather than repeating their equation oracles.
 - Composition/tooling (10): `test_benchmark_profile`, `test_dynamics`,
   `test_dynamics_case`, `test_fill_overlap`, `test_growth_case`,
   `test_integration`, `test_parallel_case`, `test_rollout_setups`,
-  `setups/test_artificial`, `setups/test_compiled_step`.
+  `setups/test_island`, `setups/test_compiled_step`.
 
 Retained overlaps check distinct failure modes: direct versus composed
 momentum balance; smooth versus singular AD and one-sided limits; selected
@@ -112,7 +112,7 @@ The earlier audit and its measured results below remain historical evidence.
 | Norm primitive | Values, origin convention and positive analytic slopes use float64 once. Actual float32 solver/AD behavior remains in the coupled dtype, surface-temperature and free-drift stability checks. |
 | Basal drag | All 15 area/thickness equation and analytic-gradient reference cases use float64. Float32 checks finite drag and both sensitivities at 1/10/90 metres, plus disabled drag. Both precisions test the strict active-area cutoff and coefficient/gradient dtype. |
 | Surface Newton solver | Float64 retains independent energy-balance and centered-FD references. Float32 retains the humidity-JVP overflow regression, nonzero sensitivity and reverse consistency without repeating those reference calculations. |
-| Setup rollouts | Four float32 setups cover operational three-step field/diagnostic agreement in both checkpoint modes. Artificial float64 is the small cross-precision rollout sample. Three real setup JVP/VJP/FD checks and the four-device scan/AD probe use float64. |
+| Setup rollouts | Four float32 setups cover operational three-step field/diagnostic agreement in both checkpoint modes. Island float64 is the small cross-precision rollout sample. Three real setup JVP/VJP/FD checks and the four-device scan/AD probe use float64. |
 | Restart | Two restart times use float32; exact all-State/dtype equality and the deliberately omitted halo reconstruction check remain. Snapshot I/O separately owns float64 roundtrip and float32 storage/metadata preservation. |
 | CESM precision paths | Both atmospheric branches keep dtype checks in each precision. The independent latent-heat equation is checked in float64 only. |
 
@@ -124,7 +124,7 @@ Remaining dual-precision owners are deliberately narrow:
   external geometry conversion, mixed State/scalar overrides and policy conflicts.
 - Configuration pressure override and scenario scalar dtype tests.
 - Basal active-area cutoff and primal/gradient dtype.
-- One artificial setup forward rollout sample.
+- One island setup forward rollout sample.
 - `test_output_scan_physics` and `output_scan_probe`: float64 accumulation under
   float32/float64 physics, preserved global x64 mode, real sharded collectors.
 
@@ -194,14 +194,14 @@ including baseline coverage, source hashes, CPU/GPU XML and exact-line compariso
 | Coefficient registries | Repeated instance/default correspondence and description assertions | Configuration's complete registry test owns these; `test_scattered_coefficient_defaults_match_original_literals` retains independent literal expectations. |
 | Ocean initialization | Two separately allocated cases | Nonuniform corner-area indexing moves into `test_initialization_surface_masks_and_reciprocals`. Configured surface temperature moves into `test_external_fields_and_static_overrides`, retaining both precisions. The nonuniform area oracle subsumes constant averaging. |
 | Static typing | Four positive checker subprocesses | Dynamics and directional transport each put both valid signatures in one module; solver valid iteration count joins positive solver contracts; height helper joins the valid bulk helper module. Separate negative type/arity contracts remain. |
-| Artificial forcing | One separate test and two complete trajectories | `test_default_cooling_and_prescribed_forcing_replace_previous_outputs` checks implicit default against explicit 100 with overwritten prior fluxes, asserting exact equality of every field. Nondefault cooling sensitivity remains covered elsewhere. |
+| Island forcing | One separate test and two complete trajectories | `test_default_cooling_and_prescribed_forcing_replace_previous_outputs` checks implicit default against explicit 100 with overwritten prior fluxes, asserting exact equality of every field. Nondefault cooling sensitivity remains covered elsewhere. |
 | Snapshot I/O | One duplicate nonuniform-halo snapshot | `test_full_snapshot_roundtrip_and_selected_physical_snapshot` already checks physical cropping and selected/nonuniform data. |
 | Scheduled output | One separate compiled trajectory | `test_collectors_receive_only_completed_reductions_and_instant_records` now also rejects direct `sample` replay while verifying reduced values and collection count. |
 | Output schedule | One duplicate invalid-sampling case | `test_incompatible_sampling_rejected_before_iterator_consumption` checks eager rejection at both zero and positive lengths. |
 | Output validation | 16 checkpoint rejection rows become four | `test_invalid_checkpoint_fails_before_compilation_or_output` retains every invalid value and every zero/positive, scheduled/generic combination. The guard runs before dispatch. |
 | Growth CLI | One duplicate zero-step invocation | `test_growth_cli_zero_steps_saves_initial_column` now writes to missing nested directories, preserving time, shape, values and parent creation. |
 | Setup forward rollouts | 96 scan calls become 16 across eight setup/dtype cases | `test_setup_rollout_matches_explicit_steps` retains all-field, three-step and diagnostic comparisons under both checkpoint modes. `test_integration.py` owns zero/one-step, observed/unobserved, forcing and auxiliary-return contracts against independent recurrences. The comparison helper now checks exact leaf shapes. |
-| Setup AD | Two ocean derivative cases | `test_real_rollout_state_and_forcing_derivatives` retains artificial/dynamics/growth in both precisions with state/forcing JVP/VJP/FD and both checkpoint modes. Ocean and artificial use the same coupled advance; geometry initialization occurs outside differentiation. Float64 inputs match exactly; float32 dxV/dyV differ only by one rounding step (relative 6.1e-8). Both ocean forward precision cases and dedicated initialization tests remain. |
+| Setup AD | Two ocean derivative cases | `test_real_rollout_state_and_forcing_derivatives` retains island/dynamics/growth in both precisions with state/forcing JVP/VJP/FD and both checkpoint modes. Ocean and island use the same coupled advance; geometry initialization occurs outside differentiation. Float64 inputs match exactly; float32 dxV/dyV differ only by one rounding step (relative 6.1e-8). Both ocean forward precision cases and dedicated initialization tests remain. |
 
 Numerical changes remove 80 cases; schema/type/initialization changes remove
 11; output changes remove 15; scenario/rollout changes remove three. No deleted
@@ -229,7 +229,7 @@ The table covers changed files. The following groups retain distinct contracts:
   walls, wall stress and public launch behavior have separate oracles. Serial
   agreement alone cannot establish correct communication or boundary values.
 - `test_dynamics_case`, remaining `test_growth_case`, `test_diagnostics`,
-  `setups/test_compiled_step`, remaining `setups/test_artificial`:
+  `setups/test_compiled_step`, remaining `setups/test_island`:
   reference composition, recursive heat fluxes, standalone import/CLI behavior,
   exact diagnostics separation and compiled/eager agreement remain distinct.
 - `test_integration`, remaining `test_rollout_setups` and

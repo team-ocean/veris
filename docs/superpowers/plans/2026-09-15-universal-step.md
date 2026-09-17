@@ -50,7 +50,7 @@ no numerical timestep or host side effect is performed.
 Files: tests/test_rollout_setups.py, tests/rollout_parallel_probe.py.
 
 - [x] Write setup regression tests. Compare all State fields
-  against explicit setup steps, including artificial changing cooling and
+  against explicit setup steps, including island changing cooling and
   ocean geometry, dynamics and growth, float32/64.
 - [x] Add nonuniform spatial weighted JVP/VJP/FD objectives for each setup and
   checkpoint on/off. Verify State and forcing sensitivity and diagnostics.

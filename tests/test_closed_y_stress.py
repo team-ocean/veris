@@ -9,7 +9,7 @@ import pytest
 from veris.dynamics_routines import stressdiv
 from veris.fill_overlap import fill_state_overlap
 from veris.initialization import initialize
-from veris.setups import artificial, run_dyn
+from veris.setups import island, run_dyn
 
 
 @pytest.mark.parametrize("no_slip", [False, True])
@@ -67,7 +67,7 @@ def test_opposite_wall_shear_produces_equal_tangential_drag() -> None:
 
 def test_free_slip_momentum_steps_keep_both_wall_shears_zero() -> None:
     """Relaxation must not inherit spurious north traction from halo refresh."""
-    state, conf, phys = artificial.initialize(
+    state, conf, phys = island.initialize(
         6,
         8,
         settings_overrides={

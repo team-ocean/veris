@@ -2,7 +2,7 @@
 
 State is an array-only PyTree; OceanGeometry describes host input.
 Configuration and PhysicalConstants are defined beside their respective registries.
-Artificial experiment types belong to their setup module.
+Island experiment types belong to their setup module.
 """
 
 from collections.abc import Callable, Sequence

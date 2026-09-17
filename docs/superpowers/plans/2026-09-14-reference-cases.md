@@ -1,6 +1,6 @@
 # Standalone reference cases implementation plan
 
-Goal: Adapt run_dyn.ipynb, run_growth.ipynb and run_parallel.py from the
+Goal: Adapt run_dyn experiment, run_growth experiment and run_parallel.py from the
 jax_halo_exchange reference branch into separate runnable veris/setups cases.
 
 Architecture: Reuse frozen State, Configuration, PhysicalConstants and shared

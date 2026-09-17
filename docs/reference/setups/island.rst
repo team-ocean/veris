@@ -1,16 +1,16 @@
-Artificial island
-=================
+Island
+======
 
-``veris.setups.artificial`` provides a small Cartesian sea, periodic by default, surrounding
+``veris.setups.island`` provides a small Cartesian sea, periodic by default, surrounding
 a two-by-two-cell island. The default interior is 8 by 12 cells at 8 km spacing;
 arrays include two halo cells on each side. Face masks prevent transport across
 the coastline. Temperatures are in kelvin and thicknesses are grid-cell means.
 
-.. autofunction:: veris.setups.artificial.initialize
+.. autofunction:: veris.setups.island.initialize
 
-.. autofunction:: veris.setups.artificial.step
+.. autofunction:: veris.setups.island.step
 
-.. autofunction:: veris.setups.artificial.step_with_diagnostics
+.. autofunction:: veris.setups.island.step_with_diagnostics
 
 The numerical State retains ice velocity and stress fields between steps.
 Output-only ocean coupling stresses and fluxes are returned separately by
@@ -33,18 +33,18 @@ time-varying cooling, and :doc:`/quickstart/user-guide` for a complete example.
 Scenario controls
 -----------------
 
-``ARTIFICIAL_SETTINGS`` and the frozen ``ArtificialSettings`` class are defined
+``ISLAND_SETTINGS`` and the frozen ``IslandSettings`` class are defined
 in this setup. They describe prescribed initial fields and example controls;
 they do not add fields to model Configuration, PhysicalConstants or State.
 This includes ``saltOcn_ref``, the prescribed ocean salinity, which can be
 changed through ``scenario_overrides``.
 ``initialize(scenario_overrides={...})`` accepts these controls except
-``artificialCooling``: use ``step(..., cooling=...)`` to select that forcing.
+``islandCooling``: use ``step(..., cooling=...)`` to select that forcing.
 An omitted cooling argument uses the default below.
 
 .. exec::
 
-   from veris.setups.artificial import ARTIFICIAL_SETTINGS
+   from veris.setups.island import ISLAND_SETTINGS
    print(".. list-table::")
    print("   :header-rows: 1")
    print("")
@@ -52,7 +52,7 @@ An omitted cooling argument uses the default below.
    print("     - Default")
    print("     - Type")
    print("     - Description")
-   for name, metadata in ARTIFICIAL_SETTINGS.items():
+   for name, metadata in ISLAND_SETTINGS.items():
        print(f"   * - ``{name}``")
        print(f"     - ``{metadata.default!r}``")
        print(f"     - ``{metadata.type.__name__}``")

@@ -112,7 +112,7 @@ Files: new `veris/io/scan.py`, new `tests/test_output_scan.py`,
 ## Task 5: Integration, documentation and final verification
 
 Files: maintained runner timing labels/docstrings, `docs/reference/integration.rst`,
-`docs/reference/setups/reference-cases.rst`, tests/probes, `CHANGELOG.md`.
+`docs/reference/setups/dynamics.rst, growth.rst and parallel-dynamics.rst`, tests/probes, `CHANGELOG.md`.
 
 - [x] Change timing labels from warmup to compilation and document schedule
   chunks, memory bounds, generic callback cap and reduced collector contract.

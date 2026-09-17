@@ -12,10 +12,10 @@ The default result is the final State, without an explicit State history::
    jax.config.update("jax_enable_x64", True)
 
    from veris import step
-   from veris.setups import artificial
+   from veris.setups import island
 
-   initial, settings, constants = artificial.initialize()
-   advance = partial(artificial.step, conf=settings, phys=constants, cooling=100.0)
+   initial, settings, constants = island.initialize()
+   advance = partial(island.step, conf=settings, phys=constants, cooling=100.0)
    final = step(initial, advance, 3)
 
 ``steps`` is a static nonnegative integer. The transition must be pure and JAX
@@ -30,7 +30,7 @@ Setup choices
 
 The same driver accepts the maintained setup kernels:
 
-* ``artificial.step`` composes dynamics, transport and growth. Its ``cooling``
+* ``island.step`` composes dynamics, transport and growth. Its ``cooling``
   argument restores prescribed heat forcing on every timestep.
 * ``run_dyn.step`` performs dynamics and transport with prescribed ocean and
   wind fields. ``run_parallel`` uses this same kernel with a mesh.
@@ -38,9 +38,9 @@ The same driver accepts the maintained setup kernels:
   ``Qsw`` remain recursive inputs to the next step, as in the reference column.
 * ``ocean.initialize_from_ocean`` supplies geometry and initial fields, rather
   than a separate time-stepping scheme. Bind a physics kernel appropriate to
-  those supplied fields, for example ``artificial.step`` for coupled evolution.
+  those supplied fields, for example ``island.step`` for coupled evolution.
 
-Both ``artificial.step`` and ``run_dyn.step`` use the core
+Both ``island.step`` and ``run_dyn.step`` use the core
 ``veris.dynamics.dynamics_transport(state, settings, constants)`` stage. It
 advances momentum, computes ocean stress before transport, then applies
 advection, cleanup and ridging. It returns ``(state, stress_u, stress_v)`` with
@@ -101,8 +101,8 @@ cooling value::
    import jax
    import jax.numpy as jnp
 
-   initial, settings, constants = artificial.initialize()
-   advance = partial(artificial.step, conf=settings, phys=constants)
+   initial, settings, constants = island.initialize()
+   advance = partial(island.step, conf=settings, phys=constants)
    cooling = jnp.asarray([80.0, 100.0, 120.0], dtype=initial.hIceMean.dtype)
 
    def objective(forcing):
@@ -141,7 +141,7 @@ calculations; the scan driver does not repartition the grid::
 These initializer dimensions count global physical cells. Each partition keeps
 its own halos. Selected history arrays gain an unpartitioned leading time axis;
 select one time slice before using the existing spatial output collector.
-Sharded artificial cooling accepts spatially uniform scalar forcing, including
+Sharded island cooling accepts spatially uniform scalar forcing, including
 one replicated scalar per time slice. Its convenience initializer remains
 serial; use the general allocator with consistent packed fields for sharded
 coupled experiments, as described in :doc:`/quickstart/user-guide`.

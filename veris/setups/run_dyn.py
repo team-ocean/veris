@@ -1,4 +1,4 @@
-"""Fixed-wind dynamics experiment from the standalone run_dyn notebook.
+"""Run the standalone fixed-wind dynamics experiment.
 
 The reference jax_halo_exchange initialize_dyn.py prescribes a rotating wind
 snapshot over a square basin with two closed walls. Arrays use Veris (x, y)
@@ -172,7 +172,7 @@ def initialize(
     Only addressable partitions are materialized on each process. This supports
     multi-process CPU execution without allocating a full global state per rank.
     Returned configuration nx/ny are local interior extents. Wind stays fixed
-    throughout integration, matching notebook snapshot 15 of the shifted field.
+    throughout integration, matching experiment snapshot 15 of the shifted field.
     """
     ny = nx if ny is None else ny
     for name, size in [("nx", nx), ("ny", ny)]:
@@ -251,7 +251,7 @@ def initialize(
 def _step_local(
     vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[State, Diagnostics]:
-    """Compose unchanged physics kernels in the dynamics notebook's order."""
+    """Compose unchanged physics kernels in the dynamics experiment's order."""
     from veris.dynamics import dynamics_transport
     from veris.fill_overlap import fill_state_overlap
 

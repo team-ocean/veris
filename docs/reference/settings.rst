@@ -16,7 +16,7 @@ Use immutable updates; dependent reciprocals are recomputed::
    assert settings.recip_deltatDyn == 1 / 600
 
 Configuration objects are static JIT arguments; changing a value may trigger compilation.
-The artificial example overrides timesteps and EVP iteration count.
+The island example overrides timesteps and EVP iteration count.
 
 Horizontal boundaries
 ---------------------
@@ -25,7 +25,7 @@ The x direction is always periodic. ``enable_cyclic_y=True`` (the default)
 also wraps the global y edges. Set it to ``False`` at initialization to use
 closed, impermeable southern and northern walls::
 
-   from veris.setups.artificial import initialize
+   from veris.setups.island import initialize
    state, settings, constants = initialize(
        settings_overrides={"enable_cyclic_y": False}
    )
@@ -64,7 +64,7 @@ Floating-point precision
 ------------------------
 
 Choose ``dtype="float32"`` or ``dtype="float64"`` once when calling
-``veris.initialization.initialize`` or the artificial initializer. Both returned
+``veris.initialization.initialize`` or the island initializer. Both returned
 static objects retain this policy. Their floating coefficients, derived values
 and lookup tables use the selected NumPy scalar type; all state and work arrays
 use the matching JAX dtype. Integers and Boolean switches retain their types.

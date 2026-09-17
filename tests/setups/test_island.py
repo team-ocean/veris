@@ -1,4 +1,4 @@
-"""Standalone coupled integration with an artificial island and no ocean model."""
+"""Standalone coupled integration with an island and no ocean model."""
 
 import importlib
 from dataclasses import replace
@@ -11,10 +11,10 @@ import pytest
 
 @pytest.fixture
 def example(halo: ModuleType) -> ModuleType:
-    return importlib.import_module("veris.setups.artificial")
+    return importlib.import_module("veris.setups.island")
 
 
-def test_artificial_masks_block_both_sides_of_coast(example: ModuleType) -> None:
+def test_island_masks_block_both_sides_of_coast(example: ModuleType) -> None:
     vs, _, _ = example.initialize()
     mask = np.asarray(vs.iceMask)
     assert mask.shape == (12, 16)
@@ -107,7 +107,7 @@ def test_example_runs_in_fresh_process_without_mesh_helper() -> None:
     code = """
 import jax
 jax.config.update("jax_enable_x64", True)
-from veris.setups.artificial import initialize, step
+from veris.setups.island import initialize, step
 vs, conf, phys = initialize()
 result = step(vs, conf, phys)
 jax.block_until_ready(result)

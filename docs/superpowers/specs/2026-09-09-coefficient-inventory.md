@@ -1,7 +1,7 @@
 # Coefficient inventory for registry migration
 
 Audited 2026-09-09 against maintained `veris/*.py` and
-`veris/setup/artificial.py`, before the approved dataclass migration. This is
+`veris/setup/island.py`, before the approved dataclass migration. This is
 an implementation inventory, not the generated end-user registry reference.
 Defaults below preserve current formulas, including independent rounded
 coefficients. `P` means PhysicalConstants; `S` means Configuration. Names for newly
@@ -12,8 +12,8 @@ explicit canonical replacement is stated.
 
 The snow thickness ``hCut = 0.15 m`` belongs to PhysicalConstants: it sets the
 physical transition between ice and optically opaque snow albedo in solve4temp.
-It is not a solver tolerance. Grid extents are initialized fields of Configuration. Artificial scenario defaults
-and validation belong to ARTIFICIAL_SETTINGS/ArtificialSettings in artificial.py;
+It is not a solver tolerance. Grid extents are initialized fields of Configuration. Island scenario defaults
+and validation belong to ISLAND_SETTINGS/IslandSettings in island.py;
 initial model arrays are described by VARIABLES and local setup overrides.
 The geometry adapter retains its independent historical 273 K surface default
 through ``Configuration.geometrySurfaceTemperature``. Registry allocation's 273.15 K
@@ -24,10 +24,10 @@ constant.
 
 | Source and local expression | Exact current value | Proposed field | Class |
 | --- | --- | --- | --- |
-| `solve4temp.aa1`, duplicated in artificial saturation forcing | 2663.5 | `iceVaporPressureTemperature` | P |
-| `solve4temp.aa2`, duplicated in artificial saturation forcing | 12.537 | `iceVaporPressureLog10Offset` | P |
-| `solve4temp.bb1`, artificial humidity, CESM August and LW formulas | 0.622 | `waterVaporDryAirMassRatio` | P |
-| `solve4temp.Ppascals`, artificial humidity denominator | 100000 | `iceSurfacePressure` | P |
+| `solve4temp.aa1`, duplicated in island saturation forcing | 2663.5 | `iceVaporPressureTemperature` | P |
+| `solve4temp.aa2`, duplicated in island saturation forcing | 12.537 | `iceVaporPressureLog10Offset` | P |
+| `solve4temp.bb1`, island humidity, CESM August and LW formulas | 0.622 | `waterVaporDryAirMassRatio` | P |
+| `solve4temp.Ppascals`, island humidity denominator | 100000 | `iceSurfacePressure` | P |
 | `solve4temp` penetrating SW exponential | -1.5 times ice thickness | `iceShortwaveExtinction` = 1.5 | P |
 | `solve4temp` Newton loop | 6 | `surfaceTemperatureIterations` | S |
 | `growth` minimum actual ice thickness | 0.05 m | `minActualIceThickness` | P |
@@ -145,7 +145,7 @@ These defaults follow the repository's current test/reference choices.
 
 ## Setup and structural values
 
-Artificial example defaults (nx 8, ny 12, wind 5 m/s, air temperature 260 K,
+Island example defaults (nx 8, ny 12, wind 5 m/s, air temperature 260 K,
 timesteps 600 s, EVP steps 5, spacing 8000 m, ice thickness 1 m, snow 0.05 m,
 concentration 0.8, bottom -100 m, Coriolis 1e-4 s⁻¹, salinity 34.7 g/kg,
 cooling 100 W/m²) are experiment configuration or initial array values. Route
@@ -255,7 +255,7 @@ computed at construction rather than accepted as independently stale overrides.
 | `tempFrz` | `-1.96` | P |
 | `dtempFrz_dS` | `0` | P |
 | `saltIce_ref` | `0` | P |
-| `saltOcn_ref` | `34.7` | Artificial setup |
+| `saltOcn_ref` | `34.7` | Island setup |
 | `minLWdown` | `60` | P |
 | `maxTIce` | `30` | P |
 | `minTIce` | `-50` | P |

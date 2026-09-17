@@ -20,8 +20,8 @@ from veris._typing import State
 from veris.configuration import Configuration
 from veris.fill_overlap import fill_overlap, fill_overlap_uv, fill_state_overlap
 from veris.initialization import initialize
-from veris.setups.artificial import initialize as initialize_artificial
-from veris.setups.artificial import step
+from veris.setups.island import initialize as initialize_island
+from veris.setups.island import step
 from veris.setups.run_parallel import remove_halos
 
 
@@ -128,7 +128,7 @@ def check_coupled(mesh: Mesh, no_slip: bool, dtype: str) -> None:
         "deltatDyn": 600.0,
         "deltatTherm": 600.0,
     }
-    serial, conf, phys = initialize_artificial(nx, ny, settings_overrides=options)
+    serial, conf, phys = initialize_island(nx, ny, settings_overrides=options)
     x, y = jnp.indices(serial.hIceMean.shape, dtype=dtype)
     serial = replace(
         serial,

@@ -58,7 +58,7 @@ def test_zero_relative_speed_reverse_ad(kernel: str) -> None:
 
 
 def test_reference_initial_dynamics_wind_gradient_matches_fd() -> None:
-    """Differentiate the actual stationary, coastal notebook initial state."""
+    """Differentiate the actual stationary, coastal experiment initial state."""
     state, conf, phys = initialize(6, 8, settings_overrides={"nEVPsteps": 2})
 
     def objective(scale: jax.Array) -> jax.Array:

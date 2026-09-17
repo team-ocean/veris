@@ -1,9 +1,9 @@
-"""Profile artificial coupled dynamics/growth with synchronized paired trials.
+"""Profile island coupled dynamics/growth with synchronized paired trials.
 
 Run with .venv-latest: python -m benchmarks.profile_veris --backend cpu
 --output test_logs/profiling/paired-cpu --trace. The baseline is the Python
-body of artificial.step; candidate compiles that entire body. Float64 periodic
-(nx+4, ny+4) fields include the artificial island and default prescribed forcing.
+body of island.step; candidate compiles that entire body. Float64 periodic
+(nx+4, ny+4) fields include the island and default prescribed forcing.
 EVP iteration count is explicit; this is not a convergence benchmark. First-call
 latency includes compilation and execution and can share cached inner kernels
 between variants. Steady timing excludes validation, initialization and tracing.
@@ -221,13 +221,13 @@ def main(argv: list[str] | None = None) -> None:
     device = devices[0]
     if device.platform != args.backend:
         raise RuntimeError(f"ERROR requested {args.backend}, got {device.platform}")
-    from veris.setups import artificial
+    from veris.setups import island
 
     with jax.default_device(device):
-        initial, conf, phys = artificial.initialize(args.nx, args.ny)
+        initial, conf, phys = island.initialize(args.nx, args.ny)
         conf = replace(conf, nEVPsteps=args.evp_steps)
-        body = getattr(artificial.step, "__wrapped__", artificial.step)
-        fused = getattr(artificial, "compiled_step", None)
+        body = getattr(island.step, "__wrapped__", island.step)
+        fused = getattr(island, "compiled_step", None)
         if fused is None:
             # Historical checkouts predate the explicit compiled driver.
             fused = jax.jit(body, static_argnames=["conf", "phys"])

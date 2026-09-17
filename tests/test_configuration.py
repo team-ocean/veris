@@ -36,9 +36,9 @@ def test_registry_defaults_are_disjoint_complete_and_frozen() -> None:
     )["defaults"]
 
     assert not config.SETTINGS.keys() & physical.PHYSICALCONSTANTS.keys()
-    from veris.setups.artificial import ARTIFICIAL_SETTINGS
+    from veris.setups.island import ISLAND_SETTINGS
 
-    combined = {**config.SETTINGS, **physical.PHYSICALCONSTANTS, **ARTIFICIAL_SETTINGS}
+    combined = {**config.SETTINGS, **physical.PHYSICALCONSTANTS, **ISLAND_SETTINGS}
     assert legacy.keys() <= combined.keys()
     for name, value in legacy.items():
         assert combined[name].default == value, name

@@ -3,14 +3,14 @@
 See [the local measurement report](RESULTS.md) for accepted changes, results,
 correctness evidence and unresolved CPU timing variability.
 
-Use the project root and `.venv-latest`. The workload is the artificial periodic
+Use the project root and `.venv-latest`. The workload is the island periodic
 sea with a central island, prescribed forcing, float64 arrays and 600-second
 steps. Grid arguments count interior cells; each dimension adds four halo cells.
-The benchmark changes the artificial example's five EVP iterations to an explicit
+The benchmark changes the island example's five EVP iterations to an explicit
 count, defaulting to 400. It does not establish convergence of that count.
 
-The model exposes two drivers with the same physics: `artificial.step` retains
-the Python integration sequence, while `artificial.compiled_step` compiles the
+The model exposes two drivers with the same physics: `island.step` retains
+the Python integration sequence, while `island.compiled_step` compiles the
 whole sequence. Choose the callable once before an integration loop. Whole-step
 compilation reduces GPU dispatch overhead but is not consistently faster on CPU.
 CPU placement can matter even on an otherwise idle multi-socket host; the local
@@ -79,9 +79,9 @@ GROUP BY name;
 
 ## What is compared
 
-`baseline` calls the Python body of the current `artificial.step`; if the public
+`baseline` calls the Python body of the current `island.step`; if the public
 function is decorated, its `__wrapped__` body is used. `candidate` uses the public
-`artificial.compiled_step` when available; on historical checkouts it applies a
+`island.compiled_step` when available; on historical checkouts it applies a
 fresh `jax.jit(..., static_argnames=['conf'])` to the Python body. Both variants
 use the same current physics kernels and settings. This isolates the whole-step
 compilation boundary. It is **not a comparison against the historical source**,

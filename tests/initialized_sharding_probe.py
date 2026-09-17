@@ -1,6 +1,6 @@
 """Four-CPU full-State initialization, coupled-step and forcing-AD comparison.
 
-The serial artificial island spans partition boundaries. Independent modular
+The serial island spans partition boundaries. Independent modular
 indexing packs each partition's interior plus halos from one global serial
 field; no production halo exchange is used to construct expected values.
 """
@@ -15,8 +15,8 @@ from jax.sharding import PartitionSpec as P
 
 from veris._typing import State
 from veris.initialization import initialize
-from veris.setups.artificial import compiled_step, step
-from veris.setups.artificial import initialize as initialize_artificial
+from veris.setups.island import compiled_step, step
+from veris.setups.island import initialize as initialize_island
 from veris.variables import VARIABLES
 
 
@@ -65,7 +65,7 @@ def check_initialized_step() -> None:
         assert array.dtype == np.dtype(settings.dtype)
         assert_close(array, VARIABLES[field.name].default, f"default {field.name}")
 
-    serial, serial_settings, physical = initialize_artificial(px * nx, py * ny)
+    serial, serial_settings, physical = initialize_island(px * nx, py * ny)
     serial_settings = replace(serial_settings, nEVPsteps=2)
     packed = {
         field.name: pack(getattr(serial, field.name), px, py)

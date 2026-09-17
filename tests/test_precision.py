@@ -10,7 +10,7 @@ import pytest
 from veris.configuration import SETTINGS
 from veris.initialization import initialize
 from veris.physical_constants import PHYSICALCONSTANTS
-from veris.setups import artificial
+from veris.setups import island
 
 
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
@@ -33,15 +33,15 @@ def test_policy_types_every_array_and_static_coefficient(dtype: str) -> None:
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
 def test_coupled_step_and_gradients_preserve_precision(dtype: str) -> None:
     """Real dynamics, growth, diagnostics and AD must not promote field precision."""
-    state, settings, constants = artificial.initialize(4, 5, dtype=dtype)
-    result, diagnostics = artificial.step_with_diagnostics(state, settings, constants)
+    state, settings, constants = island.initialize(4, 5, dtype=dtype)
+    result, diagnostics = island.step_with_diagnostics(state, settings, constants)
     for array in jax.tree.leaves((state, result, diagnostics)):
         assert array.dtype == np.dtype(dtype)
         assert bool(jnp.all(jnp.isfinite(array)))
 
     def ice(cooling: jax.Array) -> jax.Array:
         return jnp.sum(
-            artificial.compiled_step(state, settings, constants, cooling).hIceMean
+            island.compiled_step(state, settings, constants, cooling).hIceMean
         )
 
     gradient = jax.grad(ice)(jnp.asarray(100.0, dtype=dtype))

@@ -11,11 +11,11 @@ import pytest
 @pytest.mark.parametrize("adaptive", [False, True])
 def test_compiled_step_matches_evolving_python_driver(adaptive: bool) -> None:
     """Compare all fields through changing forcing on a nonuniform masked grid."""
-    from veris.setups import artificial
+    from veris.setups import island
 
-    initialize, step = artificial.initialize, artificial.compiled_step
-    assert step.__wrapped__ is artificial.step
-    assert not hasattr(artificial.step, "lower"), "ERROR preserve the Python driver"
+    initialize, step = island.initialize, island.compiled_step
+    assert step.__wrapped__ is island.step
+    assert not hasattr(island.step, "lower"), "ERROR preserve the Python driver"
 
     assert hasattr(step, "lower"), "ERROR coupled step must expose compiled lowering"
     initial, conf, phys = initialize(6, 9)
@@ -37,9 +37,9 @@ def test_compiled_step_matches_evolving_python_driver(adaptive: bool) -> None:
 
 def test_compiled_step_cooling_jvp_vjp_and_finite_difference() -> None:
     """Dynamic cooling remains differentiable through the compiled growth step."""
-    from veris.setups import artificial
+    from veris.setups import island
 
-    initialize, step = artificial.initialize, artificial.compiled_step
+    initialize, step = island.initialize, island.compiled_step
 
     initial, conf, phys = initialize(5, 7)
 

@@ -16,7 +16,7 @@ import pytest
 from veris import step
 from veris._typing import State
 from veris.diagnostics import Diagnostics
-from veris.setups import artificial, run_dyn, run_growth
+from veris.setups import island, run_dyn, run_growth
 from veris.setups.ocean import OceanGeometry, initialize_from_ocean
 
 
@@ -30,7 +30,7 @@ def make_case(
     elif case == "dynamics":
         initial, conf, phys = run_dyn.initialize(6, 8, settings_overrides=options)
     else:
-        initial, conf, phys = artificial.initialize(6, 8, settings_overrides=options)
+        initial, conf, phys = island.initialize(6, 8, settings_overrides=options)
         if case == "ocean":
             geometry = OceanGeometry(
                 maskT=initial.iceMask[..., None],
@@ -75,7 +75,7 @@ def make_case(
         if case == "growth":
             state = replace(state, Qnet=jnp.full_like(state.Qnet, 100 * forcing))
             return run_growth.step_with_diagnostics(state, conf, phys)
-        return artificial.step_with_diagnostics(state, conf, phys, 100 * forcing)
+        return island.step_with_diagnostics(state, conf, phys, 100 * forcing)
 
     return initial, advance
 
@@ -103,11 +103,11 @@ def assert_tree_close(actual: object, expected: object, dtype: str) -> None:
 @pytest.mark.parametrize(
     ("case", "dtype"),
     [
-        ("artificial", "float32"),
+        ("island", "float32"),
         ("dynamics", "float32"),
         ("growth", "float32"),
         ("ocean", "float32"),
-        ("artificial", "float64"),
+        ("island", "float64"),
     ],
 )
 def test_setup_rollout_matches_explicit_steps(case: str, dtype: str) -> None:
@@ -147,8 +147,8 @@ def test_setup_rollout_matches_explicit_steps(case: str, dtype: str) -> None:
 
 
 # Ocean initialization is checked above. It uses the same coupled advance and
-# derivative regime as artificial (float32 metrics only differ by rounding).
-@pytest.mark.parametrize("case", ["artificial", "dynamics", "growth"])
+# derivative regime as island (float32 metrics only differ by rounding).
+@pytest.mark.parametrize("case", ["island", "dynamics", "growth"])
 def test_real_rollout_state_and_forcing_derivatives(case: str) -> None:
     """Float64 spatial directions and time forcing exercise JVP, VJP and FD."""
     dtype = "float64"

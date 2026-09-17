@@ -14,7 +14,7 @@ from veris.clean_up import clean_up_advection, ridging
 from veris.dynamics_routines import SeaIceStrength
 from veris.dynsolver import IceVelocities, WindForcingXY
 from veris.ocean_stress import OceanStressUV
-from veris.setups.artificial import initialize
+from veris.setups.island import initialize
 
 
 @pytest.mark.parametrize("cyclic_y", [False, True])

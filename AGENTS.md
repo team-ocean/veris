@@ -157,7 +157,7 @@ Follow these principles to keep the source code maintainable, readable, and long
 ## Current status of source codes
 
 There are legacy source code parts like `veris/setup/seaice_global_4deg` in Veris repository, which depend on Veros ocean model.
-They contain important example of how to perform Veris integration, which includes both sea-ice dynamics and growth and how to use masks to identify grid areas with ocean. So, I need to remove such Veros dependencies but at the same time I need to keep such integration example with artificial ocean mask and fields.
+They contain important example of how to perform Veris integration, which includes both sea-ice dynamics and growth and how to use masks to identify grid areas with ocean. So, I need to remove such Veros dependencies but at the same time I need to keep such integration example with prescribed ocean mask and fields.
 The veris_minimum_working_example repo contains examples of how to define Veris state, initialize it, and perform sequential and parallel runs. These examples are only for stand alone Veris runs.
 
 ---

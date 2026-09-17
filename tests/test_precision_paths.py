@@ -10,7 +10,7 @@ import pytest
 from veris import heat_flux_CESM as cesm
 from veris.dynsolver import IceVelocities
 from veris.initialization import initialize
-from veris.setups import artificial
+from veris.setups import island
 from veris.setups.ocean import OceanGeometry, initialize_from_ocean
 
 
@@ -70,7 +70,7 @@ def test_cesm_stable_and_unstable_fluxes_keep_precision(
 @pytest.mark.parametrize("solver", ["adaptive_evp", "free_drift"])
 def test_alternative_dynamics_keep_precision(dtype: str, solver: str) -> None:
     """Adaptive relaxation and free drift use the same initialized scalar policy."""
-    state, settings, constants = artificial.initialize(4, 5, dtype=dtype)
+    state, settings, constants = island.initialize(4, 5, dtype=dtype)
     settings = replace(
         settings,
         useAdaptiveEVP=solver == "adaptive_evp",

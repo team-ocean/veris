@@ -42,7 +42,7 @@ NumPy conversions, or mutable output managers inside transformed code.
 
 Migrate dynamics and growth CLI integration and the parallel timing runner to
 the shared scan driver. Keep setup-level single-step APIs for compatibility and
-independent numerical comparisons. Artificial coupled integration uses the same
+independent numerical comparisons. Island coupled integration uses the same
 driver; ocean initialization is tested with a supplied physics kernel because
 it defines geometry rather than a separate time integration scheme.
 
@@ -67,7 +67,7 @@ new leading time axis is unpartitioned.
 ## Verification gates
 
 - Test before implementation: compare every State field against explicit
-  repeated setup steps for coupled artificial, dynamics, growth, and
+  repeated setup steps for coupled island, dynamics, growth, and
   ocean-initialized runs; include zero, one, and multiple steps.
 - Compare checkpoint on/off values, JVPs, and VJPs; compare nontrivial weighted
   objectives with finite differences for initial-state and forcing sensitivity.

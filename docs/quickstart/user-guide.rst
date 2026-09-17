@@ -5,20 +5,20 @@ Install the current checkout into an activated Python environment::
 
    python -m pip install -e .
 
-Initialize the model and run the artificial island example::
+Initialize the model and run the island example::
 
    import jax
    jax.config.update("jax_enable_x64", True)
 
    from functools import partial
    from veris import step
-   from veris.setups.artificial import initialize, step as advance_artificial
+   from veris.setups.island import initialize, step as advance_island
 
    state, settings, constants = initialize(
        nx=8, ny=12, wind=5.0,
-       scenario_overrides={"artificialGridSpacing": 8000.0},
+       scenario_overrides={"islandGridSpacing": 8000.0},
    )
-   advance = partial(advance_artificial, conf=settings, phys=constants, cooling=100.0)
+   advance = partial(advance_island, conf=settings, phys=constants, cooling=100.0)
    state = step(state, advance, 3)
    jax.block_until_ready(state)
    print(float(state.hIceMean[2:-2, 2:-2].mean()))
@@ -27,18 +27,18 @@ The example uses a periodic Cartesian grid with a central island. Each time step
 updates ice velocities and stresses, transports ice and snow, then computes
 thermodynamic growth and ocean heat/salt exchange. Cooling is prescribed in
 W/m², positive upward. Ocean fields remain prescribed. Omitted ``cooling`` uses
-the local ``ARTIFICIAL_SETTINGS["artificialCooling"]`` default; an explicit scalar or JAX scalar array overrides
+the local ``ISLAND_SETTINGS["islandCooling"]`` default; an explicit scalar or JAX scalar array overrides
 it and remains differentiable. Each step restores prescribed atmospheric heat
 forcing before growth replaces ``Qnet`` and ``Qsw`` with ocean-coupling fluxes.
 
 Grid extents and numerical controls are recorded in model Configuration. Spacing,
-wind, temperatures and initial ice/snow conditions belong to the artificial
+wind, temperatures and initial ice/snow conditions belong to the island
 setup and determine its initialized arrays. Explicit
 ``nx``, ``ny``, ``wind`` and ``air_temperature`` arguments override their registry
 defaults. Use ``scenario_overrides`` for other experiment controls,
 ``settings_overrides`` for model controls and
 ``physical_overrides`` for material parameters. Explicit ``deltatDyn``,
-``deltatTherm`` and ``nEVPsteps`` overrides take precedence over the artificial
+``deltatTherm`` and ``nEVPsteps`` overrides take precedence over the island
 scenario defaults.
 
 State, settings and physical constants are frozen dataclasses. Use immutable
@@ -50,7 +50,7 @@ updates; timestep reciprocals and density ratios are recomputed automatically::
 
 Output-only coupling diagnostics are available without adding State leaves::
 
-   from veris.setups.artificial import step_with_diagnostics
+   from veris.setups.island import step_with_diagnostics
    state, diagnostics = step_with_diagnostics(state, settings, constants)
 
 For default registry allocation without experiment-specific forcing, use
@@ -77,7 +77,7 @@ declare a different value, such as one for masks or a temperature in kelvin.
 Allocation reads that effective default directly from each metadata object.
 
 For serial registry allocation, pass
-``settings_overrides={"use_sharding": False}``. The artificial initializer already
+``settings_overrides={"use_sharding": False}``. The island initializer already
 selects this mode and rejects sharded initialization. Grid extents are stored as
 ``settings.nx`` and ``settings.ny``; replacing those values later does not resize
 existing arrays.
@@ -107,7 +107,7 @@ stores its own two-cell halos, so global array storage has shape
 must already use that packed layout. Mesh resources remain outside State.
 
 After supplying consistent geometry, masks and forcing in that layout, bind
-``artificial.step`` or ``artificial.step_with_diagnostics`` and call the shared
+``island.step`` or ``island.step_with_diagnostics`` and call the shared
 ``veris.step`` inside the same ``jax.set_mesh(mesh)`` context. The driver maps its stencil calculations over local partitions and
 exchanges their halos; EVP residual reductions use the mesh axes. The setup-level
 ``step`` returns State, while ``step_with_diagnostics`` returns State and the
@@ -117,7 +117,7 @@ version of the same driver. Sharded execution currently accepts spatially
 uniform cooling as a scalar or replicated scalar JAX array.
 
 The default five EVP subcycles demonstrate the integration sequence; they do not
-establish a converged dynamics solution. See :doc:`/reference/setups/artificial`
+establish a converged dynamics solution. See :doc:`/reference/setups/island`
 for the example API and :doc:`/reference/settings` for kernel defaults.
 
 Development checks

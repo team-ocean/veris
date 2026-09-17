@@ -1,7 +1,7 @@
 # Local CPU/GPU profiling results — 2026-09-08
 
-The accepted implementation retains the Python `artificial.step` driver, adds
-the opt-in `artificial.compiled_step`, and materializes shared EVP drag and
+The accepted implementation retains the Python `island.step` driver, adds
+the opt-in `island.compiled_step`, and materializes shared EVP drag and
 stress-divergence intermediates on CUDA only. CPU fusion is unchanged. Equations,
 precision and iteration counts are unchanged. Whole-step compilation is useful
 on the measured GPU; it is not a general CPU optimization.
@@ -13,7 +13,7 @@ E5-2650 v4 host with 24 physical/48 logical CPUs and four NUMA nodes, and one
 Tesla P100-PCIE-16GB. The environment was `.venv-latest`: JAX/jaxlib 0.11.1,
 NumPy 2.5.3, TensorBoard 2.21.0, XProf 2.23.1 and Perfetto Python 0.58.2.
 
-Final measurements used the artificial masked sea, float64, 400 EVP iterations,
+Final measurements used the island masked sea, float64, 400 EVP iterations,
 three warmups and twelve evolving steps. Each call synchronized its entire
 output. Python and compiled variants alternated AB/BA; first-call and final
 outputs were checked outside timing (`--validation final`). All checked fields

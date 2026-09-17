@@ -58,12 +58,12 @@ reverse-mode sensitivities on 2x2, 1x4 and 4x1 meshes. Separate reduction probes
 verify two-process CPU and GPU collectives. These local-machine checks do not
 certify multi-node networking or MPI launchers.
 
-Run the standalone artificial-island example in a fresh Python process after
+Run the standalone island example in a fresh Python process after
 activating `.venv-latest`:
 
 ```python
 import jax
-from veris.setups.artificial import initialize, step
+from veris.setups.island import initialize, step
 
 jax.config.update("jax_enable_x64", True)
 state, settings, constants = initialize()

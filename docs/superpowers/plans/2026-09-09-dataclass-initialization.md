@@ -67,14 +67,14 @@ tests and benchmarks that construct or replace configuration.
 
 ## 4. Initialization and execution
 
-Files: public initializer, `veris/setup/artificial.py`, `veris/set_inits.py`,
+Files: public initializer, `veris/setup/island.py`, `veris/set_inits.py`,
 `veris/fill_overlap.py`, distributed probes and benchmarks.
 
 - [x] Test complete registry-default allocation and invalid keys/types/shapes.
 - [x] Test serial initialization without external mesh module and explicit
   sharded mesh initialization; prevent import-time mutable backend selection.
 - [x] Implement explicit initialized execution context and migrate halo calls.
-- [x] Migrate artificial island setup and immutable geometry initialization;
+- [x] Migrate island setup and immutable geometry initialization;
   expose diagnostics separately while keeping compiled and Python step parity.
 - [ ] Run final coupled masked dynamics/growth and gradients on CPU and GPU.
   Focused CPU coupled and four-device initialized-state/gradient probes pass;
@@ -82,7 +82,7 @@ Files: public initializer, `veris/setup/artificial.py`, `veris/set_inits.py`,
 
 ## 5. Documentation and final audit
 
-Files: `doc/conf.py`, registry reference pages, quickstart, artificial example,
+Files: `doc/conf.py`, registry reference pages, quickstart, island example,
 `DESIGN.md`, `CHANGELOG.md`, and CI if new check paths are needed.
 
 - [x] Generate tables from SETTINGS, PHYSICALCONSTANTS and VARIABLES; verify

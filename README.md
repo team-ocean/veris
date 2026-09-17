@@ -10,13 +10,13 @@ Veris can be installed from this repository via ```pip install -e .```. To run V
 ### Local standalone example
 
 The package has no Veros dependency. The former geographic ocean-coupled setup
-and its downloaded forcing assets have been removed. A small artificial-island
+and its downloaded forcing assets have been removed. A small island
 example runs dynamics, transport, and thermodynamic growth with prescribed ocean
 and atmospheric fields:
 
 ```python
 import jax
-from veris.setups.artificial import initialize, step
+from veris.setups.island import initialize, step
 
 jax.config.update("jax_enable_x64", True)
 state, settings, constants = initialize()

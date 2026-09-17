@@ -5,7 +5,7 @@
 Implement the Goal in AGENTS.md on `jax-only`. The existing `State` and
 `Configuration` in `veris/state.py` are named tuples, `settings.py` mixes physical
 constants with configuration, and `variables.py` has no allocation or output
-metadata. The artificial setup allocates 84 fields, including output-only
+metadata. The island setup allocates 84 fields, including output-only
 diagnostics. Bulk flux functions and `solve4temp` contain additional local
 coefficients. `fill_overlap` selects a backend at import time by reading a
 mutable dictionary. These are all migration scope, not just container syntax.
@@ -77,7 +77,7 @@ defaults plus validated overrides, then allocates every State field from
 VARIABLES for the requested grid. Reject unknown keys, invalid scalar types,
 invalid extents and incompatible array shapes with informative errors.
 Apply setup-specific forcing, geometry and masks through immutable updates.
-The artificial island example remains executable without Veros.
+The island example remains executable without Veros.
 
 Make serial/sharded halo selection explicit from initialized configuration
 and supplied mesh, rather than mutable registry values at module import.
@@ -101,7 +101,7 @@ diagnostic in State would preserve its old shape but would not minimize AD.
 
 Build documentation tables directly from the three registries; add the
 physical-constants reference to the Sphinx navigation and update quickstart,
-artificial setup instructions and DESIGN.md. Metadata is the documentation
+island setup instructions and DESIGN.md. Metadata is the documentation
 source rather than manually duplicated tables.
 
 Write contract tests before implementation: frozen mutation rejection,
@@ -126,7 +126,7 @@ jax-only; do not push or alter the reference example repository.
    dependency validation, and audit scattered coefficients.
 3. Migrate kernel signatures, protocols and consumers to separate constants.
 4. Implement state metadata/allocation, minimal state and output diagnostics;
-   migrate artificial and geometry initialization and halo configuration.
+   migrate island and geometry initialization and halo configuration.
 5. Generate reference documentation, verify netCDF metadata, run independent
    code/test review and full validation, then commit the completed migration.
 

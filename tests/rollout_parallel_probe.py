@@ -18,7 +18,7 @@ from jax.sharding import PartitionSpec as P
 
 from veris import step
 from veris._typing import State
-from veris.setups import artificial, run_dyn, run_parallel
+from veris.setups import island, run_dyn, run_parallel
 
 
 def check_parallel_rollout(backend: str, dtype: str) -> None:
@@ -84,9 +84,9 @@ def _check_case(case: str, backend: str, dtype: str) -> None:
 
         def advance(current: State, cooling: jax.Array) -> State:
             if case == "coupled":
-                # artificial.step shard_map explicitly broadcasts this scalar
+                # island.step shard_map explicitly broadcasts this scalar
                 # with P(), while State fields retain P('x', 'y').
-                return artificial.step(current, settings, physical, cooling)
+                return island.step(current, settings, physical, cooling)
             current = replace(current, uWind=initial.uWind * cooling / 100)
             return run_dyn.step(current, settings, physical)
 

@@ -162,9 +162,9 @@ def test_closed_intensive_transport_preserves_constant(speed: float) -> None:
 @pytest.mark.parametrize("no_slip", [True, False])
 def test_closed_coupled_steps_preserve_walls_and_finite_ad(no_slip: bool) -> None:
     """Setup overrides and repeated refreshes cannot revive dry exterior masks."""
-    from veris.setups import artificial
+    from veris.setups import island
 
-    state, conf, phys = artificial.initialize(
+    state, conf, phys = island.initialize(
         nx=6,
         ny=8,
         settings_overrides={
@@ -173,7 +173,7 @@ def test_closed_coupled_steps_preserve_walls_and_finite_ad(no_slip: bool) -> Non
             "nEVPsteps": 2,
         },
     )
-    for vs in (state, artificial.step(artificial.step(state, conf, phys), conf, phys)):
+    for vs in (state, island.step(island.step(state, conf, phys), conf, phys)):
         for name in (
             "iceMask",
             "iceMaskU",
@@ -197,7 +197,7 @@ def test_closed_coupled_steps_preserve_walls_and_finite_ad(no_slip: bool) -> Non
 
     def loss(wind: jax.Array) -> jax.Array:
         initial = replace(state, vWind=state.vWind + wind)
-        result = artificial.step(artificial.step(initial, conf, phys), conf, phys)
+        result = island.step(island.step(initial, conf, phys), conf, phys)
         return jnp.sum(result.hIceMean[2:-2, 2:-2] * jnp.arange(48).reshape(6, 8))
 
     x = jnp.asarray(0.7)

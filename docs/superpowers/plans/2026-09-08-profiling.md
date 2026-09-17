@@ -15,8 +15,8 @@ Work starts from `jax-only` at `bce3b18`; do not use the old main branch.
 
 ## Initial measurements
 
-The initial workload calls `veris.setup.artificial.initialize(64, 64)` and
-replaces `nEVPsteps` with the model default of 400. All other artificial
+The initial workload calls `veris.setup.island.initialize(64, 64)` and
+replaces `nEVPsteps` with the model default of 400. All other island
 settings and forcing retain their defaults. These are single-device runs;
 the availability of two GPUs does not make this a distributed measurement.
 

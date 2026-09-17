@@ -22,7 +22,7 @@ from veris.fill_overlap import fill_overlap
 from veris.initialization import initialize
 from veris.io import read_record, update_state, write_snapshot
 from veris.physical_constants import PhysicalConstants
-from veris.setups import artificial
+from veris.setups import island
 from veris.variables import VARIABLES
 
 
@@ -48,7 +48,7 @@ def test_coupled_restart_matches_uninterrupted_run(
 ) -> None:
     """Float32 snapshots and reconstructed halos resume the same trajectory."""
     dtype = "float32"
-    initial, conf, phys = artificial.initialize(
+    initial, conf, phys = island.initialize(
         nx=6,
         ny=8,
         dtype=dtype,
@@ -70,7 +70,7 @@ def test_coupled_restart_matches_uninterrupted_run(
     uninterrupted = initial
     checkpoint = initial
     for index, forcing in enumerate(cooling, start=1):
-        uninterrupted = artificial.compiled_step(uninterrupted, conf, phys, forcing)
+        uninterrupted = island.compiled_step(uninterrupted, conf, phys, forcing)
         if index == checkpoint_step:
             checkpoint = uninterrupted
     assert not np.array_equal(initial.hIceMean, uninterrupted.hIceMean)
@@ -112,10 +112,10 @@ def test_coupled_restart_matches_uninterrupted_run(
     assert resume_step == checkpoint_step
 
     if checkpoint_step == 1:
-        stale = artificial.compiled_step(
+        stale = island.compiled_step(
             restored, restored_conf, restored_phys, cooling[resume_step]
         )
-        correct = artificial.compiled_step(checkpoint, conf, phys, cooling[resume_step])
+        correct = island.compiled_step(checkpoint, conf, phys, cooling[resume_step])
         assert not np.array_equal(
             np.asarray(stale.hIceMean)[2:-2, 2:-2],
             np.asarray(correct.hIceMean)[2:-2, 2:-2],
@@ -124,7 +124,5 @@ def test_coupled_restart_matches_uninterrupted_run(
     restored = jax.tree.map(lambda array: fill_overlap(array, restored_conf), restored)
     assert_same_state(restored, checkpoint)
     for forcing in cooling[resume_step:]:
-        restored = artificial.compiled_step(
-            restored, restored_conf, restored_phys, forcing
-        )
+        restored = island.compiled_step(restored, restored_conf, restored_phys, forcing)
     assert_same_state(restored, uninterrupted)

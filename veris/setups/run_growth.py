@@ -1,11 +1,11 @@
-"""Run the reference notebook's prescribed thermodynamic ice column.
+"""Run the reference experiment's prescribed thermodynamic ice column.
 
-Adapted from run_growth.ipynb and initialize_growth.py on the standalone
+Adapted from the run_growth experiment and initialize_growth.py on the standalone
 reference's jax_halo_exchange branch. Growth implements category-averaged
 ice/snow thermodynamics without dynamics or transport. A uniform 2 by 2 interior
 with two halos satisfies the shared allocator and is physically equivalent to
-the notebook's one-cell column. Qnet and Qsw outputs feed the next step, exactly
-as in the notebook; this is a prescribed experiment, not an evolving ocean.
+the reference one-cell column. Qnet and Qsw outputs feed the next step;
+this is a prescribed experiment, not an evolving ocean.
 Importing this module neither allocates model arrays nor selects a JAX backend.
 """
 
