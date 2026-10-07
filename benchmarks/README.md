@@ -25,15 +25,19 @@ CUDA_VISIBLE_DEVICES=0 python -m benchmarks.profile_veris --backend gpu --nx 64 
 
 Repeat with `--nx 256 --ny 256`, and with `--mode evolving`, using a new output
 directory each time. Run performance measurements serially on otherwise idle
-hardware, separately from pytest. CPU affinity is recorded but not set by the
-harness; use the same permitted affinity and thread environment when comparing
+hardware, separately from pytest. On Linux, `cpu_affinity` records the sorted
+allowed CPU IDs from `os.sched_getaffinity(0)`; the harness does not set affinity.
+On macOS/Darwin and other platforms without that API, `cpu_affinity` is `null`.
+The separate `cpu_count` field records the logical CPU count from `os.cpu_count()`
+on all platforms, or `null` if undetermined; it does not describe an affinity
+mask. Use the same permitted affinity and thread environment when comparing
 runs. GPU measurements use the first visible GPU and require actual GPU access.
 Unset `JAX_PLATFORMS=cpu` before a GPU run if it was exported in the shell.
 The requested backend is selected explicitly and checked; unavailable GPU access
 raises an error instead of silently reporting CPU timings.
 
 
-For CPU placement experiments, restrict only the benchmark child process, before
+For Linux CPU placement experiments, restrict only the benchmark child process, before
 JAX initializes. Inspect `lscpu -e=CPU,NODE,SOCKET,CORE` and
 `taskset -pc $$` first; choose CPUs within the process's allowed set. The following
 socket-zero physical-core list applies to the measured local host, not arbitrary

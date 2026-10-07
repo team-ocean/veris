@@ -1,5 +1,35 @@
 # Development log
 
+## 2026-10-07 — Portable benchmark CPU metadata
+
+- [x] Reproduced the Darwin AttributeError in two regression cases before the
+  fix; the Linux sparse-mask test also exposed the missing CPU-count metadata.
+- [x] Feature-detect `os.sched_getaffinity`: Linux keeps sorted allowed CPU IDs;
+  platforms without the API report `cpu_affinity=null` and use `os.cpu_count()`
+  for separate logical-CPU metadata (including its unknown/null case).
+- [x] Updated the real CLI/trace test to assert platform-appropriate metadata;
+  documented the fallback and restricted taskset instructions to Linux.
+- [x] Native Darwin benchmark tests: 21/21 passed, including real separate
+  XPlane/Perfetto traces. CI-scope Ruff, formatting, annotations, ty and diff
+  checks pass. Independent read-only review found no correctness blocker.
+- [x] Sphinx clean warnings-as-errors build passes; rendered index title and
+  thesis link verified. Initial sandbox build could not fetch the Python
+  inventory; authorized network rebuild passed. Package name/version query works.
+- [x] Full CPU suite: 911 passed, two expected GPU-only skips, one sandbox
+  localhost-bind permission failure. The affected two-process reduction/AD test
+  passed with socket access (1/1), yielding 912 passing tests overall. Maintained
+  coverage: 2654/2732 = 97.14%; whole-package coverage: 2654/3085 = 86.03%.
+  No numerical tolerances changed. No pytest remains running.
+- [x] Ready to commit on jax-only, including the user's existing setup.py and
+  docs/index.rst edits. Evidence: /private/tmp/veris-macos-{profile-tests,
+  full-tests,reduction-tests,docs}.log and veris-macos-coverage.json.
+- [x] Git author identity is now configured as Roman Nuterman
+  <nuterman@nbi.ku.dk>; the earlier missing-identity blocker is resolved.
+  User authorized committing and pushing these verified changes to jax-only
+  with the Git CLI. Sandbox index-lock denial requires authorized escalation.
+- Environment: created project-local .venv because no existing venv was present.
+  Sandboxed dependency download failed on DNS; authorized network retry worked.
+
 ## 2026-09-17 — Core dynamics ownership and test redundancy audit
 
 - [x] Moved setups/_physics.py to veris/dynamics.py, preserving the

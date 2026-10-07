@@ -2,6 +2,7 @@
 
 import importlib
 import json
+import os
 from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
@@ -9,6 +10,9 @@ from types import ModuleType
 import jax
 import jax.numpy as jnp
 import pytest
+
+from veris.configuration import Configuration
+from veris.physical_constants import PhysicalConstants
 
 
 def harness() -> ModuleType:
@@ -78,6 +82,56 @@ def test_cli_rejects_invalid_workload(option: str, value: str, tmp_path: Path) -
         harness().parse_args(["--output", str(tmp_path), option, value])
 
 
+def test_metadata_preserves_linux_affinity(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    conf: Configuration,
+    phys: PhysicalConstants,
+) -> None:
+    """Record sorted allowed CPU IDs, even when the Linux mask is sparse."""
+    profile = harness()
+
+    def sched_getaffinity(pid: int) -> set[int]:
+        assert pid == 0
+        return {7, 2}
+
+    monkeypatch.setattr(
+        profile.os, "sched_getaffinity", sched_getaffinity, raising=False
+    )
+    monkeypatch.setattr(profile.os, "cpu_count", lambda: 16)
+    metadata = profile._metadata(
+        profile.parse_args(["--output", str(tmp_path)]),
+        jax.devices("cpu")[0],
+        conf,
+        phys,
+    )
+    assert metadata["cpu_affinity"] == [2, 7]
+    assert metadata["cpu_count"] == 16
+
+
+@pytest.mark.parametrize("cpu_count", [8, None])
+def test_metadata_without_affinity_api(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    conf: Configuration,
+    phys: PhysicalConstants,
+    cpu_count: int | None,
+) -> None:
+    """Darwin metadata reports logical CPU count without inventing an affinity."""
+    profile = harness()
+    monkeypatch.delattr(profile.os, "sched_getaffinity", raising=False)
+    monkeypatch.setattr(profile.os, "cpu_count", lambda: cpu_count)
+    metadata = profile._metadata(
+        profile.parse_args(["--output", str(tmp_path)]),
+        jax.devices("cpu")[0],
+        conf,
+        phys,
+    )
+    serialized = json.loads(json.dumps(metadata))
+    assert serialized["cpu_affinity"] is None
+    assert serialized["cpu_count"] == cpu_count
+
+
 def test_cli_writes_metadata_and_separate_real_traces(tmp_path: Path) -> None:
     profile = harness()
     profile.main(
@@ -108,7 +162,10 @@ def test_cli_writes_metadata_and_separate_real_traces(tmp_path: Path) -> None:
     assert "rhoIce" not in data["metadata"]["settings"]
     assert data["metadata"]["physical_constants"]["rhoIce"] == 900.0
     assert data["metadata"]["revision"]
-    assert data["metadata"]["cpu_affinity"]
+    get_affinity = getattr(os, "sched_getaffinity", None)
+    expected_affinity = sorted(get_affinity(0)) if get_affinity is not None else None
+    assert data["metadata"]["cpu_affinity"] == expected_affinity
+    assert data["metadata"]["cpu_count"] == os.cpu_count()
     assert data["validation"]["passed"] is True
     assert data["validation"]["schedule"] == "final"
     assert data["metadata"]["arguments"]["validation"] == "final"

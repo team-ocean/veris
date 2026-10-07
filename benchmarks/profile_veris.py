@@ -181,6 +181,7 @@ def _metadata(
             versions[package] = importlib.metadata.version(package)
         except importlib.metadata.PackageNotFoundError:
             versions[package] = None
+    get_affinity = getattr(os, "sched_getaffinity", None)
     return {
         "backend": device.platform,
         "device": str(device),
@@ -188,7 +189,8 @@ def _metadata(
         "platform": platform.platform(),
         "python": platform.python_version(),
         "cpu_model": cpu_model,
-        "cpu_affinity": sorted(os.sched_getaffinity(0)),
+        "cpu_affinity": sorted(get_affinity(0)) if get_affinity is not None else None,
+        "cpu_count": os.cpu_count(),
         "revision": revision,
         "tracked_dirty": bool(dirty),
         "versions": versions,

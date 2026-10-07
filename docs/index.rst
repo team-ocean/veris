@@ -1,14 +1,15 @@
-Veris: a standalone JAX sea-ice model
-=====================================
+Veris: a versatile sea ice simulator in JAX
+===========================================
 
-Veris implements sea-ice dynamics, transport, and thermodynamic growth with JAX
-arrays and compiled kernels. The included island example runs with
-prescribed ocean and atmospheric fields.
+Veris implements sea-ice dynamics and thermodynamics using JAX
+for array operations. It supports forward and reverse modes of
+automatic differentiation and parallel excution on CPUs and GPUs.
+The package is bundeled with several setups to demonstrate its functionality.
 
-The physics derives from the `MITgcm SEAICE package
+Veris was derived from the `MITgcm SEAICE package
 <https://mitgcm.readthedocs.io/en/latest/phys_pkgs/seaice.html>`_.
 `Jan Philipp Gärtner <https://github.com/jpgaertner>`_ created the original Veris
-implementation as part of his Master's thesis.
+implementation as part of his `Master's thesis <https://nbi.ku.dk/teamocean/docs/Jan_Gaertner_MSc_thesis.pdf>`__.
 
 .. toctree::
    :maxdepth: 2
