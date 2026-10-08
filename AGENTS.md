@@ -31,7 +31,7 @@ For the State object, all to be allocated variables must be specified in a dicti
 
 ```python
 VARIABLES = {
-    "theta": Variable(“Ocean surface temperature", XT+YT, "K", "Ocean surface temperature"),
+    "theta": Variable("Ocean surface temperature", XT+YT, "K", "Ocean surface temperature"),
 }
 ```
  
