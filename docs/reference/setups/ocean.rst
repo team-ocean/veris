@@ -45,4 +45,5 @@ initialization alone does not define the experiment. The example uses the
 coupled island physics sequence. See :doc:`../integration` for the common
 rollout contract and AD.
 
-.. autofunction:: veris.setups.ocean.initialize_from_ocean
+See :func:`~veris.setups.ocean.initialize_from_ocean` in the
+:doc:`Python API </api/initialization>` for its signature and docstring.

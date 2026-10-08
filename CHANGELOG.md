@@ -1499,3 +1499,30 @@
 - [x] CI-scope Ruff, formatting, annotations, ty and diff checks pass. Rendered
   pages verified: independent tables contain 15 dynamics, 13 growth and 15
   parallel dynamics controls. Logs/build retained under `test_logs/island-*`.
+
+### 2026-10-08 — Python API reference
+
+- [x] Added a Python API navigation section with source-derived
+  signatures and docstrings for model data, initialization/setup steps,
+  integration, physics kernels, halo/parallel helpers and public I/O. It
+  contains only Veris objects; no unit tests or test helpers are documented.
+- Registry descriptions/defaults remain generated on the existing reference
+  pages, linked from the API. Moved the canonical rollout/island/ocean function
+  entries to the API to avoid duplicate Sphinx targets.
+- First Sphinx build exposed duplicate setup targets, two short underlines,
+  and RST formatting errors in three previously unrendered atmospheric-flux
+  docstrings. Corrected those docstrings without changing numerical behavior.
+- [x] Clean Sphinx `-E -W` build passes. Rendered audit verifies all 101
+  explicit API targets and every callable parameter, 791 local links/fragments,
+  unique HTML IDs, complete physics/public exports, compiled setup wrappers,
+  scenario registries, navigation and absence of test API targets.
+- [x] Independent documentation review found no remaining issues. Maintained
+  Ruff, formatting, annotation and ty checks and `uv pip check` pass using
+  the existing `.venv-latest` with `uv/latest` loaded through the module system.
+  AST comparison verifies source changes are docstrings only.
+- [x] Documented 8x8 island example completes three steps with finite float64
+  State. Full CPU correctness suite passes: 912 passed, 2 skipped; maintained
+  coverage clears the 80% gate. No new tests or numerical changes were added.
+- Work remains on `jax-only` per user request; push to remote `jax-only` after
+  successful verification. Artifacts: `test_logs/python-api/`,
+  `test_logs/python-api-sphinx.log` and `test_logs/python-api-tests.log`.

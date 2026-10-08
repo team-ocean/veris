@@ -26,7 +26,9 @@ def bulkf_formula_lanl(
     tsf: ArrayLike,
     ocn_mask: ArrayLike,
 ) -> LANLFluxes:
-    """Calculate bulk formula fluxes over open ocean
+    """Calculate bulk formula fluxes over open ocean.
+
+    The bulk formulae are::
 
         wind stress = (ust,vst) = rhoA * Cd * Ws * (del.u,del.v)
         Sensib Heat flux = fsha = rhoA * Ch * Ws * del.T * CpAir

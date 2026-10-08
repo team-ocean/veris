@@ -203,4 +203,4 @@ but can emit a requested initial instantaneous record. Final snapshots remain
 separate host operations. Use ``veris.step`` directly for AD; the timing/output
 wrapper is host-only.
 
-.. autofunction:: veris.step
+See :doc:`/api/integration` for Python signatures and docstrings.

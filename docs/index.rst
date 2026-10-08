@@ -29,4 +29,10 @@ implementation as part of his `Master's thesis <https://nbi.ku.dk/teamocean/docs
    reference/io
    reference/automatic-differentiation
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Python API
+
+   api/index
+
 Source code: `team-ocean/veris <https://github.com/team-ocean/veris>`_.

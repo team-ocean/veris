@@ -97,10 +97,8 @@ def compute_z_level(
         The top level of the atmosphere is excluded
 
     Reference:
-        - https://www.ecmwf.int/sites/default/files/elibrary/2015/
-        9210-part-iii-dynamics-and-numerical-procedures.pdf
-        - https://confluence.ecmwf.int/display/CKB/
-        ERA5%3A+compute+pressure+and+geopotential+on+model+levels%2C+geopotential+height+and+geometric+height
+        - https://www.ecmwf.int/sites/default/files/elibrary/2015/9210-part-iii-dynamics-and-numerical-procedures.pdf
+        - https://confluence.ecmwf.int/display/CKB/ERA5%3A+compute+pressure+and+geopotential+on+model+levels%2C+geopotential+height+and+geometric+height
 
     Returns:
         :obj:`ndarray`: Altitude of the atmospheric near surface layer (second IFS level)
@@ -363,9 +361,9 @@ def flux_atmOcn(
 
     Reference:
         - Large, W. G., & Pond, S. (1981). Open Ocean Momentum Flux Measurements in Moderate to Strong Winds,
-        Journal of Physical Oceanography, 11(3), pp. 324-336
+          Journal of Physical Oceanography, 11(3), pp. 324-336
         - Large, W. G., & Pond, S. (1982). Sensible and Latent Heat Flux Measurements over the Ocean,
-        Journal of Physical Oceanography, 12(5), 464-482.
+          Journal of Physical Oceanography, 12(5), 464-482.
         - https://svn-ccsm-release.cgd.ucar.edu/model_versions/cesm1_0_5/models/csm_share/shr/shr_flux_mod.F90
     """
 

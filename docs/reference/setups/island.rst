@@ -6,11 +6,10 @@ a two-by-two-cell island. The default interior is 8 by 12 cells at 8 km spacing;
 arrays include two halo cells on each side. Face masks prevent transport across
 the coastline. Temperatures are in kelvin and thicknesses are grid-cell means.
 
-.. autofunction:: veris.setups.island.initialize
-
-.. autofunction:: veris.setups.island.step
-
-.. autofunction:: veris.setups.island.step_with_diagnostics
+See :func:`~veris.setups.island.initialize`,
+:func:`~veris.setups.island.step` and
+:func:`~veris.setups.island.step_with_diagnostics` in the
+:doc:`Python API </api/initialization>` for signatures and docstrings.
 
 The numerical State retains ice velocity and stress fields between steps.
 Output-only ocean coupling stresses and fluxes are returned separately by
