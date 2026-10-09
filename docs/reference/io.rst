@@ -8,6 +8,33 @@ selects variables, a sampling interval and an averaging period; frozen
 samples concrete States after model steps and closes files through a context
 manager. Existing output paths are rejected to prevent accidental overwrite.
 
+Floating-point precision
+------------------------
+
+Model initialization selects ``float32`` or ``float64`` through ``dtype``;
+the default is ``float64``. Output uses the following precision policy:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Part
+     - Precision
+   * - Model fields, geometry and floating coefficients
+     - Selected model dtype: ``float32`` or ``float64``
+   * - Instantaneous output and final snapshot fields
+     - Same dtype as the model
+   * - Time-average accumulators and saved means
+     - Always ``float64``
+   * - NetCDF time coordinates and bounds
+     - Always ``float64``
+
+Float64 accumulation reduces rounding error when summing many samples,
+especially when positive and negative contributions cancel. It cannot recover
+precision already lost during float32 model calculations. Averaging buffers
+remain separate from numerical State, preserving model precision and evolution.
+For float32 runs, mean buffers and saved mean fields use twice the bytes per
+value compared with float32 fields.
+
 Sampling and calendar windows
 -----------------------------
 

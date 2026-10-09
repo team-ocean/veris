@@ -1526,3 +1526,24 @@
 - Work remains on `jax-only` per user request; push to remote `jax-only` after
   successful verification. Artifacts: `test_logs/python-api/`,
   `test_logs/python-api-sphinx.log` and `test_logs/python-api-tests.log`.
+
+### 2026-10-09 — Model and output precision documentation
+
+- [x] Added a short Floating-point precision section and four-row table to
+  the input/output guide, covering model dtype, instantaneous/final snapshots,
+  float64 time averages and float64 time coordinates/bounds. Explained averaging
+  accuracy, separation from model evolution and storage cost for float32 runs.
+- Prior source audit and focused CPU precision/output checks passed 8/8 using
+  `.venv-latest` and module-provided `uv`; no numerical behavior changed.
+- [x] Independent documentation review found no issues. Sphinx `-E -W` build
+  and rendered four-row table verification pass. Initial build failed only on
+  the sandbox-blocked Python inventory fetch; rebuild with network access passed.
+- [x] Fast CPU correctness sample: 92/92 passed using `.venv-latest` and
+  module-provided `uv`. Diff checks pass. Build and test artifacts:
+  `test_logs/precision-docs/`, `precision-docs-sphinx.log`,
+  `precision-docs-tests.log` and `precision-docs-tests.xml` under `test_logs/`.
+- [x] Pre-commit full CPU correctness suite: 912 passed, 2 GPU-only skips,
+  no failures/errors, with socket access for multiprocess checks. Maintained
+  coverage: 2654/2732 = 97.14%; the 80% gate passes. Full validation artifacts:
+  `test_logs/precision-docs-full-tests.{log,xml}` and
+  `test_logs/precision-docs-full-coverage.json`.
