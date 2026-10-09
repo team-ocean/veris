@@ -1,45 +1,5 @@
 # Sea ice model
 
-## Goal 
-
-Replace NamedTuples with frozen data classes for State and Settings. 
-Settings must be separated into two classes: one for physical constants and another for model settings.  
-There are settings and physical constants with their definitions scattered all over the source code.
-I need all physical constants in a physical constants object and all settings in a settings object.
-The model State shall contain only Veris variables, which are used in calculations to keep the State minimal for AD.
-Settings, PhysicalConstants, State objects with their attributes/fields must be defined and allocated at Veris initialization stage with their default values.
-For the sake of clarity, I need 2 namedtuple and dictionary objects for Settings and PhysicalConstants, which look something like:
-
-```python
-from collections import namedtuple
-
-description = namedtuple("setting", ("default", "type", "description"))
-
-PHYSICALCONSTANTS = {
-    "rhoAir": Setting(1.3, float, “Density of air :math:`kg/m^3`"),
-    …
-}
-
-SETTINGS = {
-    …
-}
-```
-
-from which Settings and PhysicalConstants are initialized.
-
-For the State object, all to be allocated variables must be specified in a dictionary, which looks something like:
-
-```python
-VARIABLES = {
-    "theta": Variable("Ocean surface temperature", XT+YT, "K", "Ocean surface temperature"),
-}
-```
- 
-where XT+YT are latitude (XT) and longitude (YT) dimensions of a variable and Variable object is built in a way that it can be used as a metadata source for output in a netcdf file with h5netcdf library.
-Use more suitable names for variables' dimensions, which reflect the internals of Veris. You can add more attributes to the Variable class for more metadata.
-
-Veris documentation shall use these dicts to describe settings, physical constants, and state variables.   
-
 ## CRITICAL: local environment rules
 
 ### Filesystem
@@ -55,15 +15,11 @@ A fully differentiable sea-ice model in JAX with CPU and GPU as first-class exec
 
 ## Quick reference
 
-- **Reference source codes**: `/groups/ocean/nutrik/dev/veris`, `/groups/ocean/nutrik/dev/veris_minimum_working_example`
 - **Design document**: `DESIGN.md` (read this first)
 - **Progress log**: `CHANGELOG.md`
 
-The `main` branch in both reference codes is very old and shall not be used.
-Instead, you need to branch off `jax-only` in `veris` and use `jax_halo_exchange` branch in `veris_minimum_working_example`.
+The `main` branch in both reference codes is very old and shall not be used. Instead, you need to use `jax-only` branch for all developments.
 After a certain development stage is completed in `veris` repo, you need to commit it back to `jax-only` branch rather than `main`.
-Developments shall be done for `veris` repo, not `veris_minimum_working_example`. Use `veris_minimum_working_example` only for
-reference on how to define Veris state, initialize it, and perform sequential and parallel runs. 
 
 ## Setup
 
