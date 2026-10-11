@@ -21,6 +21,100 @@ A fully differentiable sea-ice model in JAX with CPU and GPU as first-class exec
 The `main` branch in both reference codes is very old and shall not be used. Instead, you need to use `jax-only` branch for all developments.
 After a certain development stage is completed in `veris` repo, you need to commit it back to `jax-only` branch rather than `main`.
 
+## Goal
+
+Improve Veris from a collection of numerical and physical routines into a cohesive, standalone sea-ice modeling package with a centralized way to define, initialize, run, and perform input/output.
+
+The intended outcome is that a scientist can define an experiment and execute its entire lifecycle through documented public Veris interfaces, without assembling internal modules or copying orchestration code from example scripts.
+
+**First understand what already exists**
+
+Read `DESIGN.md` and `CHANGELOG.md`, then inspect the current public interfaces, implementation, tests, packaging, and documentation. In particular, review:
+
+- `veris/configuration.py`, `physical_constants.py`, `_typing.py`, and `initialization.py`.
+- `veris/dynamics.py`, `integration.py`, and `integration_output.py`.
+- `veris/io/` and its configuration, calendar, storage, scheduling, and distributed-output components.
+- The island, dynamics, growth, ocean-geometry, and parallel examples in `veris/setups/`.
+- The quickstart, integration and I/O documentation, and corresponding tests.
+
+The package currently exposes `veris.step`, which performs a multi-step rollout using a supplied transition. Shared allocation and netCDF I/O already exist. Identify the remaining gaps and duplicated responsibilities before introducing new abstractions. Reuse these components wherever possible.
+
+**Design one coherent model lifecycle**
+
+Provide a small, stable public interface covering:
+
+1. **Definition:** describe the grid, geometry and ocean mask, initial ice conditions, prescribed ocean and atmospheric fields, physics and solver settings, physical constants, precision, execution mode, simulation duration, and output requirements.
+2. **Initialization:** validate the definition, allocate a consistent State, establish geometry and derived fields, apply initial conditions and forcing, and prepare boundary halos and execution resources.
+3. **Execution:** advance one timestep or run a trajectory, with consistent forcing application, physical-stage ordering, diagnostics, and time accounting.
+4. **Input/output:** load supported input fields, configure scheduled output, write snapshots, and restore a simulation through a documented restart interface.
+
+A thin host-side `Model` or `Simulation` facade is a reasonable starting point. Justify the choice against the existing architecture. Keep focused internal modules and pure numerical functions behind it; avoid putting all responsibilities into one large class.
+
+Resolve the distinction between a single physics timestep and a multi-step rollout explicitly. Preserve existing public behavior or provide a tested compatibility path.
+
+**Centralize experiment definition and initialization**
+
+Reuse the existing Configuration, PhysicalConstants, State, Diagnostics, and metadata registries. Keep one authoritative source for defaults and validation.
+
+Separate numerical settings, physical constants, experiment-specific initial conditions and forcing, execution resources, and host I/O controls. They may be grouped by one experiment definition without becoming one undifferentiated settings object.
+
+Provide a consistent Python configuration interface and a simple declarative file format. Document override precedence, units, array shapes, and supported values. Save the resolved configuration with outputs so experiments can be reproduced.
+
+Support built-in examples and user-supplied geometry, masks, fields, and initial conditions. A custom experiment must not require editing package source. Distinguish default array allocation from initialization that produces a physically consistent runnable experiment.
+
+Make the public convention for global grid dimensions explicit. Adapt existing per-partition allocation internally, including packed halos, divisibility checks, and staggered fields.
+
+**Centralize execution and forcing**
+
+Make the existing dynamics, thermodynamics, and coupled examples use the same lifecycle. Treat their prescribed fields and parameter choices as experiment definitions rather than separate application frameworks.
+
+Establish a shared contract for constant and time-varying forcing. Apply forcing at the correct point in each timestep, accounting for fields that physics routines overwrite. Preserve the existing numerical ordering, masks, boundary behavior, and coupling diagnostics.
+
+Use the existing JAX rollout and scheduled-output machinery. Return a documented result containing the final numerical State and relevant run information; make observation histories optional.
+
+Support CPU, GPU, and supported sharded execution through the same public workflow. Keep distributed initialization explicit and perform backend configuration before device initialization. Avoid changing process-wide JAX settings as an import side effect.
+
+**Integrate I/O and restart safely**
+
+Route existing netCDF reading, scheduled histories, averaging, snapshots, and distributed collection through the centralized interface. Preserve their established precision, calendar, sampling, and halo-removal contracts.
+
+Distinguish selected-field input, visualization output, and a complete restart. The existing selected-field update helper is not an automatic restart API.
+
+Provide a complete restart path for explicitly documented supported modes. Restore the required State fields, configuration, constants, model time, forcing position, and boundary halos. Define how output schedules and unfinished averaging windows behave after restart. Reject incomplete or incompatible restart data clearly, and identify unsupported distributed restart cases honestly.
+
+Keep file handles, clocks, output accumulators, and mesh resources outside the numerical State. Close resources reliably on success and failure.
+
+**Preserve scientific and JAX guarantees**
+
+This is an orchestration and interface improvement. Preserve physical equations, arithmetic ordering where significant, numerical tolerances, and existing passing tests.
+
+Keep State an array-only JAX PyTree and maintain immutable configuration conventions. Retain a clearly documented pure execution path usable with `jax.jit`, `jax.grad`, JVP, and VJP. Host orchestration and file operations must stay outside differentiated computation.
+
+Retain supported differentiation with respect to initial conditions and forcing. Document which parameters are static and which are differentiable. Do not claim broader differentiability without validating it.
+
+Veris must remain standalone, with no Veros dependency. Preserve an example using prescribed ocean geometry, masks, and fields. Use maintained reference branches when checking original behavior.
+
+**Implement and verify incrementally**
+
+Prepare a concrete architecture and implementation plan, then implement small, testable milestones under the repository workflow. Write meaningful tests before new behavior and reproducing tests before bug fixes.
+
+Demonstrate that:
+
+- A user can define, initialize, run, and save a coupled experiment through the public API.
+- Existing examples reproduce their established numerical results through the new workflow.
+- Custom masks, geometry, initial conditions, and forcing work without internal imports.
+- Time-varying forcing and model time remain correct across successive runs.
+- Supported save-and-resume runs match uninterrupted runs.
+- Pure execution retains validated gradients and JIT behavior.
+- Supported serial and sharded runs retain correct boundary and output handling.
+- Invalid definitions and incompatible inputs fail with informative errors.
+
+Use fast tests during development and one pytest instance at a time. Run the full correctness suite before any code commit, along with required lint, type, packaging, and documentation checks. Verify installation and public imports from a clean built package. Report unavailable GPU or distributed verification explicitly.
+
+Update `CHANGELOG.md` after meaningful milestones. Keep commits focused and passing.
+
+Deliver a working centralized lifecycle, concise public API documentation, a primary quickstart, migrated examples, and a migration guide. Include a summary of the architecture, numerical equivalence evidence, verification results, and remaining limitations. Complete the implementation rather than stopping at renamed modules, additional exports, or a design proposal.
+
 ## Setup
 
 ```bash
