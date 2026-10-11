@@ -27,6 +27,8 @@ from veris.configuration import Configuration
 from veris.diagnostics import Diagnostics
 from veris.experiment import Experiment
 from veris.integration_output import run_timed
+from veris.io.calendar import duration_us
+from veris.io.configuration import OutputSettings
 from veris.io.guard import require_host
 from veris.io.schedule import iter_segments
 from veris.model_initialization import initialize_experiment
@@ -77,6 +79,10 @@ class Simulation:
         constants: PhysicalConstants,
         mesh: Mesh | None,
         output_path: str | Path | None = None,
+        *,
+        completed_steps: int = 0,
+        elapsed: timedelta = timedelta(0),
+        emit_initial_instant: bool = True,
     ) -> None:
         """Bind initialized numerical resources; use initialize as the factory."""
         require_host()
@@ -86,11 +92,18 @@ class Simulation:
         self._physical_constants = constants
         self._mesh = mesh
         self._diagnostics: Diagnostics | None = None
-        self._completed_steps = 0
-        self._elapsed = timedelta(0)
+        self._completed_steps = completed_steps
+        self._elapsed = elapsed
         self._closed = False
         self._output_manager, self._output_observer = simulation_io.output_resources(
-            experiment, output_path, configuration, constants, mesh
+            experiment,
+            output_path,
+            configuration,
+            constants,
+            mesh,
+            start_step=completed_steps,
+            mean_coverage_start_us=duration_us(elapsed),
+            emit_initial_instant=emit_initial_instant,
         )
         # Capture only numerical/static values, never this mutable host object.
         # Series replace constants of the same name before entering physics.
@@ -129,6 +142,54 @@ class Simulation:
         simulation_io.validate_output(experiment, output_path)
         state, configuration, constants = initialize_experiment(experiment, mesh=mesh)
         return cls(experiment, state, configuration, constants, mesh, output_path)
+
+    def save_restart(self, path: str | Path) -> None:
+        """Save all serial State fields and exact clock to a new versioned file.
+
+        Full halos and future/past forcing are retained. The live Simulation,
+        pending output and numerical State are unchanged; existing paths reject.
+        Multi-device and distributed checkpoints are currently unsupported.
+        """
+        from veris.restart import save_restart
+
+        require_host()
+        self._require_open()
+        save_restart(
+            path, self.state, self.experiment, self.completed_steps, self.elapsed
+        )
+
+    @classmethod
+    def from_restart(
+        cls,
+        path: str | Path,
+        *,
+        output_path: str | Path | None = None,
+        output_settings: OutputSettings | None = None,
+    ) -> Self:
+        """Restore a complete serial checkpoint after cold schema validation.
+
+        Restore the actual saved backend and precision without startup forcing
+        or derived-field initialization. Diagnostics are None until the next
+        step. Enabled output requires a new file; absolute cadence/calendar
+        persist, the checkpoint instant is not replayed, and crossing means
+        are discarded. Output overrides must preserve the calendar and origin.
+        """
+        from veris.restart import read_restart
+
+        experiment, state, completed, elapsed = read_restart(
+            path, output_path=output_path, output_settings=output_settings
+        )
+        return cls(
+            experiment,
+            state,
+            experiment.configuration,
+            experiment.physical_constants,
+            None,
+            output_path,
+            completed_steps=completed,
+            elapsed=elapsed,
+            emit_initial_instant=False,
+        )
 
     @property
     def state(self) -> State:

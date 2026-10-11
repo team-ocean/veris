@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import fields
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -291,13 +291,28 @@ def _output_dict(output: OutputSettings | None) -> dict[str, Any] | None:
     }
 
 
-def experiment_to_dict(experiment: Experiment) -> dict[str, Any]:
+def experiment_to_dict(
+    experiment: Experiment,
+    *,
+    _array_encoder: Callable[[str, np.ndarray], Any] | None = None,
+) -> dict[str, Any]:
     """Serialize resolved constructor defaults and complete grouped host inputs.
 
     Grid and Execution own dimensions and sharding. Derived numerical/physical
     scalars are recalculated by their constructors rather than serialized as
     override keys. Returned dictionaries and lists do not alias the definition.
     """
+
+    def input_value(path: str, value: Any) -> Any:
+        if _array_encoder is not None and isinstance(value, np.ndarray):
+            return _array_encoder(path, value)
+        return _plain(value)
+
+    def input_fields(path: str, values: Mapping[str, Any]) -> dict[str, Any]:
+        return {
+            name: input_value(f"{path}/{name}", value) for name, value in values.items()
+        }
+
     return {
         "schema_version": 1,
         "grid": {"nx": experiment.grid.nx, "ny": experiment.grid.ny},
@@ -317,13 +332,17 @@ def experiment_to_dict(experiment: Experiment) -> dict[str, Any]:
         "geometry": None
         if experiment.geometry is None
         else {
-            item.name: _plain(getattr(experiment.geometry, item.name))
+            item.name: input_value(
+                f"geometry/{item.name}", getattr(experiment.geometry, item.name)
+            )
             for item in fields(experiment.geometry)
         },
-        "initial_conditions": _plain(experiment.initial_conditions),
+        "initial_conditions": input_fields(
+            "initial_conditions", experiment.initial_conditions
+        ),
         "forcing": {
-            "constant": _plain(experiment.forcing.constant),
-            "series": _plain(experiment.forcing.series),
+            "constant": input_fields("forcing/constant", experiment.forcing.constant),
+            "series": input_fields("forcing/series", experiment.forcing.series),
         },
         "execution": {
             "backend": experiment.execution.backend,

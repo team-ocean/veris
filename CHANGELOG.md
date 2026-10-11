@@ -1,5 +1,40 @@
 # Development log
 
+## 2026-10-11 — Centralized lifecycle: complete serial restart
+
+- [x] COMPLETE (@root): task 6 after output commit b5be7b6. Maintained tests first:
+  missing restart_arrays collection error, then 36 missing-contract failures and
+  26 fixture errors in 62 public/API cases before integrating seven reviewed
+  source paths. Focused verification covered 159 contracts; three new fixture
+  failures were corrected and those cases pass a fresh explicit rerun.
+- Version 1 stores all native State fields and full halos, resolved definition,
+  constants/configuration, typed input arrays and exact absolute clock/forcing
+  position. Host validation precedes device allocation; atomic publication never
+  overwrites. Serial CPU/single-GPU restoration uses the saved backend.
+- Restored output starts in a new file at the original calendar/cadence; crossing
+  mean windows are discarded and checkpoint instants are skipped, including zero.
+  Independent review reproduced that zero-time replay before the isolated fix;
+  its direct RED/GREEN and scoped rereview pass.
+- Initial maintained checks identified two test-only typing/import issues; added
+  an explicit geometry-presence assertion and import separation. Equations,
+  source references and established tolerances are unchanged.
+- The wall-traction fixture initially used a preset with a dry north row; use
+  wet coupled-island geometry to exercise nonzero traction. Attempting to change
+  a builtin's physics is deliberately rejected, so the test retains its coupled
+  mode. Corrupt-variable fixtures now detach dimension-scale references before
+  deletion; dangling references previously prevented construction of the intended
+  dtype/shape defect. All original strong assertions remain.
+- Maintained checks, Sphinx -E -W, fresh build and clean installed exact coupled
+  save/resume quickstart pass. Full CPU correctness: 1239 passed, two expected
+  GPU skips, zero failures/errors in 2157.86 s. Maintained coverage 4034/4251 =
+  94.90%; whole-package coverage 87.62%. All 146 frozen Python source/test hashes
+  match. Evidence prefix `test_logs/lifecycle-restart-*`.
+- Migrated examples and broader public sharded initialization remain isolated.
+  Seven immutable original trajectories, four-CPU initialization/output, both
+  rollout precisions and pure/wall AD probes pass there; maintained integration
+  and full verification remain required. GPU and actual multi-host checks remain
+  unavailable.
+
 ## 2026-10-11 — Centralized lifecycle: scheduled output and selected input
 
 - [x] COMPLETE (@root): task 5 after Simulation commit fff5356. Tests first:

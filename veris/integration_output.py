@@ -172,6 +172,7 @@ def output_callbacks(
     continue_runs: bool = False,
     start_step: int = 0,
     mean_coverage_start_us: int = 0,
+    emit_initial_instant: bool = True,
 ) -> tuple[Callable[[Any, int], None] | None, Callable[[Any], Any] | None]:
     """Select the union of configured fields and retain halos for the collector.
 
@@ -187,5 +188,6 @@ def output_callbacks(
         continue_runs=continue_runs,
         start_step=start_step,
         mean_coverage_start_us=mean_coverage_start_us,
+        emit_initial_instant=emit_initial_instant,
     )
     return observe, observe.select

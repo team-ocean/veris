@@ -76,6 +76,10 @@ def output_resources(
     conf: Configuration,
     phys: PhysicalConstants,
     mesh: Mesh | None,
+    *,
+    start_step: int = 0,
+    mean_coverage_start_us: int = 0,
+    emit_initial_instant: bool = True,
 ) -> tuple[OutputManager | None, ScheduledObserver | None]:
     """Prepare a lazy writer and persistent reducer only for enabled output."""
     if experiment.output is None or not experiment.output.enabled:
@@ -89,7 +93,12 @@ def output_resources(
         attributes=metadata(experiment, conf, phys),
     )
     observer, _ = output_callbacks(
-        manager, experiment.step_duration.total_seconds(), continue_runs=True
+        manager,
+        experiment.step_duration.total_seconds(),
+        continue_runs=True,
+        start_step=start_step,
+        mean_coverage_start_us=mean_coverage_start_us,
+        emit_initial_instant=emit_initial_instant,
     )
     assert isinstance(observer, ScheduledObserver)
     return manager, observer

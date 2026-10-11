@@ -35,10 +35,15 @@ class ScheduledObserver:
         continue_runs: bool = False,
         start_step: int = 0,
         mean_coverage_start_us: int = 0,
+        emit_initial_instant: bool = True,
     ) -> None:
         """Bind a schedule without allocating arrays, sampling or opening files."""
-        if not isinstance(continue_runs, bool):
-            raise TypeError("continue_runs must be a boolean")
+        for name, value in (
+            ("continue_runs", continue_runs),
+            ("emit_initial_instant", emit_initial_instant),
+        ):
+            if not isinstance(value, bool):
+                raise TypeError(f"{name} must be a boolean")
         for name, value in (
             ("start_step", start_step),
             ("mean_coverage_start_us", mean_coverage_start_us),
@@ -51,6 +56,9 @@ class ScheduledObserver:
         self.continue_runs = continue_runs
         self.next_step = int(start_step)
         self.mean_coverage_start_us = int(mean_coverage_start_us)
+        # Restart suppresses its checkpoint instant without marking freshly
+        # empty mean buffers initialized or disabling time-zero mean sampling.
+        self.emit_initial_instant = emit_initial_instant
         self.initialized = False
         self.sums: tuple[dict[str, jax.Array], ...] | None = None
         self.counts: tuple[jax.Array, ...] | None = None
@@ -348,7 +356,12 @@ def run_scheduled(
                 mean=False,
             )
 
-    if settings.sample_initial and start_step == 0 and not observer.initialized:
+    if (
+        settings.sample_initial
+        and observer.emit_initial_instant
+        and start_step == 0
+        and not observer.initialized
+    ):
         instant(
             tuple(
                 i for i, s in enumerate(settings.streams) if s.period == "instantaneous"

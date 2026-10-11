@@ -112,13 +112,15 @@ and snapshot; reuse read_record/update_state/write_snapshot/distributed collecto
 Create veris/restart.py and tests/test_restart.py; add Simulation.save_restart
 and from_restart. Reuse netCDF schema/storage and full State restoration.
 
-- [ ] RED uninterrupted/resumed coupled/dynamics/growth all-field comparison,
+- [x] RED uninterrupted/resumed coupled/dynamics/growth all-field comparison,
   both precisions/boundaries, forcing cursor, exact time/calendar, complete
   config/constants, invalid schema/incomplete records, crossing means discarded,
   absolute resumed schedule and explicit distributed rejection.
-- [ ] Implement versioned complete metadata and State validation before allocation;
-  require new output file, refresh halos and apply documented averaging policy.
-- [ ] Focused tests/review and full precommit gates.
+- [x] Implement versioned complete metadata and State validation before allocation;
+  require new output file, restore every saved halo exactly and apply documented
+  averaging policy. Normal boundary operations resume with the next timestep.
+- [x] Focused tests/review and full precommit gates; full CPU 1239 passed/two
+  expected GPU skips, maintained coverage 94.90%, exact saved halos verified.
 
 ## Task 7: Presets, public sharding and migrated examples
 
