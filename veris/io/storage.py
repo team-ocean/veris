@@ -350,6 +350,7 @@ def write_snapshot(
     conf: Configuration | None = None,
     phys: PhysicalConstants | None = None,
     collector: Collector | None = None,
+    attributes: Mapping[str, str] | None = None,
 ) -> None:
     """Write a concrete final State outside integration/AD, independently of streams."""
     require_host()
@@ -375,7 +376,7 @@ def write_snapshot(
         if collected is None:
             return
         fields = selected_fields(collected, names)
-    attributes = {}
+    attributes = dict(attributes or {})
     if conf is not None:
         attributes["configuration"] = json.dumps(asdict(conf), default=_json_scalar)
     if phys is not None:

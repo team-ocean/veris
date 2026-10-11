@@ -1,21 +1,21 @@
-"""Accumulate scheduled arithmetic means during a pure, history-free scan.
+"""Reduce half-open scheduled samples alongside one pure numerical trajectory.
 
-The carry holds numerical State, separate float64 field sums, scalar counts and
-an iteration. Samples precede transitions, matching OutputManager's half-open
-windows. Host code writes completed windows and instantaneous endpoints only;
-spatial halos survive until the configured collector. No output buffers enter
-the public State or the differentiated ``veris.step`` API.
+Device sums/counts stay outside State. Optional post-step histories use the
+existing rollout observer; the default reducer has no scan outputs. Continuation
+stores only output buffers and absolute indices, never an old numerical State.
 """
 
 from collections.abc import Callable, Mapping
 from datetime import timedelta
 from functools import partial
+from numbers import Integral
 from time import perf_counter
 from typing import Any
 
 import jax
 import jax.numpy as jnp
 
+from veris.integration import step
 from veris.io.calendar import duration_us
 from veris.io.configuration import Stream
 from veris.io.output import OutputManager
@@ -25,12 +25,37 @@ Carry = tuple[Any, tuple[dict[str, jax.Array], ...], tuple[jax.Array, ...], jax.
 
 
 class ScheduledObserver:
-    """Callable compatibility adapter carrying an explicit output schedule."""
+    """Compatibility callback with optional absolute output continuation."""
 
-    def __init__(self, manager: OutputManager, step_seconds: float) -> None:
-        """Bind a manager without sampling, allocating arrays or opening files."""
+    def __init__(
+        self,
+        manager: OutputManager,
+        step_seconds: float,
+        *,
+        continue_runs: bool = False,
+        start_step: int = 0,
+        mean_coverage_start_us: int = 0,
+    ) -> None:
+        """Bind a schedule without allocating arrays, sampling or opening files."""
+        if not isinstance(continue_runs, bool):
+            raise TypeError("continue_runs must be a boolean")
+        for name, value in (
+            ("start_step", start_step),
+            ("mean_coverage_start_us", mean_coverage_start_us),
+        ):
+            if isinstance(value, bool) or not isinstance(value, Integral) or value < 0:
+                raise ValueError(f"{name} must be a nonnegative integer")
         self.manager = manager
         self.step_seconds = step_seconds
+        self.step_us = timestep_us(step_seconds)
+        self.continue_runs = continue_runs
+        self.next_step = int(start_step)
+        self.mean_coverage_start_us = int(mean_coverage_start_us)
+        self.initialized = False
+        self.sums: tuple[dict[str, jax.Array], ...] | None = None
+        self.counts: tuple[jax.Array, ...] | None = None
+        self.pending_windows: tuple[tuple[int, int] | None, ...] | None = None
+        self._signature: tuple[Any, ...] | None = None
         self.names = tuple(
             dict.fromkeys(
                 name for s in manager.settings.streams for name in s.variables
@@ -46,16 +71,19 @@ class ScheduledObserver:
 
     def __call__(self, sample: Any, iteration: int) -> None:
         """Support ordinary direct sampling outside the scheduled runner."""
-        self.manager.sample(
-            sample, timedelta(microseconds=iteration * timestep_us(self.step_seconds))
-        )
+        self.manager.sample(sample, timedelta(microseconds=iteration * self.step_us))
+
+    def release(self) -> None:
+        """Detach unfinished device reductions when the host lifecycle closes."""
+        self.sums = self.counts = self.pending_windows = self._signature = None
 
 
-def _initial_carry(
+def _field_signature(
     state: Any, streams: tuple[Stream, ...], select: Callable[[Any], Any]
-) -> Carry:
+) -> tuple[Any, ...]:
     selected = select(state)
     shape = None
+    signature = []
     for name in dict.fromkeys(name for stream in streams for name in stream.variables):
         array = jnp.asarray(selected[name])
         if array.ndim != 2 or array.dtype.kind not in "fiu" or min(array.shape) < 1:
@@ -65,6 +93,15 @@ def _initial_carry(
         if shape is not None and array.shape != shape:
             raise ValueError(f"variable {name} has inconsistent grid shape")
         shape = array.shape
+        signature.append((name, array.shape, str(array.dtype)))
+    return tuple(signature)
+
+
+def _initial_carry(
+    state: Any, streams: tuple[Stream, ...], select: Callable[[Any], Any]
+) -> Carry:
+    _field_signature(state, streams, select)
+    selected = select(state)
     sums = tuple(
         {
             name: jnp.zeros_like(selected[name], dtype=jnp.float64)
@@ -82,21 +119,21 @@ def _initial_carry(
     )
 
 
-def _reduce_chunk(
-    carry: Carry,
+def _reduction_transition(
     *,
-    advance: Callable[[Any], Any],
+    advance: Callable[..., Any],
     select: Callable[[Any], Any],
     streams: tuple[Stream, ...],
     intervals: tuple[int, ...],
     sample_initial: bool,
     checkpoint: bool,
     physics_x64: bool,
-    steps: int,
-) -> Carry:
+    binary: bool,
+) -> Callable[..., Carry]:
+    """Share pre-transition sampling and unchanged physics between executors."""
     transition = jax.checkpoint(advance) if checkpoint else advance
 
-    def body(value: Carry, unused: None) -> tuple[Carry, None]:
+    def body(value: Carry, prescribed: Any = None) -> Carry:
         state, sums, counts, iteration = value
         with jax.enable_x64(physics_x64):
             selected = select(state)
@@ -122,60 +159,178 @@ def _reduce_chunk(
             updated_sums.append(total)
             updated_counts.append(count)
         with jax.enable_x64(physics_x64):
-            state = transition(state)
-        return (state, tuple(updated_sums), tuple(updated_counts), iteration + 1), None
+            state = transition(state, prescribed) if binary else transition(state)
+        return state, tuple(updated_sums), tuple(updated_counts), iteration + 1
 
-    return jax.lax.scan(body, carry, xs=None, length=steps)[0]
+    return body
+
+
+def _reduce_chunk(
+    carry: Carry,
+    *,
+    advance: Callable[..., Any],
+    select: Callable[[Any], Any],
+    streams: tuple[Stream, ...],
+    intervals: tuple[int, ...],
+    sample_initial: bool,
+    checkpoint: bool,
+    physics_x64: bool,
+    steps: int,
+    inputs: Any = None,
+) -> Carry:
+    """Execute a history-free scan; retain the established four-item carry."""
+    transition = _reduction_transition(
+        advance=advance,
+        select=select,
+        streams=streams,
+        intervals=intervals,
+        sample_initial=sample_initial,
+        checkpoint=checkpoint,
+        physics_x64=physics_x64,
+        binary=inputs is not None,
+    )
+
+    def body(value: Carry, prescribed: Any) -> tuple[Carry, None]:
+        return transition(value, prescribed), None
+
+    return jax.lax.scan(body, carry, xs=inputs, length=steps)[0]
+
+
+def _observed_chunk(
+    carry: Carry,
+    *,
+    history_select: Callable[[Any], Any],
+    inputs: Any = None,
+    steps: int,
+    **settings: Any,
+) -> tuple[Carry, Any]:
+    """Select post-step values from the same reduction/physics trajectory."""
+    transition = _reduction_transition(binary=inputs is not None, **settings)
+    physics_x64 = settings["physics_x64"]
+
+    def observe(value: Carry) -> Any:
+        with jax.enable_x64(physics_x64):
+            return history_select(value[0])
+
+    return step(
+        carry, transition, steps, inputs=inputs, observe=observe, checkpoint=False
+    )
 
 
 def run_scheduled(
     state: Any,
-    advance: Callable[[Any], Any],
+    advance: Callable[..., Any],
     steps: int,
     observer: ScheduledObserver,
     select: Callable[[Any], Any],
     *,
     chunk_size: int | None,
     checkpoint: bool,
+    inputs: Any = None,
+    history_select: Callable[[Any], Any] | None = None,
+    history_sink: Callable[[Any], None] | None = None,
 ) -> tuple[Any, float, float]:
-    """Compile each event length, then run once and write due reduced records."""
-    manager = observer.manager
-    settings = manager.settings
-    segments = iter_segments(settings, observer.step_seconds, steps, chunk_size)
-    step_us = timestep_us(observer.step_seconds)
+    """Compile event shapes, run once and retain only unfinished continuation."""
+    manager, settings = observer.manager, observer.manager.settings
+    start_step = observer.next_step
+    cap = (
+        (8 if chunk_size is None else chunk_size)
+        if history_select is not None
+        else chunk_size
+    )
+    pending = observer.pending_windows if observer.continue_runs else None
+    # Planner preflight precedes manager reservation and all file effects.
+    segments = iter_segments(
+        settings,
+        observer.step_seconds,
+        steps,
+        cap,
+        start_step=start_step,
+        pending_windows=pending,
+    )
+    step_us = observer.step_us
     intervals = tuple(
         duration_us(s.sampling_interval) // step_us for s in settings.streams
     )
-    manager.begin_reduced()
     physics_x64 = jax.config.x64_enabled
 
     def select_physics(value: Any) -> Any:
         with jax.enable_x64(physics_x64):
             return select(value)
 
+    signature = _field_signature(state, settings.streams, select_physics)
+    if (
+        observer.initialized
+        and observer.continue_runs
+        and signature != observer._signature
+    ):
+        raise ValueError("continuation output variable shape or dtype changed")
+    manager.begin_reduced(resume=observer.continue_runs and observer.initialized)
+
+    def chunk_inputs(segment: Any) -> Any:
+        if inputs is None:
+            return None
+        return jax.tree.map(
+            lambda value: value[segment.start - start_step : segment.stop - start_step],
+            inputs,
+        )
+
     started = perf_counter()
     with jax.enable_x64():
-        carry = _initial_carry(state, settings.streams, select_physics)
+        if observer.continue_runs and observer.initialized:
+            assert observer.sums is not None and observer.counts is not None
+            carry: Carry = (
+                state,
+                observer.sums,
+                observer.counts,
+                jnp.array(start_step, jnp.int64),
+            )
+        else:
+            carry = _initial_carry(state, settings.streams, select_physics)
+            carry = (*carry[:3], jnp.array(start_step, jnp.int64))
         executables = {}
         for segment in segments:
             size = segment.stop - segment.start
             if size not in executables:
-                execute = jax.jit(
-                    partial(
-                        _reduce_chunk,
-                        advance=advance,
-                        select=select_physics,
-                        streams=settings.streams,
-                        intervals=intervals,
-                        sample_initial=settings.sample_initial,
-                        checkpoint=checkpoint,
-                        physics_x64=physics_x64,
-                        steps=size,
-                    )
+                kwargs = {
+                    "advance": advance,
+                    "select": select_physics,
+                    "streams": settings.streams,
+                    "intervals": intervals,
+                    "sample_initial": settings.sample_initial,
+                    "checkpoint": checkpoint,
+                    "physics_x64": physics_x64,
+                    "steps": size,
+                }
+                reducer = (
+                    _reduce_chunk
+                    if history_select is None
+                    else partial(_observed_chunk, history_select=history_select)
                 )
-                executables[size] = execute.lower(carry).compile()
+                execute = jax.jit(partial(reducer, **kwargs))
+                executables[size] = execute.lower(
+                    carry, inputs=chunk_inputs(segment)
+                ).compile()
+        # Empty histories infer shapes with identity only, without physics/forcing.
+        empty_history = None
+        if not steps and history_select is not None:
+
+            def history_physics(value: Any) -> Any:
+                with jax.enable_x64(physics_x64):
+                    return history_select(value)
+
+            identity = jax.jit(
+                lambda value: step(
+                    value, lambda x: x, 0, observe=history_physics, checkpoint=False
+                )
+            )
+            empty_execute = identity.lower(state).compile()
     compilation_seconds = perf_counter() - started
     started = perf_counter()
+    if not steps and history_select is not None:
+        _, empty_history = empty_execute(state)
+        assert history_sink is not None
+        history_sink(empty_history)
 
     def instant(indices: tuple[int, ...], iteration: int) -> None:
         if not indices:
@@ -193,21 +348,36 @@ def run_scheduled(
                 mean=False,
             )
 
-    if settings.sample_initial:
+    if settings.sample_initial and start_step == 0 and not observer.initialized:
         instant(
             tuple(
                 i for i, s in enumerate(settings.streams) if s.period == "instantaneous"
             ),
             0,
         )
-    for segment in iter_segments(settings, observer.step_seconds, steps, chunk_size):
-        carry = executables[segment.stop - segment.start](carry)
+    for segment in iter_segments(
+        settings,
+        observer.step_seconds,
+        steps,
+        cap,
+        start_step=start_step,
+        pending_windows=pending,
+    ):
+        result = executables[segment.stop - segment.start](
+            carry, inputs=chunk_inputs(segment)
+        )
+        if history_select is None:
+            carry = result
+        else:
+            carry, history = result
+            assert history_sink is not None
+            history_sink(history)
         state, sums, counts, iteration = carry
         sums, counts = list(sums), list(counts)
         with jax.enable_x64():
             for index, (left, right) in segment.completed:
                 count = int(counts[index])
-                if left >= 0 and count:
+                if left >= observer.mean_coverage_start_us and count:
                     manager.write_reduced(
                         settings.streams[index].name,
                         {name: value / count for name, value in sums[index].items()},
@@ -221,4 +391,24 @@ def run_scheduled(
         carry = state, tuple(sums), tuple(counts), iteration
         instant(segment.instantaneous, segment.stop)
     jax.block_until_ready(carry)
+    if observer.continue_runs:
+        assert carry is not None
+        end_step = start_step + steps
+        windows = []
+        for index, interval in enumerate(intervals):
+            if int(carry[2][index]):
+                last_sample = ((end_step - 1) // interval) * interval * step_us
+                windows.append(
+                    manager.clock.window(
+                        timedelta(microseconds=last_sample),
+                        settings.streams[index].period,
+                    )
+                )
+            else:
+                windows.append(None)
+        observer.sums, observer.counts = carry[1:3]
+        observer.pending_windows = tuple(windows)
+        observer.next_step = end_step
+        observer._signature = signature
+        observer.initialized = True
     return carry[0], compilation_seconds, perf_counter() - started

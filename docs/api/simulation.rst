@@ -67,6 +67,64 @@ The mutable facade is host-only. Use :func:`veris.advance` and
 :func:`veris.step` directly for JIT, gradients, JVP and VJP; see
 :doc:`/reference/integration` for the pure execution contract.
 
+Scheduled output and selected input
+-----------------------------------
+
+Define output streams separately from numerical settings and provide a new
+host destination at initialization::
+
+   from datetime import timedelta
+   from veris.io import OutputSettings, Stream, read_record
+
+   output = OutputSettings(streams=(
+       Stream("instant", ("hIceMean", "Area"), timedelta(seconds=600)),
+       Stream("mean", ("hIceMean",), timedelta(seconds=600),
+              timedelta(seconds=1200)),
+   ))
+   experiment = Experiment.builtin(
+       "island", grid=Grid(6, 8), steps=5,
+       settings={"dtype": "float32", "nEVPsteps": 2}, output=output,
+   )
+   with Simulation.initialize(experiment, output_path="history.nc") as simulation:
+       simulation.run(2)
+       result = simulation.run()
+       simulation.snapshot("final.nc", variables=("hIceMean", "Area"))
+   record = read_record("final.nc")
+   assert record.time == result.elapsed.total_seconds()
+   assert record.fields["hIceMean"].shape == (6, 8)
+
+The writer is lazy and refuses an existing destination. Output-disabled or
+unconfigured experiments need no output path. Streams retain the original
+calendar origin and absolute sampling cadence across calls. Instantaneous
+samples occur at post-step endpoints, with the optional initial sample emitted
+once. Arithmetic means sample pre-step fields over half-open windows and
+accumulate in float64; point records retain model precision. A run split inside
+a mean window retains its sums and sample count. Closing discards an unfinished
+window. Two partition halos are removed through the existing serial or
+distributed collector at writing time.
+
+Output and pure ``observe`` histories may be requested together on the same
+trajectory. Default scheduled output retains only running sums/counts and has no
+timestep history. Selected observations necessarily occupy memory proportional
+to their number of steps and selected values; transient history chunks default
+to eight timesteps. Resolved experiment, numerical settings and constants are
+saved as file attributes, preserving reproducible definitions.
+
+``snapshot`` writes an instantaneous selected-field visualization file using
+the established ``snapshot`` group and absolute model time. It does not flush
+unfinished mean windows. ``load_fields(path, variables=None, record=-1,
+group="snapshot")`` loads an instantaneous record into an initialized serial
+simulation. It supports the initial-condition and prescribed forcing names from
+:doc:`experiment`; geometry, masks and independent derived metrics require
+reinitialization. Mean records, incompatible shapes, nonfinite values, invalid
+physical ranges and unsafe precision conversions fail before State changes.
+Representable float64 input can round into a float32 model. Loading refreshes
+ice load/inverse thickness, derived wind speed and field-specific boundary halos,
+and honors dry cells and blocked ice velocity faces. It retains the model clock,
+forcing definition/cursor, pending means and last timestep's Diagnostics; the
+next timestep reapplies its prescribed inputs. Neither selected input nor a
+visualization snapshot is a complete restart.
+
 .. autoclass:: veris.simulation.Simulation
    :members:
 

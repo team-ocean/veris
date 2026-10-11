@@ -6,6 +6,7 @@ arithmetic sample mean, not a time-weighted quadrature. No numerical State field
 or differentiated integration graphs contain the manager.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
@@ -51,12 +52,16 @@ class OutputManager:
         settings: OutputSettings | None = None,
         *,
         collector: Collector | None = None,
+        attributes: Mapping[str, str] | None = None,
     ) -> None:
         settings = OutputSettings() if settings is None else settings
         self.settings = settings
         self.clock = Calendar(settings.start, settings.calendar)
         self._writer = NetCDFWriter(
-            path, calendar=self.clock.name, units=self.clock.units
+            path,
+            calendar=self.clock.name,
+            units=self.clock.units,
+            attributes=attributes,
         )
         self._collector = collector
         self._streams = [
@@ -96,7 +101,7 @@ class OutputManager:
             array.nbytes for stream in self._streams for array in stream.sums.values()
         )
 
-    def begin_reduced(self) -> None:
+    def begin_reduced(self, *, resume: bool = False) -> None:
         """Reserve a fresh manager for records reduced by the scheduled runner.
 
         Reduced writing and direct sampling are exclusive. Disabled output and
@@ -106,8 +111,14 @@ class OutputManager:
             return
         if self._closed:
             raise RuntimeError("output manager is closed")
+        if not isinstance(resume, bool):
+            raise TypeError("resume must be a boolean")
         if self._reduced:
+            if resume:
+                return
             raise RuntimeError("output manager is already in reduced mode")
+        if resume:
+            raise RuntimeError("output manager has not begun reduced writing")
         if self._last is not None:
             raise RuntimeError("output manager has already sampled directly")
         self._reduced = True
@@ -270,14 +281,19 @@ class OutputManager:
             self._writer.close()
             self._closed = True
             return
-        end = self._last if elapsed is None else duration_us(elapsed)
-        if end is not None:
-            if end < 0 or (self._last is not None and end < self._last):
-                raise ValueError("close time cannot precede the last model time")
-            self.clock.date_at(timedelta(microseconds=end))
-            if any(end > a.next_sample for a in self._streams):
-                raise ValueError("close time would skip a missed sample")
+        try:
+            end = self._last if elapsed is None else duration_us(elapsed)
+            if end is not None:
+                if end < 0 or (self._last is not None and end < self._last):
+                    raise ValueError("close time cannot precede the last model time")
+                self.clock.date_at(timedelta(microseconds=end))
+                if any(end > a.next_sample for a in self._streams):
+                    raise ValueError("close time would skip a missed sample")
+                for accumulator in self._streams:
+                    self._flush(accumulator, end)
+        finally:
+            self._writer.close()
+            self._closed = True
             for accumulator in self._streams:
-                self._flush(accumulator, end)
-        self._writer.close()
-        self._closed = True
+                accumulator.sums.clear()
+                accumulator.count = 0

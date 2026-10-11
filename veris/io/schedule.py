@@ -53,6 +53,9 @@ def iter_segments(
     step_seconds: float,
     steps: int,
     max_steps: int | None = None,
+    *,
+    start_step: int = 0,
+    pending_windows: tuple[tuple[int, int] | None, ...] | None = None,
 ) -> Iterator[Segment]:
     """Yield event-aligned chunks after validating the entire run's time range.
 
@@ -64,6 +67,7 @@ def iter_segments(
     zero-step runs and happens when this function is called.
     """
     steps = _count("steps", steps, 0)
+    start_step = _count("start_step", start_step, 0)
     if max_steps is not None:
         max_steps = _count("max_steps", max_steps, 1)
     step_us = timestep_us(step_seconds)
@@ -71,7 +75,35 @@ def iter_segments(
     if any(interval % step_us for interval in intervals):
         raise ValueError("sampling intervals must be multiples of step_seconds")
     clock = Calendar(settings.start, settings.calendar)
-    end_us = steps * step_us
+    start_us = start_step * step_us
+    end_step = start_step + steps
+    end_us = end_step * step_us
+    if pending_windows is not None:
+        if not isinstance(pending_windows, tuple) or len(pending_windows) != len(
+            settings.streams
+        ):
+            raise ValueError("pending_windows must match configured streams")
+        for stream, window in zip(settings.streams, pending_windows, strict=True):
+            if window is None:
+                continue
+            if (
+                stream.period == "instantaneous"
+                or not isinstance(window, tuple)
+                or len(window) != 2
+                or any(
+                    isinstance(v, bool) or not isinstance(v, Integral) for v in window
+                )
+                or window[0] >= window[1]
+                or window[1] <= start_us
+            ):
+                raise ValueError("pending_windows must contain unfinished mean bounds")
+            if (
+                clock.window(
+                    timedelta(microseconds=max(start_us, window[0])), stream.period
+                )
+                != window
+            ):
+                raise ValueError("pending_windows bounds do not match calendar windows")
     end = timedelta(microseconds=end_us)
     clock.date_at(end)
     # Preflight the endpoint window too, so a calendar range error cannot occur
@@ -88,21 +120,25 @@ def iter_segments(
             timedelta(microseconds=sample_us), settings.streams[index].period
         )
 
-    windows = {
-        index: window_at(index, 0 if settings.sample_initial else intervals[index])
-        for index, stream in enumerate(settings.streams)
-        if stream.period != "instantaneous"
-    }
-    instants = {
-        index: intervals[index] // step_us
-        for index, stream in enumerate(settings.streams)
-        if stream.period == "instantaneous"
-    }
+    windows = {}
+    instants = {}
+    for index, stream in enumerate(settings.streams):
+        interval = intervals[index]
+        if stream.period == "instantaneous":
+            instants[index] = ((start_us // interval) + 1) * interval // step_us
+        else:
+            sample = ((start_us + interval - 1) // interval) * interval
+            if not settings.sample_initial and sample == 0:
+                sample = interval
+            retained = None if pending_windows is None else pending_windows[index]
+            windows[index] = (
+                retained if retained is not None else window_at(index, sample)
+            )
 
     def generate() -> Iterator[Segment]:
-        start = 0
-        while start < steps:
-            stop = steps if max_steps is None else min(steps, start + max_steps)
+        start = start_step
+        while start < end_step:
+            stop = end_step if max_steps is None else min(end_step, start + max_steps)
             for window in windows.values():
                 if window is not None and window[1] <= end_us:
                     stop = min(stop, (window[1] + step_us - 1) // step_us)

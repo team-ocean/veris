@@ -1,5 +1,31 @@
 # Development log
 
+## 2026-10-11 — Centralized lifecycle: scheduled output and selected input
+
+- [x] COMPLETE (@root): task 5 after Simulation commit fff5356. Tests first:
+  76 missing-contract failures out of 79 new cases before source integration.
+- Reuse the existing scheduled scan, event planner and netCDF writer with
+  absolute run offsets, dynamic forcing inputs and retained unfinished means.
+  Requested observations share the same trajectory; default output retains no
+  timestep history. Snapshots and selected serial input use established storage,
+  physical validation, precision, dry/blocked-face masks and halo policies.
+- Independent review reproduced and corrected the scheduled pair-carry selector
+  before integration. Focused run: 269 passing, one expected GPU skip and one
+  new rational-mean oracle failure, differing by one float64 ULP from host
+  division. The assertion now allows that one ULP; numerical code is unchanged,
+  exact sample counts/times/bounds remain asserted, and the focused case passes.
+- Clean installed documented coupled split-output, optional observations,
+  snapshot and selected-input smoke passes. Full CPU correctness: 1174 passed,
+  two expected GPU skips, zero failures/errors in 1623.73 s. Maintained coverage
+  3714/3870 = 95.97%; whole-package coverage 87.95%. All 141 frozen Python
+  source/test hashes match. Maintained lint/format/annotations/types and diff
+  checks, Sphinx -E -W and fresh wheel/sdist checks pass. Evidence prefix
+  `test_logs/lifecycle-output-*`; GPU remains unavailable.
+- Complete restart remains isolated. Review reproduced step-zero checkpoint
+  instant replay; its isolated fix has independent rereview and direct runtime
+  evidence. Complete restart integration/full verification remains pending.
+  Public sharded initialization, migrated examples and final delivery remain.
+
 ## 2026-10-11 — Centralized lifecycle: host simulation milestone
 
 - [x] COMPLETE (@root): task 4 after timestep commit e916eef. Fresh implementation

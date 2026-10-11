@@ -33,8 +33,8 @@ atmospheric fields::
    state, configuration, constants = initialize_experiment(experiment)
 
 The public :doc:`simulation` facade initializes and executes successive runs
-with absolute forcing position and model time. Scheduled output and complete
-restart remain subsequent lifecycle milestones. Definition and initialization
+with absolute forcing position, model time and scheduled output. Complete
+restart remains a subsequent lifecycle milestone. Definition and initialization
 are host operations; enable JAX x64 explicitly before requesting float64 allocation.
 
 Declarative files

@@ -98,13 +98,14 @@ Extend integration_output.py/io/scan.py/io/output.py with continuation offsets
 and pending means; tests/test_simulation_output.py. Add Simulation.load_fields
 and snapshot; reuse read_record/update_state/write_snapshot/distributed collector.
 
-- [ ] RED split-window output equals uninterrupted half-open means/times/dtypes,
+- [x] RED split-window output equals uninterrupted half-open means/times/dtypes,
   configured initial sample, calendar origins, resolved metadata, selected input
   validation, snapshots, no unrequested histories and reliable writer closure.
-- [ ] Reuse existing event planner/device reductions; retain pending means across
+- [x] Reuse existing event planner/device reductions; retain pending means across
   successive runs, metadata attributes and absolute clock. Do not duplicate a
   per-timestep output framework.
-- [ ] Focused output tests, full correctness and all gates before commit.
+- [x] Focused output contracts, independent review and all precommit gates pass;
+  full CPU 1174 passed/two expected GPU skips, maintained coverage 95.97%.
 
 ## Task 6: Complete serial restart
 

@@ -9,11 +9,11 @@ supports serial initialization and the explicit-mesh modes supported by
 initialize_experiment; it never initializes distributed JAX or changes settings.
 """
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, fields
 from datetime import timedelta
 from numbers import Integral
-from time import perf_counter
+from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
 
@@ -21,12 +21,14 @@ import jax
 import jax.numpy as jnp
 from jax.sharding import Mesh
 
+from veris import simulation_io
 from veris._typing import State
 from veris.configuration import Configuration
 from veris.diagnostics import Diagnostics
 from veris.experiment import Experiment
-from veris.integration import step as rollout
+from veris.integration_output import run_timed
 from veris.io.guard import require_host
+from veris.io.schedule import iter_segments
 from veris.model_initialization import initialize_experiment
 from veris.model_physics import advance
 from veris.physical_constants import PhysicalConstants
@@ -64,7 +66,7 @@ class Simulation:
     run(None) advances only the remaining default steps. Input preflight errors
     leave the simulation usable; compilation or execution failures close it and
     preserve its last committed State and time. A supplied mesh is borrowed and
-    remains the caller's responsibility. No file resources are created here.
+    remains the caller's responsibility. Enabled output owns a lazy file writer and pending means outside State.
     """
 
     def __init__(
@@ -74,6 +76,7 @@ class Simulation:
         configuration: Configuration,
         constants: PhysicalConstants,
         mesh: Mesh | None,
+        output_path: str | Path | None = None,
     ) -> None:
         """Bind initialized numerical resources; use initialize as the factory."""
         require_host()
@@ -86,6 +89,9 @@ class Simulation:
         self._completed_steps = 0
         self._elapsed = timedelta(0)
         self._closed = False
+        self._output_manager, self._output_observer = simulation_io.output_resources(
+            experiment, output_path, configuration, constants, mesh
+        )
         # Capture only numerical/static values, never this mutable host object.
         # Series replace constants of the same name before entering physics.
         with self._execution_context():
@@ -105,7 +111,13 @@ class Simulation:
         self._transition = transition
 
     @classmethod
-    def initialize(cls, experiment: Experiment, *, mesh: Mesh | None = None) -> Self:
+    def initialize(
+        cls,
+        experiment: Experiment,
+        *,
+        output_path: str | Path | None = None,
+        mesh: Mesh | None = None,
+    ) -> Self:
         """Validate, allocate and initialize the experiment through the shared API.
 
         Set backend/distributed JAX configuration before calling this factory;
@@ -114,8 +126,9 @@ class Simulation:
         No numerical step runs during initialization.
         """
         require_host()
+        simulation_io.validate_output(experiment, output_path)
         state, configuration, constants = initialize_experiment(experiment, mesh=mesh)
-        return cls(experiment, state, configuration, constants, mesh)
+        return cls(experiment, state, configuration, constants, mesh, output_path)
 
     @property
     def state(self) -> State:
@@ -185,6 +198,15 @@ class Simulation:
             _ = self._elapsed + self._experiment.step_duration * count
         except OverflowError as error:
             raise ValueError("elapsed model clock exceeds timedelta range") from error
+        if self._output_observer is not None:
+            observer = self._output_observer
+            iter_segments(
+                observer.manager.settings,
+                observer.step_seconds,
+                count,
+                start_step=observer.next_step,
+                pending_windows=observer.pending_windows,
+            )
         return count
 
     def step(self) -> RunResult:
@@ -204,7 +226,7 @@ class Simulation:
         require_host()
         self._require_open()
         count = self._preflight(steps, observe)
-        if count == 0 and observe is None:
+        if count == 0 and observe is None and self._output_observer is None:
             return self._result(0)
         elapsed = self._elapsed + self._experiment.step_duration * count
         try:
@@ -242,20 +264,78 @@ class Simulation:
         transition = self._transition if count else lambda value: value
         selector = None if observe is None else lambda value: observe(*value)
 
-        def execute(initial: _Carry, prescribed: Any) -> Any:
-            return rollout(
-                initial, transition, count, inputs=prescribed, observe=selector
+        output_select = None
+        if self._output_observer is not None:
+            output_fields = self._output_observer.select
+            output_select = lambda value: output_fields(value[0])
+        chunks = []
+        final, compilation, integration = run_timed(
+            carry,
+            transition,
+            count,
+            inputs=inputs,
+            observe=self._output_observer,
+            select=output_select,
+            history_select=selector,
+            history_sink=None if selector is None else chunks.append,
+        )
+        history = None
+        if selector is not None:
+            history = jax.tree.map(
+                lambda *arrays: jnp.concatenate(arrays, axis=0), *chunks
             )
-
-        started = perf_counter()
-        compiled = jax.jit(execute).lower(carry, inputs).compile()
-        compilation = perf_counter() - started
-        started = perf_counter()
-        result = compiled(carry, inputs)
-        jax.block_until_ready(result)
-        integration = perf_counter() - started
-        final, history = (result, None) if observe is None else result
+            jax.block_until_ready(history)
         return final, history, compilation, integration
+
+    def snapshot(
+        self, path: str | Path, *, variables: Sequence[str] | None = None
+    ) -> None:
+        """Save selected physical cells and resolved metadata at absolute time.
+
+        Visualization snapshots are selected inputs, not complete restart data.
+        Sharded output uses the established collective physical-cell collector.
+        """
+        require_host()
+        self._require_open()
+        simulation_io.snapshot(
+            path,
+            self._state,
+            self._experiment,
+            self._configuration,
+            self._physical_constants,
+            self._elapsed,
+            self._mesh,
+            variables,
+        )
+
+    def load_fields(
+        self,
+        path: str | Path,
+        variables: Sequence[str] | None = None,
+        *,
+        record: int = -1,
+        group: str = "snapshot",
+    ) -> None:
+        """Load serial instantaneous initial/forcing fields transactionally.
+
+        Geometry and derived fields are excluded. Refresh dependent ice/wind
+        fields and boundary halos; preserve time, forcing and last Diagnostics.
+        Invalid input leaves State identity and lifecycle usability intact.
+        """
+        require_host()
+        self._require_open()
+        with self._execution_context():
+            candidate = simulation_io.load_fields(
+                path,
+                self._state,
+                self._experiment,
+                self._configuration,
+                self._physical_constants,
+                variables,
+                record=record,
+                group=group,
+            )
+        self._state = candidate
 
     def _result(
         self,
@@ -279,7 +359,15 @@ class Simulation:
     def close(self) -> None:
         """End the lifecycle idempotently; borrowed meshes stay caller-owned."""
         require_host()
+        if self._closed:
+            return
         self._closed = True
+        try:
+            if self._output_manager is not None:
+                self._output_manager.close()
+        finally:
+            if self._output_observer is not None:
+                self._output_observer.release()
 
     def __enter__(self) -> Self:
         """Enter an open simulation's host context."""
