@@ -32,10 +32,10 @@ atmospheric fields::
    )
    state, configuration, constants = initialize_experiment(experiment)
 
-The centralized run facade and restart are still being implemented. The current
-execution examples are in :doc:`/quickstart/user-guide`. Definition and
-initialization are host operations; enable JAX x64 explicitly before requesting
-float64 allocation.
+The public :doc:`simulation` facade initializes and executes successive runs
+with absolute forcing position and model time. Scheduled output and complete
+restart remain subsequent lifecycle milestones. Definition and initialization
+are host operations; enable JAX x64 explicitly before requesting float64 allocation.
 
 Declarative files
 -----------------

@@ -1,0 +1,300 @@
+"""Host lifecycle around Veris' pure single-step physics and scan rollout.
+
+This layer adds no physical equations or numerical tolerances. The maintained
+``advance`` transition owns physics, forcing application and boundary halos;
+``step`` owns iteration. A Simulation owns the absolute forcing position,
+microsecond model clock and borrowed mesh, outside the array-only State.
+Use advance/step directly for JIT, gradients, JVP and VJP. The host facade
+supports serial initialization and the explicit-mesh modes supported by
+initialize_experiment; it never initializes distributed JAX or changes settings.
+"""
+
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, fields
+from datetime import timedelta
+from numbers import Integral
+from time import perf_counter
+from types import TracebackType
+from typing import Any, Self
+
+import jax
+import jax.numpy as jnp
+from jax.sharding import Mesh
+
+from veris._typing import State
+from veris.configuration import Configuration
+from veris.diagnostics import Diagnostics
+from veris.experiment import Experiment
+from veris.integration import step as rollout
+from veris.io.guard import require_host
+from veris.model_initialization import initialize_experiment
+from veris.model_physics import advance
+from veris.physical_constants import PhysicalConstants
+
+type _Carry = tuple[State, Diagnostics]
+type _Observer = Callable[[State, Diagnostics], Any]
+
+
+@dataclass(frozen=True)
+class RunResult:
+    """Final numerical fields and host information from one successful run.
+
+    steps counts this call; completed_steps and elapsed count the entire
+    Simulation. diagnostics is None until a physical step has succeeded.
+    Optional pure observations stack post-step values along a leading time
+    axis. Compilation and synchronized execution timings are wall-clock seconds,
+    excluding initialization. State/Diagnostics retain packed boundary halos.
+    """
+
+    state: State
+    diagnostics: Diagnostics | None
+    steps: int
+    completed_steps: int
+    elapsed: timedelta
+    observations: Any = None
+    compilation_seconds: float = 0.0
+    integration_seconds: float = 0.0
+
+
+class Simulation:
+    """Mutable host owner of a validated Experiment and its numerical State.
+
+    Construct through initialize. Explicit run counts may exceed the configured
+    default target, subject to available forcing and the exact host clock range.
+    run(None) advances only the remaining default steps. Input preflight errors
+    leave the simulation usable; compilation or execution failures close it and
+    preserve its last committed State and time. A supplied mesh is borrowed and
+    remains the caller's responsibility. No file resources are created here.
+    """
+
+    def __init__(
+        self,
+        experiment: Experiment,
+        state: State,
+        configuration: Configuration,
+        constants: PhysicalConstants,
+        mesh: Mesh | None,
+    ) -> None:
+        """Bind initialized numerical resources; use initialize as the factory."""
+        require_host()
+        self._experiment = experiment
+        self._state = state
+        self._configuration = configuration
+        self._physical_constants = constants
+        self._mesh = mesh
+        self._diagnostics: Diagnostics | None = None
+        self._completed_steps = 0
+        self._elapsed = timedelta(0)
+        self._closed = False
+        # Capture only numerical/static values, never this mutable host object.
+        # Series replace constants of the same name before entering physics.
+        with self._execution_context():
+            constant = {
+                name: jnp.asarray(value, dtype=configuration.dtype)
+                for name, value in experiment.forcing.constant.items()
+                if name not in experiment.forcing.series
+            }
+        physics = experiment.physics
+
+        def transition(
+            carry: _Carry, prescribed: Mapping[str, jax.Array] | None = None
+        ) -> _Carry:
+            forcing = constant if prescribed is None else {**constant, **prescribed}
+            return advance(carry[0], configuration, constants, forcing, physics=physics)
+
+        self._transition = transition
+
+    @classmethod
+    def initialize(cls, experiment: Experiment, *, mesh: Mesh | None = None) -> Self:
+        """Validate, allocate and initialize the experiment through the shared API.
+
+        Set backend/distributed JAX configuration before calling this factory;
+        enable x64 explicitly when requesting float64. The initializer validates
+        global physical dimensions, masks, inputs, dtype and mesh compatibility.
+        No numerical step runs during initialization.
+        """
+        require_host()
+        state, configuration, constants = initialize_experiment(experiment, mesh=mesh)
+        return cls(experiment, state, configuration, constants, mesh)
+
+    @property
+    def state(self) -> State:
+        """Last successfully committed numerical State, including boundary halos."""
+        return self._state
+
+    @property
+    def experiment(self) -> Experiment:
+        """Immutable resolved definition supplied at initialization."""
+        return self._experiment
+
+    @property
+    def configuration(self) -> Configuration:
+        """Static numerical settings, using local physical grid dimensions."""
+        return self._configuration
+
+    @property
+    def physical_constants(self) -> PhysicalConstants:
+        """Static physical constants resolved in the experiment precision."""
+        return self._physical_constants
+
+    @property
+    def completed_steps(self) -> int:
+        """Absolute number of successful physics timesteps and forcing cursor."""
+        return self._completed_steps
+
+    @property
+    def elapsed(self) -> timedelta:
+        """Exact accumulated model time, with integer microsecond resolution."""
+        return self._elapsed
+
+    @property
+    def closed(self) -> bool:
+        """Whether the host lifecycle has ended and further execution is rejected."""
+        return self._closed
+
+    def _execution_context(self) -> Any:
+        """Honor initialized devices when preparing arrays and tracing physics."""
+        if self._mesh is not None:
+            return jax.set_mesh(self._mesh)
+        return jax.default_device(self._state.Area.device)
+
+    def _require_open(self) -> None:
+        """Reject any execution or context entry after lifecycle closure."""
+        if self._closed:
+            raise RuntimeError("Simulation is closed")
+
+    def _preflight(self, steps: int | None, observe: _Observer | None) -> int:
+        """Validate run controls, absolute forcing bounds and exact clock range."""
+        if steps is None:
+            count = max(0, self._experiment.steps - self._completed_steps)
+        else:
+            if isinstance(steps, bool) or not isinstance(steps, Integral):
+                raise TypeError("steps must be a nonnegative integer or None")
+            if steps < 0:
+                raise ValueError("steps must be nonnegative")
+            count = int(steps)
+        if observe is not None and not callable(observe):
+            raise TypeError("observe must be a pure callable or None")
+        length = self._experiment.forcing.length
+        if length is not None and self._completed_steps + count > length:
+            raise ValueError(
+                f"requested steps exceed forcing length {length} "
+                f"at completed step {self._completed_steps}"
+            )
+        try:
+            _ = self._elapsed + self._experiment.step_duration * count
+        except OverflowError as error:
+            raise ValueError("elapsed model clock exceeds timedelta range") from error
+        return count
+
+    def step(self) -> RunResult:
+        """Advance one physics timestep using the next absolute forcing sample."""
+        return self.run(1)
+
+    def run(
+        self, steps: int | None = None, observe: _Observer | None = None
+    ) -> RunResult:
+        """Advance a trajectory and commit only after synchronized device success.
+
+        A pure observe(state, diagnostics) optionally selects post-step histories.
+        No default history is allocated. A zero run preserves State/Diagnostics
+        identities; with an observer it traces only an identity transition to
+        infer empty output shapes, including after forcing exhaustion.
+        """
+        require_host()
+        self._require_open()
+        count = self._preflight(steps, observe)
+        if count == 0 and observe is None:
+            return self._result(0)
+        elapsed = self._elapsed + self._experiment.step_duration * count
+        try:
+            with self._execution_context():
+                final, history, compilation, integration = self._execute(count, observe)
+        except BaseException:
+            self.close()
+            raise
+        if count:
+            self._state, self._diagnostics = final
+            self._completed_steps += count
+            self._elapsed = elapsed
+        return self._result(count, history, compilation, integration)
+
+    def _execute(
+        self, count: int, observe: _Observer | None
+    ) -> tuple[_Carry, Any, float, float]:
+        """Compile existing rollout and synchronize all fields before host commit."""
+        diagnostic = self._diagnostics
+        if diagnostic is None:
+            zeros = jnp.zeros_like(self._state.Area)
+            diagnostic = Diagnostics(
+                **{item.name: zeros for item in fields(Diagnostics)}
+            )
+        carry = self._state, diagnostic
+        inputs = None
+        if count and self._experiment.forcing.series:
+            start = self._completed_steps
+            inputs = {
+                name: jnp.asarray(
+                    value[start : start + count], dtype=self.configuration.dtype
+                )
+                for name, value in self._experiment.forcing.series.items()
+            }
+        transition = self._transition if count else lambda value: value
+        selector = None if observe is None else lambda value: observe(*value)
+
+        def execute(initial: _Carry, prescribed: Any) -> Any:
+            return rollout(
+                initial, transition, count, inputs=prescribed, observe=selector
+            )
+
+        started = perf_counter()
+        compiled = jax.jit(execute).lower(carry, inputs).compile()
+        compilation = perf_counter() - started
+        started = perf_counter()
+        result = compiled(carry, inputs)
+        jax.block_until_ready(result)
+        integration = perf_counter() - started
+        final, history = (result, None) if observe is None else result
+        return final, history, compilation, integration
+
+    def _result(
+        self,
+        steps: int,
+        observations: Any = None,
+        compilation_seconds: float = 0.0,
+        integration_seconds: float = 0.0,
+    ) -> RunResult:
+        """Capture committed fields and absolute time with per-call run metadata."""
+        return RunResult(
+            state=self._state,
+            diagnostics=self._diagnostics,
+            steps=steps,
+            completed_steps=self._completed_steps,
+            elapsed=self._elapsed,
+            observations=observations,
+            compilation_seconds=compilation_seconds,
+            integration_seconds=integration_seconds,
+        )
+
+    def close(self) -> None:
+        """End the lifecycle idempotently; borrowed meshes stay caller-owned."""
+        require_host()
+        self._closed = True
+
+    def __enter__(self) -> Self:
+        """Enter an open simulation's host context."""
+        require_host()
+        self._require_open()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        """Close after success or failure without suppressing user exceptions."""
+        self.close()
+
+
+__all__ = ["RunResult", "Simulation"]

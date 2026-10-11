@@ -85,11 +85,12 @@ Create veris/simulation.py and tests/test_simulation.py. Produces
 Simulation.initialize(experiment, mesh=None), step(), run(steps=None,
 observe=None), RunResult and reliable close/context-manager behavior.
 
-- [ ] RED public coupled define/initialize/run result, run(2)+run(3)==run(5),
+- [x] RED public coupled define/initialize/run result, run(2)+run(3)==run(5),
   absolute forcing cursor/time, optional histories, zero steps, subsecond exact
   clocks, duration defaults, exhaustion preflight and failed-step cleanup.
-- [ ] Reuse pure timestep and veris.step; resources and clocks remain host-only.
-- [ ] Focused tests/review and complete precommit gates.
+- [x] Reuse pure timestep and veris.step; resources and clocks remain host-only.
+- [x] Focused 27/27, independent review, two-CPU facade smoke and complete
+  precommit gates. Full CPU 1095 passed/two expected GPU skips.
 
 ## Task 5: Lifecycle scheduled output and selected input
 

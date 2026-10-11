@@ -1,5 +1,37 @@
 # Development log
 
+## 2026-10-11 — Centralized lifecycle: host simulation milestone
+
+- [x] COMPLETE (@root): task 4 after timestep commit e916eef. Fresh implementation
+  and independent spec/quality review prepared isolated drafts while the previous
+  full suite ran; root integrated tests first and owns all runtime/commit gates.
+- [x] All 27 focused tests RED on missing public Simulation before integration,
+  then 27/27 GREEN in 62.58 s. The facade reuses initialize_experiment, advance
+  and unchanged veris.step with a separate (State, Diagnostics) carry. Constants
+  are bound once; only absolute-position forcing-series slices are dynamic inputs.
+- [x] Public RunResult reports final arrays, final diagnostics, per-call steps,
+  absolute completed steps/model time, optional post-step observations and timings.
+  Split runs equal uninterrupted legacy trajectories; unobserved zero runs retain
+  identities without tracing, and observed zero runs work at forcing exhaustion.
+  Exact clock and forcing preflight errors leave the simulation usable; tracing
+  or synchronized execution failures close it before committing State/time.
+- [x] Host guard, requested CPU allocation, context/idempotent cleanup, custom
+  coupled geometry/masks and selected observations pass. Direct two-CPU public
+  dynamics smoke compares every State/Diagnostics physical field with the legacy
+  trajectory in both (2,1)/(1,2) closed-y orientations, including successive runs
+  and actual observations. Mesh resources remain explicit and caller-owned.
+- [x] Independent review found no blocking static issue. Maintained lint, format,
+  annotations/types and diff checks pass; Sphinx -E -W and fresh wheel/sdist build
+  pass. Clean installed documented split-run and observation smoke passes.
+- [x] Full CPU correctness: 1095 passed, two expected GPU-only skips, zero
+  failures/errors in 1509.30 s. Maintained coverage 3477/3624 = 95.94%; whole
+  package coverage 87.43%. All 136 source/test hashes match the full-run tree.
+  Final maintained lint/format/annotations/types and diff checks pass. Evidence
+  prefix `test_logs/lifecycle-simulation-*`. GPU remains unavailable.
+- Scheduled output continuation, selected input, complete restart, broader
+  sharded initialization, migrated examples and final quickstart/migration guide
+  remain required. Task5 is being prepared only as an isolated source overlay.
+
 ## 2026-10-11 — Centralized lifecycle: shared pure timestep milestone
 
 - [x] COMPLETE (@root): task 3 after initialization commit fff4cd4. Root owns

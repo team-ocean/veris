@@ -6,6 +6,7 @@ from veris.forcing import Forcing
 from veris.integration import step
 from veris.model_initialization import initialize_experiment
 from veris.model_physics import advance
+from veris.simulation import RunResult, Simulation
 
 __all__ = [
     "Execution",
@@ -13,6 +14,8 @@ __all__ = [
     "Forcing",
     "Grid",
     "OceanGeometry",
+    "RunResult",
+    "Simulation",
     "advance",
     "initialize_experiment",
     "step",

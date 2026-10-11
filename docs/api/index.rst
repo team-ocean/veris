@@ -16,6 +16,8 @@ The rollout driver :func:`veris.step` and host definition classes ``Grid``,
 ``Execution``, ``Forcing`` and ``Experiment`` are exported directly from ``veris``.
 ``OceanGeometry`` and ``initialize_experiment`` provide runnable initialization;
 ``advance`` performs a single physics timestep through that same public import.
+``Simulation`` owns the host lifecycle and returns ``RunResult``; see
+:doc:`simulation` for successive runs, forcing position and optional histories.
 See :doc:`experiment` for definition and input
 contracts. Import other functions and
 classes from the modules shown in their entries.
@@ -52,6 +54,7 @@ physical thresholds and zero norms.
 
    model-data
    experiment
+   simulation
    initialization
    integration
    physics
