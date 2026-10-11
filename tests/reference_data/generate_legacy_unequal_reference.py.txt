@@ -1,0 +1,78 @@
+"""Capture legacy unequal-timestep island behavior from immutable original code."""
+
+import hashlib
+import json
+import sys
+from dataclasses import asdict, fields
+from pathlib import Path
+
+import jax
+import numpy as np
+
+
+def capture(source: Path, destination: Path, commit: str) -> None:
+    """Freeze one full legacy step without importing the new advance API."""
+    jax.config.update("jax_enable_x64", True)
+    import veris
+    from veris.setups import island
+
+    assert Path(veris.__file__).is_relative_to(source)
+    assert not hasattr(veris, "advance") and len(commit) == 40
+    settings = {
+        "dtype": "float64",
+        "nEVPsteps": 2,
+        "deltatDyn": 600,
+        "deltatTherm": 3600,
+    }
+    state, configuration, constants = island.initialize(
+        4, 6, settings_overrides=settings
+    )
+    state, diagnostics = jax.jit(island.step_with_diagnostics, static_argnums=(1, 2))(
+        state, configuration, constants, 80.0
+    )
+    jax.block_until_ready((state, diagnostics))
+    arrays = {
+        f"{group}.{item.name}": np.asarray(getattr(value, item.name))
+        for group, value in (("state", state), ("diagnostics", diagnostics))
+        for item in fields(value)
+    }
+    assert all(np.isfinite(value).all() for value in arrays.values())
+    archive = destination / "island_unequal_legacy_v1.npz"
+    np.savez_compressed(archive, **arrays)
+    parent_manifest = destination / "lifecycle_legacy_v1.json"
+    parent = json.loads(parent_manifest.read_text())
+    assert parent["source_commit"] == commit
+    metadata = {
+        "version": 1,
+        "source_commit": commit,
+        "source_manifest": parent_manifest.name,
+        "source_manifest_sha256": hashlib.sha256(
+            parent_manifest.read_bytes()
+        ).hexdigest(),
+        "source_hashes": parent["source_hashes"],
+        "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "archive_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+        "python": sys.version.split()[0],
+        "jax": jax.__version__,
+        "numpy": np.__version__,
+        "backend": jax.default_backend(),
+        "grid": [4, 6],
+        "settings": settings,
+        "configuration": asdict(configuration),
+        "physical_constants": asdict(constants),
+        "cooling": 80.0,
+        "steps": 1,
+        "arrays": {
+            key: {"shape": list(value.shape), "dtype": str(value.dtype)}
+            for key, value in arrays.items()
+        },
+        "reproduction": "Using git archive SOURCE_COMMIT veris as SOURCE_ROOT, "
+        "run from external cwd with JAX_PLATFORMS=cpu PYTHONPATH=SOURCE_ROOT "
+        "python generate_legacy_unequal_reference.py SOURCE_ROOT OUTPUT_ROOT SOURCE_COMMIT",
+    }
+    archive.with_suffix(".json").write_text(json.dumps(metadata, indent=2) + "\n")
+    print(f"PASS immutable legacy unequal timesteps: {len(arrays)} arrays")
+
+
+if __name__ == "__main__":
+    capture(Path(sys.argv[1]).resolve(), Path(sys.argv[2]).resolve(), sys.argv[3])

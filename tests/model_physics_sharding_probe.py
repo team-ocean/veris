@@ -1,10 +1,9 @@
 """Direct pure advance forcing, closed-wall and AD checks on two real CPUs.
 
-Run in a fresh process configured for two CPU devices. The legacy dynamics
-transition remains an independent stage-order oracle until setup migration;
-freeze its trajectory evidence before those wrappers delegate to advance.
+Run in a fresh process configured for two CPU devices. Setup compatibility transitions now share advance; independent science
+references are frozen separately from the original maintained source commit.
 Forcing reference halos below use explicit periodic/clipped global coordinates,
-not advance or its forcing helper. No host lifecycle facade participates.
+not advance or its forcing helper. Both initial States come through the public experiment initializer.
 """
 
 from dataclasses import fields, replace
@@ -155,11 +154,18 @@ def check_forcing_halos(state: State, inputs: dict[str, jax.Array], mesh: Mesh) 
 def check_orientation(partitions: tuple[int, int]) -> None:
     """Check eager/JIT fields, independent forcing halos, and nonzero pure AD."""
     mesh = run_parallel.create_mesh(partitions, "cpu")
-    serial, conf, phys = run_dyn.initialize(NX, NY, settings_overrides=OPTIONS)
+    definition = veris.Experiment.builtin(
+        "dynamics", grid=veris.Grid(NX, NY), settings=OPTIONS
+    )
+    serial, conf, phys = veris.initialize_experiment(definition)
     serial = fill_state_overlap(prepare(serial), conf)
     with jax.set_mesh(mesh):
-        parallel, local_conf, local_phys = run_dyn.initialize(
-            NX, NY, mesh=mesh, settings_overrides=OPTIONS
+        parallel, local_conf, local_phys = veris.initialize_experiment(
+            replace(
+                definition,
+                execution=veris.Execution(backend="cpu", partitions=partitions),
+            ),
+            mesh=mesh,
         )
         parallel = fill_state_overlap(prepare(parallel), local_conf)
 

@@ -1,5 +1,39 @@
 # Development log
 
+## 2026-10-11 — Centralized lifecycle: migrated examples and public sharding
+
+- [x] COMPLETE (@root): task 7 after restart commit 99e6547. Maintained tests
+  first reproduce missing regional/output helpers, five snapshot/collective
+  contract failures and two zero-step CLI lifecycle failures. Integrated exactly
+  ten independently reviewed source paths; focused and full verification pass.
+- All presets and custom geometry/initial/constant or series forcing use cached
+  addressable regional construction with global physical indices. Shared CLI
+  execution retains explicit distributed bootstrap, calendar/output contracts,
+  compatibility entry points and borrowed mesh ownership. Serial host work
+  suspends ambient meshes and restores the caller's execution context.
+- Independent original references cover 1540 arrays across seven trajectories
+  and another 75 arrays for unequal legacy island timesteps. Every pure,
+  compatibility and host path passes direct draft comparison. Four-CPU draft
+  checks pass 20 run/output and 20 small-partition initialization cases; pure,
+  rollout float64/float32 and closed-wall AD probes pass with frozen source hashes.
+- Reviews reproduced unequal-timestep compatibility and collective finite-status
+  defects before fixes; fresh rereviews approve. Ambient-mesh and nested-output
+  regressions also pass direct RED/GREEN. A final independent scientific/JAX/
+  restart audit finds no blocker; integrated full gates remain required.
+- Initial maintained checks caught one import ordering issue and an inference
+  error in immutable original capture code. Generators remain byte-for-byte
+  archived source artifacts (`.py.txt`), with original hashes and reproduction
+  instructions; current source/tests pass unchanged maintained type checks.
+- Focused integrated verification: 40/40 pass in 126.54 s, plus 3/3 retained
+  nonfinite-output regressions. Strict docs, maintained checks, fresh builds and
+  clean installed literal coupled/restart/custom/sharded/pure-AD examples pass.
+  Full CPU correctness: 1282 passed, two expected GPU skips, zero failures/errors
+  in 2632.55 s. Maintained coverage 4058/4296 = 94.46%; whole-package coverage
+  87.29%. All 159 Python and nine fixture hashes match. Evidence prefix
+  `test_logs/lifecycle-migration-*`.
+- GPU and actual multi-host verification remain unavailable. Complete source
+  archive harness/metadata, primary quickstart and migration delivery remain.
+
 ## 2026-10-11 — Centralized lifecycle: complete serial restart
 
 - [x] COMPLETE (@root): task 6 after output commit b5be7b6. Maintained tests first:

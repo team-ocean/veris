@@ -14,6 +14,7 @@ from pathlib import Path
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 from jax.sharding import Mesh
 
 from veris._typing import State
@@ -27,7 +28,14 @@ from veris.io.distributed import distributed_collector
 from veris.io.output import OutputManager
 from veris.io.scan import ScheduledObserver
 from veris.io.schedule import iter_segments
-from veris.io.storage import _json_scalar, read_record, update_state, write_snapshot
+from veris.io.storage import (
+    ArrayFields,
+    _json_scalar,
+    read_record,
+    storage_fields,
+    update_state,
+    write_snapshot,
+)
 from veris.model_initialization import _precision, _validate_derived_inputs
 from veris.physical_constants import PhysicalConstants
 
@@ -117,6 +125,43 @@ def snapshot(
     """Write selected physical cells at absolute time through the existing schema."""
     _new_path(path)
     settings = experiment.output if experiment.output is not None else OutputSettings()
+    collect = storage_fields if mesh is None else distributed_collector(mesh)
+
+    def finite_fields(
+        source: State | ArrayFields, names: tuple[str, ...]
+    ) -> ArrayFields | None:
+        """Validate selected physical fields collectively before the writer opens."""
+        values = collect(source, names)
+        invalid = (
+            -1
+            if values is None
+            else next(
+                (
+                    index
+                    for index, name in enumerate(names)
+                    if not np.isfinite(values[name]).all()
+                ),
+                -1,
+            )
+        )
+        if mesh is not None:
+            from jax.experimental import multihost_utils
+
+            # Only the writer receives collected fields. Share its selected
+            # field position before nonwriters can return or open a later
+            # collective; every participant reports the same finite failure.
+            invalid = int(
+                np.asarray(
+                    multihost_utils.broadcast_one_to_all(
+                        np.asarray(invalid, dtype=np.int32),
+                        is_source=jax.process_index() == 0,
+                    )
+                )
+            )
+        if invalid >= 0:
+            raise ValueError(f"nonfinite output in {names[invalid]}")
+        return values
+
     write_snapshot(
         path,
         state,
@@ -126,7 +171,7 @@ def snapshot(
         variables=variables,
         conf=conf,
         phys=phys,
-        collector=None if mesh is None else distributed_collector(mesh),
+        collector=finite_fields,
         attributes=metadata(experiment, conf, phys),
     )
 

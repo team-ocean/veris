@@ -16,9 +16,9 @@ import numpy as np
 from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 
-from veris import step
+from veris import Execution, Experiment, Grid, advance, initialize_experiment, step
 from veris._typing import State
-from veris.setups import island, run_dyn, run_parallel
+from veris.setups import run_parallel
 
 
 def check_parallel_rollout(backend: str, dtype: str) -> None:
@@ -47,10 +47,16 @@ def _check_case(case: str, backend: str, dtype: str) -> None:
             f"ERROR {label}: max absolute difference {error.max():.6g}"
         )
 
-    serial, conf, phys = run_dyn.initialize(nx, ny, settings_overrides=options)
+    definition = Experiment.builtin("dynamics", grid=Grid(nx, ny), settings=options)
+    serial, conf, phys = initialize_experiment(definition)
     with jax.set_mesh(mesh):
-        parallel, local_conf, local_phys = run_dyn.initialize(
-            nx, ny, mesh=mesh, settings_overrides=options
+        # The one-device GPU path follows public serial ownership conventions.
+        execution_mesh = None if (px, py) == (1, 1) else mesh
+        parallel, local_conf, local_phys = initialize_experiment(
+            replace(
+                definition, execution=Execution(backend=backend, partitions=(px, py))
+            ),
+            mesh=execution_mesh,
         )
 
     def prepare(state: State) -> State:
@@ -82,15 +88,15 @@ def _check_case(case: str, backend: str, dtype: str) -> None:
         state = replace(initial, hIceMean=initial.hIceMean * (1 + parameters[0]))
         fluxes = forcing + parameters[1] * jnp.asarray([70.0, -20.0], dtype=dtype)
 
-        def advance(current: State, cooling: jax.Array) -> State:
+        def transition(current: State, cooling: jax.Array) -> State:
             if case == "coupled":
-                # island.step shard_map explicitly broadcasts this scalar
-                # with P(), while State fields retain P('x', 'y').
-                return island.step(current, settings, physical, cooling)
+                return advance(
+                    current, settings, physical, {"Qnet": cooling, "Qsw": 0.0}
+                )[0]
             current = replace(current, uWind=initial.uWind * cooling / 100)
-            return run_dyn.step(current, settings, physical)
+            return advance(current, settings, physical, physics="dynamics")[0]
 
-        return step(state, advance, 2, inputs=fluxes, checkpoint=checkpoint)
+        return step(state, transition, 2, inputs=fluxes, checkpoint=checkpoint)
 
     def objective(parameters: jax.Array, sharded: bool, checkpoint: bool) -> jax.Array:
         final = evolve(parameters, sharded, checkpoint)

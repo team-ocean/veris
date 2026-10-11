@@ -22,6 +22,7 @@ from veris._typing import OceanGeometry, State
 from veris.configuration import Configuration
 from veris.experiment import Experiment
 from veris.fill_overlap import fill_state_overlap
+from veris.model_regions import regional_geometry, regional_state
 from veris.physical_constants import PhysicalConstants
 from veris.setups.ocean import _validate_geometry, initialize_from_ocean
 from veris.variables import VARIABLES
@@ -141,17 +142,7 @@ def _pad_geometry(geometry: OceanGeometry, conf: Configuration) -> OceanGeometry
     x = (np.arange(conf.nx + 4) - 2) % conf.nx
     y = np.arange(conf.ny + 4) - 2
     y = y % conf.ny if conf.enable_cyclic_y else np.clip(y, 0, conf.ny - 1)
-    result = {}
-    for item in fields(geometry):
-        value = np.asarray(getattr(geometry, item.name))
-        if item.name in ("dxt", "dxu"):
-            padded = value[x]
-        elif item.name in ("dyt", "dyu"):
-            padded = value[y]
-        else:
-            padded = value[x[:, None], y[None, :]]
-        result[item.name] = padded
-    return OceanGeometry(**result)
+    return regional_geometry(geometry, x, y)
 
 
 def _stored_field(value: Any, conf: Configuration) -> NDArray[Any]:
@@ -173,10 +164,18 @@ def _apply_inputs(
     phys: PhysicalConstants,
     *,
     custom: bool,
+    stored: bool = False,
+    refresh: bool = True,
 ) -> State:
     """Apply user fields and refresh derived ice quantities where required."""
     values = {
-        name: jnp.asarray(_stored_field(value, conf))
+        name: (
+            jnp.full_like(getattr(state, name), value)
+            if stored and np.ndim(value) == 0
+            else jnp.asarray(value, dtype=conf.dtype)
+            if stored
+            else jnp.asarray(_stored_field(value, conf))
+        )
         for name, value in {**forcing, **initial}.items()
     }
     state = replace(state, **values)
@@ -203,7 +202,7 @@ def _apply_inputs(
             uIce=jnp.where(state.iceMaskU != 0, state.uIce, 0),
             vIce=jnp.where(state.iceMaskV != 0, state.vIce, 0),
         )
-    return fill_state_overlap(state, conf) if custom or values else state
+    return fill_state_overlap(state, conf) if refresh and (custom or values) else state
 
 
 def _initialize_serial(experiment: Experiment) -> State:
@@ -265,6 +264,107 @@ def _initialize_serial(experiment: Experiment) -> State:
     )
 
 
+def _initialize_sharded(experiment: Experiment, mesh: Mesh) -> State:
+    """Build only addressable regions, then establish true global boundary halos."""
+    from veris.initialization import initialize as allocate
+
+    conf, phys = experiment.configuration, experiment.physical_constants
+    # A regional factory must never close its local north/south edges. Global
+    # wall policies are applied to the complete packed layout after callbacks.
+    local = replace(conf, use_sharding=False, enable_cyclic_y=True)
+    numerical = {
+        **experiment.settings,
+        "nx": conf.nx,
+        "ny": conf.ny,
+        "use_sharding": False,
+        "enable_cyclic_y": True,
+    }
+    global_shape = experiment.grid.nx, experiment.grid.ny
+    forcing = dict(experiment.forcing.at(0))
+    if experiment.preset == "island":
+        forcing.pop("Qnet", None)
+        forcing.pop("Qsw", None)
+
+    def build(x: Any, y: Any) -> dict[str, Any]:
+        if experiment.preset == "dynamics":
+            from veris.setups.run_dyn import DynamicsSettings, _fields
+
+            state = State(
+                **{
+                    name: jnp.asarray(value)
+                    for name, value in _fields(
+                        x,
+                        y,
+                        *global_shape,
+                        DynamicsSettings(**dict(experiment.scenario)),
+                        conf.dtype,
+                    ).items()
+                }
+            )
+        elif experiment.preset == "island":
+            from veris.setups.island import IslandSettings, _fields
+
+            state, _, _ = allocate(
+                settings_overrides=numerical,
+                physical_overrides=experiment.constants,
+            )
+            scenario = IslandSettings(
+                dtype=conf.dtype,
+                **{
+                    k: v for k, v in experiment.scenario.items() if k != "islandCooling"
+                },
+            )
+            state = replace(
+                state,
+                **_fields(state, phys, scenario, *global_shape, x, y, regional=True),
+            )
+        elif experiment.preset == "growth":
+            from veris.setups.run_growth import initialize
+
+            state, _, _ = initialize(
+                settings_overrides=numerical,
+                physical_overrides=experiment.constants,
+                scenario_overrides=experiment.scenario,
+            )
+        else:
+            assert experiment.geometry is not None
+            state, _, _ = initialize_from_ocean(
+                regional_geometry(experiment.geometry, x, y),
+                settings_overrides=numerical,
+                physical_overrides=experiment.constants,
+            )
+
+        def region(values: Mapping[str, Any]) -> dict[str, Any]:
+            return {
+                name: value if np.ndim(value) == 0 else np.asarray(value)[np.ix_(x, y)]
+                for name, value in values.items()
+            }
+
+        state = _apply_inputs(
+            state,
+            region(experiment.initial_conditions),
+            region(forcing),
+            local,
+            phys,
+            custom=experiment.preset is None,
+            stored=True,
+            refresh=False,
+        )
+        return {item.name: getattr(state, item.name) for item in fields(state)}
+
+    state = regional_state(mesh, conf, global_shape, build)
+    # Custom metric corner stencils and all user overrides need exchanged
+    # halos. Uniform periodic presets already construct their exact halos.
+    if (
+        not conf.enable_cyclic_y
+        or experiment.preset is None
+        or experiment.initial_conditions
+        or forcing
+    ):
+        state = fill_state_overlap(state, conf)
+    return state
+
+
 def initialize_experiment(
     experiment: Experiment, *, mesh: Mesh | None = None
 ) -> tuple[State, Configuration, PhysicalConstants]:
@@ -272,9 +372,9 @@ def initialize_experiment(
 
     This host operation is outside differentiated computation. Enable JAX x64
     explicitly before allocation when requesting float64. Distributed setup and
-    meshes must be prepared explicitly before device enumeration. Custom and
-    island/growth initialization currently support serial execution; the dynamics
-    factory supports explicitly supplied meshes using its addressable callbacks.
+    meshes must be prepared explicitly before device enumeration. All presets
+    and custom geometry support explicitly supplied meshes using addressable
+    regional callbacks, followed by global field-aware halo exchange.
     """
     if not isinstance(experiment, Experiment):
         raise TypeError("experiment must be an Experiment")
@@ -302,27 +402,8 @@ def initialize_experiment(
     if conf.use_sharding or mesh is not None:
         if mesh is None:
             raise ValueError("sharded initialization requires an explicit mesh")
-        if (
-            experiment.preset != "dynamics"
-            or experiment.initial_conditions
-            or experiment.forcing.at(0)
-        ):
-            raise ValueError(
-                "custom/prescribed sharded initialization is not yet supported"
-            )
-        from veris.setups.run_dyn import initialize
-
         with jax.set_mesh(mesh):
-            state, actual, physical = initialize(
-                experiment.grid.nx,
-                experiment.grid.ny,
-                mesh=mesh,
-                settings_overrides=experiment.settings,
-                scenario_overrides=experiment.scenario,
-                physical_overrides=experiment.constants,
-            )
-        if actual != conf or physical != phys:
-            raise ValueError("mesh initialization is incompatible with experiment")
+            state = _initialize_sharded(experiment, mesh)
     else:
         backend = experiment.execution.backend
         context = (
@@ -330,7 +411,7 @@ def initialize_experiment(
             if backend is None
             else jax.default_device(jax.devices(backend)[0])
         )
-        with context:
+        with jax.set_mesh(None), context:
             state = _initialize_serial(experiment)
     return state, conf, phys
 

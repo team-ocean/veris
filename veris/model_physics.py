@@ -172,7 +172,23 @@ def advance(
         raise ValueError("configuration and constants must have matching dtype")
     if physics == "coupled" and configuration.deltatDyn != configuration.deltatTherm:
         raise ValueError("coupled physics requires equal timesteps")
-    conf, phys = configuration, constants
+    return _execute_advance(state, configuration, constants, forcing, physics)
+
+
+def _execute_advance(
+    state: State,
+    conf: Configuration,
+    phys: PhysicalConstants,
+    forcing: Mapping[str, ArrayLike] | None,
+    physics: str,
+) -> tuple[State, Diagnostics]:
+    """Dispatch shared physics with the supplied independent numerical timesteps.
+
+    Public advance validates its single coupled clock before calling here.
+    The legacy island wrapper retains independent dynamics/thermodynamics
+    timesteps; this helper changes neither configuration nor stage arithmetic.
+    Both paths share forcing, State validation, sharding and _advance_local.
+    """
     shape = (conf.nx, conf.ny)
     if conf.use_sharding:
         mesh = jax.sharding.get_abstract_mesh()

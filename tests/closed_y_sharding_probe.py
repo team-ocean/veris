@@ -16,12 +16,18 @@ from jax.sharding import Mesh, NamedSharding
 from jax.sharding import PartitionSpec as P
 from jax.typing import ArrayLike
 
+from veris import (
+    Execution,
+    Experiment,
+    Forcing,
+    Grid,
+    advance,
+    initialize_experiment,
+    step,
+)
 from veris._typing import State
 from veris.configuration import Configuration
-from veris.fill_overlap import fill_overlap, fill_overlap_uv, fill_state_overlap
-from veris.initialization import initialize
-from veris.setups.island import initialize as initialize_island
-from veris.setups.island import step
+from veris.fill_overlap import fill_overlap, fill_overlap_uv
 from veris.setups.run_parallel import remove_halos
 
 
@@ -35,22 +41,6 @@ def compare(
         raise AssertionError(f"ERROR {label}: nonfinite values")
     if not np.all(error <= tolerance * (1 + np.abs(right))):
         raise AssertionError(f"ERROR {label}: max absolute error={error.max():.6g}")
-
-
-def pack(field: ArrayLike, px: int, py: int) -> np.ndarray:
-    """Populate packed halos using global periodic x and clipped y coordinates."""
-    interior = np.asarray(field)[2:-2, 2:-2]
-    gx, gy = interior.shape
-    nx, ny = gx // px, gy // py
-    result = np.empty((px * (nx + 4), py * (ny + 4)), dtype=interior.dtype)
-    for rx in range(px):
-        for ry in range(py):
-            x = (rx * nx + np.arange(nx + 4) - 2) % gx
-            y = np.clip(ry * ny + np.arange(ny + 4) - 2, 0, gy - 1)
-            result[
-                rx * (nx + 4) : (rx + 1) * (nx + 4), ry * (ny + 4) : (ry + 1) * (ny + 4)
-            ] = interior[np.ix_(x, y)]
-    return result
 
 
 def check_halos(mesh: Mesh, ny: int = 5) -> None:
@@ -128,29 +118,37 @@ def check_coupled(mesh: Mesh, no_slip: bool, dtype: str) -> None:
         "deltatDyn": 600.0,
         "deltatTherm": 600.0,
     }
-    serial, conf, phys = initialize_island(nx, ny, settings_overrides=options)
-    x, y = jnp.indices(serial.hIceMean.shape, dtype=dtype)
-    serial = replace(
-        serial,
-        hIceMean=(0.8 + 0.03 * jnp.sin(x + y)) * serial.iceMask,
-        Area=0.7 * serial.iceMask,
-        uWind=4 + 0.3 * jnp.cos(y),
-        vWind=2 + 0.2 * jnp.sin(x + y),
+    x, y = np.indices((nx, ny), dtype=dtype)
+    # Original storage coordinates started at two on each physical axis.
+    x, y = x + 2, y + 2
+    definition = Experiment.builtin(
+        "island",
+        grid=Grid(nx, ny),
+        settings=options,
+        initial_conditions={
+            "hIceMean": 0.8 + 0.03 * np.sin(x + y),
+            "Area": 0.7,
+        },
+        forcing=Forcing(
+            constant={
+                "uWind": 4 + 0.3 * np.cos(y),
+                "vWind": 2 + 0.2 * np.sin(x + y),
+                "wSpeed": 5.0,
+            }
+        ),
     )
-    serial = fill_state_overlap(serial, conf)
+    serial, conf, phys = initialize_experiment(definition)
     assert np.all(np.asarray(serial.iceMask)[2:-2, 2] == 1)
     assert np.all(np.asarray(serial.iceMask)[2:-2, -3] == 1)
-    packed = {
-        field.name: pack(getattr(serial, field.name), px, py)
-        for field in fields(serial)
-    }
     with jax.set_mesh(mesh):
-        parallel, local_conf, local_phys = initialize(
-            nx // px,
-            ny // py,
+        parallel, local_conf, local_phys = initialize_experiment(
+            replace(
+                definition,
+                execution=Execution(
+                    backend=mesh.devices.flat[0].platform, partitions=(px, py)
+                ),
+            ),
             mesh=mesh,
-            settings_overrides=options,
-            state_overrides=packed,
         )
     point = jnp.zeros(2, dtype=dtype)
     spatial_weights = 1 + 0.2 * jnp.sin(
@@ -162,9 +160,18 @@ def check_coupled(mesh: Mesh, no_slip: bool, dtype: str) -> None:
             (parallel, local_conf, local_phys) if sharded else (serial, conf, phys)
         )
         state = replace(state, hIceMean=state.hIceMean * (1 + parameters[0]))
-        for cooling in (80.0, 110.0):
-            state = step(state, settings, physical, cooling + 50 * parameters[1])
-        return state
+
+        def transition(current: State, cooling: jax.Array) -> State:
+            return advance(current, settings, physical, {"Qnet": cooling, "Qsw": 0.0})[
+                0
+            ]
+
+        return step(
+            state,
+            transition,
+            2,
+            inputs=jnp.asarray([80.0, 110.0], dtype=dtype) + 50 * parameters[1],
+        )
 
     def objective(parameters: jax.Array, sharded: bool) -> jax.Array:
         result = evolve(parameters, sharded)

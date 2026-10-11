@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
-from datetime import timedelta
+from dataclasses import replace
 from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
@@ -27,9 +27,13 @@ from jax.sharding import Mesh
 from jax.sharding import PartitionSpec as P
 
 from veris._typing import State
-from veris.integration_output import output_callbacks, run_timed
-from veris.io.cli import make_output, output_options, parse_options, save_final
-from veris.io.distributed import distributed_collector
+from veris.integration_output import run_timed  # noqa: F401 -- compatibility export
+from veris.io.cli import (
+    output_options,
+    output_settings,
+    parse_options,
+    prepare_output_paths,
+)
 from veris.io.storage import selected_fields, write_snapshot
 
 OUTPUT_FIELDS = (
@@ -174,39 +178,36 @@ def main(argv: list[str] | None = None) -> None:
             jax.distributed.initialize(**options)
             started_distributed = True
 
-        from veris.setups import run_dyn
+        from veris import Execution, Experiment, Grid, Simulation
 
         partitions = tuple(arguments.mesh) if arguments.mesh else None
         mesh = create_mesh(partitions, arguments.backend)
-        with jax.set_mesh(mesh):
-            state, settings, physical = run_dyn.initialize(
-                arguments.nx,
-                arguments.ny,
-                mesh=mesh,
-                settings_overrides={"nEVPsteps": arguments.evp_steps},
+        layout = mesh.shape["x"], mesh.shape["y"]
+        definition = Experiment.builtin(
+            "dynamics",
+            grid=Grid(
+                arguments.nx, arguments.nx if arguments.ny is None else arguments.ny
+            ),
+            settings={"nEVPsteps": arguments.evp_steps},
+            execution=Execution(backend=arguments.backend, partitions=layout),
+            steps=arguments.steps,
+        )
+        definition = replace(
+            definition,
+            output=output_settings(arguments, definition.step_duration.total_seconds()),
+        )
+        prepare_output_paths(arguments)
+        # A one-device topology uses the serial facade; its status still reports
+        # the explicit 1x1 CLI topology. Communication remains caller-owned.
+        execution_mesh = None if layout == (1, 1) else mesh
+        with Simulation.initialize(
+            definition, mesh=execution_mesh, output_path=arguments.netcdf
+        ) as simulation:
+            result = simulation.run()
+            simulation.snapshot(
+                arguments.output, variables=tuple(arguments.io_variables.split(","))
             )
-            advance = partial(run_dyn.compiled_step, conf=settings, phys=physical)
-            collect = distributed_collector(mesh)
-            with make_output(
-                arguments, settings.deltatDyn, collector=collect
-            ) as output:
-                observe, select = output_callbacks(output, settings.deltatDyn)
-                state, compilation, elapsed = run_timed(
-                    state,
-                    advance,
-                    arguments.steps,
-                    observe=observe,
-                    select=select,
-                )
-            save_final(
-                arguments,
-                state,
-                timedelta(seconds=arguments.steps * settings.deltatDyn),
-                output.settings,
-                settings,
-                physical,
-                collector=collect,
-            )
+        compilation, elapsed = result.compilation_seconds, result.integration_seconds
         rank = jax.process_index()
         if rank == 0:
             print(

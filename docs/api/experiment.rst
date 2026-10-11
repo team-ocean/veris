@@ -92,6 +92,30 @@ not independent initial conditions. Forcing accepts prescribed atmospheric and
 ocean fields, rather than evolved ice. Arrays and mappings are defensively copied
 and immutable in a definition.
 
+Accepted field names are generated from the authoritative input sets below.
+Inputs must contain finite real values. Ice/snow thickness, wind speed and
+salinity are nonnegative; temperatures in kelvin are positive; concentration
+``Area`` lies in [0, 1]. Initial conditions and constant forcing are scalar or
+physical 2D arrays; series use the leading time dimension described above.
+``load_fields`` accepts the union of these names from instantaneous serial
+records. Geometry, masks and independent metrics require initialization.
+
+.. exec::
+
+   from veris.experiment import INITIAL_FIELDS
+   from veris.forcing import FORCING_FIELDS
+   from veris.variables import VARIABLES
+   for category, names in (("Initial conditions", INITIAL_FIELDS),
+                           ("Prescribed forcing", FORCING_FIELDS)):
+       print(f".. list-table:: {category}")
+       print("   :header-rows: 1\n")
+       print("   * - Name\n     - Units\n     - Description")
+       for name in sorted(names):
+           metadata = VARIABLES[name]
+           print(f"   * - ``{name}``\n     - {metadata.units}")
+           print(f"     - {metadata.description}")
+       print("")
+
 User-supplied ``OceanGeometry`` uses physical arrays without halos. ``maskT``,
 ``maskU`` and ``maskV`` have shape ``(nx, ny, z)`` with a nonempty last dimension
 and surface masks at the last level. Masks lie in [0, 1]; zero means dry.
@@ -124,6 +148,34 @@ requires equal dynamics and thermodynamic timesteps. Model time uses the active
 timestep and microsecond host precision; unsupported sub-microsecond values and
 clock overflow fail clearly. ``backend=None`` honors the caller's JAX selection;
 ``cpu`` and ``gpu`` are resource requests, with enumeration left to initialization.
+
+Explicit meshes
+---------------
+
+All builtins and custom geometry/initial/forcing fields use the same public
+sharded initializer. For example, start a fresh Python process with
+``JAX_NUM_CPU_DEVICES=2`` before importing JAX, then run::
+
+   import jax
+   from veris import Execution, Experiment, Grid, Simulation
+
+   mesh = jax.make_mesh((2, 1), ("x", "y"), devices=jax.devices("cpu"))
+   experiment = Experiment.builtin(
+       "island", grid=Grid(12, 8), steps=2,
+       settings={"dtype": "float32", "nEVPsteps": 2},
+       execution=Execution(backend="cpu", partitions=(2, 1)),
+   )
+   with Simulation.initialize(experiment, mesh=mesh) as simulation:
+       result = simulation.run()
+       simulation.snapshot("sharded-final.nc", variables=("hIceMean", "Area"))
+
+Input arrays retain global physical shapes; only addressable packed State
+regions are initialized on each process. Spatial series keep an unpartitioned
+time axis. The facade borrows the mesh. For multiple processes, initialize JAX
+distributed services before enumerating devices and retain caller ownership;
+see :doc:`/reference/setups/parallel-dynamics`. Complete distributed restart is
+unsupported. Local CPU sharding validation does not substitute for GPU or
+actual multihost verification.
 
 Definition construction is host-only. The pure numerical API consists of
 ``veris.advance`` for one timestep and :func:`veris.step` for a rollout;

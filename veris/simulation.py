@@ -9,7 +9,8 @@ supports serial initialization and the explicit-mesh modes supported by
 initialize_experiment; it never initializes distributed JAX or changes settings.
 """
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, fields
 from datetime import timedelta
 from numbers import Integral
@@ -33,6 +34,7 @@ from veris.io.guard import require_host
 from veris.io.schedule import iter_segments
 from veris.model_initialization import initialize_experiment
 from veris.model_physics import advance
+from veris.model_regions import regional_forcing
 from veris.physical_constants import PhysicalConstants
 
 type _Carry = tuple[State, Diagnostics]
@@ -109,7 +111,11 @@ class Simulation:
         # Series replace constants of the same name before entering physics.
         with self._execution_context():
             constant = {
-                name: jnp.asarray(value, dtype=configuration.dtype)
+                name: (
+                    jnp.asarray(value, dtype=configuration.dtype)
+                    if mesh is None
+                    else regional_forcing(value, configuration.dtype, mesh)
+                )
                 for name, value in experiment.forcing.constant.items()
                 if name not in experiment.forcing.series
             }
@@ -226,11 +232,18 @@ class Simulation:
         """Whether the host lifecycle has ended and further execution is rejected."""
         return self._closed
 
-    def _execution_context(self) -> Any:
+    @contextmanager
+    def _execution_context(self) -> Iterator[None]:
         """Honor initialized devices when preparing arrays and tracing physics."""
         if self._mesh is not None:
-            return jax.set_mesh(self._mesh)
-        return jax.default_device(self._state.Area.device)
+            with jax.set_mesh(self._mesh):
+                yield
+        else:
+            # A default device alone does not suspend a caller's active mesh.
+            # Serial traces must retain one initialized device for output and
+            # restart ownership; context exit restores any borrowed mesh.
+            with jax.set_mesh(None), jax.default_device(self._state.Area.device):
+                yield
 
     def _require_open(self) -> None:
         """Reject any execution or context entry after lifecycle closure."""
@@ -317,8 +330,16 @@ class Simulation:
         if count and self._experiment.forcing.series:
             start = self._completed_steps
             inputs = {
-                name: jnp.asarray(
-                    value[start : start + count], dtype=self.configuration.dtype
+                name: (
+                    jnp.asarray(
+                        value[start : start + count], dtype=self.configuration.dtype
+                    )
+                    if self._mesh is None
+                    else regional_forcing(
+                        value[start : start + count],
+                        self.configuration.dtype,
+                        self._mesh,
+                    )
                 )
                 for name, value in self._experiment.forcing.series.items()
             }

@@ -42,3 +42,41 @@ implementation; the separate equation-based EVP tests remain the physics oracle.
 tests compare the new registries with these independent historical values.
 Additional initialized constants and controls are tested against the exact
 literals inventoried from their original numerical modules.
+
+## Original lifecycle trajectories
+
+`lifecycle_legacy_v1.npz` freezes 1,540 arrays from the original setup
+initializers and transitions at `fff4cd4e08613e8ec2359e316c94435e81682400`
+on `jax-only`, before the shared `advance` implementation. Seven cases cover
+island, dynamics and growth with periodic and closed-y boundaries in float64,
+plus a float32 island case. Each stores all 70 State fields at steps 0, 1 and 3
+and all five Diagnostics fields at steps 1 and 3. Island cooling is prescribed
+as 80, 120 and 95 W m-2; growth retains its original recursive heat fields.
+
+`island_unequal_legacy_v1.npz` freezes another 75 arrays after one original
+island step with a 600 s dynamics timestep and 3,600 s thermodynamics timestep.
+It protects the three legacy island wrappers. New coupled definitions retain
+their equal-timestep requirement.
+
+The JSON manifests record the complete source commit, 49 source-file hashes,
+generator/archive hashes, resolved numerical settings/constants, inputs and
+Python/JAX/NumPy versions. Tests check archive hashes, shapes and native dtypes
+before comparing every field. Float64 comparisons use
+`2e-11 * (1 + abs(reference))`; float32 uses `3e-5` with the same scaling.
+Reference generation is never part of pytest, and fixtures must not be replaced
+with results from the implementation under test.
+
+To reproduce in a separate directory, archive the recorded `jax-only` revision,
+copy the two immutable generators there as Python files, and run them outside the source
+checkout with `JAX_PLATFORMS=cpu` and `PYTHONPATH` pointing at that archive.
+Each generator's command-line arguments are the archived source root, a fresh
+output directory and the full recorded commit. Run
+`generate_lifecycle_reference.py` first, then
+`generate_legacy_unequal_reference.py` using the same output directory. Both
+generators reject a source that exposes the new `advance` API. Compare generated
+values and manifest provenance with the committed fixtures; do not overwrite
+them.
+
+The immutable generator sources use a `.py.txt` suffix to distinguish archived
+original capture code from maintained tests. Copy each to its original `.py`
+name before execution. Their bytes and recorded hashes are unchanged.

@@ -8,9 +8,7 @@ Scenario coefficients are experimental controls, not universal physical laws.
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass
-from datetime import timedelta
-from functools import partial
+from dataclasses import dataclass, replace
 from types import SimpleNamespace
 from typing import Any
 
@@ -18,16 +16,19 @@ import click
 import jax
 import jax.numpy as jnp
 import numpy as np
-from jax.sharding import Mesh, NamedSharding
-from jax.sharding import PartitionSpec as P
+from jax.sharding import Mesh
 
 from veris._metadata import FROM_REGISTRY, registry_defaults, validate_scalars
 from veris._typing import Parameter, State
 from veris.configuration import Configuration
 from veris.diagnostics import Diagnostics
 from veris.initialization import initialize as initialize_model
-from veris.integration_output import output_callbacks, run_timed
-from veris.io.cli import make_output, output_options, parse_options, save_final
+from veris.io.cli import (
+    output_options,
+    output_settings,
+    parse_options,
+    prepare_output_paths,
+)
 from veris.physical_constants import PhysicalConstants
 from veris.variables import VARIABLES
 
@@ -218,32 +219,15 @@ def initialize(
             conf.dtype,
         )
     else:
-        shape = (px * (conf.nx + 4), py * (conf.ny + 4))
-        sharding = NamedSharding(mesh, P("x", "y"))
-        # Cache one local partition's field construction across all State leaves.
-        cache: dict[tuple[int, int, int, int], dict[str, np.ndarray]] = {}
+        from veris.model_regions import regional_state
 
-        def callback(name: str, index: tuple[slice, ...] | None) -> np.ndarray:
-            if index is None:
-                index = (slice(0, shape[0]), slice(0, shape[1]))
-            sx, sy = index
-            key = (
-                sx.start or 0,
-                sx.stop or shape[0],
-                sy.start or 0,
-                sy.stop or shape[1],
-            )
-            if key not in cache:
-                ax, ay = np.arange(key[0], key[1]), np.arange(key[2], key[3])
-                ix = (ax // (conf.nx + 4) * conf.nx + ax % (conf.nx + 4) - 2) % nx
-                iy = (ay // (conf.ny + 4) * conf.ny + ay % (conf.ny + 4) - 2) % ny
-                cache[key] = _fields(ix, iy, nx, ny, scenario, conf.dtype)
-            return cache[key][name]
-
-        values = {
-            name: jax.make_array_from_callback(shape, sharding, partial(callback, name))
-            for name in VARIABLES
-        }
+        packed = regional_state(
+            mesh,
+            conf,
+            (nx, ny),
+            lambda ix, iy: _fields(ix, iy, nx, ny, scenario, conf.dtype),
+        )
+        values = {name: getattr(packed, name) for name in VARIABLES}
     return initialize_model(
         mesh=mesh,
         settings_overrides=options,
@@ -252,37 +236,13 @@ def initialize(
     )
 
 
-def _step_local(
-    vs: State, conf: Configuration, phys: PhysicalConstants
-) -> tuple[State, Diagnostics]:
-    """Compose unchanged physics kernels in the dynamics experiment's order."""
-    from veris.dynamics import dynamics_transport
-    from veris.fill_overlap import fill_state_overlap
-
-    vs, stress_u, stress_v = dynamics_transport(vs, conf, phys)
-    zeros = jnp.zeros_like(vs.Area)
-    diagnostics = Diagnostics(zeros, stress_u, stress_v, zeros, zeros)
-    return fill_state_overlap(vs, conf), fill_state_overlap(diagnostics, conf)
-
-
 def step_with_diagnostics(
     vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[State, Diagnostics]:
-    """Advance dynamics and transport; return ocean stress outside State."""
-    if conf.use_sharding:
-        mesh = jax.sharding.get_abstract_mesh()
-        if set(mesh.axis_names) != {"x", "y"}:
-            raise ValueError(
-                "sharded stepping requires an active mesh with axes x and y"
-            )
-        if not {"x", "y"} <= set(mesh.manual_axes):
-            return jax.shard_map(
-                lambda state: _step_local(state, conf, phys),
-                mesh=mesh,
-                in_specs=P("x", "y"),
-                out_specs=(P("x", "y"), P("x", "y")),
-            )(vs)
-    return _step_local(vs, conf, phys)
+    """Advance the shared pure dynamics transition and return coupling stress."""
+    from veris.model_physics import advance
+
+    return advance(vs, conf, phys, physics="dynamics")
 
 
 def step(vs: State, conf: Configuration, phys: PhysicalConstants) -> State:
@@ -309,34 +269,31 @@ def main(argv: list[str] | None = None) -> None:
     """Integrate the reference experiment and save physical fields as netCDF."""
     args = parse_options(cli, argv)
     jax.config.update("jax_enable_x64", True)
-    with jax.default_device(jax.devices(args.backend)[0]):
-        state, conf, phys = initialize(
-            args.nx, args.ny, settings_overrides={"nEVPsteps": args.evp_steps}
-        )
-        with make_output(args, conf.deltatDyn) as manager:
-            observe, select = output_callbacks(manager, conf.deltatDyn)
-            state, compiled, elapsed = run_timed(
-                state,
-                partial(compiled_step, conf=conf, phys=phys),
-                args.steps,
-                observe=observe,
-                select=select,
-            )
-        output = {
-            name: np.asarray(getattr(state, name))[2:-2, 2:-2] for name in VARIABLES
-        }
-    if not all(np.isfinite(value).all() for value in output.values()):
-        raise RuntimeError("nonfinite dynamics output")
-    save_final(
-        args,
-        state,
-        timedelta(seconds=args.steps * conf.deltatDyn),
-        manager.settings,
-        conf,
-        phys,
+    from veris import Execution, Experiment, Grid, Simulation
+
+    definition = Experiment.builtin(
+        "dynamics",
+        grid=Grid(args.nx, args.nx if args.ny is None else args.ny),
+        settings={"nEVPsteps": args.evp_steps},
+        execution=Execution(backend=args.backend),
+        steps=args.steps,
     )
+    definition = replace(
+        definition,
+        output=output_settings(args, definition.step_duration.total_seconds()),
+    )
+    prepare_output_paths(args)
+    with Simulation.initialize(definition, output_path=args.netcdf) as simulation:
+        result = simulation.run()
+        output = {
+            name: np.asarray(getattr(result.state, name))[2:-2, 2:-2]
+            for name in VARIABLES
+        }
+        if not all(np.isfinite(value).all() for value in output.values()):
+            raise RuntimeError("nonfinite dynamics output")
+        simulation.snapshot(args.output, variables=tuple(args.io_variables.split(",")))
     print(
-        f"dynamics: {args.steps} steps, {args.backend}, compile {compiled:.3f}s, run {elapsed:.3f}s, {args.output}"
+        f"dynamics: {args.steps} steps, {args.backend}, compile {result.compilation_seconds:.3f}s, run {result.integration_seconds:.3f}s, {args.output}"
     )
 
 

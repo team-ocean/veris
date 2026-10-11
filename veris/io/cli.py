@@ -89,10 +89,8 @@ def parse_options(
     return result
 
 
-def make_output(
-    args: SimpleNamespace, step_seconds: float, *, collector: Collector | None = None
-) -> OutputManager:
-    """Create a lazy manager and reject schedules unreachable by the driver."""
+def output_settings(args: SimpleNamespace, step_seconds: float) -> OutputSettings:
+    """Parse host output controls without opening files or allocating arrays."""
     if args.netcdf is not None and args.netcdf.resolve() == args.output.resolve():
         raise ValueError("history and final snapshot require distinct paths")
     step = timedelta(seconds=step_seconds)
@@ -119,7 +117,28 @@ def make_output(
         streams=streams,
         enabled=args.netcdf is not None,
     )
-    return OutputManager(args.netcdf or ".", settings, collector=collector)
+    return settings
+
+
+def make_output(
+    args: SimpleNamespace, step_seconds: float, *, collector: Collector | None = None
+) -> OutputManager:
+    """Create a lazy manager using the shared settings-only parser."""
+    return OutputManager(
+        args.netcdf or ".", output_settings(args, step_seconds), collector=collector
+    )
+
+
+def prepare_output_paths(args: SimpleNamespace) -> None:
+    """Create parents for validated CLI snapshot/history destinations.
+
+    Drivers call this after validating their Experiment and output settings.
+    Existing files are never opened or replaced here; public Simulation keeps
+    its strict parent and no-clobber preflight for general API callers.
+    """
+    for destination in (args.output, args.netcdf):
+        if destination is not None:
+            Path(destination).parent.mkdir(parents=True, exist_ok=True)
 
 
 def save_final(

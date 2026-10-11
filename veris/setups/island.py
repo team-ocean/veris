@@ -14,7 +14,6 @@ from typing import Any, cast
 import jax
 import jax.numpy as jnp
 import numpy as np
-from jax.sharding import PartitionSpec as P
 
 from veris._metadata import (
     FROM_REGISTRY,
@@ -189,16 +188,60 @@ def initialize(
     vs, conf, phys = initialize_model(
         settings_overrides=overrides, physical_overrides=physical_overrides
     )
-    nx, ny = conf.nx, conf.ny
+    fields = _fields(
+        vs,
+        phys,
+        scenario,
+        conf.nx,
+        conf.ny,
+        (np.arange(conf.nx + 4) - 2) % conf.nx,
+        (np.arange(conf.ny + 4) - 2) % conf.ny,
+    )
+    vs = replace(vs, **fields)
+    if not conf.enable_cyclic_y:
+        from veris.fill_overlap import fill_state_overlap
+
+        vs = fill_state_overlap(vs, conf)
+    return vs, conf, phys
+
+
+def _fields(
+    vs: State,
+    phys: PhysicalConstants,
+    scenario: IslandSettings,
+    nx: int,
+    ny: int,
+    ix: np.ndarray,
+    iy: np.ndarray,
+    *,
+    regional: bool = False,
+) -> dict[str, jax.Array]:
+    """Evaluate exact startup arithmetic at global physical cell indices.
+
+    Regional allocation reuses these expressions, so a central island stays in
+    the global basin even when a partition has only two interior cells.
+    """
     wind = scenario.islandWindSpeed
     air_temperature = scenario.islandAirTemperature
     ones = jnp.ones_like(vs.iceMask)
     fields = {}
-    interior = np.ones((nx, ny))
-    interior[nx // 2 - 1 : nx // 2 + 1, ny // 2 - 1 : ny // 2 + 1] = 0
-    mask = jnp.asarray(np.pad(interior, 2, mode="wrap"), dtype=vs.iceMask.dtype)
-    west = mask * jnp.roll(mask, 1, axis=0)
-    south = mask * jnp.roll(mask, 1, axis=1)
+    land_x = (ix >= nx // 2 - 1) & (ix < nx // 2 + 1)
+    land_y = (iy >= ny // 2 - 1) & (iy < ny // 2 + 1)
+    mask = jnp.asarray(~(land_x[:, None] & land_y[None, :]), dtype=vs.iceMask.dtype)
+    previous_x = (ix - 1) % nx
+    previous_y = (iy - 1) % ny
+    west_land = (previous_x >= nx // 2 - 1) & (previous_x < nx // 2 + 1)
+    south_land = (previous_y >= ny // 2 - 1) & (previous_y < ny // 2 + 1)
+    west = mask * jnp.asarray(~(west_land[:, None] & land_y[None, :]), dtype=mask.dtype)
+    south = mask * jnp.asarray(
+        ~(land_x[:, None] & south_land[None, :]), dtype=mask.dtype
+    )
+    if not regional:
+        # Preserve the original unrefreshed outermost serial mask halos in
+        # step-zero reference data. Regional boundaries instead use global
+        # predecessor cells, never a wrap within one addressable partition.
+        west = mask * jnp.roll(mask, 1, axis=0)
+        south = mask * jnp.roll(mask, 1, axis=1)
     fields.update(
         iceMask=mask,
         maskInC=mask,
@@ -247,12 +290,7 @@ def initialize(
         / (phys.iceSurfacePressure - (1 - phys.waterVaporDryAirMassRatio) * vapor)
         * ones,
     )
-    vs = replace(vs, **fields)
-    if not conf.enable_cyclic_y:
-        from veris.fill_overlap import fill_state_overlap
-
-        vs = fill_state_overlap(vs, conf)
-    return vs, conf, phys
+    return fields
 
 
 def step(
@@ -288,67 +326,11 @@ def step_with_diagnostics(
     """
     if cooling is None:
         cooling = float(cast(float, ISLAND_SETTINGS["islandCooling"].default))
-    if conf.use_sharding:
-        mesh = jax.sharding.get_abstract_mesh()
-        if set(mesh.axis_names) != {"x", "y"}:
-            raise ValueError(
-                "sharded stepping requires an active mesh with axes x and y"
-            )
-        if not {"x", "y"} <= set(mesh.manual_axes):
-            # Run stencils on each local halo-inclusive partition. Explicitly
-            # sharded global arrays cannot be rolled along partitioned axes.
-            mapped = jax.shard_map(
-                lambda state, flux: _step_local(state, conf, phys, flux),
-                mesh=mesh,
-                in_specs=(P("x", "y"), P()),
-                out_specs=(P("x", "y"), P("x", "y")),
-            )
-            return mapped(vs, cooling)
-    return _step_local(vs, conf, phys, cooling)
+    from veris.model_physics import _execute_advance
 
-
-def _step_local(
-    vs: State, conf: Configuration, phys: PhysicalConstants, cooling: float | jax.Array
-) -> tuple[State, Diagnostics]:
-    """Execute the reference physics sequence on one local halo-inclusive grid."""
-    from veris.dynamics import dynamics_transport
-    from veris.fill_overlap import fill_state_overlap
-    from veris.growth import Growth
-
-    vs = replace(vs, Qnet=jnp.full_like(vs.Qnet, cooling), Qsw=jnp.zeros_like(vs.Qsw))
-    vs, ocean_stress_u, ocean_stress_v = dynamics_transport(vs, conf, phys)
-    (
-        ice,
-        snow,
-        area,
-        temperature,
-        freshwater,
-        salt,
-        shortwave,
-        net_heat,
-        load,
-        penetrating_shortwave,
-        inverse_ice,
-    ) = Growth(vs, conf, phys)
-    vs = replace(
-        vs,
-        hIceMean=ice,
-        hSnowMean=snow,
-        Area=area,
-        TSurf=temperature,
-        Qsw=shortwave,
-        Qnet=net_heat,
-        SeaIceLoad=load,
-        recip_hIceMean=inverse_ice,
-    )
-    diagnostics = Diagnostics(
-        IcePenetSW=penetrating_shortwave,
-        OceanStressU=ocean_stress_u,
-        OceanStressV=ocean_stress_v,
-        EmPmR=freshwater,
-        forc_salt_surface=salt,
-    )
-    return fill_state_overlap(vs, conf), fill_state_overlap(diagnostics, conf)
+    # Legacy experiments permit separate dynamics and growth timesteps. The
+    # public facade has one coupled clock; both use identical shared stages.
+    return _execute_advance(vs, conf, phys, {"Qnet": cooling, "Qsw": 0.0}, "coupled")
 
 
 compiled_step = jit(step, static_argnames=["conf", "phys"])

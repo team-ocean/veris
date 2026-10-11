@@ -13,8 +13,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields, replace
-from datetime import timedelta
-from functools import partial
 from types import SimpleNamespace
 from typing import Any
 
@@ -28,10 +26,13 @@ from veris._typing import Parameter, State, jit
 from veris.configuration import SETTINGS, Configuration
 from veris.diagnostics import Diagnostics
 from veris.fill_overlap import fill_state_overlap
-from veris.growth import Growth
 from veris.initialization import initialize as initialize_model
-from veris.integration_output import output_callbacks, run_timed
-from veris.io.cli import make_output, output_options, parse_options, save_final
+from veris.io.cli import (
+    output_options,
+    output_settings,
+    parse_options,
+    prepare_output_paths,
+)
 from veris.physical_constants import PhysicalConstants
 
 GROWTH_SETTINGS: dict[str, Parameter] = {
@@ -144,41 +145,9 @@ def step_with_diagnostics(
     Ocean stresses are zero because this experiment has no momentum integration.
     All outputs retain the halo-inclusive shape of the input State.
     """
-    (
-        ice,
-        snow,
-        area,
-        temperature,
-        freshwater,
-        salt,
-        shortwave,
-        heat,
-        load,
-        penetrating,
-        inverse,
-    ) = Growth(state, conf, phys)
-    result = replace(
-        state,
-        hIceMean=ice,
-        hSnowMean=snow,
-        Area=area,
-        TSurf=temperature,
-        Qsw=shortwave,
-        Qnet=heat,
-        SeaIceLoad=load,
-        recip_hIceMean=inverse,
-    )
-    diagnostics = Diagnostics(
-        IcePenetSW=penetrating,
-        OceanStressU=jnp.zeros_like(state.uIce),
-        OceanStressV=jnp.zeros_like(state.vIce),
-        EmPmR=freshwater,
-        forc_salt_surface=salt,
-    )
-    if not conf.enable_cyclic_y:
-        result = fill_state_overlap(result, conf)
-        diagnostics = fill_state_overlap(diagnostics, conf)
-    return result, diagnostics
+    from veris.model_physics import advance
+
+    return advance(state, conf, phys, physics="thermodynamics")
 
 
 def step(state: State, conf: Configuration, phys: PhysicalConstants) -> State:
@@ -206,30 +175,25 @@ def main(argv: list[str] | None = None) -> None:
     """Integrate the reference experiment and save physical fields as netCDF."""
     args = parse_options(cli, argv)
     jax.config.update("jax_enable_x64", True)
-    with jax.default_device(jax.devices(args.backend)[0]):
-        state, conf, phys = initialize()
-        with make_output(args, conf.deltatTherm) as output:
-            observe, select = output_callbacks(output, conf.deltatTherm)
-            state, _, _ = run_timed(
-                state,
-                partial(compiled_step, conf=conf, phys=phys),
-                args.steps,
-                observe=observe,
-                select=select,
-            )
+    from veris import Execution, Experiment, Simulation
+
+    definition = Experiment.builtin(
+        "growth", steps=args.steps, execution=Execution(backend=args.backend)
+    )
+    definition = replace(
+        definition,
+        output=output_settings(args, definition.step_duration.total_seconds()),
+    )
+    prepare_output_paths(args)
+    with Simulation.initialize(definition, output_path=args.netcdf) as simulation:
+        result = simulation.run()
         arrays = {
-            item.name: np.asarray(getattr(state, item.name)) for item in fields(State)
+            item.name: np.asarray(getattr(result.state, item.name))
+            for item in fields(State)
         }
         if any(not np.isfinite(array).all() for array in arrays.values()):
             raise FloatingPointError("growth simulation produced nonfinite output")
-        save_final(
-            args,
-            state,
-            timedelta(seconds=args.steps * conf.deltatTherm),
-            output.settings,
-            conf,
-            phys,
-        )
+        simulation.snapshot(args.output, variables=tuple(args.io_variables.split(",")))
     print(f"Saved {args.steps} growth steps to {args.output}")
 
 

@@ -127,12 +127,13 @@ and from_restart. Reuse netCDF schema/storage and full State restoration.
 Modify setups/island.py, run_dyn.py, run_growth.py, run_parallel.py; add lifecycle
 CPU-sharding subprocess probe/test. Preserve compatibility entry points.
 
-- [ ] RED established example CLI results through Simulation, ocean-geometry
+- [x] RED established example CLI results through Simulation, ocean-geometry
   public example, global/local callback packing, both mesh orientations and
   closed-y output, all-field serial/sharded and JVP/VJP/FD equivalence.
-- [ ] Route CLI orchestration through facade; construct only addressable partitions
+- [x] Route CLI orchestration through facade; construct only addressable partitions
   for distributed input and retain explicit multiprocess resource initialization.
-- [ ] CPU full suite plus available GPU/multihost checks; record unavailable gates.
+- [x] CPU full suite: 1282 passed/two expected GPU skips, maintained coverage
+  94.46%; real local CPU sharding and AD pass. GPU/multihost unavailable.
 
 ## Task 8: Documentation, installation and completion audit
 

@@ -171,15 +171,18 @@ def test_parallel_cli_rejects_nonfinite_trajectory_before_snapshot(
     """Final driver output validates collected fields before creating netCDF."""
     from dataclasses import replace
 
+    from veris import simulation
     from veris._typing import State
+    from veris.diagnostics import Diagnostics
 
     def nonfinite_trajectory(
-        state: State, *args: Any, **kwargs: Any
-    ) -> tuple[State, float, float]:
-        """Represent a numerical failure after the timed integration."""
-        return replace(state, hIceMean=state.hIceMean * np.nan), 0.0, 0.0
+        carry: tuple[State, Diagnostics], *args: Any, **kwargs: Any
+    ) -> tuple[tuple[State, Diagnostics], float, float]:
+        """Represent a numerical failure from the facade's real pair-carry runner."""
+        state, diagnostics = carry
+        return (replace(state, hIceMean=state.hIceMean * np.nan), diagnostics), 0.0, 0.0
 
-    monkeypatch.setattr(run_parallel, "run_timed", nonfinite_trajectory)
+    monkeypatch.setattr(simulation, "run_timed", nonfinite_trajectory)
     path = tmp_path / "failed-trajectory.nc"
     with pytest.raises(ValueError, match="nonfinite.*hIceMean"):
         run_parallel.main(

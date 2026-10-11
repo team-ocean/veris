@@ -1,0 +1,139 @@
+"""Capture complete trajectories from the immutable pre-lifecycle source revision.
+
+Run outside this repository with PYTHONPATH pointing to ``git archive fff4cd4``.
+The generator calls only the original setup initializers/transitions. It refuses
+the new shared physics API, and never regenerates reference data during pytest.
+"""
+
+import hashlib
+import json
+import sys
+from dataclasses import asdict, fields
+from importlib import import_module
+from pathlib import Path
+from typing import Any
+
+import jax
+import numpy as np
+
+
+def _json_scalar(value: Any) -> Any:
+    """Retain the exact resolved float32 scalar value in JSON metadata."""
+    if isinstance(value, np.generic):
+        return value.item()
+    raise TypeError(f"unsupported reference metadata type {type(value).__name__}")
+
+
+def capture(source_root: Path, output_root: Path, commit: str) -> None:
+    """Save seven all-field CPU trajectories and explicit reproduction metadata."""
+    jax.config.update("jax_enable_x64", True)
+    import veris
+
+    if not Path(veris.__file__).is_relative_to(source_root):
+        raise RuntimeError("ERROR reference import escaped archived source")
+    if hasattr(veris, "advance") or len(commit) != 40:
+        raise RuntimeError("ERROR reference requires the full pre-lifecycle commit")
+    from veris._typing import State
+    from veris.diagnostics import Diagnostics
+
+    state_names = [item.name for item in fields(State)]
+    diagnostic_names = [item.name for item in fields(Diagnostics)]
+    arrays: dict[str, Any] = {}
+    cases: list[dict[str, Any]] = []
+    matrix = [
+        (preset, "float64", cyclic)
+        for preset in ("island", "dynamics", "growth")
+        for cyclic in (True, False)
+    ] + [("island", "float32", True)]
+    for preset, dtype, cyclic in matrix:
+        name = f"{preset}_{dtype}_{'cyclic' if cyclic else 'closed'}"
+        module = import_module(
+            "veris.setups.island"
+            if preset == "island"
+            else f"veris.setups.run_{'dyn' if preset == 'dynamics' else 'growth'}"
+        )
+        settings = {"dtype": dtype, "enable_cyclic_y": cyclic, "nEVPsteps": 2}
+        if preset == "growth":
+            state, conf, phys = module.initialize(settings_overrides=settings)
+        else:
+            state, conf, phys = module.initialize(4, 6, settings_overrides=settings)
+        transition = jax.jit(module.step_with_diagnostics, static_argnums=(1, 2))
+        case: dict[str, Any] = {
+            "name": name,
+            "preset": preset,
+            "dtype": dtype,
+            "cyclic_y": cyclic,
+            "grid": [conf.nx, conf.ny],
+            "settings": settings,
+            "configuration": asdict(conf),
+            "physical_constants": asdict(phys),
+            "snapshot_steps": [0, 1, 3],
+            "forcing": {"Qnet": [80.0, 120.0, 95.0], "Qsw": 0.0}
+            if preset == "island"
+            else {},
+            "forcing_policy": "prescribed before each step"
+            if preset == "island"
+            else "recursive heat"
+            if preset == "growth"
+            else "fixed initialized fields",
+        }
+        for step in range(4):
+            if step in (0, 1, 3):
+                for field in state_names:
+                    arrays[f"{name}.state.{step}.{field}"] = np.asarray(
+                        getattr(state, field)
+                    )
+            if step == 3:
+                break
+            if preset == "island":
+                state, diagnostic = transition(
+                    state, conf, phys, case["forcing"]["Qnet"][step]
+                )
+            else:
+                state, diagnostic = transition(state, conf, phys)
+            jax.block_until_ready((state, diagnostic))
+            if step + 1 in (1, 3):
+                for field in diagnostic_names:
+                    arrays[f"{name}.diagnostics.{step + 1}.{field}"] = np.asarray(
+                        getattr(diagnostic, field)
+                    )
+        cases.append(case)
+    if not all(np.isfinite(array).all() for array in arrays.values()):
+        raise RuntimeError("ERROR reference has nonfinite numerical fields")
+    output_root.mkdir(parents=True, exist_ok=True)
+    archive = output_root / "lifecycle_legacy_v1.npz"
+    np.savez_compressed(archive, **arrays)
+    hashes = {
+        str(p.relative_to(source_root)): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in sorted((source_root / "veris").rglob("*.py"))
+        if p.name != "_version.py"
+    }
+    manifest = {
+        "version": 1,
+        "source_commit": commit,
+        "source_hashes": hashes,
+        "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "archive_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+        "python": sys.version.split()[0],
+        "jax": jax.__version__,
+        "numpy": np.__version__,
+        "backend": jax.default_backend(),
+        "state_fields": state_names,
+        "diagnostic_fields": diagnostic_names,
+        "cases": cases,
+        "arrays": {
+            key: {"shape": list(value.shape), "dtype": str(value.dtype)}
+            for key, value in arrays.items()
+        },
+        "reproduction": "git archive SOURCE_COMMIT veris into SOURCE_ROOT; "
+        "from an external cwd run JAX_PLATFORMS=cpu PYTHONPATH=SOURCE_ROOT "
+        "python generate_lifecycle_reference.py SOURCE_ROOT OUTPUT_ROOT SOURCE_COMMIT",
+    }
+    (output_root / "lifecycle_legacy_v1.json").write_text(
+        json.dumps(manifest, indent=2, default=_json_scalar) + "\n"
+    )
+    print(f"PASS captured {len(cases)} immutable legacy cases, {len(arrays)} arrays")
+
+
+if __name__ == "__main__":
+    capture(Path(sys.argv[1]).resolve(), Path(sys.argv[2]).resolve(), sys.argv[3])
