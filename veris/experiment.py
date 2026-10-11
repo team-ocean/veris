@@ -10,6 +10,7 @@ convention. No equations or numerical tolerances are defined here.
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from datetime import timedelta
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any, cast
 
@@ -124,6 +125,8 @@ class Experiment:
     execution: Execution = field(default_factory=Execution)
     steps: int = 0
     output: OutputSettings | None = None
+    preset: str | None = None
+    scenario: Mapping[str, Any] = field(default_factory=dict)
     configuration: Configuration = field(init=False)
     physical_constants: PhysicalConstants = field(init=False)
 
@@ -162,6 +165,39 @@ class Experiment:
             raise ValueError("use Grid for global nx/ny, not numerical settings")
         if "use_sharding" in self.settings:
             raise ValueError("use Execution for sharding, not numerical settings")
+        if not isinstance(self.scenario, Mapping):
+            raise TypeError("scenario must be a mapping")
+        if self.preset is not None:
+            from veris.presets import PRESET_PHYSICS, preset_controls
+
+            settings, scenario = preset_controls(
+                self.preset, self.settings, self.scenario
+            )
+            if self.physics != PRESET_PHYSICS[self.preset]:
+                raise ValueError("physics is incompatible with builtin preset")
+            if self.geometry is not None:
+                raise ValueError("builtin preset and custom geometry are exclusive")
+            object.__setattr__(self, "settings", settings)
+            object.__setattr__(self, "scenario", MappingProxyType(scenario))
+            if self.preset == "island":
+                if min(self.grid.nx, self.grid.ny) < 4:
+                    raise ValueError("island requires at least four physical cells")
+                object.__setattr__(
+                    self,
+                    "forcing",
+                    Forcing(
+                        constant={
+                            "Qnet": scenario["islandCooling"],
+                            "Qsw": 0.0,
+                            **self.forcing.constant,
+                        },
+                        series=self.forcing.series,
+                    ),
+                )
+        elif self.scenario:
+            raise ValueError("scenario controls require a builtin preset")
+        else:
+            object.__setattr__(self, "scenario", MappingProxyType({}))
         local_x, local_y = self.grid.local_shape(self.execution.partitions)
         conf = Configuration(
             **self.settings,
@@ -198,6 +234,41 @@ class Experiment:
             raise ValueError("requested steps exceed forcing series length")
         # Validate the host clock before any resource allocation.
         _ = self.step_duration
+
+    @classmethod
+    def builtin(cls, name: str, **options: Any) -> "Experiment":
+        """Define island, dynamics or growth using the maintained setup defaults.
+
+        Grid defaults come from the public Grid registry, except the growth
+        column uses its scenario's 2 by 2 grid. Explicit options override preset
+        settings; scenario contains only experiment-specific coefficients.
+        """
+        from veris.presets import PRESET_PHYSICS
+
+        if name not in PRESET_PHYSICS:
+            raise ValueError(f"unknown builtin preset {name!r}")
+        options.setdefault("physics", PRESET_PHYSICS[name])
+        if name == "growth" and "grid" not in options:
+            from veris.setups.run_growth import GrowthSettings
+
+            controls = GrowthSettings()
+            options["grid"] = Grid(controls.nx, controls.ny)
+        return cls(preset=name, **options)
+
+    @classmethod
+    def from_file(
+        cls, path: str | Path, *, overrides: Mapping[str, Any] | None = None
+    ) -> "Experiment":
+        """Read versioned JSON with registry < file < Python override precedence."""
+        from veris.experiment_file import read_experiment
+
+        return read_experiment(path, overrides=overrides)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return independent JSON-compatible data with resolved scalar defaults."""
+        from veris.experiment_file import experiment_to_dict
+
+        return experiment_to_dict(self)
 
     @property
     def step_duration(self) -> timedelta:

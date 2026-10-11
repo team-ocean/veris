@@ -47,6 +47,10 @@ class _ImmutableArray(np.ndarray):
     def __setattr__(self, name: str, value: Any) -> None:
         raise AttributeError("experiment input arrays are immutable; copy to modify")
 
+    def resize(self, *args: Any, **kwargs: Any) -> None:
+        """Reject ndarray's in-place shape mutation as well as attribute writes."""
+        raise AttributeError("experiment input arrays are immutable; copy to modify")
+
 
 def _immutable_array(array: NDArray[Any]) -> NDArray[Any]:
     """Own immutable bytes and protect the array's interpretation metadata."""

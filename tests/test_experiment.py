@@ -5,7 +5,7 @@ import subprocess
 import sys
 from dataclasses import FrozenInstanceError, fields, replace
 from datetime import timedelta
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pytest
@@ -86,6 +86,8 @@ def test_initial_fields_are_validated_and_frozen() -> None:
     assert definition.initial_conditions["Area"] == 0.8
     with pytest.raises((ValueError, AttributeError), match="immutable"):
         definition.initial_conditions["hIceMean"].shape = (4, 2)
+    with pytest.raises((ValueError, AttributeError), match="immutable"):
+        definition.initial_conditions["hIceMean"].resize((4, 2), refcheck=False)
     with pytest.raises(TypeError):
         definition.settings["nEVPsteps"] = 5  # ty: ignore[invalid-assignment]
 
@@ -179,6 +181,8 @@ def test_definition_copies_custom_geometry_without_mutating_ocean_input() -> Non
     with pytest.raises((ValueError, AttributeError), match="immutable"):
         # Avoid a static deprecated-shape warning for this intentional mutation.
         setattr(definition.geometry.maskT, "shape", (4, 2, 1))  # noqa: B010
+    with pytest.raises((ValueError, AttributeError), match="immutable"):
+        cast(Any, definition.geometry.maskT).resize((4, 2, 1), refcheck=False)
 
 
 def test_clock_overflow_is_rejected_with_host_clock_context() -> None:

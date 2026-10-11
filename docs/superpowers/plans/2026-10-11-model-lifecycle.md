@@ -55,13 +55,15 @@ Consumes task 1 schema and existing setup initializers/ocean adapter/allocator.
 Produces initialize_experiment(experiment, mesh=None) -> (State,Configuration,
 PhysicalConstants); resolved complete definition metadata.
 
-- [ ] RED tests: JSON registry < file < Python precedence, nonuniform prescribed
+- [x] RED tests: JSON registry < file < Python precedence, nonuniform prescribed
   geometry, masks, initial fields, derived load/inverse thickness/wind magnitude,
   staggered masks, bad geometry, both boundary modes, all-field builtin initial
   equivalence. Expected: missing APIs.
-- [ ] Implement JSON schema/serialization and geometry adaptation; preserve exact
+- [x] Implement JSON schema/serialization and geometry adaptation; preserve exact
   existing builtin fields rather than universally cleaning them.
-- [ ] Focused tests, fast suite, reviews and all precommit gates. Commit separately.
+- [x] Focused 120/120, independent reviews and all precommit gates pass; full CPU
+  1032 pass/two GPU skips. Fast omitted because full verification was planned.
+  Commit separately on jax-only.
 
 ## Task 3: Shared pure timestep and forcing
 

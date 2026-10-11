@@ -57,7 +57,7 @@ Use versioned JSON as the simple declarative file format (standard-library
 parser, no new package dependency). Registry defaults < file values < explicit
 Python overrides. Merge mappings by key, replace arrays and lists as whole
 values. Reject unknown keys, malformed sections and incompatible geometry.
-Resolved metadata includes numerical defaults/derived quantities, constants,
+Resolved metadata includes numerical defaults and inputs to derived quantities, constants,
 global dimensions, execution, forcing policy/data, calendar and output controls.
 
 ## Initialization and presets

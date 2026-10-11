@@ -100,5 +100,7 @@ def test_forcing_array_metadata_cannot_reinterpret_values_or_change_time_length(
         forcing.constant["uWind"].shape = (4, 2)
     with pytest.raises((ValueError, AttributeError), match="immutable"):
         forcing.series["Qnet"].dtype = np.float32
+    with pytest.raises((ValueError, AttributeError), match="immutable"):
+        forcing.series["Qnet"].resize((1, 2), refcheck=False)
     assert forcing.length == 2
     assert forcing.at(0)["Qnet"] == 70

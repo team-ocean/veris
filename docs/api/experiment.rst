@@ -21,9 +21,49 @@ model arrays or selecting a JAX backend::
        steps=3,
    )
 
-The centralized initialization, execution and restart interfaces are being
-implemented incrementally. For a currently runnable example, use
-:doc:`/quickstart/user-guide`.
+Runnable initialization is available through ``initialize_experiment``. For
+example, the coupled island preset supplies consistent geometry and prescribed
+atmospheric fields::
+
+   from veris import Experiment, Grid, initialize_experiment
+
+   experiment = Experiment.builtin(
+       "island", grid=Grid(6, 8), settings={"dtype": "float32"}, steps=3,
+   )
+   state, configuration, constants = initialize_experiment(experiment)
+
+The centralized run facade and restart are still being implemented. The current
+execution examples are in :doc:`/quickstart/user-guide`. Definition and
+initialization are host operations; enable JAX x64 explicitly before requesting
+float64 allocation.
+
+Declarative files
+-----------------
+
+``Experiment.from_file(path, overrides=...)`` reads version 1 JSON. The version
+may be omitted; unsupported versions and duplicate or unknown keys fail clearly.
+Preset defaults, then file values, then explicit Python overrides determine the
+resolved definition. Mappings merge by key; arrays and lists replace whole
+values. A runnable definition can be written as:
+
+.. code-block:: json
+
+   {
+     "schema_version": 1,
+     "preset": "island",
+     "grid": {"nx": 6, "ny": 8},
+     "settings": {"dtype": "float32", "nEVPsteps": 2},
+     "scenario": {"islandWindSpeed": 4.0},
+     "forcing": {"series": {"Qnet": [80.0, 100.0, 120.0]}},
+     "steps": 3
+   }
+
+``experiment.to_dict()`` returns independent JSON-compatible data with resolved
+numerical and physical defaults. Derived scalar values are reconstructed from
+those inputs. Output durations use ``{"microseconds": integer}``; human-written
+files can also use ``{"seconds": number}`` when exactly representable in
+microseconds. Gregorian origins use timezone-free ISO dates. Fixed-calendar
+origins use objects with integer year, month, day and optional time components.
 
 Dimensions, units and precedence
 --------------------------------
@@ -51,6 +91,27 @@ conditions accept evolved ice fields; derived loads, geometry and metrics are
 not independent initial conditions. Forcing accepts prescribed atmospheric and
 ocean fields, rather than evolved ice. Arrays and mappings are defensively copied
 and immutable in a definition.
+
+User-supplied ``OceanGeometry`` uses physical arrays without halos. ``maskT``,
+``maskU`` and ``maskV`` have shape ``(nx, ny, z)`` with a nonempty last dimension
+and surface masks at the last level. Masks lie in [0, 1]; zero means dry.
+``dxt``/``dxu`` are positive x-spacing vectors of length nx;
+``dyt``/``dyu`` are positive y-spacing vectors of length ny, all in meters.
+``area_t``, ``area_u`` and ``area_v`` are positive ``(nx, ny)`` areas in m².
+``ht`` is the existing signed bottom elevation in meters; ``coriolis_t`` is
+frequency in s⁻¹. Initialization preserves the established ocean metric
+equations, closes blocked velocity faces and computes load and regularized
+inverse thickness. Fractional wet masks retain supplied cell-mean ice amounts.
+Explicit ``TSurf`` initial conditions override geometry's default temperature.
+Geometry is required for a custom runnable experiment: allocation defaults alone
+do not define one.
+
+Builtins are ``island``, ``dynamics`` and ``growth``. Their scenario controls use
+the maintained setup registries. ``Grid`` supplies dimensions; scenario does not
+also accept nx, ny, steps or dtype. Island initialization retains zero initial
+``Qnet``/``Qsw`` coupling outputs; prescribed heat is queued for each timestep.
+Growth retains its recursive flux policy unless heat is explicitly prescribed.
+Explicit winds derive ``wSpeed`` unless it is separately supplied.
 
 Series override constants of the same field name. ``forcing.at(0)`` selects the
 first step's prescribed inputs; it does not mutate a cursor. A missing field
@@ -80,3 +141,5 @@ definitions, settings, constants and host validation are outside that path.
 
 .. autoclass:: veris.forcing.Forcing
    :members:
+
+.. autofunction:: veris.model_initialization.initialize_experiment

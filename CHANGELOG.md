@@ -1,5 +1,39 @@
 # Development log
 
+## 2026-10-11 — Centralized lifecycle: declarative initialization milestone
+
+- IN PROGRESS (@root): task 2 of the full lifecycle plan, following the passing
+  definition commit 949546d on jax-only. Root schedules the single pytest runner;
+  initialization/execution/output agents provide focused implementation or review.
+- [x] Tests first: declarative and initialization APIs missing (49 RED cases),
+  preset controls missing (8 RED cases). Added grouped versioned JSON, deep
+  overrides, exact dates/durations and resolved metadata; builtin definitions use
+  maintained scenario registries and shared numerical defaults.
+- [x] Added public OceanGeometry and initialize_experiment. Custom geometry uses
+  physical global cells; the existing adapter supplies metric equations, then
+  initial/forcing fields, masks, derived quantities and field-aware halos are
+  prepared. Preset all-field initialization oracles passed in both island
+  precisions and all three physics modes; growth scenarios are now configurable.
+- Review regressions reproduced before fixes: coastal velocity masking, derived
+  float32 load/inverse overflow, x64 rejection before allocation, backend/mesh
+  mismatch, negative Kelvin growth ocean temperature, ndarray.resize metadata
+  mutation, minimal preset-file defaults, Decimal-context duration rounding and
+  schema version relabeling. Also replaced a conservative four-times-maximum
+  area bound with actual neighboring sums after a RED valid-input regression.
+- [x] Focused final suite: 120/120 pass. Maintained lint, format, annotations and
+  types pass. Sphinx -E -W passes; fresh wheel/sdist contain current modules and
+  tests verbatim. Clean wheel installation outside the source path verifies JSON,
+  preset and custom initialization using only public imports, with float32 arrays.
+- [x] Full CPU correctness: 1032 passed, two expected GPU-only skips, zero
+  failures/errors in 1255.08 s. Maintained coverage 3231/3361 = 96.13%; whole
+  package 3231/3714 = 87.00%. All 130 source/test hashes match the full-run tree;
+  final maintained lint/format/annotations/types and diff checks pass. Evidence
+  prefix: `test_logs/lifecycle-initialization-*`. No redundant fast run before
+  the planned full suite. GPU verification remains unavailable on this host.
+- Next: focused passing initialization commit. Shared
+  pure timestep, Simulation/time, output continuation, restart and CLI migration
+  remain required; drafts for pure physics and output tests are outside collection.
+
 ## 2026-10-11 — Centralized lifecycle: definition milestone
 
 - IN PROGRESS (@root): implement the complete new AGENTS.md lifecycle Goal.

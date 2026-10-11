@@ -14,7 +14,9 @@ coefficients. Use ``dataclasses.replace`` to update these immutable objects.
 
 The rollout driver :func:`veris.step` and host definition classes ``Grid``,
 ``Execution``, ``Forcing`` and ``Experiment`` are exported directly from ``veris``.
-See :doc:`experiment` for the definition interface. Import other functions and
+``OceanGeometry`` and ``initialize_experiment`` provide runnable initialization
+through that same public import. See :doc:`experiment` for definition and input
+contracts. Import other functions and
 classes from the modules shown in their entries.
 For example::
 

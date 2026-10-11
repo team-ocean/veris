@@ -85,6 +85,7 @@ def initialize(
     dtype: str | None = None,
     settings_overrides: Mapping[str, Any] | None = None,
     physical_overrides: Mapping[str, Any] | None = None,
+    scenario_overrides: Mapping[str, Any] | None = None,
 ) -> tuple[State, Configuration, PhysicalConstants]:
     """Allocate the uniform reference column with separate settings and constants.
 
@@ -96,7 +97,10 @@ def initialize(
     overrides = dict(settings_overrides or {})
     if dtype is not None:
         overrides["dtype"] = dtype
-    scenario = GrowthSettings(dtype=overrides.get("dtype", SETTINGS["dtype"].default))
+    scenario = GrowthSettings(
+        dtype=overrides.get("dtype", SETTINGS["dtype"].default),
+        **dict(scenario_overrides or {}),
+    )
     overrides.setdefault("nx", scenario.nx)
     overrides.setdefault("ny", scenario.ny)
     overrides.setdefault("use_sharding", False)

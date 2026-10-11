@@ -128,6 +128,15 @@ class IslandSettings:
             raise ValueError("islandOceanDepth must be nonpositive")
 
 
+def numerical_defaults(scenario: IslandSettings) -> dict[str, Any]:
+    """Return the scenario's numerical defaults shared by both public workflows."""
+    return {
+        "deltatTherm": scenario.islandTimeStep,
+        "deltatDyn": scenario.islandTimeStep,
+        "nEVPsteps": scenario.islandEVPsteps,
+    }
+
+
 def initialize(
     nx: int | None = None,
     ny: int | None = None,
@@ -175,9 +184,8 @@ def initialize(
     if controls.nx < 4 or controls.ny < 4:
         raise ValueError("grid dimensions must be at least four interior cells")
     overrides["use_sharding"] = False
-    overrides.setdefault("deltatTherm", scenario.islandTimeStep)
-    overrides.setdefault("deltatDyn", scenario.islandTimeStep)
-    overrides.setdefault("nEVPsteps", scenario.islandEVPsteps)
+    for name, value in numerical_defaults(scenario).items():
+        overrides.setdefault(name, value)
     vs, conf, phys = initialize_model(
         settings_overrides=overrides, physical_overrides=physical_overrides
     )

@@ -158,6 +158,20 @@ def _fields(
     }
 
 
+DYNAMICS_NUMERICAL_DEFAULTS: dict[str, Any] = {
+    "deltatDyn": 600.0,
+    "deltatTherm": 600.0,
+    "useEVP": True,
+    "useFreedrift": False,
+    "useAdaptiveEVP": True,
+    "useRelativeWind": False,
+    "evpAlpha": 500.0,
+    "evpBeta": 500.0,
+    "nEVPsteps": 120,
+}
+"""Reference solver choices shared by legacy and lifecycle definitions."""
+
+
 def initialize(
     nx: int = 1024,
     ny: int | None = None,
@@ -185,17 +199,7 @@ def initialize(
         raise ValueError(
             "grid must divide evenly into mesh with at least two cells per partition"
         )
-    options: dict[str, Any] = {
-        "deltatDyn": 600.0,
-        "deltatTherm": 600.0,
-        "useEVP": True,
-        "useFreedrift": False,
-        "useAdaptiveEVP": True,
-        "useRelativeWind": False,
-        "evpAlpha": 500.0,
-        "evpBeta": 500.0,
-        "nEVPsteps": 120,
-    }
+    options = dict(DYNAMICS_NUMERICAL_DEFAULTS)
     options.update(settings_overrides or {})
     options.update(nx=nx // px, ny=ny // py, use_sharding=mesh is not None)
     conf = Configuration(**options)
