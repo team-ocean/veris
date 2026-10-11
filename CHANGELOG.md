@@ -1,5 +1,55 @@
 # Development log
 
+## 2026-10-11 — Centralized lifecycle: definition milestone
+
+- IN PROGRESS (@root): implement the complete new AGENTS.md lifecycle Goal.
+  Design: `docs/superpowers/specs/2026-10-11-model-lifecycle-design.md`;
+  full implementation plan: `docs/superpowers/plans/2026-10-11-model-lifecycle.md`.
+  Work remains on `jax-only` (baseline 8818ea5); GitHub confirms that the maintained
+  branch exists. Do not use main. No code commit before full correctness passes.
+- [x] Read DESIGN, progress history, public interfaces, initialization, setup
+  physics, rollout/output, storage/calendar, packaging, docs and tests. Specialized
+  read-only initialization, execution and output audits completed; root schedules
+  all pytest. Key contracts: keep legacy builtin initial intermediates exact,
+  preserve island prescribed versus growth recursive heat fluxes, adapt global
+  dimensions into local packed halos, and add real schedule/time continuation.
+- [x] Added public immutable Grid, Execution, Forcing and Experiment. Numerical
+  and physical defaults/validation stay with Configuration/PhysicalConstants.
+  Definitions validate global/local/storage dimensions, prescribed field names,
+  scalar/spatial/time shapes, concentration/thickness/temperature, series lengths,
+  precision inheritance, active timestep and coupled equal-timestep requirement.
+  Constructors allocate no model arrays and select no backend.
+- [x] RED before implementation: all 51 original new contract cases failed on
+  missing public APIs. Focused final suite: 55/55 pass, including import/backend
+  purity and regression tests for geometry aliasing, huge-clock overflow and
+  NumPy shape/dtype mutation. Defensively copied arrays own immutable bytes and
+  also protect metadata. Existing veris.step behavior and kernels unchanged.
+- [x] Independent review reproduced NumPy metadata mutation despite write=False;
+  fixed with failing tests covering forcing, initial conditions and geometry.
+  Prior geometry aliasing and clock failures were also reproduced before fixes.
+  Float32 field representability remains a required initialization-boundary check
+  in task 2 (overflow and positive-kelvin/metric underflow before allocation).
+- [x] Baseline fast suite passes (92 selected cases). Maintained Ruff, format,
+  annotations and ty checks pass. Fresh wheel build and clean target installation
+  outside the source import path pass public API/validation smoke checks.
+  Sphinx -E -W succeeds and the rendered definition page is present.
+- [x] Full CPU correctness: 967 passed, two expected GPU-only skips, zero
+  errors/failures in 1251.35 s. Maintained coverage 2839/2927 = 96.99%; whole
+  package 2839/3280 = 86.55%. All source/test hashes match the full-run snapshot.
+  Fresh final Ruff/format/annotations/ty and diff checks pass. Evidence:
+  `test_logs/lifecycle-definition-full.log`, full.xml, coverage.json and
+  source-hashes.json. Focused RED/GREEN logs and XML use the same prefix;
+  docs/build/install artifacts are also under `test_logs/lifecycle-definition-*`.
+  One explanatory test lint comment changed during the full run; executable AST
+  was checked identical and final hashes refreshed. No numerical source changed.
+- Environment: activate existing `.venv-latest` (Python 3.14.7/JAX 0.11.1).
+  Automatic backend probe reported CUDA_ERROR_NO_DEVICE and CPU; all checks now
+  set JAX_PLATFORMS=cpu. GPU validation is unavailable on this host so far.
+- Next: focused passing definition commit, then task 2 JSON
+  definitions/presets/runnable custom initialization. Simulation facade, shared
+  timestep, time/output continuation, complete restart, migrated CLIs, primary
+  quickstart and migration guide are NOT implemented yet. The goal remains active.
+
 ## 2026-10-07 — Portable benchmark CPU metadata
 
 - [x] Reproduced the Darwin AttributeError in two regression cases before the

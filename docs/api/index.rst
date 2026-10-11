@@ -12,8 +12,10 @@ kernels; :class:`~veris.configuration.Configuration` and
 :class:`~veris.physical_constants.PhysicalConstants` hold static controls and
 coefficients. Use ``dataclasses.replace`` to update these immutable objects.
 
-Only the rollout driver :func:`veris.step` is exported directly from ``veris``.
-Import other functions and classes from the modules shown in their entries.
+The rollout driver :func:`veris.step` and host definition classes ``Grid``,
+``Execution``, ``Forcing`` and ``Experiment`` are exported directly from ``veris``.
+See :doc:`experiment` for the definition interface. Import other functions and
+classes from the modules shown in their entries.
 For example::
 
    from functools import partial
@@ -43,6 +45,7 @@ physical thresholds and zero norms.
    :maxdepth: 1
 
    model-data
+   experiment
    initialization
    integration
    physics
