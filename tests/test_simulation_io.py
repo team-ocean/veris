@@ -188,22 +188,3 @@ def test_selected_coastal_ice_and_velocities_preserve_cell_means_and_blocked_fac
         assert simulation.state.Area[4, 5] == 0.75
         assert simulation.experiment.forcing is original_forcing
         assert simulation.elapsed == timedelta(0) and simulation.completed_steps == 0
-
-
-def test_selected_input_keeps_diagnostics_of_last_actual_physics_step(
-    tmp_path: Path,
-) -> None:
-    path = tmp_path / "ice.nc"
-    write_snapshot(path, {"hIceMean": np.full((6, 6), 2.0)})
-    with veris.Simulation.initialize(_definition()) as simulation:
-        before = simulation.run(1)
-        assert before.diagnostics is not None
-        prescribed = simulation.experiment.forcing
-        simulation.load_fields(path, ("hIceMean",))
-        after = simulation.run(0)
-        assert after.diagnostics is before.diagnostics
-        assert simulation.experiment.forcing is prescribed
-        assert (
-            after.elapsed == before.elapsed
-            and after.completed_steps == before.completed_steps
-        )

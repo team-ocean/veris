@@ -60,17 +60,6 @@ def _growth(**options: Any) -> Any:
     )
 
 
-def test_restored_diagnostics_are_none_until_next_step(tmp_path: Path) -> None:
-    """Last-step Diagnostics are timestep results rather than recursive State."""
-    path = tmp_path / "diagnostics.nc"
-    with veris.Simulation.initialize(_growth(steps=3)) as original:
-        assert original.step().diagnostics is not None
-        original.save_restart(path)
-    with veris.Simulation.from_restart(path) as resumed:
-        assert resumed.run(0).diagnostics is None
-        assert resumed.step().diagnostics is not None
-
-
 def test_explicit_completed_count_can_exceed_default_target(tmp_path: Path) -> None:
     """Experiment.steps is a default target, not an absolute checkpoint bound."""
     path = tmp_path / "extended.nc"
@@ -155,30 +144,3 @@ def test_publication_failure_cleans_temporary_file_and_preserves_live_simulation
         assert original.state is state
         assert original.completed_steps == 0 and not original.closed
         assert list(tmp_path.iterdir()) == []
-
-
-def test_cyclic_growth_restores_every_persisted_halo_before_first_resumed_step(
-    tmp_path: Path,
-) -> None:
-    """Growth's periodic output halos retain their exact reference arithmetic."""
-    from dataclasses import fields
-
-    path = tmp_path / "cyclic-growth.nc"
-    definition = _growth(
-        steps=3,
-        initial_conditions={
-            "hIceMean": np.array([[0.4, 0.6], [0.8, 0.9]]),
-            "Area": 0.8,
-        },
-    )
-    with veris.Simulation.initialize(definition) as original:
-        original.step()
-        expected = original.state
-        original.save_restart(path)
-    with veris.Simulation.from_restart(path) as resumed:
-        for item in fields(expected):
-            actual = np.asarray(getattr(resumed.state, item.name))
-            saved = np.asarray(getattr(expected, item.name))
-            assert np.array_equal(actual, saved), (
-                f"ERROR persisted halo changed: {item.name}"
-            )

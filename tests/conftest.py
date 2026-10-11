@@ -4,20 +4,61 @@ import hashlib
 import importlib
 import math
 import os
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import make_dataclass
 from functools import cache
+from tempfile import TemporaryDirectory
 from types import ModuleType
 from typing import Any, Protocol, cast
 
 import jax
 import jax.numpy as jnp
 import pytest
+from jax.experimental.compilation_cache import compilation_cache
 from jax.typing import ArrayLike
 
 from veris.configuration import Configuration
 from veris.physical_constants import PhysicalConstants
 
 jax.config.update("jax_enable_x64", True)
+
+
+@contextmanager
+def _temporary_compilation_cache() -> Iterator[None]:
+    """Reuse costly compilations in this run and its children, then remove them.
+
+    A private fresh directory allows reuse across independently bound rollout
+    functions without relying on a warm cache from previous test sessions.
+    Preserve caller settings and JAX's minimum compile-time/entry-size policy.
+    """
+    previous = jax.config.jax_compilation_cache_dir
+    if (
+        previous is not None
+        or "JAX_COMPILATION_CACHE_DIR" in os.environ
+        or not jax.config.jax_enable_compilation_cache
+    ):
+        yield
+        return
+    with (
+        TemporaryDirectory(prefix="veris-pytest-jax-") as directory,
+        pytest.MonkeyPatch.context() as patch,
+    ):
+        patch.setenv("JAX_COMPILATION_CACHE_DIR", directory)
+        jax.config.update("jax_compilation_cache_dir", directory)
+        try:
+            yield
+        finally:
+            compilation_cache.reset_cache()
+            jax.config.update("jax_compilation_cache_dir", previous)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def compilation_cache_session() -> Iterator[None]:
+    """Keep compilation reuse inside the test harness and preserve cold imports."""
+    with _temporary_compilation_cache():
+        yield
+
 
 type StateFieldInput = ArrayLike | list[StateFieldInput] | tuple[StateFieldInput, ...]
 

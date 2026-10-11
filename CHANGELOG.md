@@ -1,5 +1,60 @@
 # Development log
 
+## 2026-10-12 — Unit-test runtime reduction (started 2026-10-11)
+
+- [x] COMPLETE (@root): measure and reduce full correctness runtime, audit newer
+  lifecycle tests for redundant coverage, and apply float32 to appropriate
+  operational contracts. Independent coverage/performance/quality audits pass;
+  root owns the single pytest process. Plan:
+  `docs/superpowers/plans/2026-10-11-test-runtime.md`.
+- [x] Fresh baseline on `jax-only`: 1283 passed, two expected GPU skips,
+  2670.82 s pytest / 2681.20 s external wall time; peak process RSS 3910968 KiB.
+  All 161 baseline Python hashes match; maintained coverage remains
+  4058/4296 = 94.46%. Python 3.14 coverage's sysmon core warns that dynamic
+  per-test contexts are incomplete; compare authoritative executed-line sets.
+- Initial measured bottlenecks: restart 453 s, public lifecycle sharding 397 s,
+  rollout setup/AD 414 s and closed-y tests 297 s. Repeated identical evolved
+  corruption checkpoints and serial references across sharding layouts are
+  confirmed reuse candidates. No numerical changes or weakened checks planned.
+- [x] Integrated seven independently reviewed harness paths after baseline
+  completion: remove 12 duplicate rows/cases, use six float32 operational restart
+  cases plus two float64 samples, retain every corruption and sharding case,
+  copy immutable module checkpoint templates and reuse identical serial oracles.
+  Template teardown verifies pristine bytes. Scientific references, tolerances,
+  gradients, full selection and coverage exclusions remain unchanged.
+- [x] Private session compilation cache: tests first fail on missing helper,
+  then pass 2/2 after implementation. Fresh children execute different inputs,
+  validate NumPy oracles and require an actual executable-cache hit; caller
+  settings and success/failure cleanup are checked. Default one-second threshold
+  is preserved; each full session starts with an empty owned cache.
+- [x] Final full CPU correctness: 1273 passed, the same two GPU skips,
+  2210.64 s pytest / 2219.44 s external wall, 17.22% less wall time (461.76 s).
+  All 55 maintained files have identical executed/missing/excluded line sets:
+  4058/4296 = 94.46%. All 163 tested Python and nine scientific fixture hashes
+  match; all 55 production Python files are unchanged. No tolerance, numerical
+  archive, skip, selection or exclusion changes. Independent ownership audit
+  estimates 186 fewer explicit physics timesteps inside surviving/removed cases.
+- [x] Measured operational State storage: all 70 fields use 22400 bytes in
+  float32 versus 44800 in float64 for the same 4x6 island grid, a 50% saving.
+  Whole-process peak RSS increased from 3910968 to 4016260 KiB (+2.69%,
+  3.73 to 3.83 GiB); reduced array storage does not establish lower compiler RSS.
+  One run per variant cannot identify the cause. Cumulative root high-water
+  marks locate the final increase in rollout/AD; they are not module-local usage.
+  Unmeasured module cache clearing is not introduced as a claimed memory fix.
+- [x] Root cache monitoring: 110 executable hits, 123.13 estimated compile
+  seconds saved; peak session disk cache 82712449 bytes including child entries.
+  These counters omit child cache events. Both sessions start without a warm
+  persistent cache; optimized run adds lightweight monitoring. GNU time RSS is
+  the largest individual process, not concurrent process-tree memory.
+- [x] Maintained Ruff/format/annotations/ty, dependencies, diff and strict Sphinx
+  pass. Fresh wheel/sdist builds preserve all 55 maintained production files and
+  ship the new cache regressions/audit/plan. Clean installed public imports,
+  coupled exact restart, observations, selected input, custom geometry,
+  two-CPU sharding and pure JIT/grad/JVP/VJP examples pass. The final focused
+  change is verified for the required jax-only commit. Evidence prefix
+  `test_logs/test-runtime/`; GPU and actual multi-host hardware verification
+  remain unavailable. Whole-process memory reduction remains unproven.
+
 ## 2026-10-11 — Centralized lifecycle: public documentation and reproducible delivery
 
 - [x] COMPLETE (@root): final delivery after migration commit 09b4df7.

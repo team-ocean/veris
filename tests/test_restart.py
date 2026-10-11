@@ -8,8 +8,10 @@ backend, covering version 1 schema, clocks, corruption and output continuation.
 
 import json
 import os
+import shutil
 import subprocess
 import sys
+from collections.abc import Iterator
 from dataclasses import fields, replace
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -101,19 +103,18 @@ def _experiment(
 
 
 @pytest.mark.parametrize(
-    "preset,dtype,cyclic",
+    "preset,dtype,cyclic,checkpoint_step",
     [
-        ("island", "float64", True),
-        ("island", "float64", False),
-        ("dynamics", "float64", True),
-        ("dynamics", "float64", False),
-        ("growth", "float64", True),
-        ("growth", "float64", False),
-        ("island", "float32", False),
-        ("growth", "float32", True),
+        ("island", "float32", True, 1),
+        ("island", "float32", False, 1),
+        ("dynamics", "float32", True, 1),
+        ("dynamics", "float32", False, 1),
+        ("growth", "float32", True, 1),
+        ("growth", "float32", False, 1),
+        ("island", "float64", False, 3),
+        ("growth", "float64", True, 1),
     ],
 )
-@pytest.mark.parametrize("checkpoint_step", [1, 3])
 def test_complete_restart_matches_independent_uninterrupted_trajectory(
     tmp_path: Path, preset: str, dtype: str, cyclic: bool, checkpoint_step: int
 ) -> None:
@@ -128,19 +129,28 @@ def test_complete_restart_matches_independent_uninterrupted_trajectory(
             np.array_equal(initial.uIce, expected.uIce)
         ), "ERROR restart reference must exercise real evolution"
     with veris.Simulation.initialize(definition) as first:
-        first.run(checkpoint_step)
+        assert first.run(checkpoint_step).diagnostics is not None
         checkpoint = first.state
         first.save_restart(path)
         assert first.completed_steps == checkpoint_step
         assert first.elapsed == checkpoint_step * definition.step_duration
     with veris.Simulation.from_restart(path) as resumed:
         _assert_same_state(resumed.state, checkpoint)
+        assert all(
+            leaf.dtype == np.dtype(dtype) for leaf in jax.tree.leaves(resumed.state)
+        ), "ERROR restored State lost model precision"
         assert resumed.configuration == definition.configuration
         assert resumed.physical_constants == definition.physical_constants
         assert resumed.experiment.to_dict() == definition.to_dict()
         assert resumed.completed_steps == checkpoint_step
         assert resumed.elapsed == checkpoint_step * definition.step_duration
-        resumed.run(1)
+        assert resumed.run(0).diagnostics is None
+        advanced = resumed.run(1)
+        assert advanced.diagnostics is not None
+        assert all(
+            leaf.dtype == np.dtype(dtype)
+            for leaf in jax.tree.leaves(advanced.diagnostics)
+        ), "ERROR restored Diagnostics lost model precision"
         resumed.run()
         assert resumed.completed_steps == definition.steps
         assert resumed.elapsed == definition.steps * definition.step_duration
@@ -378,20 +388,39 @@ def test_resume_discards_crossing_mean_and_preserves_absolute_output_calendar(
     assert record.units.endswith("00:00:00.123456")
 
 
-@pytest.fixture
-def output_restart(tmp_path: Path) -> tuple[Path, Path, OutputSettings]:
-    """A checkpoint with enabled output anchored at a subsecond Gregorian origin."""
+@pytest.fixture(scope="module")
+def output_restart_template(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Iterator[tuple[Path, Path, OutputSettings]]:
+    """Evolve one output-enabled checkpoint for isolated policy-test copies."""
+    directory = tmp_path_factory.mktemp("output-restart-template")
     output = OutputSettings(
         start=datetime(2000, 1, 1, microsecond=71),
         streams=(Stream("ice", ("hIceMean",), timedelta(seconds=1)),),
     )
-    checkpoint, old = tmp_path / "restart.nc", tmp_path / "old-output.nc"
+    checkpoint, old = directory / "restart.nc", directory / "old-output.nc"
     with veris.Simulation.initialize(
         _experiment("growth", steps=4, seconds=1, output=output), output_path=old
     ) as simulation:
         simulation.run(1)
         simulation.save_restart(checkpoint)
-    return checkpoint, old, output
+    original = checkpoint.read_bytes(), old.read_bytes()
+    yield checkpoint, old, output
+    assert (checkpoint.read_bytes(), old.read_bytes()) == original, (
+        "ERROR output restart template was modified by a consumer"
+    )
+
+
+@pytest.fixture
+def output_restart(
+    tmp_path: Path, output_restart_template: tuple[Path, Path, OutputSettings]
+) -> tuple[Path, Path, OutputSettings]:
+    """Copy both immutable artifacts so every policy case retains file isolation."""
+    checkpoint, old, output = output_restart_template
+    copied_checkpoint, copied_old = tmp_path / checkpoint.name, tmp_path / old.name
+    shutil.copyfile(checkpoint, copied_checkpoint)
+    shutil.copyfile(old, copied_old)
+    return copied_checkpoint, copied_old, output
 
 
 def test_enabled_restart_requires_new_output_and_allows_stream_policy_override(
@@ -447,13 +476,25 @@ def test_restart_output_override_cannot_change_time_semantics(
     assert not destination.exists()
 
 
-@pytest.fixture
-def restart_path(tmp_path: Path) -> Path:
-    """A complete CPU file for isolated corruption checks and cold read preflight."""
-    path = tmp_path / "valid.nc"
+@pytest.fixture(scope="module")
+def restart_template(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
+    """Create one evolved float64 CPU checkpoint for all corruption cases."""
+    path = tmp_path_factory.mktemp("restart-template") / "valid.nc"
     with veris.Simulation.initialize(_experiment("dynamics", steps=4)) as simulation:
         simulation.run(2)
         simulation.save_restart(path)
+    original = path.read_bytes()
+    yield path
+    assert path.read_bytes() == original, (
+        "ERROR restart template was modified by a corruption case"
+    )
+
+
+@pytest.fixture
+def restart_path(tmp_path: Path, restart_template: Path) -> Path:
+    """Give each corruption case its own complete checkpoint and cold read path."""
+    path = tmp_path / "valid.nc"
+    shutil.copyfile(restart_template, path)
     return path
 
 

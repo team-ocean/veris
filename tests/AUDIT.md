@@ -1,5 +1,82 @@
 # Test suite redundancy audit
 
+## Lifecycle runtime audit — 2026-10-12
+
+Baseline: `94ac766` on `jax-only`, 1,285 collected cases. This audit targets
+the lifecycle additions after the historical audits below. Contract ownership,
+inputs and assertions determine redundancy; sharing executed source lines alone
+does not justify removing a scientific oracle or branch.
+
+| Removed work | Retained owner and preservation evidence |
+| --- | --- |
+| Eight repeated positive-checkpoint trajectories | `test_complete_restart_matches_independent_uninterrupted_trajectory` retains all three presets and both boundaries in float32, plus float64 coupled closed-wall checkpoint 3 and periodic-growth checkpoint 1. Exact all-State/halo/dtype, configuration, constants, forcing cursor, clock and resumed-trajectory checks remain. Zero and exhausted checkpoints retain their separate owners. |
+| 22 repeated corruption-checkpoint evolutions | One float64 module template supplies isolated copies. All 23 corruption cases and fresh-process validation before device allocation remain; teardown checks pristine template bytes. |
+| Two repeated output-policy checkpoint evolutions | One enabled-output template supplies distinct checkpoint and history copies. All three output-policy cases remain; teardown verifies both original files. |
+| Separate restored-Diagnostics and periodic-growth-halo trajectories | The complete-restart matrix checks reset/zero-run/next-step Diagnostics and exact persisted halos before any resumed step, including float64 periodic growth with nonuniform ice. |
+| Separate selected-input Diagnostics trajectory | `test_selected_input_refreshes_ice_derivatives_and_halos_without_resetting_time` retains Diagnostics/forcing identity, unchanged cursor/time, derived fields and subsequent prescribed forcing. Its tight reciprocal oracle stays float64. |
+| Float64 output row without initial sampling | Both float32 sampling branches and float64 initial sampling retain exact history, mean, State and storage-dtype assertions. |
+| Twelve identical serial sharding references | Eight serial references, one per preset/boundary, are reused across layouts. All 20 real parallel evolution/output and 20 small-partition initialization cases remain. Separate serial ambient-mesh tests retain resource/context-restoration coverage. |
+
+This removes 12 collected cases and approximately 186 explicit physics steps.
+Two new cache regressions bring the collection to 1,275 cases. Float32
+is used for operational contracts with exact comparisons and explicit State /
+Diagnostics dtype assertions; tight equations, finite-difference gradients and
+scientific archives remain at their existing precision and tolerances.
+
+The session fixture in `conftest.py` creates a fresh private compilation-cache
+directory and shares it with child processes. It preserves JAX's default
+one-second compile threshold and caller cache settings, then resets and removes
+its owned cache on teardown. Real fresh-child numerics use different inputs,
+independent NumPy expectations and an actual executable-cache hit. Success and
+exception cleanup, private permissions and caller-owned/disabled cache behavior
+are tested. No warm cache from a prior session is needed.
+
+No production code, reference data, numerical tolerance, test-selection filter,
+skip or coverage exclusion changes. Independent static reviews verify the
+retained contracts and fixture isolation. Evidence is recorded under
+`test_logs/test-runtime/`.
+Coverage 7.16.0's Python 3.14 sysmon core does not support complete dynamic
+per-test contexts; global per-file executed/missing/excluded line sets provide
+the authoritative coverage comparison, accompanied by the contract review.
+
+### Verification and measured limits
+
+| Measure | Baseline | Revised |
+| --- | ---: | ---: |
+| CPU passes / expected GPU skips | 1,283 / 2 | 1,273 / 2 |
+| External wall time | 2,681.20 s | 2,219.44 s |
+| Pytest time | 2,670.82 s | 2,210.64 s |
+| Maintained coverage | 4,058 / 4,296 | 4,058 / 4,296 |
+| Peak individual-process RSS | 3,910,968 KiB | 4,016,260 KiB |
+| Same-grid operational State storage | 44,800 bytes (float64) | 22,400 bytes (float32) |
+
+External wall time falls **17.22%**, or 461.76 seconds. The restart module falls
+from 457.47 to 254.74 seconds; lifecycle sharding from 395.29 to 331.55 seconds;
+setup rollouts from 424.02 to 370.01 seconds; simulation output from 71.60 to
+33.25 seconds. These are single full-run observations, not solver benchmarks.
+
+Every maintained source file has identical executed, missing and excluded line
+sets, and all 163 tested Python hashes plus nine scientific fixture hashes match.
+All 55 production Python files remain byte-identical to baseline. Root monitoring
+records 110 cache hits and 123.13 estimated compile seconds saved; child cache
+events are outside these counters. Peak session disk cache is 82,712,449 bytes.
+Both runs start without a warmed persistent cache; the revised run includes
+lightweight cache/module monitoring in addition to the common coverage options.
+
+Float32 halves measured storage across all 70 State fields on the same 4x6 island
+grid. **Whole-process peak RSS increases 2.69%**, from 3.73 to 3.83 GiB.
+State storage is a small part of peak process memory. Cumulative root high-water marks
+locate the final increase in rollout/AD but cannot establish current module
+memory, simultaneous process-tree usage or causality from one run per variant.
+No speculative cache-release policy is introduced as a proven improvement.
+
+CPU correctness, unchanged coverage, maintained Ruff/format/annotations/ty,
+dependency, strict Sphinx, fresh wheel/sdist and clean installed public-example
+checks pass. The installed probe exercises public imports, coupled exact restart,
+observations, selected input, custom geometry, two-CPU sharding and pure
+JIT/grad/JVP/VJP. GPU and actual multi-host hardware verification are unavailable
+in this environment. Whole-process memory reduction remains unproven.
+
 ## Core dynamics and whole-suite follow-up — 2026-09-17
 
 Baseline: published `bc0864f`, 929 collected cases. Reviewed all **66 test

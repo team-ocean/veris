@@ -112,7 +112,13 @@ def _custom(grid: Any, cyclic_y: bool, output: OutputSettings) -> Any:
     )
 
 
-def _check(name: str, layout: tuple[int, int], cyclic_y: bool, directory: Path) -> None:
+def _check(
+    name: str,
+    layout: tuple[int, int],
+    cyclic_y: bool,
+    directory: Path,
+    serial_references: dict[tuple[str, bool], tuple[Any, Any, Path]],
+) -> None:
     grid = veris.Grid(12, 16)
     output = OutputSettings(
         streams=(
@@ -146,13 +152,23 @@ def _check(name: str, layout: tuple[int, int], cyclic_y: bool, directory: Path) 
         definition, execution=veris.Execution(backend="cpu", partitions=layout)
     )
     label = f"{name}-{layout[0]}x{layout[1]}-cyclic{cyclic_y}"
-    serial_path, parallel_path = (
-        directory / f"{label}-serial.nc",
-        directory / f"{label}-parallel.nc",
-    )
+    key = name, cyclic_y
+    if key not in serial_references:
+        serial_path = directory / f"{name}-cyclic{cyclic_y}-serial.nc"
+        # Initialization/execution still exercise serial ownership inside the
+        # first caller's ambient mesh. Later layouts reuse the same physical
+        # oracle while retaining their own real communication/output work.
+        with (
+            jax.set_mesh(mesh),
+            veris.Simulation.initialize(definition, output_path=serial_path) as serial,
+        ):
+            initial = serial.state
+            expected = serial.run(2)
+        serial_references[key] = initial, expected, serial_path
+    initial, expected, serial_path = serial_references[key]
+    parallel_path = directory / f"{label}-parallel.nc"
     final_path = directory / f"{label}-final.nc"
     with (
-        veris.Simulation.initialize(definition, output_path=serial_path) as serial,
         jax.set_mesh(mesh),
         veris.Simulation.initialize(
             parallel_definition, output_path=parallel_path, mesh=mesh
@@ -162,13 +178,12 @@ def _check(name: str, layout: tuple[int, int], cyclic_y: bool, directory: Path) 
             parallel.configuration.nx,
             parallel.configuration.ny,
         ) == grid.local_shape(layout)
-        for item in fields(serial.state):
+        for item in fields(initial):
             _compare(
                 getattr(parallel.state, item.name),
-                _pack(getattr(serial.state, item.name), layout, cyclic_y),
+                _pack(getattr(initial, item.name), layout, cyclic_y),
                 f"{label} initial {item.name}",
             )
-        expected = serial.run(2)
         parallel.run(1)
         parallel.run(1)
         parallel.snapshot(final_path)
@@ -282,12 +297,13 @@ def main() -> None:
         TemporaryDirectory() as location,
     ):
         directory = Path(location)
+        serial_references: dict[tuple[str, bool], tuple[Any, Any, Path]] = {}
         for layout in ((1, 4), (4, 1), (2, 2)):
             for name in ("island", "dynamics", "growth"):
                 for cyclic_y in (False, True):
-                    _check(name, layout, cyclic_y, directory)
+                    _check(name, layout, cyclic_y, directory, serial_references)
         for cyclic_y in (False, True):
-            _check("custom", (2, 2), cyclic_y, directory)
+            _check("custom", (2, 2), cyclic_y, directory, serial_references)
     for layout in ((1, 4), (4, 1), (2, 2)):
         for name in ("island", "dynamics", "growth"):
             for cyclic_y in (False, True):

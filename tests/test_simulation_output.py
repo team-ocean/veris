@@ -62,8 +62,9 @@ def _assert_same_state(actual: Any, expected: Any) -> None:
         )
 
 
-@pytest.mark.parametrize("dtype", ["float32", "float64"])
-@pytest.mark.parametrize("initial", [False, True])
+@pytest.mark.parametrize(
+    "dtype,initial", [("float32", False), ("float32", True), ("float64", True)]
+)
 def test_split_runs_preserve_absolute_samples_means_and_every_state_field(
     tmp_path: Path, dtype: str, initial: bool
 ) -> None:
@@ -231,8 +232,13 @@ def test_selected_input_refreshes_ice_derivatives_and_halos_without_resetting_ti
     definition = _definition(dtype="float64")
     with veris.Simulation.initialize(definition) as simulation:
         before = simulation.run(2)
+        assert before.diagnostics is not None
+        prescribed = simulation.experiment.forcing
         simulation.load_fields(path, ("hIceMean",))
         after = simulation.run(0)
+        assert after.diagnostics is before.diagnostics
+        assert simulation.experiment.forcing is prescribed
+        assert after.completed_steps == before.completed_steps == 2
         assert before.elapsed == after.elapsed == timedelta(seconds=2)
         np.testing.assert_array_equal(after.state.hIceMean, 2)
         np.testing.assert_array_equal(after.state.uWind, before.state.uWind)
