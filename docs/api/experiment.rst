@@ -125,8 +125,9 @@ timestep and microsecond host precision; unsupported sub-microsecond values and
 clock overflow fail clearly. ``backend=None`` honors the caller's JAX selection;
 ``cpu`` and ``gpu`` are resource requests, with enumeration left to initialization.
 
-Definition construction is host-only. The pure numerical API remains
-:func:`veris.step`; see :doc:`/reference/integration` for JIT and differentiation.
+Definition construction is host-only. The pure numerical API consists of
+``veris.advance`` for one timestep and :func:`veris.step` for a rollout;
+see :doc:`/reference/integration` for JIT and differentiation.
 Initial State and supplied JAX forcing arrays are differentiable; static
 definitions, settings, constants and host validation are outside that path.
 

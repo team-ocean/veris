@@ -71,12 +71,13 @@ Create veris/model_physics.py and tests/test_model_physics.py. Produces public
 advance(state, configuration, constants, forcing=None, *, physics='coupled')
 -> (State,Diagnostics), usable under JIT/grad/JVP/VJP.
 
-- [ ] RED all-field/diagnostic oracles against island/run_dyn/run_growth,
+- [x] RED all-field/diagnostic oracles against island/run_dyn/run_growth,
   prescribed heat overwrite, separate wind magnitude, spatial forcing halos,
   stage order and closed walls. Add JVP/VJP/FD for initial ice and forcing.
-- [ ] Compose dynamics_transport/Growth unchanged; preserve recursive growth via
+- [x] Compose dynamics_transport/Growth unchanged; preserve recursive growth via
   absent prescribed Qnet/Qsw, and exact legacy wrappers where necessary.
-- [ ] Focused tests and precommit gates; preserve old setup APIs and veris.step.
+- [x] Focused 35 serial/one two-CPU probe and all precommit gates pass; full CPU
+  1068 pass/two GPU skips. Preserved old setup APIs and veris.step.
 
 ## Task 4: Host Simulation and successive runs
 

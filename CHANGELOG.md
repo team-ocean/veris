@@ -1,5 +1,48 @@
 # Development log
 
+## 2026-10-11 — Centralized lifecycle: shared pure timestep milestone
+
+- [x] COMPLETE (@root): task 3 after initialization commit fff4cd4. Root owns
+  implementation and the single pytest runner; execution audit prepared independent
+  legacy all-field, forcing-boundary and differentiation tests before implementation.
+- Shared advance performs one physical timestep; existing veris.step retains its
+  multi-step rollout contract. Reuse dynamics_transport and Growth in reference
+  order, refreshing only supplied forcing before numerical stages.
+- Verified all three modes, both precisions/boundaries, prescribed
+  versus recursive heat, ocean normal-face forcing, JIT and initial/heat/wind
+  gradients, with full correctness and maintained/docs/build/install gates.
+- [x] Original 29 missing-API cases RED, then GREEN. Review reproduced calm
+  wind's spurious 0.5 derivatives, unchecked State storage/precision and disabled
+  x64 truncation. Stable hypot forward plus analytic JVP now selects the existing
+  zero norm linearization and avoids large-component derivative overflow.
+  Expanded focused 35/35 pass, including all-field preset/forcing and AD checks.
+- Packaging audit discovered existing sdist omissions of conftest, probe/helper
+  modules and reference fixtures. Task8 must add an explicit source-test manifest
+  with a reproducing archive test; wheel runtime modules already match source.
+- Clean installed smoke reproduced a documentation binding error: a partial
+  with keyword-bound settings cannot accept the rollout's second positional
+  forcing argument. The dynamic-forcing example now uses an explicit binary
+  transition calling advance(state, settings, constants, prescribed).
+- Direct two-CPU forcing probe reproduced an explicit-sharding AD failure:
+  spatial fields formed from replicated parameters retained replicated types,
+  incompatible with shard_map's physical partition specs. Pure advance now
+  explicitly reshards prescribed inputs before local padding/exchange; the
+  test checks both orientations, every field/diagnostic and forcing derivatives.
+- [x] Direct two-CPU probe passes in 114.23 s: eager/JIT all-field and diagnostic
+  equivalence, local spatial forcing halos, explicit speed and nonzero wind/ocean
+  grad/JVP/VJP/finite differences on (2,1)/(1,2) meshes, including closed-y
+  two-cell partitions. Final read-only scientific/API review found no blocker.
+- [x] Full CPU correctness: 1068 passed, two expected GPU-only skips, zero
+  failures/errors in 1458.82 s. Maintained coverage 3325/3472 = 95.77%; whole
+  package 3325/3825 = 86.93%. All 134 source/test hashes match the full-run tree.
+  Maintained lint/format/annotations/types and diff checks pass; Sphinx -E -W,
+  fresh wheel/sdist runtime byte comparison and clean installed public timestep,
+  rollout and documented heat-gradient smoke pass. Evidence prefix
+  `test_logs/lifecycle-physics-*`; GPU remains unavailable.
+- Next: commit the passing timestep milestone on jax-only, then integrate and
+  verify the isolated Simulation draft. Output/restart/sharded initialization,
+  example migration and final documentation remain required; the goal is active.
+
 ## 2026-10-11 — Centralized lifecycle: declarative initialization milestone
 
 - IN PROGRESS (@root): task 2 of the full lifecycle plan, following the passing

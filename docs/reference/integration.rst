@@ -3,32 +3,47 @@ Scan rollouts and checkpointing
 
 ``veris.step`` advances a fixed number of model timesteps using
 `jax.lax.scan <https://docs.jax.dev/en/latest/_autosummary/jax.lax.scan.html>`_.
-A setup supplies the single-step physics; the shared driver supplies time
-iteration. Bind Configuration and PhysicalConstants with ``functools.partial``.
+``veris.advance`` supplies one complete physics timestep; the shared rollout
+driver supplies time iteration. Bind Configuration, PhysicalConstants and the
+physics mode with ``functools.partial``.
 The default result is the final State, without an explicit State history::
 
    from functools import partial
    import jax
    jax.config.update("jax_enable_x64", True)
 
-   from veris import step
-   from veris.setups import island
+   from veris import Experiment, advance, initialize_experiment, step
 
-   initial, settings, constants = island.initialize()
-   advance = partial(island.step, conf=settings, phys=constants, cooling=100.0)
-   final = step(initial, advance, 3)
+   experiment = Experiment.builtin("island")
+   initial, settings, constants = initialize_experiment(experiment)
+   transition = partial(
+       advance, configuration=settings, constants=constants,
+       forcing={"Qnet": 100.0, "Qsw": 0.0}, physics=experiment.physics,
+   )
+   final = step(initial, transition, 3, has_aux=True)
 
 ``steps`` is a static nonnegative integer. The transition must be pure and JAX
 traceable: carry structure, array shapes and dtypes must stay fixed. Reuse bound
 callables across rollouts to reuse compiled scans. Settings and physical
 constants keep their existing static treatment; State and forcing arrays are
 differentiable. Python mutation, NumPy conversions and file output belong
-outside the transition and observer.
+outside the transition and observer. ``advance`` returns ``(State, Diagnostics)``;
+``has_aux=True`` keeps the updated State as the rollout carry.
+
+Supplied forcing fields are reapplied before each timestep. Scalars and physical
+``(nx, ny)`` JAX arrays are supported, with field-specific halo preparation.
+Supplying uWind or vWind derives wSpeed unless it is explicitly prescribed.
+Absent fields retain their current State values, including recursive growth
+Qnet/Qsw. Host Experiment definitions validate finite values and units outside
+JAX transforms. Initial ice and prescribed heat/wind sensitivities have JIT,
+gradient, JVP, VJP and finite-difference checks; static settings, constants and
+host definitions are outside the differentiated path. Physical threshold
+conventions remain those of :doc:`automatic-differentiation`.
 
 Setup choices
 -------------
 
-The same driver accepts the maintained setup kernels:
+The same driver continues to accept the maintained setup kernels:
 
 * ``island.step`` composes dynamics, transport and growth. Its ``cooling``
   argument restores prescribed heat forcing on every timestep.
@@ -100,13 +115,22 @@ cooling value::
 
    import jax
    import jax.numpy as jnp
+   from veris import Experiment, advance as physics_timestep, initialize_experiment
 
-   initial, settings, constants = island.initialize()
-   advance = partial(island.step, conf=settings, phys=constants)
+   experiment = Experiment.builtin("island")
+   initial, settings, constants = initialize_experiment(experiment)
+   def transition(state, prescribed):
+       return physics_timestep(
+           state, settings, constants, prescribed, physics=experiment.physics,
+       )
    cooling = jnp.asarray([80.0, 100.0, 120.0], dtype=initial.hIceMean.dtype)
 
    def objective(forcing):
-       final = step(initial, advance, 3, inputs=forcing, checkpoint=True)
+       final = step(
+           initial, transition, 3,
+           inputs={"Qnet": forcing, "Qsw": jnp.zeros_like(forcing)},
+           has_aux=True, checkpoint=True,
+       )
        return final.hIceMean[2:-2, 2:-2].mean()
 
    sensitivity = jax.grad(objective)(cooling)

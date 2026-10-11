@@ -5,9 +5,23 @@ These functions expose the equations and stencil operations used by setup
 steps. Most accept ``(vs, conf, phys)``: a halo-inclusive State, static
 Configuration and static PhysicalConstants. They return arrays or tuples;
 the caller assigns results with ``dataclasses.replace`` and supplies the
-required halo exchange and stage ordering. For a complete transition, use
-the :doc:`setup steps <initialization>` or
-:func:`~veris.dynamics.dynamics_transport`.
+required halo exchange and stage ordering.
+
+Single physics timestep
+-----------------------
+
+``veris.advance`` performs one complete timestep and returns State and
+Diagnostics. Select coupled, dynamics or thermodynamics; bind configuration,
+constants and physics statically for JAX transformations. Supplied forcing is
+dynamic and refreshed before the kernels consume it. This differs from
+``veris.step``, which performs a multi-step rollout with a supplied transition.
+See :doc:`/reference/integration` for composition and differentiation examples.
+
+.. autofunction:: veris.model_physics.advance
+
+The :doc:`setup steps <initialization>` retain their existing behavior. The
+focused :func:`~veris.dynamics.dynamics_transport` stage remains available to
+callers composing specialized transitions.
 
 Dynamics
 --------

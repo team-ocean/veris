@@ -14,8 +14,9 @@ coefficients. Use ``dataclasses.replace`` to update these immutable objects.
 
 The rollout driver :func:`veris.step` and host definition classes ``Grid``,
 ``Execution``, ``Forcing`` and ``Experiment`` are exported directly from ``veris``.
-``OceanGeometry`` and ``initialize_experiment`` provide runnable initialization
-through that same public import. See :doc:`experiment` for definition and input
+``OceanGeometry`` and ``initialize_experiment`` provide runnable initialization;
+``advance`` performs a single physics timestep through that same public import.
+See :doc:`experiment` for definition and input
 contracts. Import other functions and
 classes from the modules shown in their entries.
 For example::
@@ -25,12 +26,15 @@ For example::
 
    jax.config.update("jax_enable_x64", True)
 
-   from veris import step
-   from veris.setups import island
+   from veris import Experiment, advance, initialize_experiment, step
 
-   initial, settings, constants = island.initialize(nx=8, ny=8)
-   advance = partial(island.step, conf=settings, phys=constants, cooling=100.0)
-   final = step(initial, advance, 3)
+   experiment = Experiment.builtin("island")
+   initial, settings, constants = initialize_experiment(experiment)
+   transition = partial(
+       advance, configuration=settings, constants=constants,
+       forcing={"Qnet": 100.0, "Qsw": 0.0}, physics=experiment.physics,
+   )
+   final = step(initial, transition, 3, has_aux=True)
 
 Arrays use ``(x, y)`` order with two halo cells on each boundary. A serial
 ``nx`` by ``ny`` physical grid has storage shape ``(nx + 4, ny + 4)``. Under
