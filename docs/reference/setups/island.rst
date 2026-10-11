@@ -21,9 +21,15 @@ see :doc:`../settings`. It restores prescribed
 open-water heat forcing each step because growth returns ocean-coupling fluxes
 in the same state fields.
 
-The example initializes separate settings and physical constants and selects
-serial halos. It does not initialize a distributed mesh.
-The same JAX kernels can execute on a supported CPU or GPU device.
+Use ``Experiment.builtin("island", grid=Grid(nx, ny), ...)`` with
+``Simulation.initialize`` for shared initialization, prescribed heat, absolute
+forcing/time and output. The public lifecycle supports serial and explicit
+x/y meshes with global physical dimensions. The caller prepares JAX resources;
+see :doc:`/quickstart/user-guide` and :doc:`/api/simulation`.
+
+Legacy initialize/step signatures remain. Legacy island timesteps retain their
+independent dynamics and thermodynamic durations; a new coupled Experiment
+requires equal durations so its single model clock is unambiguous.
 
 Use the public ``veris.step`` to repeat this setup kernel with scan and
 checkpointing. See :doc:`../integration` for selected diagnostics and

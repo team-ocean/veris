@@ -1,5 +1,40 @@
 # Development log
 
+## 2026-10-11 — Centralized lifecycle: public documentation and reproducible delivery
+
+- [x] COMPLETE (@root): final delivery after migration commit 09b4df7.
+  Integrated independently reviewed primary coupled quickstart, complete custom
+  ocean example, migration guide, setup gallery, AD/integration guidance, README
+  and lifecycle architecture. Public examples execute literal published code.
+- Packaging regression written first: the real isolated source build omits
+  harness helpers, scientific reference artifacts and architecture metadata.
+  Updated manifest includes complete tests/docs, immutable capture text,
+  DESIGN/CHANGELOG and the parallel launcher. Actual maintained RED identifies
+  49 omissions; GREEN passes after integration.
+- CPU CI now runs strict documentation builds and clean installed public examples.
+  A real isolated Sphinx probe reproduces missing Furo, then passes after installing
+  docs requirements; independent scoped rereview approves the dependency fix.
+- Scientific/API/restart and documentation reviews close all reported blockers.
+  Maintained lint/format/annotations/types, strict Sphinx and fresh builds pass.
+  All 225 checked source/harness/docs archive artifacts match exact bytes. Clean
+  installed literal examples pass coupled exact restart, observations, selected
+  input, custom ocean, two-CPU sharding and pure JIT/grad/JVP/VJP. Strict Sphinx
+  also passes from the extracted source archive.
+- Final full CPU correctness: 1283 passed, two expected GPU skips, zero failures/
+  errors in 2648.46 s. Maintained coverage 4058/4296 = 94.46%; whole-package
+  coverage 87.29%. All 161 Python source/test and nine scientific fixture hashes
+  match. Evidence prefix `test_logs/lifecycle-delivery-*`; requirement evidence
+  is recorded in the implementation plan. GPU and actual multi-host hardware
+  verification remain unavailable; distributed/repartitioned restart is rejected.
+- Delivered immutable Python/JSON definitions, runnable global-grid initialization,
+  one-step pure advance, host Simulation with absolute forcing/time, shared CLI
+  examples, scheduled I/O/selected input and exact complete serial restart.
+  Numerical kernels/tolerances and existing public rollout behavior are preserved.
+  Independent legacy archives verify 1615 stored arrays; pure differentiation and
+  real two/four-CPU boundary/output/resource checks pass. All eight milestones
+  are complete; the final focused delivery is ready for the required jax-only
+  commit after metadata/archive close-out.
+
 ## 2026-10-11 — Centralized lifecycle: migrated examples and public sharding
 
 - [x] COMPLETE (@root): task 7 after restart commit 99e6547. Maintained tests

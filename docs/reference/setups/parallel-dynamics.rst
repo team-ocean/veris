@@ -9,6 +9,14 @@ axis. The mesh must use all devices of the selected backend. If omitted, it is
 cells on each edge, exchanged by existing Veris kernels. Only addressable
 partitions are allocated on each process.
 
+The CLI defines a dynamics Experiment and borrows its explicitly initialized
+mesh through Simulation. The same public Python workflow supports coupled,
+growth and custom ocean geometry/forcing with x/y partitions. Backend setup
+and distributed initialization must precede device enumeration; Simulation
+never starts or shuts down a caller-owned distributed service. Distributed
+restart is unsupported. Local CPU tests validate sharding; actual GPU and
+multihost runs require suitable hardware.
+
 Local CPU and local GPU examples::
 
    JAX_NUM_CPU_DEVICES=4 python -m veris.setups.run_parallel \

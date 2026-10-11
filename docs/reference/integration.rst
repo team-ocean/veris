@@ -115,7 +115,8 @@ cooling value::
 
    import jax
    import jax.numpy as jnp
-   from veris import Experiment, advance as physics_timestep, initialize_experiment
+   jax.config.update("jax_enable_x64", True)
+   from veris import Experiment, advance as physics_timestep, initialize_experiment, step
 
    experiment = Experiment.builtin("island")
    initial, settings, constants = initialize_experiment(experiment)
@@ -165,16 +166,20 @@ calculations; the scan driver does not repartition the grid::
 These initializer dimensions count global physical cells. Each partition keeps
 its own halos. Selected history arrays gain an unpartitioned leading time axis;
 select one time slice before using the existing spatial output collector.
-Sharded island cooling accepts spatially uniform scalar forcing, including
-one replicated scalar per time slice. Its convenience initializer remains
-serial; use the general allocator with consistent packed fields for sharded
-coupled experiments, as described in :doc:`/quickstart/user-guide`.
+The compatibility island initializer remains serial. For sharded coupled
+experiments, define an island Experiment or custom OceanGeometry with global
+physical inputs and pass a matching explicit mesh to initialize_experiment.
+Retain ``jax.set_mesh(mesh)`` around pure advance/step and their transformations.
+Public advance accepts scalar or global physical spatial forcing; series retain
+an unpartitioned leading time axis. See :doc:`/quickstart/user-guide` and
+:doc:`/api/experiment`.
 
 Host output and timing
 ----------------------
 
-The dynamics, growth and parallel command-line runners use
-``veris.integration_output.run_timed``. It lowers and compiles each required
+The dynamics, growth and parallel command-line runners use Simulation, which
+delegates to ``veris.integration_output.run_timed``. The low-level timing API
+remains available. It lowers and compiles each required
 scan shape with ``jax.jit(...).lower(...).compile()`` before executing the
 trajectory. Compilation can trace pure callables, but executes no model
 transitions, device callbacks, sample collection or file writes. The returned

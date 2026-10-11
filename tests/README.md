@@ -47,8 +47,10 @@ Whole-package reports include generated version metadata. With user approval,
 CI enforces at least 80% coverage of maintained code by excluding only
 `veris/_version.py` from the gate. XML/JSON artifacts retain whole-package data.
 The old geographic setup and its ocean-model dependencies were removed at the
-user’s request. CPU CI is enforced; local hardware validation uses two Tesla
-P100 GPUs with driver 580.173.02 and JAX 0.11.1 CUDA 12.
+user’s request. CPU CI is enforced. Optional GPU validation is configured for two Tesla P100
+GPUs with driver 580.173.02 and JAX 0.11.1 CUDA 12; the current lifecycle
+verification environment has no accessible GPU. Historical hardware results do
+not certify this lifecycle migration.
 
 Current physical coverage includes periodic transport, rheology, wind and ocean
 stress, EVP momentum limits, and thermodynamic energy/water budgets. Serial
@@ -99,3 +101,27 @@ Inside `jax.shard_map`, pass `axis_names=("x", "y")` to `IceVelocities` or
 with two-cell halos; norms exclude those halos before collective reduction.
 The default empty tuple preserves serial behavior. The uniform sharded EVP
 test isolates reduction semantics; it is not a full distributed coupled run.
+
+The public lifecycle tests cover definition and JSON validation, custom ocean
+geometry/masks, initialization, pure timesteps, successive host runs, forcing
+position, scheduled means, snapshots, selected input and complete serial restart.
+Frozen original all-field trajectories protect preset and compatibility behavior;
+their provenance and reproduction instructions are in
+[reference_data/README.md](reference_data/README.md).
+
+`test_lifecycle_sharding.py` runs real four-CPU-device experiments in fresh
+processes. Its probe covers presets and custom geometry, both boundary modes,
+2x2/1x4/4x1 layouts, continued forcing/output and two-cell local extents.
+Separate pure, rollout and closed-wall probes retain JIT, grad, JVP, VJP and
+finite-difference checks. Serial resource tests exercise initialization and
+execution inside an ambient mesh while checking single-device placement and
+restoration of the caller's context. These tests cannot certify actual
+multi-host initialization, networking, file ownership or failure cleanup.
+
+CI also builds documentation with warnings treated as errors, builds fresh
+wheel/source archives, installs the wheel in a clean target, and executes literal
+public examples from the quickstart and README outside the source import path.
+`installed_lifecycle_probe.py` verifies package origin, coupled save/resume,
+selected input, custom ocean fields, two-CPU sharding and pure JIT/AD examples.
+`test_packaging.py` checks that the source archive includes the complete test
+harness, reference data, lifecycle design and parallel launcher.

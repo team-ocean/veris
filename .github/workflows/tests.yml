@@ -9,6 +9,7 @@ jobs:
         with:
           python-version: '3.14'
       - run: python -m pip install -r requirements-test.txt
+      - run: python -m pip install -r docs/requirements.txt
       # Preserve the public CESM/MITgcm module names; generated metadata is
       # reported in coverage but is not maintained lint/type-check input.
       - run: ruff check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py --ignore N999
@@ -19,6 +20,18 @@ jobs:
         env:
           JAX_PLATFORMS: cpu
       - run: coverage report --omit=veris/_version.py --fail-under=80
+      - name: Documentation and clean package build
+        run: |
+          sphinx-build -E -W -b html docs test_logs/docs
+          python setup.py build --build-base test_logs/package-build bdist_wheel --dist-dir test_logs/package-dist sdist --dist-dir test_logs/package-dist
+      - name: Installed public lifecycle examples
+        run: |
+          task_package_root=$(mktemp -d)
+          python -m pip install --no-cache-dir --no-deps --target "$task_package_root" test_logs/package-dist/*.whl
+          PYTHONPATH="$task_package_root" python tests/installed_lifecycle_probe.py --package-root "$task_package_root" --docs-root docs
+        env:
+          JAX_PLATFORMS: cpu
+          JAX_NUM_CPU_DEVICES: '2'
       - uses: actions/upload-artifact@v4
         with:
           name: coverage

@@ -17,7 +17,22 @@ order. The runner reports compilation and integration times separately.
 Compilation lowers and compiles the required scan shapes without executing a
 warmup trajectory; integration executes exactly the requested model steps.
 
-The Python API returns independent model objects::
+The command-line runner uses ``Experiment.builtin("dynamics", ...)`` and
+``Simulation`` for the same lifecycle as coupled and growth experiments. Global
+physical dimensions and settings belong to the definition; forcing, time and
+output share :doc:`/api/simulation`. A public Python experiment is::
+
+   from veris import Execution, Experiment, Grid, Simulation
+
+   experiment = Experiment.builtin(
+       "dynamics", grid=Grid(32, 48), steps=3,
+       settings={"dtype": "float32", "nEVPsteps": 4},
+       execution=Execution(backend="cpu"),
+   )
+   with Simulation.initialize(experiment) as simulation:
+       result = simulation.run()
+
+Compatibility factories still return independent model objects::
 
    import jax
    from functools import partial

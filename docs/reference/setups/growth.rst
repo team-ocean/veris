@@ -8,6 +8,12 @@ steps with no dynamics or transport::
    python -m veris.setups.run_growth --backend cpu --output output/growth.nc
    python -m veris.setups.run_growth --backend gpu --output output/growth-gpu.nc
 
+The CLI uses ``Experiment.builtin("growth", ...)`` and ``Simulation``. Python
+experiments use the same interface for initial conditions, constant/series
+forcing, output and complete serial restart. The builtin defaults to Grid(2, 2);
+custom global dimensions and explicit meshes are also supported. See
+:doc:`/quickstart/user-guide` and :doc:`/api/simulation`.
+
 Returned Qnet/Qsw feed the next step exactly as in the original experiment.
 They are not reset to initial forcing. The shared allocator requires at least
 two cells per interior axis, so the single-column experiment uses a uniform
@@ -19,7 +25,7 @@ available for interactive use and AD.
 To record and plot the evolving ice thickness, request a history stream::
 
    python -m veris.setups.run_growth --backend cpu \
-       --output output/growth.nc --netcdf output/growth-history.nc \
+       --output output/growth-history-final.nc --netcdf output/growth-history.nc \
        --io-variables hIceMean
 
 Then read the netCDF time series without requiring an interactive environment::

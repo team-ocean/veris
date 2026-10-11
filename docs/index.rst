@@ -3,8 +3,8 @@ Veris: a versatile sea ice simulator in JAX
 
 Veris implements sea-ice dynamics and thermodynamics using JAX
 for array operations. It supports forward and reverse modes of
-automatic differentiation and parallel excution on CPUs and GPUs.
-The package is bundeled with several setups to demonstrate its functionality.
+automatic differentiation and parallel execution on CPUs and GPUs.
+The package is bundled with several setups to demonstrate its functionality.
 
 Veris was derived from the `MITgcm SEAICE package
 <https://mitgcm.readthedocs.io/en/latest/phys_pkgs/seaice.html>`_.
@@ -16,6 +16,8 @@ implementation as part of his `Master's thesis <https://nbi.ku.dk/teamocean/docs
    :caption: Usage
 
    quickstart/user-guide
+   quickstart/custom-ocean
+   quickstart/migration
 
 .. toctree::
    :maxdepth: 2

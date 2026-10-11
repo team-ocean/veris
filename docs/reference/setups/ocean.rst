@@ -1,5 +1,15 @@
-External ocean model
-====================
+Prescribed ocean geometry
+=========================
+
+Use public ``OceanGeometry`` inside an ``Experiment`` for a complete standalone
+lifecycle with physical arrays, initial ice and prescribed ocean/atmospheric
+fields. :doc:`/quickstart/custom-ocean` provides a runnable example using only
+public imports; it supports serial or explicit x/y meshes and requires no
+external ocean package. Geometry is supplied in global physical dimensions;
+initialization constructs its halos and derived metrics.
+
+The compatibility adapter below accepts existing halo-inclusive geometry. Its
+low-level allocation alone does not define a complete physical experiment.
 
 ``veris.setups.ocean.initialize_from_ocean`` allocates a fresh State,
 Configuration and PhysicalConstants through ``veris.initialization.initialize``.

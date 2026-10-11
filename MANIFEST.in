@@ -1,3 +1,5 @@
 include versioneer.py versioneer.pyi
-recursive-include veris *.pyi py.typed
-recursive-include docs *.rst *.py *.txt *.conf Makefile LICENSE
+include README.md LICENSE DESIGN.md CHANGELOG.md pytest.ini requirements-test.txt
+recursive-include veris *.pyi *.slurm py.typed
+recursive-include tests *.py *.md *.json *.npz *.txt
+recursive-include docs *.rst *.py *.txt *.conf *.md Makefile LICENSE

@@ -140,11 +140,40 @@ CPU-sharding subprocess probe/test. Preserve compatibility entry points.
 Update quickstart/user-guide.rst, API pages, README, add lifecycle migration guide,
 update DESIGN and CHANGELOG. Add meaningful public-import/install smoke checks.
 
-- [ ] Run documented coupled quickstart and complete custom ocean example from a
-  clean wheel-installed environment outside source import path.
-- [ ] Maintained Ruff/format/annotation/ty, fresh build-base wheel/sdist, Sphinx
-  -E -W, full pytest correctness/coverage >=80%, available GPU/sharding probes.
-- [ ] Independent scientific/API/restart review; fix correctness issues with RED
-  regression tests. Record requirement-by-requirement authoritative evidence.
-- [ ] Commit focused passing milestones to jax-only; only mark goal complete when
-  every AGENTS.md requirement and named delivery artifact is verified.
+- [x] Run documented coupled quickstart and complete custom ocean example from a
+  clean wheel-installed environment outside source import path; literal published
+  examples also pass restart, observations, two-CPU sharding and pure AD.
+- [x] Maintained Ruff/format/annotation/ty, fresh build-base wheel/sdist, Sphinx
+  -E -W and extracted-sdist docs pass. Final full CPU: 1283 passed/two expected
+  GPU skips, zero failures/errors, 2648.458 s; maintained coverage 94.46%,
+  whole 87.29%. All 161 Python and nine scientific fixture hashes match.
+  Local CPU sharding passes; GPU and actual multi-host verification unavailable.
+- [x] Independent scientific/API/restart and documentation reviews approve the
+  exact candidate; important findings have reproduced RED/GREEN regressions.
+  Requirement evidence is recorded below; final integrated gates pass.
+- [x] Seven focused passing milestones committed to jax-only; final verified
+  documentation/packaging milestone is prepared for the same branch. Mark goal
+  complete only after its successful metadata/archive close-out and commit.
+
+## Delivery evidence by requirement
+
+| Contract | Authoritative verification |
+| --- | --- |
+| Separate immutable definition, defaults, Python/JSON validation | `test_experiment.py`, `test_experiment_file.py`, definition API documentation |
+| Global physical grid, runnable allocation and custom geometry/masks | `test_model_initialization.py`, `test_model_regions.py`, installed custom-ocean literal example |
+| One timestep versus existing multi-step rollout compatibility | `test_model_physics.py`, existing integration tests, unequal legacy island reference |
+| Preset numerical equivalence | Frozen original jax-only archives: seven cases/1540 State+Diagnostics arrays and 75 unequal-timestep fields; `test_lifecycle_reference.py`, `test_island_unequal_compatibility.py` |
+| Shared forcing and exact model time across runs | `test_simulation.py`: spatial/constant/series, recursive heat, absolute cursor, subsecond clock, atomic preflight |
+| Scheduled histories, means, snapshots and selected input | `test_simulation_output.py`, `test_simulation_io.py`, existing calendar/storage/distributed-output tests |
+| Complete supported restart and incompatible-data rejection | `test_restart.py`, `test_restart_arrays.py`, `test_restart_contract.py`: every native field/halo, clock/cursor, all physics modes, corrupt schema/data, checkpoint/mean policy |
+| Pure JIT and initial-State/forcing AD | `test_model_physics.py`: grad/JVP/VJP/finite differences; pure/sharded and closed-wall probes; clean installed pure example |
+| CPU sharding, boundary/output contracts and resource ownership | Actual two/four-device CPU subprocesses; `test_lifecycle_sharding.py`, `test_serial_mesh_context.py`, snapshot collective failure and existing rollout/wall probes |
+| Migrated CLI/setup orchestration | `test_lifecycle_cli_migration.py`, output-settings/nested-path tests, retained nonfinite failure regressions |
+| Reproducible installed public workflow | Literal README/quickstart/custom/sharding/pure examples run by `installed_lifecycle_probe.py` against a fresh wheel outside the source import path |
+| Complete source archive and maintained delivery checks | Real isolated sdist regression `test_packaging.py`; exact-byte wheel/sdist inventory; maintained Ruff/format/annotations/Ty, strict Sphinx and CPU CI |
+
+GPU execution and actual multi-host runs cannot be verified on the current
+hardware. Local CPU communication checks are not multi-host certification.
+Version 1 distributed/repartitioned restart is explicitly unsupported and
+rejected. Host orchestration, definition construction and static numerical
+settings/constants remain outside the documented differentiation path.

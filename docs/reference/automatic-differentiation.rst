@@ -7,6 +7,14 @@ preserve reference forward equations and their derivatives on smooth branches.
 Tests cover zero strain, calm winds, absent ice, dry cells, freshwater salinity,
 weak free-drift forcing, both model precisions and evolving sharded dynamics.
 
+The public pure path is ``advance`` for one physics timestep and ``step`` for
+fixed-length rollouts. Configuration, PhysicalConstants and physics mode are
+static; initial State and supplied JAX forcing arrays retain tested JIT, grad,
+JVP and VJP support. Experiment validation, initialization, Simulation, clocks,
+files and resource management stay outside transformations. Definition arrays
+are defensively copied host inputs: construct a loss from dynamic JAX arrays
+instead of differentiating an Experiment constructor. See :doc:`integration`.
+
 Zero norms
 ----------
 

@@ -1,6 +1,11 @@
 Model setups
 ============
 
+The public Experiment and Simulation lifecycle runs every builtin with shared
+initialization, forcing, clocks and I/O. See :doc:`/quickstart/user-guide` and
+:doc:`/quickstart/custom-ocean` for complete public workflows. Setup functions
+remain compatibility entry points and pure kernels.
+
 The island setup combines dynamics and growth with prescribed ocean masks
 and fields. It requires no geographic datasets or external ocean model.
 The isolated dynamics, growth and parallel dynamics cases reuse the same
