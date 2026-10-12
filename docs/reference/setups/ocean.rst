@@ -11,8 +11,8 @@ initialization constructs its halos and derived metrics.
 The compatibility adapter below accepts existing halo-inclusive geometry. Its
 low-level allocation alone does not define a complete physical experiment.
 
-``veris.setups.ocean.initialize_from_ocean`` allocates a fresh State,
-Configuration and PhysicalConstants through ``veris.initialization.initialize``.
+``veris.grid.ocean.initialize_from_ocean`` allocates a fresh State,
+Configuration and PhysicalConstants through ``veris.execution.initialization.initialize``.
 It accepts ``OceanGeometry`` directly; no existing Veris state is needed.
 The geometry arrays include two halo cells at each horizontal boundary and
 volume masks use the last vertical level as the surface. Horizontal dimensions
@@ -21,7 +21,7 @@ The metric equations retain the original periodic four-cell corner-area mean.
 
 Supply ocean forcing and initial ice fields as full halo-inclusive arrays::
 
-   from veris.setups.ocean import initialize_from_ocean
+   from veris.grid.ocean import initialize_from_ocean
 
    state, conf, phys = initialize_from_ocean(
        geometry,
@@ -38,8 +38,11 @@ All arrays and physical coefficients use the selected precision. Geometry and
 caller override dictionaries are left unchanged. Invalid shapes, nonfinite
 geometry and nonpositive spacings or areas are rejected on the host.
 
-The former ``veris.set_inits.set_inits`` entry point has been removed, and all
-setup modules now live under ``veris.setups``.
+The ocean adapter lives in ``veris.grid.ocean``; its input schema is
+``veris.grid.geometry.OceanGeometry``. Existing imports from
+``veris.setups.ocean`` remain available. The former ``veris.set_inits.set_inits``
+entry point has been removed. See :doc:`/reference/package-hierarchy` for the
+current module paths.
 
 For a rollout, bind a physics kernel to the initialized model objects::
 
@@ -55,5 +58,5 @@ initialization alone does not define the experiment. The example uses the
 coupled island physics sequence. See :doc:`../integration` for the common
 rollout contract and AD.
 
-See :func:`~veris.setups.ocean.initialize_from_ocean` in the
+See :func:`~veris.grid.ocean.initialize_from_ocean` in the
 :doc:`Python API </api/initialization>` for its signature and docstring.

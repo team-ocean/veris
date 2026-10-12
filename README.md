@@ -41,6 +41,14 @@ initial conditions and time-varying forcing using public imports. Read the
 [migration guide](docs/quickstart/migration.rst) for existing setup scripts and
 the preserved pure rollout API.
 
+The source hierarchy groups experiment definitions and state in `veris.model`,
+geometry and halos in `veris.grid`, scientific laws in `veris.physics`, numerical
+solvers in `veris.numerics`, and initialization and execution in `veris.execution`.
+Host storage and restart live in `veris.io`; examples and presets live in
+`veris.setups`. Existing module imports remain available. The
+[package hierarchy](docs/reference/package-hierarchy.rst) lists the complete tree
+and migration paths for specialized imports.
+
 `Experiment` keeps numerical settings, physical constants, initial fields,
 forcing, execution resources and output controls separate. Registry defaults and
 validation remain authoritative. Definitions use Python or versioned JSON;
@@ -73,7 +81,7 @@ Sphinx documentation and the scientific test harness live in `docs/` and `tests/
 python -m pip install -r docs/requirements.txt
 sphinx-build -E -W -b html docs docs/_build/html
 JAX_PLATFORMS=cpu pytest tests/ -q --fast
-JAX_PLATFORMS=cpu pytest tests/ -q
+JAX_PLATFORMS=cpu pytest tests/ -n 3 --dist=loadscope --partition-cpus --max-worker-restart=0
 ```
 
 Run one pytest instance at a time and the full correctness suite before commits.

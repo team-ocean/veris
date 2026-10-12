@@ -16,9 +16,9 @@ from jax.sharding import PartitionSpec as P
 from jax.typing import ArrayLike
 
 import veris
-from veris._typing import State
-from veris.diagnostics import Diagnostics
-from veris.fill_overlap import fill_state_overlap
+from veris.grid.halos import fill_state_overlap
+from veris.model.diagnostics import Diagnostics
+from veris.model.types import State
 from veris.setups import run_dyn, run_parallel
 
 NX, NY = 6, 4

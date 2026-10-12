@@ -17,122 +17,122 @@ dynamic and refreshed before the kernels consume it. This differs from
 ``veris.step``, which performs a multi-step rollout with a supplied transition.
 See :doc:`/reference/integration` for composition and differentiation examples.
 
-.. autofunction:: veris.model_physics.advance
+.. autofunction:: veris.execution.advance.advance
 
 The :doc:`setup steps <initialization>` retain their existing behavior. The
-focused :func:`~veris.dynamics.dynamics_transport` stage remains available to
+focused :func:`~veris.physics.dynamics.driver.dynamics_transport` stage remains available to
 callers composing specialized transitions.
 
 Dynamics
 --------
 
-.. automodule:: veris.area_mass
+.. automodule:: veris.physics.dynamics.area_mass
 
-.. autofunction:: veris.area_mass.AreaWS
+.. autofunction:: veris.physics.dynamics.area_mass.AreaWS
 
-.. autofunction:: veris.area_mass.SeaIceMass
+.. autofunction:: veris.physics.dynamics.area_mass.SeaIceMass
 
-.. automodule:: veris.dynsolver
+.. automodule:: veris.numerics.momentum
 
-.. autofunction:: veris.dynsolver.tauXY
+.. autofunction:: veris.numerics.momentum.tauXY
 
-.. autofunction:: veris.dynsolver.WindForcingXY
+.. autofunction:: veris.numerics.momentum.WindForcingXY
 
-.. autofunction:: veris.dynsolver.IceVelocities
+.. autofunction:: veris.numerics.momentum.IceVelocities
 
-.. automodule:: veris.evp_solver
+.. automodule:: veris.numerics.evp
 
-.. autofunction:: veris.evp_solver.evp_solver
+.. autofunction:: veris.numerics.evp.evp_solver
 
-.. automodule:: veris.freedrift_solver
+.. automodule:: veris.numerics.freedrift
 
-.. autofunction:: veris.freedrift_solver.freedrift_solver
+.. autofunction:: veris.numerics.freedrift.freedrift_solver
 
-.. automodule:: veris.dynamics_routines
+.. automodule:: veris.physics.dynamics.rheology
 
-.. autofunction:: veris.dynamics_routines.SeaIceStrength
+.. autofunction:: veris.physics.dynamics.rheology.SeaIceStrength
 
-.. autofunction:: veris.dynamics_routines.ocean_drag_coeffs
+.. autofunction:: veris.physics.dynamics.rheology.ocean_drag_coeffs
 
-.. autofunction:: veris.dynamics_routines.basal_drag_coeffs
+.. autofunction:: veris.physics.dynamics.rheology.basal_drag_coeffs
 
-.. autofunction:: veris.dynamics_routines.side_drag
+.. autofunction:: veris.physics.dynamics.rheology.side_drag
 
-.. autofunction:: veris.dynamics_routines.strainrates
+.. autofunction:: veris.physics.dynamics.rheology.strainrates
 
-.. autofunction:: veris.dynamics_routines.viscosities
+.. autofunction:: veris.physics.dynamics.rheology.viscosities
 
-.. autofunction:: veris.dynamics_routines.stress
+.. autofunction:: veris.physics.dynamics.rheology.stress
 
-.. autofunction:: veris.dynamics_routines.stressdiv
+.. autofunction:: veris.physics.dynamics.rheology.stressdiv
 
-.. automodule:: veris.ocean_stress
+.. automodule:: veris.physics.dynamics.ocean_stress
 
-.. autofunction:: veris.ocean_stress.OceanStressUV
+.. autofunction:: veris.physics.dynamics.ocean_stress.OceanStressUV
 
 Transport
 ---------
 
-.. automodule:: veris.advection
+.. automodule:: veris.physics.transport.advection
 
-.. autofunction:: veris.advection.Advection
+.. autofunction:: veris.physics.transport.advection.Advection
 
-.. autofunction:: veris.advection.calc_Advection
+.. autofunction:: veris.physics.transport.advection.calc_Advection
 
-.. autofunction:: veris.advection.calc_ZonalFlux
+.. autofunction:: veris.physics.transport.advection.calc_ZonalFlux
 
-.. autofunction:: veris.advection.calc_MeridionalFlux
+.. autofunction:: veris.physics.transport.advection.calc_MeridionalFlux
 
-.. autofunction:: veris.advection.limiter
+.. autofunction:: veris.physics.transport.advection.limiter
 
-.. automodule:: veris.averaging
+.. automodule:: veris.grid.averaging
 
-.. autofunction:: veris.averaging.c_point_to_z_point
+.. autofunction:: veris.grid.averaging.c_point_to_z_point
 
-.. automodule:: veris.clean_up
+.. automodule:: veris.physics.transport.cleanup
 
-.. autofunction:: veris.clean_up.clean_up_advection
+.. autofunction:: veris.physics.transport.cleanup.clean_up_advection
 
-.. autofunction:: veris.clean_up.ridging
+.. autofunction:: veris.physics.transport.cleanup.ridging
 
 Thermodynamics
 --------------
 
-.. automodule:: veris.growth
+.. automodule:: veris.physics.thermodynamics.growth
 
-.. autofunction:: veris.growth.Growth
+.. autofunction:: veris.physics.thermodynamics.growth.Growth
 
-.. automodule:: veris.solve4temp
+.. automodule:: veris.numerics.surface_temperature
 
-.. autofunction:: veris.solve4temp.solve4temp
+.. autofunction:: veris.numerics.surface_temperature.solve4temp
 
 Atmospheric fluxes
 ------------------
 
-.. automodule:: veris.heat_flux_CESM
+.. automodule:: veris.physics.thermodynamics.heat_flux_cesm
 
-.. autofunction:: veris.heat_flux_CESM.qsat
+.. autofunction:: veris.physics.thermodynamics.heat_flux_cesm.qsat
 
-.. autofunction:: veris.heat_flux_CESM.qsat_august_eqn
+.. autofunction:: veris.physics.thermodynamics.heat_flux_cesm.qsat_august_eqn
 
-.. autofunction:: veris.heat_flux_CESM.get_press_levs
+.. autofunction:: veris.physics.thermodynamics.heat_flux_cesm.get_press_levs
 
-.. autofunction:: veris.heat_flux_CESM.compute_z_level
+.. autofunction:: veris.physics.thermodynamics.heat_flux_cesm.compute_z_level
 
-.. autofunction:: veris.heat_flux_CESM.dqnetdt
+.. autofunction:: veris.physics.thermodynamics.heat_flux_cesm.dqnetdt
 
-.. autofunction:: veris.heat_flux_CESM.net_lw_ocn
+.. autofunction:: veris.physics.thermodynamics.heat_flux_cesm.net_lw_ocn
 
-.. autofunction:: veris.heat_flux_CESM.cdn
+.. autofunction:: veris.physics.thermodynamics.heat_flux_cesm.cdn
 
-.. autofunction:: veris.heat_flux_CESM.psimhu
+.. autofunction:: veris.physics.thermodynamics.heat_flux_cesm.psimhu
 
-.. autofunction:: veris.heat_flux_CESM.psixhu
+.. autofunction:: veris.physics.thermodynamics.heat_flux_cesm.psixhu
 
-.. autofunction:: veris.heat_flux_CESM.flux_atmOcn
+.. autofunction:: veris.physics.thermodynamics.heat_flux_cesm.flux_atmOcn
 
-.. autofunction:: veris.heat_flux_CESM.flux_atmOcn_simple
+.. autofunction:: veris.physics.thermodynamics.heat_flux_cesm.flux_atmOcn_simple
 
-.. automodule:: veris.heat_flux_MITgcm
+.. automodule:: veris.physics.thermodynamics.heat_flux_mitgcm
 
-.. autofunction:: veris.heat_flux_MITgcm.bulkf_formula_lanl
+.. autofunction:: veris.physics.thermodynamics.heat_flux_mitgcm.bulkf_formula_lanl

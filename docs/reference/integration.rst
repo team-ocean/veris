@@ -56,7 +56,7 @@ The same driver continues to accept the maintained setup kernels:
   those supplied fields, for example ``island.step`` for coupled evolution.
 
 Both ``island.step`` and ``run_dyn.step`` use the core
-``veris.dynamics.dynamics_transport(state, settings, constants)`` stage. It
+``veris.physics.dynamics.driver.dynamics_transport(state, settings, constants)`` stage. It
 advances momentum, computes ocean stress before transport, then applies
 advection, cleanup and ridging. It returns ``(state, stress_u, stress_v)`` with
 halo-inclusive arrays. Callers supply atmospheric forcing, optional
@@ -178,7 +178,7 @@ Host output and timing
 ----------------------
 
 The dynamics, growth and parallel command-line runners use Simulation, which
-delegates to ``veris.integration_output.run_timed``. The low-level timing API
+delegates to ``veris.execution.rollout_output.run_timed``. The low-level timing API
 remains available. It lowers and compiles each required
 scan shape with ``jax.jit(...).lower(...).compile()`` before executing the
 trajectory. Compilation can trace pure callables, but executes no model
@@ -188,7 +188,7 @@ integration timing includes actual execution, synchronization and host output.
 
 Use ``output_callbacks(manager, step_seconds)`` to connect an OutputManager::
 
-   from veris.integration_output import output_callbacks, run_timed
+   from veris.execution.rollout_output import output_callbacks, run_timed
 
    observe, select = output_callbacks(manager, settings.deltatDyn)
    final, compilation_seconds, integration_seconds = run_timed(

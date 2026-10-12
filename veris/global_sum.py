@@ -1,17 +1,16 @@
-"""Combine already-local diagnostic totals across explicit mesh axes.
+"""Compatibility alias for :mod:`veris.grid.reductions`.
 
-Call from inside shard_map with its mesh axis names to reduce across devices
-and processes. With no axes, the local scalar or vector is returned unchanged.
-Callers exclude halo duplicates before forming each local total. JAX supplies
-the collective's forward and reverse differentiation rules.
+Import from the canonical domain module in new code. Both paths share
+one module object, including private helpers and patched globals.
 """
 
-import jax
-from jax import Array
+import sys
 
-from veris._typing import SumInput
+from veris.grid import reductions as _implementation
+from veris.grid.reductions import (
+    global_sum,
+)
 
+__all__ = ["global_sum"]
 
-def global_sum(value: SumInput, axis_names: tuple[str, ...] = ()) -> SumInput | Array:
-    """Sum local totals over named mesh axes, preserving component dimensions."""
-    return jax.lax.psum(value, axis_names) if axis_names else value
+sys.modules[__name__] = _implementation

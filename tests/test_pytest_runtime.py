@@ -135,3 +135,59 @@ print("caller cache settings preserved")
         f"ERROR caller cache settings: {result.stderr[-2000:]}"
     )
     assert "caller cache settings preserved" in result.stdout
+
+
+def test_session_cache_inherits_subsecond_policy_and_restores_settings() -> None:
+    """Cold sessions reuse small compilations without overriding caller policy."""
+    root = Path(__file__).resolve().parents[1]
+    script = r"""
+import os
+import jax
+from conftest import _temporary_compilation_cache
+
+os.environ.pop("JAX_COMPILATION_CACHE_DIR", None)
+os.environ.pop("JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS", None)
+jax.config.update("jax_compilation_cache_dir", None)
+jax.config.update("jax_enable_compilation_cache", True)
+jax.config.update("jax_persistent_cache_min_compile_time_secs", 1.0)
+with _temporary_compilation_cache():
+    assert jax.config.jax_persistent_cache_min_compile_time_secs == 0.0
+    assert os.environ["JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS"] == "0"
+assert jax.config.jax_persistent_cache_min_compile_time_secs == 1.0
+assert "JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS" not in os.environ
+try:
+    with _temporary_compilation_cache():
+        raise RuntimeError("interrupted session")
+except RuntimeError:
+    pass
+assert jax.config.jax_persistent_cache_min_compile_time_secs == 1.0
+assert "JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS" not in os.environ
+os.environ["JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS"] = "0.25"
+jax.config.update("jax_persistent_cache_min_compile_time_secs", 0.25)
+with _temporary_compilation_cache():
+    assert jax.config.jax_persistent_cache_min_compile_time_secs == 0.25
+    assert os.environ["JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS"] == "0.25"
+assert jax.config.jax_persistent_cache_min_compile_time_secs == 0.25
+assert os.environ["JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS"] == "0.25"
+os.environ.pop("JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS")
+with _temporary_compilation_cache():
+    assert jax.config.jax_persistent_cache_min_compile_time_secs == 0.25
+    assert "JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS" not in os.environ
+print("subsecond policy and caller settings preserved")
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        env=dict(
+            os.environ,
+            JAX_PLATFORMS="cpu",
+            PYTHONPATH=os.pathsep.join((str(root / "tests"), str(root))),
+        ),
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"ERROR subsecond cache policy: {result.stderr[-2000:]}"
+    )
+    assert "subsecond policy and caller settings preserved" in result.stdout

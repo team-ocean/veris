@@ -5,32 +5,32 @@ Halo exchange
 -------------
 
 After replacing State fields manually, use
-:func:`~veris.fill_overlap.fill_state_overlap` to refresh field-specific
+:func:`~veris.grid.halos.fill_state_overlap` to refresh field-specific
 boundaries. The x direction is periodic; y boundaries follow
 ``Configuration.enable_cyclic_y``. For sharded arrays, retain the active
 ``jax.set_mesh(mesh)`` context. See :doc:`/reference/settings` for solid-wall
 behavior and :doc:`/quickstart/user-guide` for packed storage and meshes.
 
-.. automodule:: veris.fill_overlap
+.. automodule:: veris.grid.halos
 
-.. autofunction:: veris.fill_overlap.fill_circular_overlap
+.. autofunction:: veris.grid.halos.fill_circular_overlap
 
-.. autofunction:: veris.fill_overlap.fill_overlap_shard
+.. autofunction:: veris.grid.halos.fill_overlap_shard
 
-.. autofunction:: veris.fill_overlap.make_sharded_fill_overlap
+.. autofunction:: veris.grid.halos.make_sharded_fill_overlap
 
-.. autofunction:: veris.fill_overlap.fill_overlap
+.. autofunction:: veris.grid.halos.fill_overlap
 
-.. autofunction:: veris.fill_overlap.fill_overlap_uv
+.. autofunction:: veris.grid.halos.fill_overlap_uv
 
-.. autofunction:: veris.fill_overlap.fill_state_overlap
+.. autofunction:: veris.grid.halos.fill_state_overlap
 
 Reductions
 ----------
 
-.. automodule:: veris.global_sum
+.. automodule:: veris.grid.reductions
 
-.. autofunction:: veris.global_sum.global_sum
+.. autofunction:: veris.grid.reductions.global_sum
 
 Parallel dynamics helpers
 -------------------------
@@ -40,7 +40,8 @@ The parallel runner uses :func:`veris.setups.run_dyn.initialize` and
 :func:`veris.setups.run_dyn.step`; it has no separate physics transition.
 Launch examples appear in :doc:`/reference/setups/parallel-dynamics`.
 
-``remove_halos`` retains JAX arrays and supports transformations. The host
+``veris.grid.halos.remove_halos`` retains JAX arrays and supports transformations.
+It is also available from ``veris.setups.run_parallel``. The host
 ``gather_output`` collects the nine reference fields on every process;
 ``save_output`` writes them on process zero. All processes must participate
 in collective calls in the same order. For arbitrary State selections, use
@@ -50,7 +51,7 @@ in collective calls in the same order. For arbitrary State selections, use
 
 .. autofunction:: veris.setups.run_parallel.create_mesh
 
-.. autofunction:: veris.setups.run_parallel.remove_halos
+.. autofunction:: veris.grid.halos.remove_halos
 
 .. autofunction:: veris.setups.run_parallel.gather_output
 

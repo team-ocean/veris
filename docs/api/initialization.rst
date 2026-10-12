@@ -8,7 +8,7 @@ The general allocator initializes registry defaults. Supply consistent grid
 metrics, masks and forcing through ``state_overrides`` to construct a physical
 experiment. For an existing example, use one of the setup initializers below.
 
-.. autofunction:: veris.initialization.initialize
+.. autofunction:: veris.execution.initialization.initialize
 
 Ocean geometry adapter
 ----------------------
@@ -17,9 +17,9 @@ The host adapter validates externally supplied ocean geometry and allocates a
 Veris State independently of an ocean-model container. See
 :doc:`/reference/setups/ocean` for shapes and a usage example.
 
-.. autoclass:: veris.setups.ocean.OceanGeometry
+.. autoclass:: veris.grid.geometry.OceanGeometry
 
-.. autofunction:: veris.setups.ocean.initialize_from_ocean
+.. autofunction:: veris.grid.ocean.initialize_from_ocean
 
 Island experiment
 -----------------
@@ -33,7 +33,7 @@ step as the transition for :func:`veris.step`.
 .. autoclass:: veris.setups.island.IslandSettings
 
 .. py:data:: veris.setups.island.ISLAND_SETTINGS
-   :type: dict[str, veris._typing.Parameter]
+   :type: dict[str, veris.model.types.Parameter]
 
    Island scenario defaults and metadata; see :doc:`/reference/setups/island`.
 
@@ -62,7 +62,7 @@ instead accepts interior extents per partition when given a mesh. See
 .. autoclass:: veris.setups.run_dyn.DynamicsSettings
 
 .. py:data:: veris.setups.run_dyn.DYNAMICS_SETTINGS
-   :type: dict[str, veris._typing.Parameter]
+   :type: dict[str, veris.model.types.Parameter]
 
    Dynamics scenario defaults and metadata; see :doc:`/reference/setups/dynamics`.
 
@@ -86,7 +86,7 @@ fields. Its ``GROWTH_SETTINGS`` defaults and command-line usage appear in
 .. autoclass:: veris.setups.run_growth.GrowthSettings
 
 .. py:data:: veris.setups.run_growth.GROWTH_SETTINGS
-   :type: dict[str, veris._typing.Parameter]
+   :type: dict[str, veris.model.types.Parameter]
 
    Growth scenario defaults and metadata; see :doc:`/reference/setups/growth`.
 

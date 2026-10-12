@@ -1,5 +1,112 @@
 # Development log
 
+## 2026-10-12 — Scientific package hierarchy and 20-minute test budget
+
+- [x] COMPLETE (@root): implement the current AGENTS.md hierarchy goal on
+  `jax-only`; root owns all pytest runs, canonical moves and compatibility.
+- Read DESIGN.md, latest validation/runtime history and current source/API/CI
+  inventory. Current maintained baseline: 4058/4296 lines (94.46%), 1273 CPU
+  passes plus two subsequently verified GPU cases; last full wall 2219.44 s.
+  Existing runtime improvement does not meet the new 1200 s requirement.
+- Independent read-only roles: performance/test harness (@performance),
+  dependency/deduplication/code quality (@structure), documentation/packaging
+  (@documentation). No concurrent pytest or production edits by auditors.
+- [x] Migration contracts written first: all 94 migration cases fail on missing
+  canonical owners; geometry/arrays/shared halo cases also fail before moves.
+  GREEN after 38 source moves plus geometry/array ownership and shared packed halo
+  extraction: 97/97 pass in 20.17 s, including legacy pickle globals, module/patch
+  identity, root exports, fresh import orders and real halo JIT/AD.
+- [x] Regrouped 89 existing tests by responsibility; all original collection
+  counts retained (1372 cases including 97 new migration contracts). Initial
+  fast development selection passes 138 cases in 550.74 s. Corrected two moved
+  harness paths/imports identified by types and independent review.
+- [x] Strict Sphinx passes with new hierarchy/migration page and canonical API
+  references. Installed public example blocks remain unchanged.
+- [x] Shared halo tracing and inherited subsecond private cache regressions fail
+  before implementation; actual dtype/shape/input changes and JVP/VJP pass after.
+  Complete source packaging regression first finds five missing benchmark files;
+  copying/shipping benchmark harness resolves it. Combined contracts: 52/52 pass.
+- [x] Scheduled reduction tracing regressions first reproduce two traces for
+  successive inputs and independent output files. Stable module executor plus
+  immutable field selection closes duplication; 87 output/continuation/observation
+  contracts pass. Independent review finds arbitrary callable hashability and
+  default bound-selector retention regressions; the weak-ownership fixes and
+  complete review evidence are recorded below.
+- [x] Fixed-source four-CPU lifecycle probe passes all 20 preset/custom cases in
+  182.69 s with shared halo compilation and cold subsecond cache, compared with
+  historical 331.55 s. This standalone measurement is not full-suite budget proof;
+  it overlapped only lightweight regression checks/static work. Evidence:
+  `test_logs/reorganization/lifecycle-halo-cache*`.
+- Failed test approach: counting only advance traces missed fresh reducer wrappers,
+  because checkpoint tracing was already cached. The maintained regression now
+  records the real reducer trace and verifies changing numerical state/output.
+- Failed integrated full attempt: JAX compilation aborts at
+  `io/test_simulation_output.py::test_context_failure_closes_writer_and_final_partial_mean_is_discarded`
+  after 1491.49 s, peak individual RSS 5436016 KiB. No complete correctness,
+  coverage or JUnit result; original tested source hashes remained unchanged.
+  The exact test passes alone in a fresh process. Abort cause is not yet proven.
+- [x] Callback follow-up: weak identity keys preserve unhashable pure callbacks
+  and release their captured resources; non-weak-referenceable callables use
+  scoped partial owners and weak numerical proxies. RED reproduces all five callable failures and
+  four lifetime failures; subclass selectors retain their existing behavior.
+  Cache only exact ordinary functions with immutable default field selection and
+  no history. A weak transition key owns each JIT wrapper, so expired transitions
+  release compilation owners too. Avoid a global JIT that retains expired static
+  callback keys. Combined real output/lifetime/reuse checks: 85/85 pass.
+- Failed scoped-cache approach: forwarding arbitrary callbacks directly still
+  exposed checkpoint's hashability requirement and let nested scan caches retain
+  caller closures (four failing cases). Temporary strong partials plus weak
+  numerical proxies during lowering close both gaps; their JIT owners and caller
+  resources collect without clearing JAX caches. Default reusable transitions
+  retain their weak-owned cache and existing trace-reuse assertions pass.
+- [x] One coordinated pytest-xdist session now partitions worker CPU affinity
+  before collection/backend initialization; no cases or scientific assertions
+  are removed. Runtime regressions fail before the hook/option and pass after.
+  Each worker owns a fresh cache inherited by its child probes. Shared unbounded
+  worker disk cache rejected after installed JAX source review found unlocked,
+  non-atomic writes. CI selects at most three workers, keeps module fixture reuse
+  and fails immediately on worker crash. Full measured budget remains pending.
+- Optional test-only dynamic-State AD drafts preserve all cases, literals,
+  assertions and parameter-only derivative directions; measure sequentially if
+  the current full run still exceeds 1200 s. No temporary JAX constant-handling
+  flag, warm prior-session cache or reduced scientific selection is accepted.
+- [x] First coordinated full run: 1392 passed, two expected CPU-only GPU skips,
+  782.90 s external wall (779.48 s pytest), versus 2219.44 s previous full suite.
+  All 1394 cases execute exactly once. Maintained coverage 4293/4536 (94.64%):
+  3829 unchanged previously executed lines retain coverage, zero unchanged losses.
+  Nine moved executable schema/halo lines are covered at their new owners; the
+  remaining changed lines are canonical imports/docstrings or reviewed host
+  callbacks. All ten scientific reference files retain their hashes.
+- [x] Review's worker-test portability failures reproduced before fixing: one-CPU
+  child placement and mocked absence of Linux affinity attributes. Adaptive child
+  groups preserve both private cache lifecycles and real numerical assertions;
+  portable mocks and explicit unsupported-platform errors cover placement.
+  All eight runtime cases pass with taskset restricting the process to one CPU.
+  No scientific case, tolerance, dtype or AD assertion is reduced. Optional AD
+  drafts are rejected: modest/negative gains do not justify added test complexity.
+- [x] Both final CUDA-only tests pass on the two Tesla P100s (15.99 s pytest).
+  Fresh wheel/sdist content audit, strict Sphinx, clean installed literal public
+  examples, lint/format/annotation/types and dependency checks pass.
+- [x] Final reviewed cold correctness: 1393 passed, two expected GPU skips,
+  783.11 s external wall (781.27 s pytest), all 1395 cases exactly once. Maintained
+  coverage remains 4293/4536 (94.64%), zero lost unchanged lines. Three workers
+  use disjoint 16-CPU groups on the 48-logical-CPU host, with independent fresh
+  caches. All 221 source/test/benchmark Python hashes remain unchanged during
+  verification. Final independent review has zero Critical/Important findings.
+- [x] Final hierarchy: model, grid, physics (dynamics/transport/thermodynamics),
+  numerics, execution, io and setups. All 38 previous paths retain typed module
+  aliases; root API and old pickle imports remain compatible. Geometry/array
+  schemas and shared halo trimming have explicit owners. The complete tree and
+  old-to-new mapping are in docs/reference/package-hierarchy.rst; tests/README.md
+  and tests/AUDIT.md record the reproducible full command and evidence. Maximum
+  maintained module size: 786 lines. Commit the verified refactor on jax-only.
+- [x] Structure, performance and documentation audits completed independently.
+  Root retains all numerical equations; I/O no longer imports halo trimming from
+  the parallel setup CLI. Canonical imports/testing/docs delivery remains underway.
+- Continue in the user-designated `jax-only` checkout. Explicit implementation,
+  autonomous development and full-suite-before-commit instructions govern this
+  task; prepare a concrete tree/mapping/plan before production changes.
+
 ## 2026-10-12 — Local JAX CUDA 12 upgrade
 
 - [x] Updated `.venv-latest` as requested to `jax[cuda12]==0.11.2`:

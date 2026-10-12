@@ -1,6 +1,6 @@
 """Public model-settings interface; physical constants are defined separately."""
 
-from veris._typing import Parameter
-from veris.configuration import SETTINGS, Configuration
+from veris.model.configuration import SETTINGS, Configuration
+from veris.model.types import Parameter
 
 __all__ = ["SETTINGS", "Configuration", "Parameter"]

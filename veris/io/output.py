@@ -16,7 +16,6 @@ from typing import Any, Self
 import numpy as np
 from numpy.typing import NDArray
 
-from veris._typing import State
 from veris.io.calendar import Calendar, duration_us
 from veris.io.configuration import OutputSettings, Stream
 from veris.io.guard import under_transform
@@ -27,6 +26,7 @@ from veris.io.storage import (
     selected_fields,
     storage_fields,
 )
+from veris.model.types import State
 
 
 @dataclass

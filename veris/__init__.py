@@ -1,12 +1,12 @@
 """Differentiable sea-ice dynamics and thermodynamics in JAX."""
 
-from veris._typing import OceanGeometry
-from veris.experiment import Execution, Experiment, Grid
-from veris.forcing import Forcing
-from veris.integration import step
-from veris.model_initialization import initialize_experiment
-from veris.model_physics import advance
-from veris.simulation import RunResult, Simulation
+from veris.execution.advance import advance
+from veris.execution.experiment_initialization import initialize_experiment
+from veris.execution.rollout import step
+from veris.execution.simulation import RunResult, Simulation
+from veris.model.experiment import Execution, Experiment, Grid
+from veris.model.forcing import Forcing
+from veris.model.types import OceanGeometry
 
 __all__ = [
     "Execution",

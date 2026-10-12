@@ -21,19 +21,19 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from veris._metadata import FROM_REGISTRY, registry_defaults, validate_scalars
-from veris._typing import Parameter, State, jit
-from veris.configuration import SETTINGS, Configuration
-from veris.diagnostics import Diagnostics
-from veris.fill_overlap import fill_state_overlap
-from veris.initialization import initialize as initialize_model
+from veris.execution.initialization import initialize as initialize_model
+from veris.grid.halos import fill_state_overlap
 from veris.io.cli import (
     output_options,
     output_settings,
     parse_options,
     prepare_output_paths,
 )
-from veris.physical_constants import PhysicalConstants
+from veris.model.configuration import SETTINGS, Configuration
+from veris.model.diagnostics import Diagnostics
+from veris.model.metadata import FROM_REGISTRY, registry_defaults, validate_scalars
+from veris.model.physical_constants import PhysicalConstants
+from veris.model.types import Parameter, State, jit
 
 GROWTH_SETTINGS: dict[str, Parameter] = {
     "nx": Parameter(2, int, "Uniform column interior extent along x", "1"),
@@ -145,7 +145,7 @@ def step_with_diagnostics(
     Ocean stresses are zero because this experiment has no momentum integration.
     All outputs retain the halo-inclusive shape of the input State.
     """
-    from veris.model_physics import advance
+    from veris.execution.advance import advance
 
     return advance(state, conf, phys, physics="thermodynamics")
 

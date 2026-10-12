@@ -22,12 +22,12 @@ import jax.numpy as jnp
 import numpy as np
 from numpy.typing import NDArray
 
-from veris._typing import State
-from veris.configuration import Configuration
 from veris.io.calendar import Calendar, FixedDate, duration_us
 from veris.io.guard import require_host
-from veris.physical_constants import PhysicalConstants
-from veris.variables import VARIABLES
+from veris.model.configuration import Configuration
+from veris.model.physical_constants import PhysicalConstants
+from veris.model.types import State
+from veris.model.variables import VARIABLES
 
 ArrayFields = Mapping[str, Any]
 Collector = Callable[[State | ArrayFields, tuple[str, ...]], Mapping[str, Any] | None]

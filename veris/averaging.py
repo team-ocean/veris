@@ -1,34 +1,16 @@
-"""Interpolate cell-centered JAX fields to staggered grid corners."""
+"""Compatibility alias for :mod:`veris.grid.averaging`.
 
-from __future__ import annotations
+Import from the canonical domain module in new code. Both paths share
+one module object, including private helpers and patched globals.
+"""
 
-from functools import partial
+import sys
 
-import jax.numpy as jnp
-from jax import Array
-from jax.typing import ArrayLike
+from veris.grid import averaging as _implementation
+from veris.grid.averaging import (
+    c_point_to_z_point,
+)
 
-from veris._typing import State, jit
-from veris.configuration import Configuration
-from veris.physical_constants import PhysicalConstants
+__all__ = ["c_point_to_z_point"]
 
-
-@partial(jit, static_argnames=["conf", "phys"])
-def c_point_to_z_point(
-    vs: State, conf: Configuration, phys: PhysicalConstants, Cfield: ArrayLike
-) -> Array:
-    """calculates value at z-point by averaging c-point values"""
-
-    sumNorm = vs.iceMask + jnp.roll(vs.iceMask, 1, 0)
-    sumNorm = sumNorm + jnp.roll(sumNorm, 1, 1)
-    if conf.noSlip:
-        sumNorm = jnp.where(
-            sumNorm > 0, 1.0 / jnp.where(sumNorm > 0, sumNorm, 1.0), 0.0
-        )
-    else:
-        sumNorm = jnp.where(sumNorm == 4.0, 0.25, 0.0)
-
-    Zfield = Cfield + jnp.roll(Cfield, 1, 0)
-    Zfield = sumNorm * (Zfield + jnp.roll(Zfield, 1, 1))
-
-    return Zfield
+sys.modules[__name__] = _implementation

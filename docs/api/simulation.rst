@@ -178,8 +178,8 @@ written and closed under a temporary name, then published atomically without
 clobbering. Incompatible files fail clearly rather than allocating missing-field
 defaults. Hard-link publication requires filesystem support.
 
-.. autoclass:: veris.simulation.Simulation
+.. autoclass:: veris.execution.simulation.Simulation
    :members:
 
-.. autoclass:: veris.simulation.RunResult
+.. autoclass:: veris.execution.simulation.RunResult
    :members:

@@ -19,9 +19,9 @@ The caller supplies atmospheric forcing, optional thermodynamics and the
 final State and Diagnostics halo refresh. Under sharding, call this local
 stage inside the setup's ``jax.shard_map``.
 
-.. automodule:: veris.dynamics
+.. automodule:: veris.physics.dynamics.driver
 
-.. autofunction:: veris.dynamics.dynamics_transport
+.. autofunction:: veris.physics.dynamics.driver.dynamics_transport
 
 Host timing and scheduled output
 --------------------------------
@@ -31,6 +31,6 @@ These helpers compile and time integration and connect it to an
 :func:`veris.step` directly for differentiation. The scheduling and timing
 contracts are described in :doc:`/reference/integration`.
 
-.. autofunction:: veris.integration_output.run_timed
+.. autofunction:: veris.execution.rollout_output.run_timed
 
-.. autofunction:: veris.integration_output.output_callbacks
+.. autofunction:: veris.execution.rollout_output.output_callbacks

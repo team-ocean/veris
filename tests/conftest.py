@@ -18,10 +18,35 @@ import pytest
 from jax.experimental.compilation_cache import compilation_cache
 from jax.typing import ArrayLike
 
-from veris.configuration import Configuration
-from veris.physical_constants import PhysicalConstants
+from veris.model.configuration import Configuration
+from veris.model.physical_constants import PhysicalConstants
 
 jax.config.update("jax_enable_x64", True)
+
+
+def _partition_worker_cpus(config: pytest.Config) -> None:
+    """Optionally bound each worker and its child probes to disjoint allowed CPUs."""
+    if not config.getoption("--partition-cpus"):
+        return
+    worker = getattr(config, "workerinput", None)
+    if worker is None:
+        return
+    if not hasattr(os, "sched_getaffinity") or not hasattr(os, "sched_setaffinity"):
+        raise pytest.UsageError("--partition-cpus requires CPU affinity support")
+    allowed = sorted(os.sched_getaffinity(0))
+    count = int(worker["workercount"])
+    index = int(worker["workerid"].removeprefix("gw"))
+    if count < 1 or count > len(allowed) or not 0 <= index < count:
+        raise pytest.UsageError(
+            "CPU partitioning requires available CPUs and --max-worker-restart=0"
+        )
+    assigned = set(allowed[index::count])
+    os.sched_setaffinity(0, assigned)
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Set worker placement before collection or any backend initialization."""
+    _partition_worker_cpus(config)
 
 
 @contextmanager
@@ -30,8 +55,10 @@ def _temporary_compilation_cache() -> Iterator[None]:
 
     A private fresh directory allows reuse across independently bound rollout
     functions without relying on a warm cache from previous test sessions.
-    Preserve caller settings and JAX's minimum compile-time/entry-size policy.
+    Cache subsecond compilations too unless the caller set a different policy.
+    Preserve caller settings and JAX's minimum entry-size policy.
     """
+    previous_threshold = jax.config.jax_persistent_cache_min_compile_time_secs
     previous = jax.config.jax_compilation_cache_dir
     if (
         previous is not None
@@ -46,11 +73,20 @@ def _temporary_compilation_cache() -> Iterator[None]:
     ):
         patch.setenv("JAX_COMPILATION_CACHE_DIR", directory)
         jax.config.update("jax_compilation_cache_dir", directory)
+        if (
+            "JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS" not in os.environ
+            and previous_threshold == 1.0
+        ):
+            patch.setenv("JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS", "0")
+            jax.config.update("jax_persistent_cache_min_compile_time_secs", 0.0)
         try:
             yield
         finally:
             compilation_cache.reset_cache()
             jax.config.update("jax_compilation_cache_dir", previous)
+            jax.config.update(
+                "jax_persistent_cache_min_compile_time_secs", previous_threshold
+            )
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -90,6 +126,11 @@ def state_type(fields: tuple[str, ...]) -> StateFactory:
 def pytest_addoption(parser: pytest.Parser) -> None:
     """Expose the project-wide development subsample."""
     parser.addoption("--fast", action="store_true", help="Run a stable 10% sample")
+    parser.addoption(
+        "--partition-cpus",
+        action="store_true",
+        help="Give xdist workers disjoint groups from the permitted CPU affinity",
+    )
 
 
 def pytest_collection_modifyitems(
@@ -139,4 +180,4 @@ def phys() -> PhysicalConstants:
 @pytest.fixture
 def halo() -> ModuleType:
     """Import periodic halo helpers; callers select execution through settings."""
-    return importlib.import_module("veris.fill_overlap")
+    return importlib.import_module("veris.grid.halos")

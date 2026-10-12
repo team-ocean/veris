@@ -16,13 +16,13 @@ from typing import Any, TypeVar
 import click
 import numpy as np
 
-from veris._typing import State
-from veris.configuration import Configuration
 from veris.io.calendar import FixedDate, duration_us
 from veris.io.configuration import OutputSettings, Stream
 from veris.io.output import OutputManager
 from veris.io.storage import ArrayFields, Collector, storage_fields, write_snapshot
-from veris.physical_constants import PhysicalConstants
+from veris.model.configuration import Configuration
+from veris.model.physical_constants import PhysicalConstants
+from veris.model.types import State
 
 _Command = TypeVar("_Command", bound=Callable[..., Any])
 

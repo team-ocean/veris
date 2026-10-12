@@ -18,19 +18,19 @@ import jax.numpy as jnp
 import numpy as np
 from jax.sharding import Mesh
 
-from veris._metadata import FROM_REGISTRY, registry_defaults, validate_scalars
-from veris._typing import Parameter, State
-from veris.configuration import Configuration
-from veris.diagnostics import Diagnostics
-from veris.initialization import initialize as initialize_model
+from veris.execution.initialization import initialize as initialize_model
 from veris.io.cli import (
     output_options,
     output_settings,
     parse_options,
     prepare_output_paths,
 )
-from veris.physical_constants import PhysicalConstants
-from veris.variables import VARIABLES
+from veris.model.configuration import Configuration
+from veris.model.diagnostics import Diagnostics
+from veris.model.metadata import FROM_REGISTRY, registry_defaults, validate_scalars
+from veris.model.physical_constants import PhysicalConstants
+from veris.model.types import Parameter, State
+from veris.model.variables import VARIABLES
 
 DYNAMICS_SETTINGS = {
     "length": Parameter(
@@ -219,7 +219,7 @@ def initialize(
             conf.dtype,
         )
     else:
-        from veris.model_regions import regional_state
+        from veris.grid.regions import regional_state
 
         packed = regional_state(
             mesh,
@@ -240,7 +240,7 @@ def step_with_diagnostics(
     vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[State, Diagnostics]:
     """Advance the shared pure dynamics transition and return coupling stress."""
-    from veris.model_physics import advance
+    from veris.execution.advance import advance
 
     return advance(vs, conf, phys, physics="dynamics")
 

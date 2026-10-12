@@ -1,5 +1,74 @@
 # Test suite redundancy audit
 
+## Package hierarchy and runtime audit — 2026-10-12
+
+Status: **verified** on `jax-only`, Python 3.14.7 and JAX 0.11.2. The complete
+1,395-case CPU session passes in 783.11 external seconds with three xdist workers:
+1,393 passes and two expected GPU skips. Both GPU contracts pass separately on
+the two Tesla P100s. This is measured coordinated-session runtime; the previous
+single-process full run took 2,219.44 seconds. No scientific selection is reduced.
+Historical sections below retain their original paths, policies and measurements.
+
+The hierarchy separates `model`, `grid`, `physics`, `numerics`, `execution`, `io`
+and `setups`. The [package hierarchy](../docs/reference/package-hierarchy.rst)
+contains the complete tree and all 38 migration paths. Mathematical definitions,
+field ordering, masks, arithmetic order and tolerances remain unchanged.
+
+| Change | Ownership and preservation evidence |
+| --- | --- |
+| 38 canonical module moves | Typed previous-path imports resolve to the same module objects. `test_package_compatibility.py` checks shared globals, old pickle paths, root exports, cold import orders and canonical ownership. `model.arrays` and `grid.geometry` independently own array aliases and OceanGeometry. |
+| 89 test files regrouped | Domain directories retain all 1,275 previous cases and their scientific assertions. Migration and cache/lifetime/runtime regressions add 120 cases; all 1,395 execute exactly once in the final CPU session. |
+| Immutable scientific reference data | Nine capture artifacts and their README retain their hashes. Explicit equations, indexing, conservation, finite differences, precision boundaries, masks and real sharding layouts remain selected. |
+| Shared packed halo trimming | `grid.halos.remove_halos` serves distributed I/O and the retained parallel CLI export. `grid/test_halo_compilation.py` checks changing values, shape/dtype compilation, exact slices, JVP and VJP. |
+| Private cold caches | `test_pytest_runtime.py` checks real child executable reuse, distinct numerical inputs, caller policy, inheritance and cleanup on success/failure. Each worker owns a separate fresh directory inherited by its children. |
+| Scheduled compilation ownership | `io/test_compilation_reuse.py` checks actual reducer trace reuse and independent output files. `io/test_callback_lifetime.py` covers unhashable/slotted callbacks, subclass selectors and collection of caller resources and JIT owners without clearing JAX caches. Weak function-owned executors cache default pure selection; scoped weak proxies support arbitrary callbacks. |
+| Coordinated worker placement | `test_parallel_runtime.py` covers disjoint permitted CPU groups before collection, caller/controller preservation, invalid placement, unsupported platforms, private child caches and one-CPU operation. Linux CPU CI selects at most three module-grouped workers and disables crash restart. |
+
+The cache lowers the minimum compile-time threshold to zero only for an owned
+fresh directory with no caller threshold and JAX's default one-second policy.
+Explicit cache paths, disabled caches, environment thresholds, nondefault
+configured thresholds and entry-size policy remain authoritative. Teardown
+restores configuration/environment and removes owned caches. Worker caches are
+separate because installed JAX's unbounded disk-cache writes are unlocked.
+
+Focused migration contracts pass 97/97; halo/cache/packaging contracts pass
+52/52; callback/output/lifetime contracts pass 85/85. All eight worker-runtime
+cases also pass under a one-CPU affinity restriction. Independent final review
+has no remaining Critical or Important findings.
+
+Failed approaches are retained in CHANGELOG.md: advance-only tracing missed
+fresh reducer wrappers; a global JIT retained callbacks and required hashability;
+a scoped wrapper alone still leaked callbacks through nested caches. Partial
+owners plus weak numerical proxies resolve those regressions. The initial serial
+full attempt aborted in JAX compilation at 1,491.49 seconds; that test passed
+alone and both coordinated full runs pass. The abort cause remains unproven.
+Dynamic-State AD experiments produced modest or mixed gains and were not added.
+
+### Final verification
+
+| Measure | Previous serial CPU run | Final three-worker CPU run |
+| --- | ---: | ---: |
+| CPU passes / expected GPU skips | 1,273 / 2 | 1,393 / 2 |
+| External wall time | 2,219.44 s | 783.11 s; target ≤1,200 s |
+| Maintained coverage | 4,058 / 4,296 = 94.46% | 4,293 / 4,536 = 94.64% |
+| GPU-only contracts | Earlier source passed both | Both current-tree cases pass; 15.99 s pytest |
+| Independent implementation review | Not applicable | Zero outstanding Critical/Important findings |
+
+The coverage migration audit preserves all 3,829 unchanged previously executed
+lines. Another nine schema/halo lines execute at their new owners; 211 rewritten
+imports, two docstrings and seven reviewed host-callback lines account for the
+remaining old-line mapping differences. There are zero lost unchanged lines.
+Generated version metadata retains the existing coverage-gate exclusion.
+
+Local execution permits 48 logical CPUs; three workers receive disjoint 16-CPU
+strided groups, preserving the host's SMT pairs. Solver measurements remain in
+the separate benchmark harness. Ruff lint/format/annotation checks, ty, dependency
+validation, strict Sphinx, source/wheel contents and clean installed literal
+public lifecycle examples pass. Maintained production modules are at most 786
+lines. Full GPU-suite and actual multi-node results are not claimed. Detailed
+scalar logs, JUnit, coverage, hashes and resource measurements remain under
+`test_logs/reorganization/`.
+
 ## Lifecycle runtime audit — 2026-10-12
 
 Baseline: `94ac766` on `jax-only`, 1,285 collected cases. This audit targets

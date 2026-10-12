@@ -122,7 +122,7 @@ def check_layout(px: int, py: int) -> None:
     from jax.sharding import PartitionSpec as P
     from numpy.typing import NDArray
 
-    from veris.global_sum import global_sum
+    from veris.grid.reductions import global_sum
 
     nx, ny = 3, 5
     shape = (px * (nx + 4), py * (ny + 4))

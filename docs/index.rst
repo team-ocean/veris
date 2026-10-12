@@ -23,6 +23,7 @@ implementation as part of his `Master's thesis <https://nbi.ku.dk/teamocean/docs
    :maxdepth: 2
    :caption: Reference
 
+   reference/package-hierarchy
    reference/setup-gallery
    reference/integration
    reference/settings

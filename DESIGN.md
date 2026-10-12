@@ -10,15 +10,15 @@ scenario registries. Python and versioned JSON share the same validators/codec.
 
 `initialize_experiment` validates before selecting devices, reuses preset field
 factories or the ocean adapter, applies physical inputs and prepares geometry,
-derived quantities and field-aware halos. `model_regions` constructs only
+derived quantities and field-aware halos. `veris.grid.regions` constructs only
 addressable packed partitions, caching all fields per regional callback. Global
 indices preserve the island location and spatial forcing; internal meridional
 boundaries are exchanges rather than extra closed walls. Each partition has two
 halos per side. Global geometry/input arrays belong to the host definition;
 numerical State is never globally initialized per rank and then sliced.
 
-`advance` in model_physics performs exactly one physical timestep. It applies
-supplied forcing, calls unchanged dynamics_transport in the established momentum,
+`advance` in `veris.execution.advance` performs exactly one physical timestep.
+It applies supplied forcing, calls unchanged dynamics_transport in the established momentum,
 ocean-stress, transport/cleanup/ridging order, then Growth for coupled physics.
 Thermodynamics-only and dynamics-only modes share this contract. Coupling
 Diagnostics remain separate from the array-only State. Existing public `step`
@@ -103,19 +103,65 @@ add halo and transport checks; test dynamic and thermodynamic equations and
 smooth-region gradients; review test quality, measure coverage, and close gaps.
 Known broken branches need reproducing tests before production fixes.
 
-Type ownership: Configuration and SETTINGS live in configuration.py;
-PhysicalConstants and PHYSICALCONSTANTS in physical_constants.py;
-shared Parameter metadata in _typing.py; Variable in
-variables.py; Diagnostics in diagnostics.py. Precision metadata is defined
-directly in SETTINGS["dtype"]. State, OceanGeometry and shared kernel contracts
-live in _typing.py. Island-only configuration remains in setups/island.py.
+Type ownership: Configuration and SETTINGS live in `veris.model.configuration`;
+PhysicalConstants and PHYSICALCONSTANTS in `veris.model.physical_constants`;
+shared Parameter metadata, State and kernel contracts in `veris.model.types`;
+Variable in `veris.model.variables`; Diagnostics in `veris.model.diagnostics`.
+Precision metadata is defined directly in SETTINGS["dtype"]. Shared ArrayInput
+and MaskInput aliases live in `veris.model.arrays`. OceanGeometry belongs to
+`veris.grid.geometry`; `veris.model.types` re-exports it for compatibility.
+Island-only configuration remains in `veris.setups.island`.
 
 External ocean geometry is initialized from scratch through
-setups/ocean.py:initialize_from_ocean and the shared initialization.initialize.
+`veris.grid.ocean.initialize_from_ocean` and the shared
+`veris.execution.initialization.initialize`.
 
-Core dynamics orchestration lives in dynamics.py:dynamics_transport. It owns
+Core dynamics orchestration lives in
+`veris.physics.dynamics.driver.dynamics_transport`. It owns
 momentum, pre-transport ocean stresses, advection, cleanup and ridging. The pure
-model_physics transition applies prescribed forcing, thermodynamics and the
-final field-specific halo policy. Compatibility setups delegate that shared
+`veris.execution.advance` transition applies prescribed forcing, thermodynamics
+and the final field-specific halo policy. Compatibility setups delegate that shared
 sequence; Simulation owns host execution contexts, time and I/O. Tests separate
 the stage sequence oracle from host wrapping and independent numerical kernels.
+
+## Scientific package hierarchy
+
+Authoritative implementations are grouped by scientific and functional ownership:
+
+- `veris.model`: immutable definitions, numerical settings, physical constants,
+  State and array contracts, diagnostics, registries and the experiment codec.
+- `veris.grid`: geometry schema and ocean adapter, staggered interpolation,
+  two-cell halos, reductions and addressable regional inputs.
+- `veris.physics.dynamics`: mass, rheology, ocean stress and the ordered dynamics
+  stage; `veris.physics.transport`: advection, cleanup and ridging;
+  `veris.physics.thermodynamics`: growth and atmospheric bulk heat fluxes.
+- `veris.numerics`: branch-safe differentiation primitives, momentum dispatch,
+  EVP, free drift and surface-temperature iteration.
+- `veris.execution`: allocation, runnable experiment initialization, the pure
+  timestep and rollout, timed output rollouts and the host Simulation lifecycle.
+- `veris.io`: calendars, scheduling, storage, collection, lifecycle I/O and
+  complete restart with typed definition arrays.
+- `veris.setups`: maintained island, dynamics, growth and parallel entry points
+  and preset controls.
+
+Package initializers document these responsibilities without importing execution
+into lower layers. Geometry depends only on shared array aliases. I/O uses
+`veris.grid.halos.remove_halos` for packed physical fields rather than importing
+the parallel setup driver. Deferred experiment codec/preset imports retain the
+host convenience interfaces without import-time cycles.
+
+Previous module paths remain typed compatibility aliases to the canonical
+modules. Both paths expose the same objects and module globals; JAX PyTree
+registrations, compiled signatures and patches remain shared. Class ownership
+identifies the canonical modules, while previous pickle import paths remain
+resolvable. `veris.settings`, root `veris.__all__`, `veris.io` exports and existing
+setup command-line names remain available. Generated version metadata stays at
+the package root. The complete tree and migration table are maintained in
+[package-hierarchy.rst](docs/reference/package-hierarchy.rst); historical plans
+and scientific reference provenance retain their original paths.
+
+Tests mirror the domain packages while standalone process probes and immutable
+reference data retain shared locations. Full correctness and coverage verification
+uses one pytest process and a 1,200-second wall-time budget. Test selection,
+scientific tolerances, frozen reference bytes and required numerical/gradient
+assertions remain part of the correctness contract.

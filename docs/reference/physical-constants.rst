@@ -1,7 +1,7 @@
 Physical constants
 ==================
 
-``veris.physical_constants.PHYSICALCONSTANTS`` defines physical and empirical
+``veris.model.physical_constants.PHYSICALCONSTANTS`` defines physical and empirical
 coefficients, physical bounds, regularization scales and forcing reference
 heights for the frozen ``PhysicalConstants`` dataclass. Each model
 initialization constructs its own constants object. Physical constants stay
@@ -11,7 +11,7 @@ Override independent values with ``dataclasses.replace``. Exact dependencies,
 such as density ratios, follow the changed base values::
 
    from dataclasses import replace
-   from veris.physical_constants import PhysicalConstants
+   from veris.model.physical_constants import PhysicalConstants
    constants = replace(PhysicalConstants(), rhoIce=920.0)
    assert constants.rhoIce2rhoSnow == 920.0 / constants.rhoSnow
 
@@ -37,7 +37,7 @@ Registry defaults
 
 .. exec::
 
-   from veris.physical_constants import PHYSICALCONSTANTS
+   from veris.model.physical_constants import PHYSICALCONSTANTS
    print(".. list-table::")
    print("   :header-rows: 1")
    print("")

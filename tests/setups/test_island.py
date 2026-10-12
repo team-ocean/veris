@@ -27,7 +27,7 @@ def test_island_masks_block_both_sides_of_coast(example: ModuleType) -> None:
 
 
 def test_coupled_rest_equilibrium_is_preserved(example: ModuleType) -> None:
-    from veris.physical_constants import PhysicalConstants
+    from veris.model.physical_constants import PhysicalConstants
 
     constants = PhysicalConstants()
 

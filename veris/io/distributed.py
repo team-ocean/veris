@@ -12,9 +12,9 @@ import jax
 import numpy as np
 from jax.sharding import Mesh
 
-from veris._typing import State
 from veris.io.guard import require_host
 from veris.io.storage import ArrayFields, Collector
+from veris.model.types import State
 
 
 def distributed_collector(mesh: Mesh) -> Collector:
@@ -26,7 +26,7 @@ def distributed_collector(mesh: Mesh) -> Collector:
         require_host()
         from jax.experimental import multihost_utils
 
-        from veris.setups.run_parallel import remove_halos
+        from veris.grid.halos import remove_halos
 
         result = {}
         for name in names:

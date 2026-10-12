@@ -102,9 +102,9 @@ records. Geometry, masks and independent metrics require initialization.
 
 .. exec::
 
-   from veris.experiment import INITIAL_FIELDS
-   from veris.forcing import FORCING_FIELDS
-   from veris.variables import VARIABLES
+   from veris.model.experiment import INITIAL_FIELDS
+   from veris.model.forcing import FORCING_FIELDS
+   from veris.model.variables import VARIABLES
    for category, names in (("Initial conditions", INITIAL_FIELDS),
                            ("Prescribed forcing", FORCING_FIELDS)):
        print(f".. list-table:: {category}")
@@ -183,16 +183,16 @@ see :doc:`/reference/integration` for JIT and differentiation.
 Initial State and supplied JAX forcing arrays are differentiable; static
 definitions, settings, constants and host validation are outside that path.
 
-.. autoclass:: veris.experiment.Grid
+.. autoclass:: veris.model.experiment.Grid
    :members:
 
-.. autoclass:: veris.experiment.Execution
+.. autoclass:: veris.model.experiment.Execution
    :members:
 
-.. autoclass:: veris.experiment.Experiment
+.. autoclass:: veris.model.experiment.Experiment
    :members:
 
-.. autoclass:: veris.forcing.Forcing
+.. autoclass:: veris.model.forcing.Forcing
    :members:
 
-.. autofunction:: veris.model_initialization.initialize_experiment
+.. autofunction:: veris.execution.experiment_initialization.initialize_experiment

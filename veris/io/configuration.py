@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Any, NamedTuple
 
 from veris.io.calendar import Calendar, FixedDate, Period, duration_us
-from veris.variables import VARIABLES
+from veris.model.variables import VARIABLES
 
 
 class OutputOption(NamedTuple):

@@ -5,11 +5,13 @@ This reference documents the Python interface on the ``jax-only`` branch.
 Signatures and docstrings are read from the implementation at documentation
 build time. Start with :doc:`/quickstart/user-guide` for a working simulation,
 then use the pages below to look up individual objects and functions.
+The :doc:`/reference/package-hierarchy` describes the scientific packages and
+the migration paths for existing module imports.
 
 Model initialization returns ``(state, settings, constants)``. The frozen
-:class:`~veris._typing.State` contains the array fields used by the numerical
-kernels; :class:`~veris.configuration.Configuration` and
-:class:`~veris.physical_constants.PhysicalConstants` hold static controls and
+:class:`~veris.model.types.State` contains the array fields used by the numerical
+kernels; :class:`~veris.model.configuration.Configuration` and
+:class:`~veris.model.physical_constants.PhysicalConstants` hold static controls and
 coefficients. Use ``dataclasses.replace`` to update these immutable objects.
 
 The rollout driver :func:`veris.step` and host definition classes ``Grid``,

@@ -14,7 +14,7 @@ def test_sdist_contains_test_helpers_references_and_documented_architecture(
     root = Path(__file__).resolve().parents[1]
     source = tmp_path / "source"
     source.mkdir()
-    for name in ("veris", "tests", "docs"):
+    for name in ("veris", "tests", "docs", "benchmarks"):
         shutil.copytree(
             root / name,
             source / name,
@@ -30,6 +30,7 @@ def test_sdist_contains_test_helpers_references_and_documented_architecture(
         "LICENSE",
         "pytest.ini",
         "requirements-test.txt",
+        "requirements-profile.txt",
         "DESIGN.md",
         "CHANGELOG.md",
     ):
@@ -60,6 +61,13 @@ def test_sdist_contains_test_helpers_references_and_documented_architecture(
         if path.is_file() and path.suffix in {".py", ".md", ".json", ".npz", ".txt"}:
             required.add(str(path.relative_to(source)))
     for path in (source / "docs").rglob("*.md"):
+        required.add(str(path.relative_to(source)))
+    # The archive must run its benchmark tests and retain source documentation.
+    required.add("requirements-profile.txt")
+    for path in (root / "benchmarks").rglob("*"):
+        if path.is_file() and path.suffix in {".py", ".md"}:
+            required.add(str(path.relative_to(root)))
+    for path in (source / "veris").rglob("*.py"):
         required.add(str(path.relative_to(source)))
     missing = sorted(required - entries)
     assert not missing, (

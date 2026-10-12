@@ -1,0 +1,34 @@
+"""Interpolate cell-centered JAX fields to staggered grid corners."""
+
+from __future__ import annotations
+
+from functools import partial
+
+import jax.numpy as jnp
+from jax import Array
+from jax.typing import ArrayLike
+
+from veris.model.configuration import Configuration
+from veris.model.physical_constants import PhysicalConstants
+from veris.model.types import State, jit
+
+
+@partial(jit, static_argnames=["conf", "phys"])
+def c_point_to_z_point(
+    vs: State, conf: Configuration, phys: PhysicalConstants, Cfield: ArrayLike
+) -> Array:
+    """calculates value at z-point by averaging c-point values"""
+
+    sumNorm = vs.iceMask + jnp.roll(vs.iceMask, 1, 0)
+    sumNorm = sumNorm + jnp.roll(sumNorm, 1, 1)
+    if conf.noSlip:
+        sumNorm = jnp.where(
+            sumNorm > 0, 1.0 / jnp.where(sumNorm > 0, sumNorm, 1.0), 0.0
+        )
+    else:
+        sumNorm = jnp.where(sumNorm == 4.0, 0.25, 0.0)
+
+    Zfield = Cfield + jnp.roll(Cfield, 1, 0)
+    Zfield = sumNorm * (Zfield + jnp.roll(Zfield, 1, 1))
+
+    return Zfield

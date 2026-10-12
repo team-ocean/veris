@@ -24,7 +24,7 @@ an infinite intermediate derivative and a subsequent NaN, even with a finite
 forward solution. Adding ``deltaMin`` after the square root regularizes the
 viscosity denominator but leaves that derivative singular.
 
-``veris._ad.norm_sqrt`` guards the square-root input before evaluating it. Its
+``veris.numerics.autodiff.norm_sqrt`` guards the square-root input before evaluating it. Its
 forward result is unchanged, including exactly zero at the origin. At positive
 squared norms it has the ordinary square-root derivative. At zero it selects a
 zero linearization. The same convention applies to speed norms and inactive

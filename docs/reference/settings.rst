@@ -1,7 +1,7 @@
 Model settings
 ==============
 
-``veris.configuration.SETTINGS`` defines defaults, scalar types and descriptions
+``veris.model.configuration.SETTINGS`` defines defaults, scalar types and descriptions
 for the frozen ``Configuration`` dataclass. Numerical controls and execution choices
 are separate from :doc:`physical-constants`. Grid extents, boundary-condition
 switches, timesteps, solver iterations and convergence safeguards stay in
@@ -11,7 +11,7 @@ heights are fields of PhysicalConstants.
 Use immutable updates; dependent reciprocals are recomputed::
 
    from dataclasses import replace
-   from veris.configuration import Configuration
+   from veris.model.configuration import Configuration
    settings = replace(Configuration(), deltatDyn=600, nEVPsteps=20)
    assert settings.recip_deltatDyn == 1 / 600
 
@@ -51,7 +51,7 @@ restore the southern face masks that were closed during allocation.
 
 After manually replacing State fields or loading selected physical fields,
 refresh the whole State
-before integration using ``veris.fill_overlap.fill_state_overlap(state, settings)``.
+before integration using ``veris.grid.halos.fill_state_overlap(state, settings)``.
 For sharded arrays, call it inside the active ``jax.set_mesh(mesh)`` context.
 The maintained coupled drivers refresh State and diagnostic halos after each
 step. Low-level custom drivers should use this field-aware helper instead of
@@ -64,7 +64,7 @@ Floating-point precision
 ------------------------
 
 Choose ``dtype="float32"`` or ``dtype="float64"`` once when calling
-``veris.initialization.initialize`` or the island initializer. Both returned
+``veris.execution.initialization.initialize`` or the island initializer. Both returned
 static objects retain this policy. Their floating coefficients, derived values
 and lookup tables use the selected NumPy scalar type; all state and work arrays
 use the matching JAX dtype. Integers and Boolean switches retain their types.
@@ -74,7 +74,7 @@ preserves precision. Array replacements supplied by callers must use the existin
 array dtype. NetCDF storage uses the actual array dtype, as shown in :doc:`variables`.
 
 Precision is defined directly by the ``Parameter`` entry at
-``veris.configuration.SETTINGS["dtype"]``. Configuration objects declare their own keyword-only
+``veris.model.configuration.SETTINGS["dtype"]``. Configuration objects declare their own keyword-only
 ``dtype`` field using that same default; there is no precision base class.
 
 Registry defaults
@@ -82,7 +82,7 @@ Registry defaults
 
 .. exec::
 
-   from veris.configuration import SETTINGS
+   from veris.model.configuration import SETTINGS
    print(".. list-table::")
    print("   :header-rows: 1")
    print("")

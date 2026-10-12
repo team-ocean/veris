@@ -15,7 +15,6 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import replace
-from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -24,10 +23,11 @@ import click
 import jax
 import numpy as np
 from jax.sharding import Mesh
-from jax.sharding import PartitionSpec as P
 
-from veris._typing import State
-from veris.integration_output import run_timed  # noqa: F401 -- compatibility export
+from veris.execution.rollout_output import (
+    run_timed,  # noqa: F401 -- compatibility export
+)
+from veris.grid.halos import remove_halos
 from veris.io.cli import (
     output_options,
     output_settings,
@@ -35,6 +35,7 @@ from veris.io.cli import (
     prepare_output_paths,
 )
 from veris.io.storage import selected_fields, write_snapshot
+from veris.model.types import State
 
 OUTPUT_FIELDS = (
     "hIceMean",
@@ -104,18 +105,6 @@ def create_mesh(partitions: tuple[int, int] | None, backend: str) -> Mesh:
             f"mesh {shape} must contain all {len(devices)} available {backend} devices"
         )
     return jax.make_mesh(shape, ("x", "y"), devices=devices)
-
-
-def remove_halos(array: jax.Array, mesh: Mesh) -> jax.Array:
-    """Trim two boundary cells from each shard, retaining global physical order."""
-
-    @partial(jax.shard_map, mesh=mesh, in_specs=P("x", "y"), out_specs=P("x", "y"))
-    def interior(local: jax.Array) -> jax.Array:
-        return local[2:-2, 2:-2]
-
-    # The explicit shard_map mesh also works while JVP/VJP/JIT trace callers.
-    # Entering a new set_mesh context here would reject those transformations.
-    return interior(array)
 
 
 def gather_output(state: State, mesh: Mesh) -> dict[str, np.ndarray]:

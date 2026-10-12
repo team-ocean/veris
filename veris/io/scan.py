@@ -6,22 +6,72 @@ stores only output buffers and absolute indices, never an old numerical State.
 """
 
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from datetime import timedelta
 from functools import partial
 from numbers import Integral
 from time import perf_counter
+from types import FunctionType
 from typing import Any
+from weakref import WeakKeyDictionary, ref
 
 import jax
 import jax.numpy as jnp
 
-from veris.integration import step
+from veris.execution.rollout import step
 from veris.io.calendar import duration_us
 from veris.io.configuration import Stream
 from veris.io.output import OutputManager
 from veris.io.schedule import iter_segments, timestep_us
 
 Carry = tuple[Any, tuple[dict[str, jax.Array], ...], tuple[jax.Array, ...], jax.Array]
+
+
+@dataclass(frozen=True)
+class _FieldSelector:
+    """Hashable selected-field contract without host file or observer resources."""
+
+    names: tuple[str, ...]
+    from_carry: bool = False
+
+    def __call__(self, source: Any) -> dict[str, Any]:
+        """Select the same State/mapping fields, optionally from an auxiliary carry."""
+        state = source[0] if self.from_carry else source
+        return {
+            name: state[name] if isinstance(state, Mapping) else getattr(state, name)
+            for name in self.names
+        }
+
+
+class _WeakCallable:
+    """Key a live callback by identity without owning its captured resources."""
+
+    __slots__ = ("__weakref__", "_identity", "_reference")
+
+    def __init__(self, callback: Callable[..., Any]) -> None:
+        """Accept unhashable callbacks; non-weak-referenceable ones use a fallback."""
+        self._identity = id(callback)
+        self._reference = ref(callback)
+
+    def __hash__(self) -> int:
+        """Hash identity without hashing the callback or its weak reference."""
+        return self._identity
+
+    def __eq__(self, other: object) -> bool:
+        """Reuse live identities without equating separate expired callbacks."""
+        if self is other:
+            return True
+        if not isinstance(other, _WeakCallable):
+            return False
+        callback = self._reference()
+        return callback is not None and callback is other._reference()
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """Resolve a strong local reference only while tracing a live callback."""
+        callback = self._reference()
+        if callback is None:
+            raise RuntimeError("scheduled numerical callback is no longer alive")
+        return callback(*args, **kwargs)
 
 
 class ScheduledObserver:
@@ -72,10 +122,7 @@ class ScheduledObserver:
 
     def select(self, state: Any) -> dict[str, Any]:
         """Select configured arrays without changing their spatial layout."""
-        return {
-            name: state[name] if isinstance(state, Mapping) else getattr(state, name)
-            for name in self.names
-        }
+        return _FieldSelector(self.names)(state)
 
     def __call__(self, sample: Any, iteration: int) -> None:
         """Support ordinary direct sampling outside the scheduled runner."""
@@ -225,6 +272,68 @@ def _observed_chunk(
     )
 
 
+_scheduled_executors: WeakKeyDictionary[FunctionType, Any] = WeakKeyDictionary()
+
+
+def _compile_chunk(
+    carry: Carry,
+    *,
+    advance: Callable[..., Any],
+    select: Callable[[Any], Any],
+    history_select: Callable[[Any], Any] | None,
+    inputs: Any,
+    **settings: Any,
+) -> Any:
+    """Reuse default reductions only for the lifetime of a plain transition.
+
+    Weak function keys release their JIT owners when the caller discards the
+    transition. Cached partials hold only its weak identity and immutable field
+    selection; changing numerical carry/forcing remains dynamic. Arbitrary
+    callable objects and history selectors retain the scoped legacy path.
+    """
+    if (
+        type(advance) is FunctionType
+        and type(select) is _FieldSelector
+        and history_select is None
+    ):
+        execute = _scheduled_executors.get(advance)
+        if execute is None:
+            execute = jax.jit(
+                partial(_reduce_chunk, advance=_WeakCallable(advance)),
+                static_argnames=(
+                    "select",
+                    "streams",
+                    "intervals",
+                    "sample_initial",
+                    "checkpoint",
+                    "physics_x64",
+                    "steps",
+                ),
+            )
+            _scheduled_executors[advance] = execute
+        return execute.lower(carry, select=select, inputs=inputs, **settings).compile()
+    # Keep strong, hashable proxies alive only during lowering. Nested scan and
+    # checkpoint caches see weak proxies, including for slots/unhashable objects.
+    owners = {"advance": partial(advance), "select": partial(select)}
+    if history_select is not None:
+        owners["history_select"] = partial(history_select)
+    callbacks = {name: _WeakCallable(value) for name, value in owners.items()}
+    reducer = (
+        _reduce_chunk
+        if history_select is None
+        else partial(_observed_chunk, history_select=callbacks["history_select"])
+    )
+    execute = jax.jit(
+        partial(
+            reducer,
+            advance=callbacks["advance"],
+            select=callbacks["select"],
+            **settings,
+        )
+    )
+    return execute.lower(carry, inputs=inputs).compile()
+
+
 def run_scheduled(
     state: Any,
     advance: Callable[..., Any],
@@ -239,6 +348,12 @@ def run_scheduled(
     history_sink: Callable[[Any], None] | None = None,
 ) -> tuple[Any, float, float]:
     """Compile event shapes, run once and retain only unfinished continuation."""
+    owner = getattr(select, "__self__", None)
+    if (
+        isinstance(owner, ScheduledObserver)
+        and getattr(select, "__func__", None) is ScheduledObserver.select
+    ):
+        select = _FieldSelector(owner.names)
     manager, settings = observer.manager, observer.manager.settings
     start_step = observer.next_step
     cap = (
@@ -302,7 +417,7 @@ def run_scheduled(
             if size not in executables:
                 kwargs = {
                     "advance": advance,
-                    "select": select_physics,
+                    "select": select,
                     "streams": settings.streams,
                     "intervals": intervals,
                     "sample_initial": settings.sample_initial,
@@ -310,15 +425,12 @@ def run_scheduled(
                     "physics_x64": physics_x64,
                     "steps": size,
                 }
-                reducer = (
-                    _reduce_chunk
-                    if history_select is None
-                    else partial(_observed_chunk, history_select=history_select)
+                executables[size] = _compile_chunk(
+                    carry,
+                    inputs=chunk_inputs(segment),
+                    history_select=history_select,
+                    **kwargs,
                 )
-                execute = jax.jit(partial(reducer, **kwargs))
-                executables[size] = execute.lower(
-                    carry, inputs=chunk_inputs(segment)
-                ).compile()
         # Empty histories infer shapes with identity only, without physics/forcing.
         empty_history = None
         if not steps and history_select is not None:

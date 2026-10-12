@@ -11,8 +11,8 @@ import jax
 import jax.numpy as jnp
 import pytest
 
-from veris.configuration import Configuration
-from veris.physical_constants import PhysicalConstants
+from veris.model.configuration import Configuration
+from veris.model.physical_constants import PhysicalConstants
 
 
 def harness() -> ModuleType:

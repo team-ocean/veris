@@ -17,7 +17,7 @@ from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 
 from veris import Execution, Experiment, Grid, advance, initialize_experiment, step
-from veris._typing import State
+from veris.model.types import State
 from veris.setups import run_parallel
 
 

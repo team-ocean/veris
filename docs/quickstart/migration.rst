@@ -5,6 +5,12 @@ Existing pure rollouts and setup compatibility entry points retain their
 contracts. New applications can use ``Experiment`` and ``Simulation`` to share
 initialization, forcing, time accounting and output across physics modes.
 
+Scientific modules now live under ``model``, ``grid``, ``physics``, ``numerics``,
+``execution``, ``io`` and ``setups``. Existing module imports remain available;
+use the canonical paths in :doc:`/reference/package-hierarchy` for new imports.
+Top-level ``veris`` and ``veris.io`` imports and the setup command-line entry
+points retain their existing contracts.
+
 .. list-table::
    :header-rows: 1
    :widths: 40 60
@@ -18,8 +24,9 @@ initialization, forcing, time accounting and output across physics modes.
    * - ``veris.step(state, transition, n)``
      - Unchanged pure rollout; ``simulation.run(n)`` adds host lifecycle/time
    * - ``initialization.initialize`` with packed overrides
-     - Low-level allocation remains; ``initialize_experiment`` creates runnable
-       preset or custom geometry through physical global inputs
+     - Low-level allocation lives in ``veris.execution.initialization``;
+       ``initialize_experiment`` creates runnable preset or custom geometry
+       through physical global inputs
    * - ``write_snapshot`` / ``save_final``
      - ``simulation.snapshot(...)`` at the current absolute model time
    * - ``read_record`` / ``update_state``

@@ -15,16 +15,16 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from veris._metadata import (
+from veris.execution.initialization import initialize as initialize_model
+from veris.model.configuration import SETTINGS, Configuration
+from veris.model.diagnostics import Diagnostics
+from veris.model.metadata import (
     FROM_REGISTRY,
     registry_defaults,
     validate_scalars,
 )
-from veris._typing import Parameter, State, jit
-from veris.configuration import SETTINGS, Configuration
-from veris.diagnostics import Diagnostics
-from veris.initialization import initialize as initialize_model
-from veris.physical_constants import PhysicalConstants
+from veris.model.physical_constants import PhysicalConstants
+from veris.model.types import Parameter, State, jit
 
 ISLAND_SETTINGS: dict[str, Parameter] = {
     "saltOcn_ref": Parameter(
@@ -199,7 +199,7 @@ def initialize(
     )
     vs = replace(vs, **fields)
     if not conf.enable_cyclic_y:
-        from veris.fill_overlap import fill_state_overlap
+        from veris.grid.halos import fill_state_overlap
 
         vs = fill_state_overlap(vs, conf)
     return vs, conf, phys
@@ -326,7 +326,7 @@ def step_with_diagnostics(
     """
     if cooling is None:
         cooling = float(cast(float, ISLAND_SETTINGS["islandCooling"].default))
-    from veris.model_physics import _execute_advance
+    from veris.execution.advance import _execute_advance
 
     # Legacy experiments permit separate dynamics and growth timesteps. The
     # public facade has one coupled clock; both use identical shared stages.

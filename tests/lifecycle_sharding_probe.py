@@ -19,7 +19,7 @@ from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 
 import veris
-from veris import simulation
+from veris.execution import simulation
 from veris.io import OutputSettings, Stream, read_record
 
 

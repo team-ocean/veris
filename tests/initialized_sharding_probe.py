@@ -13,11 +13,11 @@ import numpy as np
 from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 
-from veris._typing import State
-from veris.initialization import initialize
+from veris.execution.initialization import initialize
+from veris.model.types import State
+from veris.model.variables import VARIABLES
 from veris.setups.island import compiled_step, step
 from veris.setups.island import initialize as initialize_island
-from veris.variables import VARIABLES
 
 
 def pack(field: jax.Array, px: int, py: int) -> np.ndarray:

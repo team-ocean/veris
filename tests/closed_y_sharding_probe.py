@@ -25,9 +25,9 @@ from veris import (
     initialize_experiment,
     step,
 )
-from veris._typing import State
-from veris.configuration import Configuration
-from veris.fill_overlap import fill_overlap, fill_overlap_uv
+from veris.grid.halos import fill_overlap, fill_overlap_uv
+from veris.model.configuration import Configuration
+from veris.model.types import State
 from veris.setups.run_parallel import remove_halos
 
 

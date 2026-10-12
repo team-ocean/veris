@@ -3,8 +3,8 @@
 State fields
 ============
 
-``veris.variables.VARIABLES`` describes the calculation fields allocated by
-``veris.initialization.initialize``. Every entry has a default, units,
+``veris.model.variables.VARIABLES`` describes the calculation fields allocated by
+``veris.execution.initialization.initialize``. Every entry has a default, units,
 long name, description and staggered dimensions. State is a frozen dataclass
 registered as a JAX PyTree. Update arrays with ``dataclasses.replace``.
 
@@ -23,7 +23,7 @@ NetCDF metadata
 
 The metadata can be used directly with h5netcdf::
 
-   from veris.variables import VARIABLES
+   from veris.model.variables import VARIABLES
    metadata = VARIABLES["uIce"]
    variable = output.create_variable(
        "uIce", metadata.dimensions, dtype=state.uIce.dtype
@@ -40,7 +40,7 @@ Registry defaults
 
 .. exec::
 
-   from veris.variables import VARIABLES
+   from veris.model.variables import VARIABLES
    print(".. list-table::")
    print("   :header-rows: 1")
    print("")
@@ -67,7 +67,7 @@ misleading units. This metadata migration preserves that existing equation.
 
 .. exec::
 
-   from veris.diagnostics import DIAGNOSTICS
+   from veris.model.diagnostics import DIAGNOSTICS
    print(".. list-table::")
    print("   :header-rows: 1")
    print("")

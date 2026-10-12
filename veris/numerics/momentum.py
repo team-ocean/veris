@@ -1,0 +1,117 @@
+"""Wind forcing and dispatch of the free-drift or EVP momentum solver."""
+
+from __future__ import annotations
+
+from functools import partial
+
+import jax.numpy as jnp
+from jax import Array
+
+from veris.model.configuration import Configuration
+from veris.model.physical_constants import PhysicalConstants
+from veris.model.types import State, jit
+from veris.numerics.autodiff import norm_sqrt
+from veris.numerics.evp import evp_solver
+from veris.numerics.freedrift import freedrift_solver
+
+
+@partial(jit, static_argnames=["conf", "phys"])
+def tauXY(
+    vs: State, conf: Configuration, phys: PhysicalConstants
+) -> tuple[Array, Array]:
+    """calculate surface stress from wind and ice velocities"""
+
+    sinWin = jnp.sin(jnp.deg2rad(phys.airTurnAngle))
+    cosWin = jnp.cos(jnp.deg2rad(phys.airTurnAngle))
+
+    if conf.useRelativeWind:
+        # calculate relative wind at c-points
+        urel = vs.uWind - 0.5 * (vs.uIce + jnp.roll(vs.uIce, -1, 0))
+        vrel = vs.vWind - 0.5 * (vs.vIce + jnp.roll(vs.vIce, -1, 1))
+    else:
+        # only use wind for the wind stress calculation
+        urel = vs.uWind
+        vrel = vs.vWind
+
+    # calculate wind speed and set lower boundary
+    windSpeed_sq = urel**2 + vrel**2
+    windSpeed = jnp.where(
+        windSpeed_sq < phys.wSpeedMin**2, phys.wSpeedMin, norm_sqrt(windSpeed_sq)
+    )
+
+    # calculate air-ice drag coefficient
+    CDAir = (
+        jnp.where(vs.fCori < 0, phys.airIceDrag_south, phys.airIceDrag)
+        * phys.rhoAir
+        * windSpeed
+    )
+
+    # calculate surface stress
+    tauX = CDAir * (cosWin * urel - jnp.sign(vs.fCori) * sinWin * vrel)
+    tauY = CDAir * (cosWin * vrel + jnp.sign(vs.fCori) * sinWin * urel)
+
+    # interpolate to u- and v-points
+    tauX = 0.5 * (tauX + jnp.roll(tauX, 1, 0)) * vs.iceMaskU
+    tauY = 0.5 * (tauY + jnp.roll(tauY, 1, 1)) * vs.iceMaskV
+
+    return tauX, tauY
+
+
+@partial(jit, static_argnames=["conf", "phys"])
+def WindForcingXY(
+    vs: State, conf: Configuration, phys: PhysicalConstants
+) -> tuple[Array, Array]:
+    """calculate surface forcing due to wind and ocean surface tilt"""
+
+    # calculate surface stresses from wind and ice velocities
+    tauX, tauY = tauXY(vs, conf, phys)
+
+    # calculate forcing by surface stress
+    WindForcingX = tauX * vs.AreaW
+    WindForcingY = tauY * vs.AreaS
+
+    # calculate geopotential anomaly. the surface pressure and sea ice load are
+    # used as they affect the sea surface height anomaly
+    phiSurf = phys.gravity * vs.ssh_an
+    if conf.useRealFreshWaterFlux:
+        phiSurf = (
+            phiSurf
+            + (vs.surfPress + vs.SeaIceLoad * phys.gravity * phys.seaIceLoadFac)
+            * phys.recip_rhoSea
+        )
+    else:
+        phiSurf = phiSurf + vs.surfPress * phys.recip_rhoSea
+
+    # add in tilt
+    WindForcingX = WindForcingX - vs.SeaIceMassU * vs.recip_dxC * (
+        phiSurf - jnp.roll(phiSurf, 1, 0)
+    )
+    WindForcingY = WindForcingY - vs.SeaIceMassV * vs.recip_dyC * (
+        phiSurf - jnp.roll(phiSurf, 1, 1)
+    )
+
+    return WindForcingX, WindForcingY
+
+
+@partial(jit, static_argnames=["conf", "phys", "axis_names"])
+def IceVelocities(
+    vs: State,
+    conf: Configuration,
+    phys: PhysicalConstants,
+    *,
+    axis_names: tuple[str, ...] = (),
+) -> tuple[Array, Array, Array, Array, Array]:
+    """Calculate ice velocities, reducing EVP diagnostics over supplied mesh axes."""
+
+    if conf.useFreedrift:
+        uIce, vIce = freedrift_solver(vs, conf, phys)
+        sigma1 = vs.sigma1
+        sigma2 = vs.sigma2
+        sigma12 = vs.sigma12
+
+    if conf.useEVP:
+        uIce, vIce, sigma1, sigma2, sigma12 = evp_solver(
+            vs, conf, phys, axis_names=axis_names
+        )
+
+    return uIce, vIce, sigma1, sigma2, sigma12

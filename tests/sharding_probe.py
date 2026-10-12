@@ -16,7 +16,7 @@ from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 from numpy.typing import NDArray
 
-from veris.fill_overlap import make_sharded_fill_overlap
+from veris.grid.halos import make_sharded_fill_overlap
 
 
 def check_layout(px: int, py: int) -> None:

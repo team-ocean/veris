@@ -19,7 +19,7 @@ import numpy as np
 from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 
-from veris.integration_output import output_callbacks, run_timed
+from veris.execution.rollout_output import output_callbacks, run_timed
 from veris.io import OutputManager, OutputSettings, Stream
 from veris.io.distributed import distributed_collector
 from veris.setups.run_parallel import remove_halos
