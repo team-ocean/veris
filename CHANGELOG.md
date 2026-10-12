@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-10-12 — GPU-only verification
+
+- [x] With explicit user approval for native local GPU access, JAX 0.11.1 /
+  CUDA 12 detects both Tesla P100-PCIE-16GB devices. Run explicitly requires
+  CUDA and disables process-local preallocation for the parent/child probes.
+- [x] Both previously CPU-skipped tests pass: two-GPU scheduled output and
+  the GPU CLI finite snapshot. Two passes, zero failures/errors/skips in
+  31.54 s external wall time. Evidence: `test_logs/test-runtime/gpu-only.*`
+  and `gpu-only-resources.txt`.
+- All 163 Python hashes still match the completed full CPU validation;
+  no code, test, tolerance or environment dependency changes. Full GPU-suite
+  and actual multi-host verification were not part of this focused run.
+
 ## 2026-10-12 — Unit-test runtime reduction (started 2026-10-11)
 
 - [x] COMPLETE (@root): measure and reduce full correctness runtime, audit newer

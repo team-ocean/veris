@@ -74,8 +74,11 @@ CPU correctness, unchanged coverage, maintained Ruff/format/annotations/ty,
 dependency, strict Sphinx, fresh wheel/sdist and clean installed public-example
 checks pass. The installed probe exercises public imports, coupled exact restart,
 observations, selected input, custom geometry, two-CPU sharding and pure
-JIT/grad/JVP/VJP. GPU and actual multi-host hardware verification are unavailable
-in this environment. Whole-process memory reduction remains unproven.
+JIT/grad/JVP/VJP. A subsequent explicitly authorized native GPU run passes both
+CPU-skipped cases on two Tesla P100 GPUs with JAX 0.11.1 / CUDA 12: scheduled
+two-GPU output and the GPU CLI snapshot, zero failures/skips in 31.54 s external
+wall time. Full GPU-suite and actual multi-host verification were not performed.
+Whole-process memory reduction remains unproven.
 
 ## Core dynamics and whole-suite follow-up — 2026-09-17
 
