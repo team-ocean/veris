@@ -4,6 +4,10 @@ The original Veris Growth equations average surface fluxes over nITC thickness
 categories and combine ice/snow melt, mixed-layer exchange, precipitation, and
 salt/freshwater coupling. Inputs and all eleven outputs are horizontal arrays;
 the internal category axis is last. Surface temperatures come from solve4temp.
+By default, category-reduced grid-cell fluxes receive one concentration weight.
+useLegacyGrowthAreaWeights restores the original growth.py repeated weights for
+reproducing the standalone jax_halo_exchange notebook, including its historical
+partial-cover budget errors.
 """
 
 from __future__ import annotations
@@ -240,6 +244,8 @@ def Growth(vs: State, conf: Configuration, phys: PhysicalConstants) -> GrowthRes
     )
     # Accumulation is per ice area; the melt flux is already per grid-cell area.
     dhSnowMean_dt = SnowAccRateOverIce * AreapreTH - SnowMeltRateFromSurface
+    if conf.useLegacyGrowthAreaWeights:
+        dhSnowMean_dt = (SnowAccRateOverIce - SnowMeltRateFromSurface) * AreapreTH
 
     tmpscal0 = phys.lateralMeltAreaFactor * recip_hIceActual
 
@@ -311,6 +317,8 @@ def Growth(vs: State, conf: Configuration, phys: PhysicalConstants) -> GrowthRes
     # effective shortwave heating rate
     # IcePenetSW was converted to a grid-cell mean after category averaging.
     Qsw = IcePenetSW + vs.Qsw * (1 - AreapreTH)
+    if conf.useLegacyGrowthAreaWeights:
+        Qsw = IcePenetSW * AreapreTH + vs.Qsw * (1 - AreapreTH)
 
     # the actual ice volume change over the time step [m3/m2]
     hIceMeanChange = hIceMean - hIceMeanpreTH
@@ -326,6 +334,10 @@ def Growth(vs: State, conf: Configuration, phys: PhysicalConstants) -> GrowthRes
     NetEnergyFluxOutOfOcean = (
         F_ia_net + F_io_net + IcePenetSW + (1 - AreapreTH) * vs.Qnet
     ) * conf.deltatTherm
+    if conf.useLegacyGrowthAreaWeights:
+        NetEnergyFluxOutOfOcean = (
+            AreapreTH * (F_ia_net + F_io_net + IcePenetSW) + (1 - AreapreTH) * vs.Qnet
+        ) * conf.deltatTherm
 
     # energy taken out of the ocean which is not used for sea ice growth [J].
     # If the net energy flux out of the ocean is balanced by the latent

@@ -48,6 +48,21 @@ def test_growth_grid_and_scenario_do_not_duplicate_experiment_controls() -> None
     assert not {"nx", "ny", "steps", "dtype"} & definition.scenario.keys()
 
 
+def test_growth_equation_selection_preserves_explicit_override() -> None:
+    """Keep conservative model defaults and allow overriding notebook equations."""
+    from veris.model.configuration import Configuration
+    from veris.setups.run_growth import initialize
+
+    assert not Configuration().useLegacyGrowthAreaWeights
+    assert Experiment.builtin("growth").configuration.useLegacyGrowthAreaWeights
+    assert initialize()[1].useLegacyGrowthAreaWeights
+    options = {"useLegacyGrowthAreaWeights": False, "deltatTherm": 600.0}
+    conf = Experiment.builtin("growth", settings=options).configuration
+    assert not conf.useLegacyGrowthAreaWeights
+    assert conf.deltatTherm == 600.0
+    assert not initialize(settings_overrides=options)[1].useLegacyGrowthAreaWeights
+
+
 def test_explicit_series_override_prescribed_preset_heat() -> None:
     definition = Experiment.builtin(
         "island",

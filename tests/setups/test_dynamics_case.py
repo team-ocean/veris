@@ -55,6 +55,8 @@ def test_reference_initial_fields_and_wind() -> None:
     np.testing.assert_array_equal(state.hIceMean, 0.3)
     np.testing.assert_array_equal(state.Area, 1.0)
     np.testing.assert_array_equal(state.hSnowMean, 0.0)
+    np.testing.assert_array_equal(state.theta, 0.0)
+    np.testing.assert_array_equal(state.ATemp, 0.0)
     np.testing.assert_allclose(
         state.uOcean[2:-2, 2:-2],
         0.01 * (2 * y - 512000) / 512000 * mask * np.roll(mask, 1, 0),

@@ -17,6 +17,10 @@ Use immutable updates; dependent reciprocals are recomputed::
 
 Configuration objects are static JIT arguments; changing a value may trigger compilation.
 The island example overrides timesteps and EVP iteration count.
+The standalone growth preset sets ``useLegacyGrowthAreaWeights=True`` to
+reproduce its original notebook; the general default ``False`` uses corrected
+partial-cover heat and snow budgets. See :doc:`setups/growth` for the numerical
+difference and how to override that experiment choice.
 
 Horizontal boundaries
 ---------------------

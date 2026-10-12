@@ -59,9 +59,12 @@ Reference adaptations
 The runnable cases correct the old serial mask's five-cell neighbor offset,
 use the physical one-cell face stencil, and initialize periodic halos
 consistently. They replace generated initializer imports, fixed home paths and
-all-rank output writes. Fields unused by each isolated experiment retain the
-shared VARIABLES defaults rather than the old blanket zero initialization;
-all prescribed fields consumed by the experiment retain their reference values.
+all-rank output writes. Prescribed fields retain their reference values.
+Unprescribed fields, including ocean and air temperature, start at zero as in
+``initialize_dyn.py``. Dynamics-only execution does not consume those temperatures.
+Independent original-source regression data verifies every startup field,
+shared numerical setting and physical constant, then physical fields after
+100 timesteps with 120 adaptive EVP iterations on a reduced 16 by 16 grid.
 Experimental constants live in scenario registries, while universal physical
 constants stay in PhysicalConstants. No changes to the physics kernels are needed.
 

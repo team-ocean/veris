@@ -51,7 +51,11 @@ def preset_controls(
         factory = DynamicsSettings
         arguments = {}
     else:
-        from veris.setups.run_growth import GROWTH_SETTINGS, GrowthSettings
+        from veris.setups.run_growth import (
+            GROWTH_NUMERICAL_DEFAULTS,
+            GROWTH_SETTINGS,
+            GrowthSettings,
+        )
 
         registry = GROWTH_SETTINGS
         factory = GrowthSettings
@@ -76,5 +80,5 @@ def preset_controls(
     elif name == "dynamics":
         defaults = dict(DYNAMICS_NUMERICAL_DEFAULTS)
     else:
-        defaults = {}
+        defaults = dict(GROWTH_NUMERICAL_DEFAULTS)
     return {**defaults, **settings}, resolved

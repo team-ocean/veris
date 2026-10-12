@@ -39,6 +39,36 @@ def test_pure_and_host_trajectories_match_immutable_reference(
     )
     case = manifest["cases"][case_index]
     preset, name = case["preset"], case["name"]
+    # These archives predate restoration of the standalone notebook setup.
+    # Retain their corrected thermodynamic equations and every numerical oracle;
+    # explicitly adapt only the intentionally restored inactive startup fields.
+    settings = dict(case["settings"])
+    restored_defaults: dict[str, float] = {}
+    if preset == "growth":
+        settings["useLegacyGrowthAreaWeights"] = False
+        restored_defaults = dict.fromkeys(
+            (
+                "dxG",
+                "dyG",
+                "dxU",
+                "dyU",
+                "dxV",
+                "dyV",
+                "recip_dxC",
+                "recip_dyC",
+                "recip_dxU",
+                "recip_dyU",
+                "recip_dxV",
+                "recip_dyV",
+                "rAz",
+                "recip_rA",
+                "recip_rAu",
+                "recip_rAv",
+            ),
+            1.0,
+        )
+    elif preset == "dynamics":
+        restored_defaults = {"theta": 273.15, "ATemp": 273.15}
     forcing = (
         veris.Forcing(
             constant={"Qsw": 0}, series={"Qnet": np.array(case["forcing"]["Qnet"])}
@@ -49,7 +79,7 @@ def test_pure_and_host_trajectories_match_immutable_reference(
     experiment = veris.Experiment.builtin(
         preset,
         grid=veris.Grid(*case["grid"]),
-        settings=case["settings"],
+        settings=settings,
         forcing=forcing,
         steps=3,
     )
@@ -62,6 +92,9 @@ def test_pure_and_host_trajectories_match_immutable_reference(
             if step in (0, 1, 3):
                 for item in fields(state):
                     expected = reference[f"{name}.state.{step}.{item.name}"]
+                    if item.name in restored_defaults:
+                        assert np.all(expected == restored_defaults[item.name])
+                        expected = np.zeros_like(expected)
                     for label, actual in (
                         ("pure", state),
                         ("host", simulation.state),

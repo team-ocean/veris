@@ -53,6 +53,9 @@ netCDF file is published atomically without overwrite. Missing/incompatible fiel
 never fall back to allocation defaults. Diagnostics reset until the next step.
 New output keeps saved origin/calendar/cadence, skips the checkpoint instant and
 discards old/crossing unfinished mean windows. Distributed restart is unsupported.
+The exact version-1 configuration inventory preceding useLegacyGrowthAreaWeights
+is migrated with only that known control set to False, preserving the corrected
+equations of older checkpoints. All other missing or incompatible metadata fails.
 
 Pure advance/step support validated JIT, grad, JVP and VJP with respect to initial
 State and JAX forcing arrays. Definition construction, host orchestration, files

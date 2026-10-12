@@ -1,0 +1,287 @@
+"""Capture the original standalone notebooks without importing current Veris.
+
+Use archived Veris ``jax-only`` and example ``jax_halo_exchange`` source roots.
+Every original Python/notebook input is checked before import or execution.
+The growth notebook's discarded salt output is observed without feeding it back.
+Dynamics reduces only grid_len to 16 and applies documented serial halo flags.
+Copy this immutable file to a .py name; capture is never part of pytest.
+"""
+
+import ast
+import hashlib
+import importlib
+import json
+import platform
+import sys
+from functools import partial
+from pathlib import Path
+
+import jax
+import jaxlib
+import numpy as np
+
+MODEL_COMMIT = "eb690aa8dc25ed7e6bb3766d658f382eca234b7c"
+EXAMPLE_COMMIT = "2571998f8feb6a5943b214361c122ca78b44c3a8"
+MODEL_HASHES = {
+    "veris/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "veris/advection.py": "3d1f05df630db55f02669ed3b8cf9645cda58d8b86836f6329d94508c9f67420",
+    "veris/area_mass.py": "19f77133bc57130e39e8940b491d204d47d38ab4c4ba661a622e1ec7b4cf2a34",
+    "veris/averaging.py": "5a894576e4c623a2c0f07d2faa38835af798b43c7a04ba5e518bdde7f30421af",
+    "veris/clean_up.py": "47ee6e30ecae7fb7eb6068a0fe70babff53964e69c05a84e3fa6f530177e6c3c",
+    "veris/dynamics_routines.py": "ca14b1207962141950c9dfd7f17dfdb4011a8bce03eba1215d3a3ad1624f7c98",
+    "veris/dynsolver.py": "d81271ee6f67cd62c01e726c632e092917d4c1707d253579fd91ea3d047d9659",
+    "veris/evp_solver.py": "069311315116234f975985372de8f7e6ae7268cb01e2e498f6759f2dc750d9c2",
+    "veris/fill_overlap.py": "cca35b2fae2eca07328efbd07e59bceae813016fb5539acc0a265adc7e41f3ef",
+    "veris/freedrift_solver.py": "0957c41ae735f86ec89f2bdb1916bdaecc2a4d30d29eb80dfe3f297887a4e6f8",
+    "veris/global_sum.py": "e9afb7760a266947834e64505470c6e5d1a29cb4fff2faa6043f74206f1e3463",
+    "veris/growth.py": "5d73407031c93856ef4f6aaa943d096a034c4a6d0a0a3545a7f9202e8a5ab7e1",
+    "veris/heat_flux_CESM.py": "35f7e14310bb3453f83eb0ef9bc5daf8d68ac244689cc87a6a21c5af36d4c71c",
+    "veris/heat_flux_MITgcm.py": "557ffd8e1c1f749f22df8169bf36aa1ceab10e10eeb4913bedfcdfe80d896b02",
+    "veris/model.py": "9fb02212db9f2dcb20ea348b2daf9587b576af835c3ac1442f8fe6c3d9cab5e3",
+    "veris/ocean_stress.py": "7c018d0dc041c57eecff0800e259bbbf2b4f43f655ad5c6e0e0a0198e97fc1c3",
+    "veris/set_inits.py": "65a9ffba08ab5c4d1ebc27adcb5b167f617f4316b1188d8384e903cd630c407f",
+    "veris/settings.py": "d7bd145ae1c9c2721c0fc03dc4e243c60b0f3f803ee10735f6dd611592b0bb5a",
+    "veris/setup/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "veris/setup/seaice_global_4deg/__init__.py": "e97b22294597117139e4c2389d6775b10ab51a3c2c436413b5862300c1edf913",
+    "veris/setup/seaice_global_4deg/seaice_global_4deg.py": "24db6ab678ae4c0bbb344bb41c28718558bd7fcc14ab28dbc0c9bf99f3004034",
+    "veris/solve4temp.py": "a08ff7144c7df9facd822efcba001a1a924fd19aaffc3d29806ef83d7dd30010",
+    "veris/variables.py": "ccb0bdf5efe3d3b1ce11e0986593be535d9ed8af29e103839091cd8dffb7e799",
+}
+EXAMPLE_HASHES = {
+    "initialize_dyn.py": "a7a65f8547dcdc530405155b3bcac477fc76064b3ee8e0f6f2ae1110bdda61b4",
+    "initialize_growth.py": "76dacdd247f43272320087dbad5a96b7ca776fe8877c8d087e0d73d9a77c9117",
+    "initialize_mesh_sharding.py": "f10832afde23f2cc7601e75debc4cedaf491f2db972c0a7de8be72dd69853aaa",
+    "run_dyn.ipynb": "609fab4f5e29e3ead015da59632d5c0371924021d63e0fd08bce571218d5c603",
+    "run_growth.ipynb": "5a18b5dc69b1e0c9cc58a2d858630d4ed5991a2b07664a89154922b86095959d",
+}
+STATE_FIELDS = (
+    "hIceMean", "hSnowMean", "Area", "TSurf", "SeaIceMassC", "SeaIceMassU",
+    "SeaIceMassV", "SeaIceStrength", "os_hIceMean", "os_hSnowMean", "AreaW",
+    "AreaS", "uIce", "vIce", "sigma1", "sigma2", "sigma12", "WindForcingX",
+    "WindForcingY", "recip_hIceMean", "SeaIceLoad", "uOcean", "vOcean", "theta",
+    "ocSalt", "Qnet", "R_low", "ssh_an", "Qsw", "uWind", "vWind", "wSpeed",
+    "surfPress", "SWdown", "LWdown", "ATemp", "aqh", "precip", "snowfall",
+    "evap", "runoff", "maskInC", "maskInU", "maskInV", "iceMask", "iceMaskU",
+    "iceMaskV", "k1AtC", "k2AtC", "k1AtZ", "k2AtZ", "Fu", "Fv", "fCori",
+    "dxG", "dyG", "dxU", "dyU", "dxV", "dyV", "recip_dxC", "recip_dyC",
+    "recip_dxU", "recip_dyU", "recip_dxV", "recip_dyV", "rAz", "recip_rA",
+    "recip_rAu", "recip_rAv",
+)
+GROWTH_OUTPUT_FIELDS = (
+    "hIceMean", "hSnowMean", "Area", "TSurf", "EmPmR", "forc_salt_surface",
+    "Qsw", "Qnet", "SeaIceLoad", "IcePenetSW", "recip_hIceMean",
+)
+
+
+def _sha256(path):
+    """Hash the full bytes of a provenance input or output."""
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _verify(root, hashes):
+    """Reject any nonoriginal numerical input before importing source modules."""
+    for name, expected in hashes.items():
+        path = root / name
+        if not path.is_file() or _sha256(path) != expected:
+            raise RuntimeError(f"ERROR original source hash mismatch: {path}")
+
+
+def _notebook_function(root, notebook, name):
+    """Extract the complete original timestep function from its notebook cell."""
+    content = json.loads((root / notebook).read_text())
+    for cell in content["cells"]:
+        code = "".join(cell["source"])
+        if cell["cell_type"] == "code" and f"def {name}(" in code:
+            return code
+    raise RuntimeError(f"ERROR notebook function missing: {name}")
+
+
+def _initial_state(root, name, dynamics=False):
+    """Execute an original initializer, with documented dynamics adaptations."""
+    code = (root / name).read_text()
+    if dynamics:
+        for before, after in (
+            ("grid_len = 1024", "grid_len = 16"),
+            ("use_circular_overlap = False", "use_circular_overlap = True"),
+        ):
+            if code.count(before) != 1:
+                raise RuntimeError(f"ERROR original initializer marker missing: {before}")
+            code = code.replace(before, after)
+    scope = {"__name__": f"capture_{name[:-3]}", "__file__": str(root / name)}
+    exec(compile(code, str(root / name), "exec"), scope)
+    return scope["vs"], scope["sett"]
+
+
+def _settings(sett):
+    """Retain the original 130 settings/constants shared with maintained model."""
+    result = {
+        name: value for name, value in sett.__dict__.items()
+        if name not in {"saltOcn_ref", "veros_fill"}
+    }
+    if len(result) != 130:
+        raise RuntimeError("ERROR original shared settings inventory changed")
+    return result
+
+
+def _snapshot(arrays, case, step, state):
+    """Freeze every maintained State name from the original mutable PyTree."""
+    for name in STATE_FIELDS:
+        arrays[f"{case}.state.{step}.{name}"] = np.asarray(getattr(state, name)).copy()
+
+
+def _growth_transition(example_root):
+    """Observe all original outputs while preserving notebook's ignored salt."""
+    from veris.growth import Growth
+
+    code = _notebook_function(example_root, "run_growth.ipynb", "run_growth")
+    tree = ast.parse(code)
+    function = next(node for node in tree.body if isinstance(node, ast.FunctionDef))
+    assignment = next(node for node in function.body if isinstance(node, ast.Assign))
+    output = assignment.value
+    if not isinstance(output, ast.Call) or output.func.id != "Growth":
+        raise RuntimeError("ERROR original growth update changed")
+    index = function.body.index(assignment)
+    function.body.insert(index, ast.Assign(
+        targets=[ast.Name(id="captured_outputs", ctx=ast.Store())], value=output
+    ))
+    assignment.value = ast.Name(id="captured_outputs", ctx=ast.Load())
+    returned = next(node for node in function.body if isinstance(node, ast.Return))
+    returned.value = ast.Tuple(elts=[
+        returned.value, ast.Name(id="captured_outputs", ctx=ast.Load())
+    ], ctx=ast.Load())
+    ast.fix_missing_locations(tree)
+    scope = {"jax": jax, "partial": partial, "Growth": Growth}
+    exec(compile(tree, str(example_root / "run_growth.ipynb"), "exec"), scope)
+    return scope["run_growth"]
+
+
+def _dynamics_transition(example_root):
+    """Execute the unchanged full original dynamics notebook stage sequence."""
+    imports = {
+        "veris.area_mass": ("SeaIceMass", "AreaWS"),
+        "veris.dynsolver": ("WindForcingXY", "IceVelocities"),
+        "veris.dynamics_routines": ("SeaIceStrength",),
+        "veris.ocean_stress": ("OceanStressUV",),
+        "veris.advection": ("Advection",),
+        "veris.clean_up": ("clean_up_advection", "ridging"),
+        "veris.fill_overlap": ("fill_overlap",),
+    }
+    scope = {"jax": jax, "partial": partial}
+    for module_name, names in imports.items():
+        module = importlib.import_module(module_name)
+        scope.update({name: getattr(module, name) for name in names})
+    code = _notebook_function(example_root, "run_dyn.ipynb", "dyn_model")
+    exec(compile(code, str(example_root / "run_dyn.ipynb"), "exec"), scope)
+    return scope["dyn_model"]
+
+
+def capture(model_root, example_root, output_root):
+    """Capture independently hashed original notebook startup and trajectories."""
+    model_root, example_root, output_root = (
+        path.resolve() for path in (model_root, example_root, output_root)
+    )
+    _verify(model_root, MODEL_HASHES)
+    _verify(example_root, EXAMPLE_HASHES)
+    archive = output_root / "standalone_notebooks_v1.npz"
+    manifest_path = output_root / "standalone_notebooks_v1.json"
+    if archive.exists() or manifest_path.exists():
+        raise RuntimeError("ERROR refusing to overwrite immutable reference outputs")
+    sys.path[:0] = [str(model_root), str(example_root)]
+    jax.config.update("jax_enable_x64", True)
+    import veris
+    from veris.settings import settings
+
+    if not Path(veris.__file__).resolve().is_relative_to(model_root):
+        raise RuntimeError("ERROR reference import escaped archived model source")
+    if jax.default_backend() != "cpu":
+        raise RuntimeError("ERROR original notebook reference capture requires CPU")
+    arrays = {}
+    cases = []
+    state, sett = _initial_state(example_root, "initialize_growth.py")
+    _snapshot(arrays, "growth", 0, state)
+    history = {name: [] for name in GROWTH_OUTPUT_FIELDS}
+    transition = _growth_transition(example_root)
+    for _ in range(150):
+        state, outputs = transition(state, sett)
+        jax.block_until_ready(outputs)
+        for name, value in zip(GROWTH_OUTPUT_FIELDS, outputs, strict=True):
+            history[name].append(np.asarray(value)[0, 0])
+    for name, values in history.items():
+        arrays[f"growth.outputs.{name}"] = np.asarray(values)
+    cases.append({
+        "name": "growth", "grid": [1, 1], "storage_shape": [1, 1],
+        "steps": 150, "snapshot_steps": [0], "output_steps": [1, 150],
+        "timestep_seconds": sett.deltatTherm,
+        "common_settings_constants": _settings(sett),
+        "forcing_policy": "initialized atmospheric/ocean fields; recursive Qnet and Qsw",
+        "state_updates": [name for name in GROWTH_OUTPUT_FIELDS if name != "forc_salt_surface"],
+        "plot_policy": "notebook plots pre-step ice thickness; archive outputs are post-step",
+        "adaptations": ["enable JAX float64 globally", "observe ignored output index 5 without applying it"],
+        "execution_note": "original use_sharding=True is unused by the growth-only kernel",
+    })
+    print("PASS captured original growth: 150 days, eleven outputs", flush=True)
+    settings["use_sharding"] = False
+    state, sett = _initial_state(example_root, "initialize_dyn.py", dynamics=True)
+    _snapshot(arrays, "dynamics", 0, state)
+    transition = _dynamics_transition(example_root)
+    for step in range(1, 101):
+        state = transition(state, sett)
+        jax.block_until_ready(state)
+        if step in (1, 3, 100):
+            _snapshot(arrays, "dynamics", step, state)
+            for name in ("OceanStressU", "OceanStressV"):
+                arrays[f"dynamics.diagnostics.{step}.{name}"] = np.asarray(
+                    getattr(state, name)
+                ).copy()
+    cases.append({
+        "name": "dynamics", "grid": [16, 16], "storage_shape": [20, 20],
+        "steps": 100, "snapshot_steps": [0, 1, 3, 100],
+        "timestep_seconds": sett.deltatDyn,
+        "common_settings_constants": _settings(sett),
+        "forcing_policy": "fixed initialized wind snapshot 15 and ocean current",
+        "adaptations": ["grid_len: 1024 -> 16", "use_circular_overlap: False -> True (notebook instruction)", "use_sharding: True -> False (notebook instruction)", "enable JAX float64 globally"],
+        "halo_policy": "original notebook refreshes only hIceMean, hSnowMean and Area after each full step",
+    })
+    if not all(np.isfinite(value).all() for value in arrays.values()):
+        raise RuntimeError("ERROR original notebook capture has nonfinite outputs")
+    imported_sources = {
+        name: str(Path(module.__file__).resolve().relative_to(model_root))
+        for name, module in sys.modules.items()
+        if name.startswith("veris") and getattr(module, "__file__", None)
+    }
+    output_root.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(archive, **arrays)
+    manifest = {
+        "version": 1,
+        "source_models": {
+            "veris": {"branch": "jax-only", "commit": MODEL_COMMIT, "source_hashes": MODEL_HASHES},
+            "standalone_examples": {"branch": "jax_halo_exchange", "commit": EXAMPLE_COMMIT, "source_hashes": EXAMPLE_HASHES},
+        },
+        "generated_version_metadata": "veris/_version.py excluded; neither imported nor numerical",
+        "imported_model_sources": imported_sources,
+        "generator_sha256": _sha256(Path(__file__)),
+        "archive_sha256": _sha256(archive),
+        "environment": {
+            "python": sys.version.split()[0], "jax": jax.__version__,
+            "jaxlib": jaxlib.__version__, "numpy": np.__version__,
+            "backend": jax.default_backend(), "jax_enable_x64": True,
+            "platform": platform.platform(),
+            "devices": [device.device_kind for device in jax.devices()],
+        },
+        "state_fields": STATE_FIELDS,
+        "growth_output_fields": GROWTH_OUTPUT_FIELDS,
+        "cases": cases,
+        "arrays": {
+            name: {"shape": list(value.shape), "dtype": str(value.dtype)}
+            for name, value in arrays.items()
+        },
+        "reproduction": "Archive Veris MODEL_COMMIT and examples EXAMPLE_COMMIT separately; copy immutable generator to .py; from an external cwd run JAX_PLATFORMS=cpu python generate_standalone_notebooks_reference.py MODEL_ROOT EXAMPLE_ROOT FRESH_OUTPUT_ROOT. Hardcoded hashes validate both archived inputs before import.",
+    }
+    manifest_path.write_text(json.dumps(manifest, sort_keys=True, separators=(",", ":")) + "\n")
+    print(f"PASS captured two original notebooks, {len(arrays)} finite float64 arrays", flush=True)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 4:
+        raise SystemExit("usage: generator.py MODEL_ROOT EXAMPLE_ROOT FRESH_OUTPUT_ROOT")
+    capture(*(Path(value) for value in sys.argv[1:]))

@@ -105,6 +105,7 @@ def test_replace_recomputes_dependencies_and_preserves_rounded_constants() -> No
         ("nITC", 1.5),
         ("nITC", True),
         ("useEVP", 1),
+        ("useLegacyGrowthAreaWeights", 1),
         ("evpAlpha", 0),
         ("evpBeta", 0),
         ("deltatDyn", float("nan")),

@@ -153,8 +153,7 @@ def _fields(
     for name in ("recip_dyC", "recip_dyU", "recip_dyV"):
         values[name] = 1 / dy
     return {
-        name: np.full(x.shape, values.get(name, metadata.default), dtype=dtype)
-        for name, metadata in VARIABLES.items()
+        name: np.full(x.shape, values.get(name, 0.0), dtype=dtype) for name in VARIABLES
     }
 
 

@@ -6,6 +6,8 @@ ice/snow thermodynamics without dynamics or transport. A uniform 2 by 2 interior
 with two halos satisfies the shared allocator and is physically equivalent to
 the reference one-cell column. Qnet and Qsw outputs feed the next step;
 this is a prescribed experiment, not an evolving ocean.
+The setup explicitly selects the notebook's original concentration weighting;
+the general model defaults use corrected thermodynamic budgets.
 Importing this module neither allocates model arrays nor selects a JAX backend.
 """
 
@@ -33,6 +35,14 @@ from veris.model.configuration import SETTINGS, Configuration
 from veris.model.metadata import FROM_REGISTRY, registry_defaults, validate_scalars
 from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import Parameter, State
+
+GROWTH_NUMERICAL_DEFAULTS: dict[str, Any] = {
+    "deltatTherm": 86400.0,
+    "deltatDyn": 86400.0,
+    "nITC": 5,
+    "useLegacyGrowthAreaWeights": True,
+}
+"""Original notebook timestep, categories and thermodynamic equation choices."""
 
 GROWTH_SETTINGS: dict[str, Parameter] = {
     "nx": Parameter(2, int, "Uniform column interior extent along x", "1"),
@@ -89,12 +99,17 @@ def initialize(
 ) -> tuple[State, Configuration, PhysicalConstants]:
     """Allocate the uniform reference column with separate settings and constants.
 
-    Shared registry defaults supply daily thermodynamic steps, zero precipitation,
-    humidity and shortwave fluxes, and unit ocean masks. Model and physical
-    overrides are validated by the shared initializer. Enable x64 before calling
+    Zero-initialize all fields as initialize_growth.py does, then prescribe the
+    column inputs and unit ocean masks. Notebook numerical defaults select daily
+    timesteps and the original area weights; explicit settings take precedence.
+    Model and physical overrides are validated by the shared initializer.
+    Enable x64 before calling
     for float64; main does this at runtime.
     """
-    overrides = dict(settings_overrides or {})
+    overrides: dict[str, Any] = {
+        **GROWTH_NUMERICAL_DEFAULTS,
+        **dict(settings_overrides or {}),
+    }
     if dtype is not None:
         overrides["dtype"] = dtype
     scenario = GrowthSettings(
@@ -110,19 +125,26 @@ def initialize(
         settings_overrides=overrides, physical_overrides=physical_overrides
     )
     values = {
-        name: jnp.full_like(getattr(state, name), getattr(scenario, name))
-        for name in (
-            "hIceMean",
-            "hSnowMean",
-            "Area",
-            "TSurf",
-            "wSpeed",
-            "ocSalt",
-            "Qnet",
-            "LWdown",
-            "ATemp",
-        )
+        item.name: jnp.zeros_like(getattr(state, item.name)) for item in fields(State)
     }
+    values.update(
+        {
+            name: jnp.full_like(getattr(state, name), getattr(scenario, name))
+            for name in (
+                "hIceMean",
+                "hSnowMean",
+                "Area",
+                "TSurf",
+                "wSpeed",
+                "ocSalt",
+                "Qnet",
+                "LWdown",
+                "ATemp",
+            )
+        }
+    )
+    for name in ("maskInC", "maskInU", "maskInV", "iceMask", "iceMaskU", "iceMaskV"):
+        values[name] = jnp.ones_like(getattr(state, name))
     values["theta"] = jnp.full_like(
         state.theta, phys.celsius2K + scenario.oceanTemperatureC
     )
