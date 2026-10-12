@@ -14,8 +14,7 @@ jobs:
       - run: ruff format --check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py
       - run: ruff check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py --select ANN001,ANN002,ANN003,ANN201,ANN202,ANN204,ANN205,ANN206
       - run: ty check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py
-      - name: Full CPU correctness within 20 minutes
-        timeout-minutes: 20
+      - name: Full CPU correctness
         run: pytest tests/ -n auto --maxprocesses=3 --dist=loadscope --partition-cpus --max-worker-restart=0 --cov=veris --cov-report=xml --cov-report=term:skip-covered --cov-report=json:test_logs/coverage.json
         env:
           JAX_PLATFORMS: cpu

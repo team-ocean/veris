@@ -48,8 +48,8 @@ workers, grouped by module to retain shared fixtures and compilation reuse.
 `--partition-cpus` gives each worker a disjoint strided group from the process's
 permitted CPUs before collection or JAX backend initialization; child probes
 inherit that placement. Disable worker restart so crashes fail the full run.
-Use fewer workers if fewer CPUs are available; CPU CI selects at most three
-and enforces a 20-minute limit on the full correctness step.
+Use fewer workers if fewer CPUs are available; CPU CI selects at most three.
+The full correctness step has no explicit 20-minute timeout.
 The canonical-only cleanup passed all 1,312 cases: 1,310 CPU passes and two
 expected GPU skips, both subsequently verified on native GPUs. The cold CPU run
 took 756.48 external seconds (12 minutes 36 seconds), with 94.57% maintained

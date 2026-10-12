@@ -161,6 +161,6 @@ provenance records the paths of its archived source revision.
 
 Tests mirror the domain packages while standalone process probes and immutable
 reference data retain shared locations. Full correctness and coverage verification
-uses one pytest process and a 1,200-second wall-time budget. Test selection,
-scientific tolerances, frozen reference bytes and required numerical/gradient
-assertions remain part of the correctness contract.
+uses one coordinated pytest session with externally measured wall time.
+Test selection, scientific tolerances, frozen reference bytes and required
+numerical/gradient assertions remain part of the correctness contract.

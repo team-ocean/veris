@@ -1,5 +1,21 @@
 # Development log
 
+## 2026-10-12 — Remove explicit CI correctness timeout
+
+- [x] COMPLETE (@root): remove `timeout-minutes: 20` from the full CPU
+  correctness step and rename it `Full CPU correctness`; keep the complete
+  test selection, three-worker maximum and coverage gate.
+- [x] Reconcile the active runtime descriptions in DESIGN.md, tests/README.md
+  and tests/AUDIT.md. Retain dated historical targets and timing evidence.
+- Workflow YAML parses and the full correctness/coverage command is preserved.
+  Verification shares the exact source/test tree of calendar commit `1537329`:
+  1338 CPU passes, two subsequently verified GPU skips, 30 native GPU passes,
+  94.57% maintained coverage, clean lint/format/annotations/types, strict docs
+  and clean package/installed examples. No 20-minute assertion is added.
+- Local evidence is under `test_logs/calendar-averaging/`. The user reports
+  the timeout is already resolved remotely; the following task investigates
+  the separate failed GitHub run using GitHub CLI.
+
 ## 2026-10-12 — Calendar averaging verification
 
 - [x] COMPLETE (@root): preserve correct averaging and add independent checks
