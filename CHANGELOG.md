@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-10-12 — Local JAX CUDA 12 upgrade
+
+- [x] Updated `.venv-latest` as requested to `jax[cuda12]==0.11.2`:
+  JAX, jaxlib, CUDA 12 plugin and CUDA 12 PJRT all report 0.11.2.
+  Dependency validation reports no broken requirements.
+- [x] Both GPU-only tests pass again with CUDA explicitly required:
+  two-GPU scheduled output and GPU CLI snapshot, zero failures/errors/skips,
+  16.72 s external wall time. All 163 Python source hashes remain unchanged.
+- Repository requirements pins remain unchanged; this is a local environment
+  update. The full correctness suite under 0.11.2 was not run in this focused
+  verification. Install report, before/after environment snapshots and GPU
+  evidence: `test_logs/test-runtime/*jax-0.11.2*`.
+
 ## 2026-10-12 — GPU-only verification
 
 - [x] With explicit user approval for native local GPU access, JAX 0.11.1 /
