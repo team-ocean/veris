@@ -23,11 +23,11 @@ Domain tests exercise the canonical owners and numerical contracts. Shared
 benchmark and runtime tests remain at the test root. Schema tests verify the
 single owners of State, array inputs and OceanGeometry and exercise cold imports.
 
-Activate `.venv-latest` before commands. Install the reproducible initial CPU environment
+Activate `.venv-latest` before commands. Install the reproducible CPU environment
 with `module load uv/latest` and `uv pip install -r requirements-test.txt`.
-The repository lock targets Python 3.14 with JAX 0.11.1 from the initial
-2026-09-08 setup. The local `.venv-latest` has since been upgraded to JAX 0.11.2
-with CUDA 12; repository requirements retain their recorded pins. Create the environment with
+The repository lock targets Python 3.14 with JAX and jaxlib 0.11.2, matching
+GitHub CI and the local `.venv-latest`. `requirements-gpu.txt` adds the matching
+CUDA 12 plugin for the local GPUs. Create the environment with
 `uv venv --python 3.14 .venv-latest` and activate it before installation.
 
 Run `pytest tests/ --fast` during development. `VERIS_TEST_SEED` varies the stable
@@ -48,7 +48,9 @@ workers, grouped by module to retain shared fixtures and compilation reuse.
 `--partition-cpus` gives each worker a disjoint strided group from the process's
 permitted CPUs before collection or JAX backend initialization; child probes
 inherit that placement. Disable worker restart so crashes fail the full run.
-Use fewer workers if fewer CPUs are available; CPU CI selects at most three.
+Use fewer workers if fewer CPUs are available. CPU CI uses one worker so the
+four-device sharding probes inherit all four permitted runner CPUs; splitting
+them among three workers can stall XLA collectives even on JAX 0.11.2.
 The full correctness step has no explicit 20-minute timeout.
 The canonical-only cleanup passed all 1,312 cases: 1,310 CPU passes and two
 expected GPU skips, both subsequently verified on native GPUs. The cold CPU run

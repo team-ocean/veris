@@ -1,5 +1,71 @@
 # Development log
 
+## 2026-10-12 — Investigate GitHub correctness failure #30
+
+- [ ] IN PROGRESS (@root): use GitHub CLI to diagnose and fix hosted correctness
+  failures after completing the calendar goal. Read-only harness/performance role
+  (@workflow_audit); root owns pytest and GitHub run coordination.
+- Run #30 (`38257785337`, commit `44c41ba`): dependencies, lint, formatting,
+  annotations and types pass. Full correctness reports one `F` at 82% before
+  being cancelled at 20 minutes at 98%; cancellation prevents the traceback and
+  no artifacts were uploaded. Removing the cap alone is not proof of a fix.
+- Pushed verified commits `1537329` and `a8b5601` to `jax-only`. Uncapped run
+  #31 (`38262562125`) completed: 1335 passed, two expected GPU skips, three
+  failures in 1145.03 seconds. The failing closed-y, lifecycle and direct-advance
+  sharding probes all abort in XLA's in-process CollectivePermute rendezvous
+  (SIGABRT, expected four participants/three arrived, or two/one). All are on
+  worker gw0. These are native collective failures, not numerical discrepancies
+  or the removed 20-minute workflow cap.
+- GitHub CLI log cache initially fails in read-only `/groups/.../.cache/gh`;
+  set `XDG_CACHE_HOME=/tmp/veris-gh-cache` for log inspection. No credential
+  changes. Failed logs are retained in `test_logs/github-ci/`.
+- Pinned-CI standalone reproduction: four logical CPU devices restricted to one
+  permitted CPU pass all rollout fields and AD assertions in 419.86 seconds.
+  The existing pytest wrapper has a 360-second child deadline; reproduce its
+  timeout through the exact test before adjusting that deadline. The exact
+  wrapper reproduces TimeoutExpired at 360 seconds. This is a separate resource
+  sensitivity: that test passes in hosted #31, so do not change its deadline
+  without evidence that the actual hosted fix still requires it.
+- User requests JAX >=latest 0.11.2 for the entire project and CI. Raise the
+  package minimum to 0.11.2 and align CPU JAX/jaxlib and CUDA 12 pins to 0.11.2;
+  retain historical environment/reference provenance. Compare actual failing
+  sharding probes under narrow CPU affinity before claiming a runtime fix.
+- Fresh CI-pinned 0.11.2 environment resolves and passes dependency, lint,
+  format, annotation and type checks. Strict Sphinx, wheel/sdist and clean
+  installed lifecycle examples pass; wheel metadata requires JAX >=0.11.2 and
+  contains all 65 modules. CI now reports JAX/jaxlib versions and permitted CPUs.
+- The two-device direct-advance probe passes all fields/JIT/AD on one permitted
+  CPU with both JAX 0.11.1 (161.10 s) and 0.11.2 (174.89 s). Restricted affinity
+  alone does not reproduce the hosted native abort on this machine. Full CPU
+  correctness/coverage and restricted four-device probes are in progress.
+- Independent read-only dependency/workflow review (@final_review): no findings.
+  The CPU collective setup is unchanged between these JAX Python releases;
+  cross-process gloo configuration is irrelevant to the failing in-process
+  communicator. Do not claim the upgrade fixes CI before a hosted green run.
+- Existing native GPU evidence remains applicable: all 30 GPU checks passed
+  earlier today on the unchanged scientific source/tests with JAX, jaxlib,
+  CUDA 12 plugin and PJRT all at 0.11.2. Confirmed these four installed versions
+  match the updated GPU requirement and dependency checks remain clean.
+- [x] Fresh full CPU correctness with the updated CI pins: all 1340 unique
+  cases, 1338 passed/two expected GPU skips, 779.50 external seconds; maintained
+  coverage remains 4056/4289 (94.57%). All three hosted failing probes pass when
+  workers have sufficient CPUs. Strict tooling checks remain green.
+- Actual resource RED on JAX 0.11.2: the lifecycle probe with four logical
+  devices restricted to two permitted CPUs aborts after 225.56 seconds, matching
+  hosted XLA CollectivePermute (four participants/only three arrived). The
+  version upgrade alone is insufficient. The closed-y probe passes both coupled
+  slip cases under the same two-CPU limit in 370.39 seconds. Test lifecycle with
+  four permitted CPUs to confirm a sufficient allocation before adjusting CI.
+- [x] Resource GREEN: the identical lifecycle probe on JAX 0.11.2 with four
+  permitted CPUs passes all 20 preset/custom initialization, run and output
+  cases in 217.71 seconds. This isolates the failing worker CPU allocation.
+  CI now uses one worker, retaining loadscope, affinity partitioning, no worker
+  restart, every test/coverage assertion and the uncapped correctness step.
+  Local three-worker HPC runs remain available. The full correctness suite above
+  verifies the unchanged source/harness under the updated dependencies.
+- Next: push the verified dependency/allocation fix to `jax-only` and use
+  GitHub CLI to confirm permitted CPUs and every hosted verification step.
+
 ## 2026-10-12 — Remove explicit CI correctness timeout
 
 - [x] COMPLETE (@root): remove `timeout-minutes: 20` from the full CPU
