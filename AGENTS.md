@@ -21,21 +21,6 @@ A fully differentiable sea-ice model in JAX with CPU and GPU as first-class exec
 The `main` branch in both reference codes is very old and shall not be used. Instead, you need to use `jax-only` branch for all developments.
 After a certain development stage is completed in `veris` repo, you need to commit it back to `jax-only` branch rather than `main`.
 
-## Goal
-
-Restructure Veris so source files are grouped by related scientific and functional topics in a clear package hierarchy.
-
-- Follow `AGENTS.md`, work on `jax-only`, and first read `DESIGN.md` and `CHANGELOG.md`.
-- Inspect existing modules, dependencies, public interfaces, tests, examples, and documentation before choosing the structure.
-- Propose a directory tree and old-to-new module mapping. Consider domains such as configuration and state, grid and geometry, physics, numerical solvers, execution, I/O, and experiment setups.
-- Organize by responsibility, keep closely related code together, reduce duplication, and avoid circular dependencies, oversized modules, and unnecessary nesting.
-- Implement incrementally. Preserve numerical behavior, JAX compatibility, and public APIs; provide compatibility imports where paths change.
-- Update imports, packaging, tests, examples, and documentation. Run required checks and the full correctness suite before committing.
-- Reduce unit tests runtime to the maximum of 20 minutes, while preserving the current code coverage as much as possible.
-- Update `CHANGELOG.md` and summarize the final hierarchy, migration paths, and verification results.
-
-Complete the reorganization without introducing unrelated features.
-
 ## Setup
 
 ```bash
