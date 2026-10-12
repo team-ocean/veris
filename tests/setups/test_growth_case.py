@@ -51,31 +51,6 @@ def test_growth_case_matches_reference_initial_column() -> None:
         np.testing.assert_array_equal(getattr(state, name), 0)
 
 
-def test_growth_preset_reproduces_notebook_decay() -> None:
-    """Catch applying today's ocean energy budget to the historical experiment."""
-    from veris import Experiment, Simulation
-
-    with Simulation.initialize(Experiment.builtin("growth", steps=150)) as model:
-        result = model.run(observe=lambda state, diagnostics: state.hIceMean[2, 2])
-    ice = np.asarray(result.observations)
-    # Independent original jax-only Growth + initialize_growth.py capture.
-    np.testing.assert_allclose(
-        ice[[0, 9, 29, 59, 89, 119]],
-        [
-            1.292428071607884,
-            1.2025602085536733,
-            1.013414294280942,
-            0.7542731984256684,
-            0.5125866738019715,
-            0.17700517199618895,
-        ],
-        rtol=2e-11,
-        atol=2e-11,
-    )
-    assert np.flatnonzero(ice == 0)[0] + 1 == 123
-    np.testing.assert_array_equal(ice[122:], 0)
-
-
 def test_growth_driver_preserves_recursive_fluxes_and_separate_diagnostics() -> None:
     """Retain recursive coupling fluxes without adding diagnostic State leaves."""
     from veris.setups import run_growth

@@ -195,16 +195,14 @@ def test_mixed_layer_melt_uses_ocean_heat_and_returns_freshwater(
 
 
 @pytest.mark.parametrize("area", [0.25, 0.7])
-@pytest.mark.parametrize("legacy", [False, True])
 def test_partial_cover_conduction_closes_latent_heat_budget(
     state: StateFactory,
     conf: Configuration,
     phys: PhysicalConstants,
     area: float,
-    legacy: bool,
 ) -> None:
     # Remove concentration regularization to isolate pure energy accounting.
-    conf = replace(conf, nITC=1, useLegacyGrowthAreaWeights=legacy)
+    conf = replace(conf, nITC=1)
     phys = replace(phys, Area_reg=0)
     surface_temperature = 260.0
     freezing = phys.celsius2K + phys.tempFrz
@@ -226,21 +224,17 @@ def test_partial_cover_conduction_closes_latent_heat_budget(
     latent_energy = (result[0] - vs.hIceMean) * phys.rhoIce * phys.lhFusion
     atmospheric_loss = area * conduction * conf.deltatTherm
     np.testing.assert_allclose(latent_energy, atmospheric_loss, rtol=1e-11)
-    # The notebook multiplies the already grid-mean ice heat loss by area again.
-    expected_residual = area * conduction * (area - 1) if legacy else 0
-    np.testing.assert_allclose(result[7], expected_residual, atol=1e-10)
+    np.testing.assert_allclose(result[7], 0, atol=1e-10)
 
 
 @pytest.mark.parametrize("area", [0.25, 0.7])
-@pytest.mark.parametrize("legacy", [False, True])
 def test_partial_cover_shortwave_is_weighted_once(
     state: StateFactory,
     conf: Configuration,
     phys: PhysicalConstants,
     area: float,
-    legacy: bool,
 ) -> None:
-    conf = replace(conf, nITC=1, useLegacyGrowthAreaWeights=legacy)
+    conf = replace(conf, nITC=1)
     thickness = 1.5
     sunlight = 100.0
     vs = equilibrium_state(
@@ -257,22 +251,19 @@ def test_partial_cover_shortwave_is_weighted_once(
         -sunlight * (1 - phys.dryIceAlb) * phys.shortwave * np.exp(-1.5 * thickness)
     )
     np.testing.assert_allclose(result[9], under_ice * area, rtol=1e-12)
-    weight = area**2 if legacy else area
     np.testing.assert_allclose(
-        result[6], under_ice * weight - 80 * (1 - area), rtol=1e-12
+        result[6], under_ice * area - 80 * (1 - area), rtol=1e-12
     )
 
 
 @pytest.mark.parametrize("area", [0.25, 0.7])
-@pytest.mark.parametrize("legacy", [False, True])
 def test_partial_cover_surface_heat_melts_snow_with_one_area_weight(
     state: StateFactory,
     conf: Configuration,
     phys: PhysicalConstants,
     area: float,
-    legacy: bool,
 ) -> None:
-    conf = replace(conf, nITC=1, deltatTherm=600, useLegacyGrowthAreaWeights=legacy)
+    conf = replace(conf, nITC=1, deltatTherm=600)
     phys = replace(phys, tempFrz=0)
     heating = 20.0
     vs = equilibrium_state(
@@ -284,8 +275,7 @@ def test_partial_cover_surface_heat_melts_snow_with_one_area_weight(
         LWdown=phys.stefBoltz * phys.celsius2K**4 + heating / phys.snowEmiss,
     )
     result = Growth(vs, conf, phys)
-    weight = area**2 if legacy else area
-    melted_mass = heating * weight * conf.deltatTherm / phys.lhFusion
+    melted_mass = heating * area * conf.deltatTherm / phys.lhFusion
     np.testing.assert_allclose(result[0], 1, atol=1e-12)
     np.testing.assert_allclose(
         (vs.hSnowMean - result[1]) * phys.rhoSnow, melted_mass, rtol=1e-11

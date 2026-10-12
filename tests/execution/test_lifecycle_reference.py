@@ -22,9 +22,8 @@ def _compare(actual: Any, reference: np.ndarray, name: str) -> None:
     )
     tolerance = 3e-5 if reference.dtype == np.dtype("float32") else 2e-11
     error = np.abs(actual - reference)
-    assert np.all(error <= tolerance * (1 + np.abs(reference))), (
-        f"ERROR {name}: max_abs={error.max():.6g}"
-    )
+    within_tolerance = bool(np.all(error <= tolerance * (1 + np.abs(reference))))
+    assert within_tolerance, f"ERROR {name}: max_abs={error.max():.6g}"
 
 
 @pytest.mark.parametrize("case_index", range(7))
@@ -40,12 +39,11 @@ def test_pure_and_host_trajectories_match_immutable_reference(
     case = manifest["cases"][case_index]
     preset, name = case["preset"], case["name"]
     # These archives predate restoration of the standalone notebook setup.
-    # Retain their corrected thermodynamic equations and every numerical oracle;
-    # explicitly adapt only the intentionally restored inactive startup fields.
+    # Retain every numerical oracle; explicitly adapt only the intentionally
+    # restored inactive startup fields.
     settings = dict(case["settings"])
     restored_defaults: dict[str, float] = {}
     if preset == "growth":
-        settings["useLegacyGrowthAreaWeights"] = False
         restored_defaults = dict.fromkeys(
             (
                 "dxG",

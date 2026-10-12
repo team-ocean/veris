@@ -150,13 +150,6 @@ versions and visualization snapshots. Restoring onto another backend is not a
 supported migration. GPU restoration requires an available compatible GPU;
 the package never silently falls back or changes JAX configuration.
 
-Complete version-1 checkpoints written before ``useLegacyGrowthAreaWeights``
-was introduced retain the corrected equations: the reader recognizes the exact
-previous metadata inventory and explicitly sets this single control to ``False``.
-Other missing or incompatible fields remain errors. This preserves older growth,
-dynamics and coupled trajectories even though new growth presets select the
-original notebook equations.
-
 Checkpoints contain every native State array, including complete halos and the
 physical closed-y north-wall shear traction. They retain resolved numerical
 configuration, physical constants, the complete experiment and typed input

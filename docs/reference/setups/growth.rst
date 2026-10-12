@@ -22,10 +22,11 @@ to a single column. Output always removes those storage halos.
 The preset ``initialize`` factory constructs the initial column. Use public
 ``advance(..., physics="thermodynamics")`` and ``step`` for pure evolution and AD.
 
-The default experiment reproduces the saved ``jax_halo_exchange`` notebook:
-ice decreases from 1.3 m and disappears at the end of day 123. The notebook
-plots the values before each step (days 0--149); scheduled instantaneous output
-includes the initial value and completed steps (days 0--150).
+The setup uses the ``jax_halo_exchange`` notebook's initial conditions and daily
+stepping with the shared Growth routine. With the default inputs, ice decreases
+from 1.3 m and disappears at the end of day 140. The notebook plots the values
+before each step (days 0--149); scheduled instantaneous output includes the
+initial value and completed steps (days 0--150).
 
 To record and plot the evolving ice thickness, request a history stream::
 
@@ -55,28 +56,11 @@ The column zero-initializes unprescribed fields exactly as
 the reference values. Experimental inputs live in the scenario registry below;
 physical constants stay in PhysicalConstants.
 
-The notebook's original Growth equations multiply three already grid-cell mean
-fluxes by concentration a second time: surface snow melt, penetrating shortwave
-and ocean energy loss. The reference preset explicitly selects these equations
-with ``useLegacyGrowthAreaWeights=True``. They reproduce the historical experiment
-and its partial-cover budget errors. The general ``Configuration`` default is
-``False``, retaining the corrected concentration weights and conservation tests.
-Using corrected equations with the same column inputs moves complete melt to
-day 140::
-
-   from veris import Experiment, Simulation
-
-   definition = Experiment.builtin(
-       "growth", steps=150,
-       settings={"useLegacyGrowthAreaWeights": False},
-   )
-   with Simulation.initialize(definition) as simulation:
-       result = simulation.run()
-
-All eleven thermodynamic outputs over 150 days are checked against a frozen
-capture of the original ``jax-only`` kernels at
-``eb690aa8dc25ed7e6bb3766d658f382eca234b7c`` and standalone reference
-``jax_halo_exchange`` commit ``2571998f8feb6a5943b214361c122ca78b44c3a8``.
+Initial fields and shared settings/constants are checked against the standalone
+reference ``jax_halo_exchange`` commit
+``2571998f8feb6a5943b214361c122ca78b44c3a8``. Evolution uses the same thermodynamic
+kernel as other Veris experiments, including its partial-cover heat and snow
+budgets.
 
 Derivative validation
 ---------------------

@@ -1,4 +1,4 @@
-"""Preset definitions share authoritative scalar controls with legacy setups."""
+"""Preset definitions share authoritative scalar controls with standalone setups."""
 
 from dataclasses import FrozenInstanceError
 
@@ -48,19 +48,20 @@ def test_growth_grid_and_scenario_do_not_duplicate_experiment_controls() -> None
     assert not {"nx", "ny", "steps", "dtype"} & definition.scenario.keys()
 
 
-def test_growth_equation_selection_preserves_explicit_override() -> None:
-    """Keep conservative model defaults and allow overriding notebook equations."""
+def test_growth_uses_shared_numerical_defaults_and_explicit_overrides() -> None:
+    """Use shared physics controls with daily steps and five thickness categories."""
     from veris.model.configuration import Configuration
     from veris.setups.run_growth import initialize
 
-    assert not Configuration().useLegacyGrowthAreaWeights
-    assert Experiment.builtin("growth").configuration.useLegacyGrowthAreaWeights
-    assert initialize()[1].useLegacyGrowthAreaWeights
-    options = {"useLegacyGrowthAreaWeights": False, "deltatTherm": 600.0}
+    expected = Configuration(nx=2, ny=2, use_sharding=False)
+    assert Experiment.builtin("growth").configuration == expected
+    assert initialize()[1] == expected
+    options = {"deltatTherm": 600.0, "deltatDyn": 600.0, "nITC": 1}
     conf = Experiment.builtin("growth", settings=options).configuration
-    assert not conf.useLegacyGrowthAreaWeights
     assert conf.deltatTherm == 600.0
-    assert not initialize(settings_overrides=options)[1].useLegacyGrowthAreaWeights
+    assert conf.deltatDyn == 600.0
+    assert conf.nITC == 1
+    assert initialize(settings_overrides=options)[1] == conf
 
 
 def test_explicit_series_override_prescribed_preset_heat() -> None:

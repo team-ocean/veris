@@ -2250,78 +2250,46 @@
   `test_logs/precision-docs-full-tests.{log,xml}` and
   `test_logs/precision-docs-full-coverage.json`.
 
-### 2026-10-12 — Standalone notebook setup equivalence
+### 2026-10-12 — Notebook setup initialization and shared physics
 
-- [x] @root completed the setup fixes, reference regressions and coordinated
-  verification. @dynamics_audit completed the independent original-source
-  configuration/constants/startup audit; @equivalence_review completed review
-  and genuine previous-code restart validation.
-- GitHub confirms the standalone `jax_halo_exchange` reference is
-  `2571998f8feb6a5943b214361c122ca78b44c3a8`; local reference files are clean.
-  Current Veris development remains on `jax-only`.
-- [x] Reproduced the full 150-day column: current equations melt completely at
-  day 140; original `jax-only` kernels at `eb690aa8dc25ed7e6bb3766d658f382eca234b7c`
-  with the actual reference initializer melt at day 123, matching the notebook.
-  First timestep matches exactly; differences begin with recursive ocean heat.
-- Root cause: September conservation correction `a09964e` removed three extra
-  concentration weights in snow melt, penetrating shortwave and ocean energy.
-  All 130 shared original settings/constants match current values. Preserve the
-  corrected general model defaults and select original equations explicitly
-  in the reference growth preset, with source-derived trajectory regressions.
-- Dynamics startup additionally inherits nonzero theta/ATemp allocation
-  defaults whereas the reference zero-initializes both. They are inactive in
-  dynamics; restore their reference zeros only in that setup.
-- Failed probes: a per-step Simulation loop repeatedly compiled and was
-  interrupted; a single 150-step scan gives the complete trajectory promptly.
-  The original StateObject scan must omit the discarded salt output, as the
-  notebook does, to avoid changing its PyTree schema.
-- Local P100 GPUs verified with approved access; runtime and correctness
-  verification results are recorded below. Work remains on `jax-only`.
-- [x] Reproducing startup/150-day-decay tests failed 3/3 before changes; the
-  new analytical weighting cases failed 12/12 before the equation selector.
-  Focused setup/configuration/thermodynamic suite passes 102/102 after fixes.
-- [x] Independent immutable original-source capture records 367 arrays with
-  all 70 startup fields, 130 shared settings/constants per setup, every Growth
-  output over 150 days and dynamics after 100 steps/120 EVP iterations. All
-  28 source hashes checked against the named original git objects.
-  New notebook + pre-existing lifecycle reference checks pass 11/11.
-- Existing lifecycle archives anchor corrected budgets: explicitly select
-  corrected equations for those growth cases and adapt only the known restored
-  inactive initialization literals. Archive bytes, tolerance and every
-  prognostic reference value are unchanged.
-- [x] Maintained Ruff, formatting, annotation and ty checks pass. Independent
-  code/test review, GPU CLI and documentation build artifacts are under
-  `test_logs/setup-equivalence/`.
-- Review caught that the new configuration key would reject all prior version-1
-  checkpoints. Reproduced failures for growth/dynamics/island (3/3). Added one
-  exact-inventory metadata migration selecting False for the prior corrected
-  equations; both partial inventories and other missing keys remain errors.
-  Migration/strictness tests pass 6/6. Initial rejection-test fixture used an
-  empty forcing series at steps=0; corrected the fixture to a valid one-step
-  definition without advancing it.
-- Stopped the first full run after 64 passing tests to incorporate the review
-  repair; its interrupt/teardown output is not correctness evidence. Final full
-  correctness used one pytest session with four partitioned CPU workers.
-- [x] Actual default 150-day GPU growth CLI writes 151 daily samples, days
-  0--150; first zero ice is day 123. All eight State outputs match original
-  histories with maximum scaled error 1.97e-14.
-- [x] The same CPU CLI reproduces day 123 and all eight original State
-  histories (maximum scaled error 3.75e-15). CPU/GPU ice differs by at most
-  2.10e-15 m. Saved the original/CPU/GPU/prior-equation comparison figure and
-  numerical summary under `test_logs/setup-equivalence/`.
-- [x] Independent review used archived production commit `666775c` to write
-  genuine previous version-1 checkpoints and independent continuations for
-  growth, dynamics and island. Current restoration and continuation match all
-  420/420 float64 arrays exactly; clocks, forcing definitions and original
-  checkpoint hashes are preserved. No remaining review blockers.
-- [x] Clean Sphinx `-E -W` build passes with the reference equation choice,
-  day-123 decay, initialization differences and narrow restart migration
-  documented.
-- [x] Final full CPU correctness/coverage run passes: 1,357 passed, two
-  GPU-only skips, zero failures/errors. Maintained coverage is 4,085/4,313 =
-  94.71%; the 80% gate passes. Evidence: `full-final.log`, `full.xml`,
-  `coverage.json` and `coverage-gate.log` in `test_logs/setup-equivalence/`.
-- [x] GPU correctness passes 50/50 with zero skips/errors: original notebook
-  startup/settings, all eleven growth outputs over 150 days, 100-step dynamics,
-  corrected/original thermodynamic budgets, longwave AD/finite differences,
+- [x] @root completed notebook initialization/shared-physics integration and
+  coordinated verification on `jax-only`. @reference_cleanup completed the
+  source-derived initialization/dynamics captures; @documentation_cleanup
+  completed setup/settings/lifecycle documentation and independent review.
+- User confirmed the current shared Growth physics is the requested behavior.
+  Both setups retain notebook initial inputs and numerical controls. Growth
+  advances 150 daily steps with recursive Qnet/Qsw; dynamics retains its fixed
+  wind snapshot and full momentum/transport sequence.
+- Reference `jax_halo_exchange` remains
+  `2571998f8feb6a5943b214361c122ca78b44c3a8`, verified through GitHub. All 130
+  shared settings/constants agree with the original source.
+- Keep all 70 notebook initial fields, including zero unused growth metrics
+  and zero unused dynamics theta/ATemp, without altering general allocation
+  defaults. Daily timesteps/five categories are explicit growth preset defaults;
+  caller overrides continue to take precedence.
+- [x] Source capture now retains 356 initialization/dynamics arrays and no
+  growth trajectory. Regeneration verifies all retained array bytes against the
+  preceding archive, 18 original source hashes and generator/archive hashes.
+- Preserve corrected all-field lifecycle oracles, adapting only the known
+  inactive initialization literals. Shared-default/configuration and corrected
+  trajectory regressions failed 3/8 before the fix; focused checks now pass
+  104/104. Failure diagnostics retain aggregate errors without dumping arrays.
+- [x] Growth, Configuration and complete-restart implementations match
+  pre-change commit `666775c` byte for byte. Production differences from that
+  revision are confined to the two setup initializers and preset defaults.
+- [x] Independent code/test review finds no remaining issue. Maintained Ruff,
+  formatting, annotation and ty checks pass; clean Sphinx `-E -W` build passes.
+  Evidence is under `test_logs/shared-physics/`.
+- [x] Default CPU and GPU growth CLI runs both complete 150 daily steps and
+  write 151 finite records with first zero ice at day 140. CPU matches the
+  preceding shared-physics trajectory; CPU/GPU maximum ice difference is
+  2.22e-16 m and maximum scaled difference across eight outputs is 4.50e-15.
+  Saved `growth-decay.png` and `runtime-validation.json` alongside the logs.
+- [x] Full CPU correctness suite passes: 1,342 passed, two GPU-only skips,
+  zero failures/errors. Maintained coverage is 4,061/4,294 = 94.57%; the 80%
+  gate passes. Evidence: `full.log`, `full.xml`, `coverage.json` and
+  `coverage-gate.log`.
+- [x] GPU correctness passes 50/50 with zero skips/errors: notebook startup
+  settings/fields, 100-step dynamics, all-field shared-physics lifecycle
+  references, thermodynamic conservation, longwave AD/finite differences,
   parallel CLI and two-device scheduled output. Evidence: `gpu.log`, `gpu.xml`.

@@ -28,7 +28,6 @@ from veris.io.lifecycle import _new_path
 from veris.io.restart_arrays import ArrayManifest, hydrate_definition, validate_links
 from veris.io.schedule import iter_segments
 from veris.io.storage import NetCDFWriter, _json_scalar, selected_fields
-from veris.model.configuration import Configuration
 from veris.model.experiment import Experiment
 from veris.model.experiment_file import (
     _nonfinite_constant,
@@ -51,33 +50,6 @@ _ATTRIBUTES = {
     "configuration",
     "physical_constants",
 }
-
-
-def _migrate_growth_equation_setting(
-    definition: dict[str, Any], configuration: dict[str, Any]
-) -> None:
-    """Recognize the exact v1 inventory preceding the notebook equation flag.
-
-    Those checkpoints used corrected Growth budgets for every preset. Supply
-    only that known False value in both complete saved inventories. Partial or
-    otherwise changed metadata still fails the usual strict canonical checks.
-    State arrays and every other numerical setting remain untouched.
-    """
-    name = "useLegacyGrowthAreaWeights"
-    previous_configuration = {item.name for item in fields(Configuration)} - {name}
-    previous_settings = {
-        item.name
-        for item in fields(Configuration)
-        if item.init and item.name not in {"nx", "ny", "use_sharding", name}
-    }
-    settings = definition.get("settings")
-    if (
-        isinstance(settings, dict)
-        and set(settings) == previous_settings
-        and set(configuration) == previous_configuration
-    ):
-        settings[name] = False
-        configuration[name] = False
 
 
 def _json(value: Any) -> str:
@@ -370,8 +342,6 @@ def read_restart(
             if set(file.attrs) != _ATTRIBUTES or file.attrs["Conventions"] != "CF-1.10":
                 raise ValueError("incomplete or unexpected restart metadata")
             encoded_definition = _decode(file.attrs["experiment"], "experiment")
-            saved_configuration = _decode(file.attrs["configuration"], "configuration")
-            _migrate_growth_equation_setting(encoded_definition, saved_configuration)
             execution = encoded_definition.get("execution")
             if not isinstance(execution, dict) or set(execution) != {
                 "backend",
@@ -414,12 +384,9 @@ def read_restart(
                 ("configuration", experiment.configuration),
                 ("physical_constants", experiment.physical_constants),
             ):
-                saved = (
-                    saved_configuration
-                    if name == "configuration"
-                    else _decode(file.attrs[name], name)
-                )
-                if saved != json.loads(_json(asdict(expected))):
+                if _decode(file.attrs[name], name) != json.loads(
+                    _json(asdict(expected))
+                ):
                     raise ValueError(f"incompatible resolved {name} metadata")
             arrays = _record(file, experiment, elapsed)
         experiment = _output(

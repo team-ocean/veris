@@ -50,13 +50,6 @@ SETTINGS: dict[str, Parameter] = {
     ),
     "nITC": Parameter(5, int, "number of ice thickness categories", "-"),
     "recip_nITC": Parameter(0.2, float, "1 / nITC", "-"),
-    "useLegacyGrowthAreaWeights": Parameter(
-        False,
-        bool,
-        "Reproduce the standalone growth notebook's repeated concentration "
-        "weights; False uses the corrected grid-cell heat and snow budgets",
-        "-",
-    ),
     "noSlip": Parameter(True, bool, "flag for using the no-slip condition", "-"),
     "useRelativeWind": Parameter(
         True,
@@ -156,7 +149,6 @@ class Configuration:
     recip_deltatDyn: float = field(init=False)
     nITC: int = FROM_REGISTRY
     recip_nITC: float = field(init=False)
-    useLegacyGrowthAreaWeights: bool = field(default=FROM_REGISTRY, kw_only=True)
     noSlip: bool = FROM_REGISTRY
     useRelativeWind: bool = FROM_REGISTRY
     secondOrderBC: bool = FROM_REGISTRY

@@ -1,13 +1,12 @@
-"""Capture the original standalone notebooks without importing current Veris.
+"""Capture notebook initialization and dynamics without importing current Veris.
 
 Use archived Veris ``jax-only`` and example ``jax_halo_exchange`` source roots.
 Every original Python/notebook input is checked before import or execution.
-The growth notebook's discarded salt output is observed without feeding it back.
+Growth captures only the original prescribed initial fields and settings.
 Dynamics reduces only grid_len to 16 and applies documented serial halo flags.
 Copy this immutable file to a .py name; capture is never part of pytest.
 """
 
-import ast
 import hashlib
 import importlib
 import json
@@ -34,17 +33,8 @@ MODEL_HASHES = {
     "veris/fill_overlap.py": "cca35b2fae2eca07328efbd07e59bceae813016fb5539acc0a265adc7e41f3ef",
     "veris/freedrift_solver.py": "0957c41ae735f86ec89f2bdb1916bdaecc2a4d30d29eb80dfe3f297887a4e6f8",
     "veris/global_sum.py": "e9afb7760a266947834e64505470c6e5d1a29cb4fff2faa6043f74206f1e3463",
-    "veris/growth.py": "5d73407031c93856ef4f6aaa943d096a034c4a6d0a0a3545a7f9202e8a5ab7e1",
-    "veris/heat_flux_CESM.py": "35f7e14310bb3453f83eb0ef9bc5daf8d68ac244689cc87a6a21c5af36d4c71c",
-    "veris/heat_flux_MITgcm.py": "557ffd8e1c1f749f22df8169bf36aa1ceab10e10eeb4913bedfcdfe80d896b02",
-    "veris/model.py": "9fb02212db9f2dcb20ea348b2daf9587b576af835c3ac1442f8fe6c3d9cab5e3",
     "veris/ocean_stress.py": "7c018d0dc041c57eecff0800e259bbbf2b4f43f655ad5c6e0e0a0198e97fc1c3",
-    "veris/set_inits.py": "65a9ffba08ab5c4d1ebc27adcb5b167f617f4316b1188d8384e903cd630c407f",
     "veris/settings.py": "d7bd145ae1c9c2721c0fc03dc4e243c60b0f3f803ee10735f6dd611592b0bb5a",
-    "veris/setup/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "veris/setup/seaice_global_4deg/__init__.py": "e97b22294597117139e4c2389d6775b10ab51a3c2c436413b5862300c1edf913",
-    "veris/setup/seaice_global_4deg/seaice_global_4deg.py": "24db6ab678ae4c0bbb344bb41c28718558bd7fcc14ab28dbc0c9bf99f3004034",
-    "veris/solve4temp.py": "a08ff7144c7df9facd822efcba001a1a924fd19aaffc3d29806ef83d7dd30010",
     "veris/variables.py": "ccb0bdf5efe3d3b1ce11e0986593be535d9ed8af29e103839091cd8dffb7e799",
 }
 EXAMPLE_HASHES = {
@@ -52,7 +42,6 @@ EXAMPLE_HASHES = {
     "initialize_growth.py": "76dacdd247f43272320087dbad5a96b7ca776fe8877c8d087e0d73d9a77c9117",
     "initialize_mesh_sharding.py": "f10832afde23f2cc7601e75debc4cedaf491f2db972c0a7de8be72dd69853aaa",
     "run_dyn.ipynb": "609fab4f5e29e3ead015da59632d5c0371924021d63e0fd08bce571218d5c603",
-    "run_growth.ipynb": "5a18b5dc69b1e0c9cc58a2d858630d4ed5991a2b07664a89154922b86095959d",
 }
 STATE_FIELDS = (
     "hIceMean", "hSnowMean", "Area", "TSurf", "SeaIceMassC", "SeaIceMassU",
@@ -66,10 +55,6 @@ STATE_FIELDS = (
     "dxG", "dyG", "dxU", "dyU", "dxV", "dyV", "recip_dxC", "recip_dyC",
     "recip_dxU", "recip_dyU", "recip_dxV", "recip_dyV", "rAz", "recip_rA",
     "recip_rAu", "recip_rAv",
-)
-GROWTH_OUTPUT_FIELDS = (
-    "hIceMean", "hSnowMean", "Area", "TSurf", "EmPmR", "forc_salt_surface",
-    "Qsw", "Qnet", "SeaIceLoad", "IcePenetSW", "recip_hIceMean",
 )
 
 
@@ -129,32 +114,6 @@ def _snapshot(arrays, case, step, state):
         arrays[f"{case}.state.{step}.{name}"] = np.asarray(getattr(state, name)).copy()
 
 
-def _growth_transition(example_root):
-    """Observe all original outputs while preserving notebook's ignored salt."""
-    from veris.growth import Growth
-
-    code = _notebook_function(example_root, "run_growth.ipynb", "run_growth")
-    tree = ast.parse(code)
-    function = next(node for node in tree.body if isinstance(node, ast.FunctionDef))
-    assignment = next(node for node in function.body if isinstance(node, ast.Assign))
-    output = assignment.value
-    if not isinstance(output, ast.Call) or output.func.id != "Growth":
-        raise RuntimeError("ERROR original growth update changed")
-    index = function.body.index(assignment)
-    function.body.insert(index, ast.Assign(
-        targets=[ast.Name(id="captured_outputs", ctx=ast.Store())], value=output
-    ))
-    assignment.value = ast.Name(id="captured_outputs", ctx=ast.Load())
-    returned = next(node for node in function.body if isinstance(node, ast.Return))
-    returned.value = ast.Tuple(elts=[
-        returned.value, ast.Name(id="captured_outputs", ctx=ast.Load())
-    ], ctx=ast.Load())
-    ast.fix_missing_locations(tree)
-    scope = {"jax": jax, "partial": partial, "Growth": Growth}
-    exec(compile(tree, str(example_root / "run_growth.ipynb"), "exec"), scope)
-    return scope["run_growth"]
-
-
 def _dynamics_transition(example_root):
     """Execute the unchanged full original dynamics notebook stage sequence."""
     imports = {
@@ -176,7 +135,7 @@ def _dynamics_transition(example_root):
 
 
 def capture(model_root, example_root, output_root):
-    """Capture independently hashed original notebook startup and trajectories."""
+    """Capture original startup fields/settings and the dynamics trajectory."""
     model_root, example_root, output_root = (
         path.resolve() for path in (model_root, example_root, output_root)
     )
@@ -199,27 +158,16 @@ def capture(model_root, example_root, output_root):
     cases = []
     state, sett = _initial_state(example_root, "initialize_growth.py")
     _snapshot(arrays, "growth", 0, state)
-    history = {name: [] for name in GROWTH_OUTPUT_FIELDS}
-    transition = _growth_transition(example_root)
-    for _ in range(150):
-        state, outputs = transition(state, sett)
-        jax.block_until_ready(outputs)
-        for name, value in zip(GROWTH_OUTPUT_FIELDS, outputs, strict=True):
-            history[name].append(np.asarray(value)[0, 0])
-    for name, values in history.items():
-        arrays[f"growth.outputs.{name}"] = np.asarray(values)
     cases.append({
         "name": "growth", "grid": [1, 1], "storage_shape": [1, 1],
-        "steps": 150, "snapshot_steps": [0], "output_steps": [1, 150],
+        "steps": 0, "snapshot_steps": [0],
         "timestep_seconds": sett.deltatTherm,
         "common_settings_constants": _settings(sett),
-        "forcing_policy": "initialized atmospheric/ocean fields; recursive Qnet and Qsw",
-        "state_updates": [name for name in GROWTH_OUTPUT_FIELDS if name != "forc_salt_surface"],
-        "plot_policy": "notebook plots pre-step ice thickness; archive outputs are post-step",
-        "adaptations": ["enable JAX float64 globally", "observe ignored output index 5 without applying it"],
-        "execution_note": "original use_sharding=True is unused by the growth-only kernel",
+        "forcing_policy": "prescribed initial atmospheric/ocean fields",
+        "adaptations": ["enable JAX float64 globally"],
+        "capture_scope": "initialization only",
     })
-    print("PASS captured original growth: 150 days, eleven outputs", flush=True)
+    print("PASS captured original growth initialization: 70 fields", flush=True)
     settings["use_sharding"] = False
     state, sett = _initial_state(example_root, "initialize_dyn.py", dynamics=True)
     _snapshot(arrays, "dynamics", 0, state)
@@ -269,7 +217,6 @@ def capture(model_root, example_root, output_root):
             "devices": [device.device_kind for device in jax.devices()],
         },
         "state_fields": STATE_FIELDS,
-        "growth_output_fields": GROWTH_OUTPUT_FIELDS,
         "cases": cases,
         "arrays": {
             name: {"shape": list(value.shape), "dtype": str(value.dtype)}
@@ -278,7 +225,7 @@ def capture(model_root, example_root, output_root):
         "reproduction": "Archive Veris MODEL_COMMIT and examples EXAMPLE_COMMIT separately; copy immutable generator to .py; from an external cwd run JAX_PLATFORMS=cpu python generate_standalone_notebooks_reference.py MODEL_ROOT EXAMPLE_ROOT FRESH_OUTPUT_ROOT. Hardcoded hashes validate both archived inputs before import.",
     }
     manifest_path.write_text(json.dumps(manifest, sort_keys=True, separators=(",", ":")) + "\n")
-    print(f"PASS captured two original notebooks, {len(arrays)} finite float64 arrays", flush=True)
+    print(f"PASS captured notebook initialization and dynamics: {len(arrays)} finite float64 arrays", flush=True)
 
 
 if __name__ == "__main__":

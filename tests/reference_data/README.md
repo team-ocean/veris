@@ -77,39 +77,40 @@ generators reject a source that exposes the new `advance` API. Compare generated
 values and manifest provenance with the committed fixtures; do not overwrite
 them.
 
-## Standalone original notebook experiments
+## Notebook initial conditions and dynamics
 
-`standalone_notebooks_v1.npz` freezes 367 float64 arrays from Veris `jax-only`
+`standalone_notebooks_v1.npz` freezes 356 float64 arrays from Veris `jax-only`
 commit `eb690aa8dc25ed7e6bb3766d658f382eca234b7c` and the example repository's
 `jax_halo_exchange` commit `2571998f8feb6a5943b214361c122ca78b44c3a8`.
 It contains all 70 current State fields from both original initializers,
-all eleven Growth outputs for 150 days, and dynamics State at steps 0, 1, 3,
-and 100 plus ocean stresses. Dynamics reduces the grid from 1024 to 16 cells
-per axis and applies the notebook's documented serial/periodic halo choices;
+and dynamics State at steps 0, 1, 3 and 100 plus ocean stresses. Dynamics reduces
+the grid from 1024 to 16 cells per axis and applies the notebook's documented
+serial/periodic halo choices;
 all 120 adaptive EVP iterations and the original stage sequence are retained.
-Growth keeps the original one-cell column and recursively updated Qnet/Qsw.
-Its first zero ice thickness is the completed day 123.
+Growth captures the original one-cell initial column and settings; evolution
+uses the maintained shared thermodynamics routines.
 
-The immutable `generate_standalone_notebooks_reference.py.txt` executes the
-original notebook functions with original kernels. It checks 28 source hashes,
-rejects escaped imports and existing outputs, and records both 130-key shared
+The `generate_standalone_notebooks_reference.py.txt` capture source executes
+the original initializers and dynamics notebook function with original kernels.
+It checks 18 source hashes, rejects escaped imports and existing outputs, and
+records both 130-key shared
 settings/constants inventories, source commits, environment and array schema
-in the manifest. Copy it to `.py`, archive both recorded repositories into
-separate directories, then run from an external directory:
+in the manifest. The generator's own bytes are also hashed. Copy it to `.py`,
+archive both recorded repositories into separate directories, then run from an
+external directory:
 
 ```sh
 JAX_PLATFORMS=cpu python generate_standalone_notebooks_reference.py \
     MODEL_ROOT EXAMPLE_ROOT FRESH_OUTPUT_ROOT
 ```
 
-These original notebook equations include historical duplicate concentration
-weights; the growth preset explicitly opts into them. The older lifecycle
-archive above instead anchors corrected budgets. Its tests explicitly select
-`useLegacyGrowthAreaWeights=False` and adapt only known inactive initial field
-defaults restored by notebook equivalence (zero metrics in growth and zero
-theta/ATemp in dynamics). Frozen bytes, numerical tolerances and all prognostic
-reference outputs are retained. Neither archive is regenerated during pytest.
+The older lifecycle archive above continues to anchor shared numerical
+trajectories. Its tests adapt only known inactive initial field defaults restored
+by notebook initialization (zero metrics in growth and zero theta/ATemp in
+dynamics). Its frozen bytes, numerical tolerances and all prognostic reference
+outputs are retained. Neither archive is regenerated during pytest.
 
 The immutable generator sources use a `.py.txt` suffix to distinguish archived
 original capture code from maintained tests. Copy each to its original `.py`
-name before execution. Their bytes and recorded hashes are unchanged.
+name before execution. Their byte hashes are recorded in the corresponding
+manifests.

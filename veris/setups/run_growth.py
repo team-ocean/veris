@@ -6,8 +6,7 @@ ice/snow thermodynamics without dynamics or transport. A uniform 2 by 2 interior
 with two halos satisfies the shared allocator and is physically equivalent to
 the reference one-cell column. Qnet and Qsw outputs feed the next step;
 this is a prescribed experiment, not an evolving ocean.
-The setup explicitly selects the notebook's original concentration weighting;
-the general model defaults use corrected thermodynamic budgets.
+The shared Growth routine supplies the thermodynamic equations.
 Importing this module neither allocates model arrays nor selects a JAX backend.
 """
 
@@ -40,9 +39,8 @@ GROWTH_NUMERICAL_DEFAULTS: dict[str, Any] = {
     "deltatTherm": 86400.0,
     "deltatDyn": 86400.0,
     "nITC": 5,
-    "useLegacyGrowthAreaWeights": True,
 }
-"""Original notebook timestep, categories and thermodynamic equation choices."""
+"""Notebook timestep and thickness categories."""
 
 GROWTH_SETTINGS: dict[str, Parameter] = {
     "nx": Parameter(2, int, "Uniform column interior extent along x", "1"),
@@ -101,7 +99,7 @@ def initialize(
 
     Zero-initialize all fields as initialize_growth.py does, then prescribe the
     column inputs and unit ocean masks. Notebook numerical defaults select daily
-    timesteps and the original area weights; explicit settings take precedence.
+    timesteps and five thickness categories; explicit settings take precedence.
     Model and physical overrides are validated by the shared initializer.
     Enable x64 before calling
     for float64; main does this at runtime.

@@ -1,4 +1,4 @@
-"""Standalone presets match independently captured jax_halo_exchange notebooks.
+"""Standalone initialization and dynamics match jax_halo_exchange notebooks.
 
 The frozen original source supplies initialization, configuration and numerical
 outputs. Tests never regenerate their oracle from the implementation under test.
@@ -76,29 +76,6 @@ def test_all_notebook_startup_fields_and_shared_constants(
         owner = conf if hasattr(conf, name) else phys
         assert getattr(owner, name) == expected, f"ERROR {preset}.{name} differs"
     assert conf.deltatTherm == case["timestep_seconds"]
-
-
-def test_growth_all_outputs_follow_original_150_day_notebook(
-    notebook_reference: tuple[dict[str, Any], dict[str, np.ndarray]],
-) -> None:
-    """Catch any missing original snow, shortwave or recursive energy weight."""
-    manifest, source = notebook_reference
-    names = manifest["growth_output_fields"]
-
-    def observe(state: State, diagnostics: Any) -> tuple[jax.Array, ...]:
-        """Keep all eleven physical outputs at one representative column."""
-        return tuple(
-            getattr(state if hasattr(state, name) else diagnostics, name)[2, 2]
-            for name in names
-        )
-
-    with Simulation.initialize(Experiment.builtin("growth", steps=150)) as model:
-        result = model.run(observe=observe)
-    for name, actual in zip(names, result.observations, strict=True):
-        _compare(actual, source[f"growth.outputs.{name}"], f"growth.history.{name}")
-    ice = np.asarray(result.observations[names.index("hIceMean")])
-    assert np.flatnonzero(ice == 0)[0] + 1 == 123
-    np.testing.assert_array_equal(ice[122:], 0)
 
 
 def test_dynamics_physical_fields_follow_original_100_step_notebook(
