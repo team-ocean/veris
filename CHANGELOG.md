@@ -1,5 +1,54 @@
 # Development log
 
+## 2026-10-12 — Calendar averaging verification
+
+- [x] COMPLETE (@root): preserve correct averaging and add independent checks
+  for all months of Gregorian, 360-day and no-leap years on `jax-only`.
+- Baseline `44c41ba`: current calendar arithmetic already selects twelve 30-day
+  months for `360_day`, `_MONTH_LENGTHS` for `noleap`, and actual Gregorian
+  dates. The user confirmed the reported defect was a misunderstanding and
+  supplied no failing output. Preserve the correct production behavior.
+- Independent roles: calendar/test quality and code audit (@calendar_audit),
+  workflow/documentation/performance configuration audit (@workflow_audit).
+  Root owns the only pytest session. Calendar audit passed 675 standalone
+  boundary checks; existing monthly compiled tests chiefly cover February and
+  share the host calendar oracle. Add independent all-month output expectations.
+- Use the existing `.venv-latest` (Python 3.14.7); `.venv` is absent. Remain in
+  the requested `jax-only` checkout. Existing untracked `test_logs/` are local
+  evidence and must not be staged wholesale.
+- [x] Added 28 independent cases with literal month lengths through two years;
+  real host and compiled quadratic means, sparse samples, simultaneous annual
+  streams, century/leap rules, year transitions, partial windows and split-run
+  continuation. Counts, bounds, midpoints and calendar metadata are exact.
+- Initial all-month run: 26/28 cases pass. Two compiled 360-day cases differ
+  from the scalar oracle by one float64 ULP because JAX division can multiply by
+  a reciprocal. Exact array equality is an unsuitable numerical requirement;
+  allow two ULPs with aggregate error reporting, retaining exact counts/bounds.
+- [x] All 142 focused calendar/host mean/planner/compiled mean checks pass,
+  including all 28 new independent cases. Types, annotation and workflow YAML
+  checks pass. Initial lint requests `itertools.pairwise` for adjacent edges;
+  adopt it before final verification.
+- [x] Three wrong-calendar mutations are rejected: no-leap using 30-day months,
+  360-day using ordinary month lengths, and Gregorian using a fixed month width.
+  Mutations are in-memory probes only; production files remain unchanged.
+- [x] Full cold CPU correctness: 1338 passed, two expected GPU skips, all 1340
+  unique cases; external wall 790.46 seconds. Maintained coverage: 4056/4289
+  lines (94.57%), passing the 80% gate. All 28 new cases pass in the full run.
+- [x] Native GPU verification: all 28 new cases plus both GPU-only contracts
+  pass on two Tesla P100 devices, with no skips or failures (30/30, 52.38 s).
+- [x] Lint, format, annotations, types and dependency checks pass. Strict Sphinx,
+  wheel/sdist and clean installed public lifecycle examples pass. Archives retain
+  all 65 modules and the new test file; all 199 recorded source/harness/reference
+  hashes stay unchanged during verification. An initial package audit wrongly
+  expected GitHub workflows in the sdist; retain the manifest's existing scope.
+- [x] Independent whole-change review (@final_review): no Critical, Important
+  or Minor findings; literal expectations and two-ULP mean tolerance verified.
+- Evidence: `test_logs/calendar-averaging/` contains full and GPU status/JUnit,
+  coverage, mutation results, source hashes, docs/package and installed logs.
+- Follow-up requested by the user: after this work is committed, investigate
+  GitHub's failed "Remove legacy compatibility modules and wrappers #30" run
+  using GitHub CLI and fix CI. The user confirms the remote timeout is resolved.
+
 ## 2026-10-12 — Remove compatibility scaffolding
 
 - [x] COMPLETE (@root): removed legacy source paths, setup timestep/output
