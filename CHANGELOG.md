@@ -2,7 +2,7 @@
 
 ## 2026-10-12 — Investigate GitHub correctness failure #30
 
-- [ ] IN PROGRESS (@root): use GitHub CLI to diagnose and fix hosted correctness
+- [x] COMPLETE (@root): use GitHub CLI to diagnose and fix hosted correctness
   failures after completing the calendar goal. Read-only harness/performance role
   (@workflow_audit); root owns pytest and GitHub run coordination.
 - Run #30 (`38257785337`, commit `44c41ba`): dependencies, lint, formatting,
@@ -63,8 +63,18 @@
   restart, every test/coverage assertion and the uncapped correctness step.
   Local three-worker HPC runs remain available. The full correctness suite above
   verifies the unchanged source/harness under the updated dependencies.
-- Next: push the verified dependency/allocation fix to `jax-only` and use
-  GitHub CLI to confirm permitted CPUs and every hosted verification step.
+- [x] Committed and pushed the dependency/allocation fix as `e5bb87b` on
+  `jax-only`. GitHub run #32 (`38268800211`) passes every step: full CPU
+  correctness, coverage, lint/format/annotations/types, strict documentation,
+  wheel/sdist, installed public lifecycle examples and artifact upload.
+  Hosted logs confirm JAX/jaxlib 0.11.2 and four permitted CPUs `[0, 1, 2, 3]`.
+  Result: 1338 passed/two expected GPU skips in 1332.97 seconds (22:12);
+  downloaded coverage confirms 4056/4289 maintained lines (94.57%). The test
+  step continues beyond the former 20-minute cap without cancellation.
+- Hosted verification: https://github.com/team-ocean/veris/actions/runs/38268800211.
+  Full logs, status, coverage artifact and independently checked aggregate audit
+  are retained in `test_logs/github-ci/`. Scientific source/harness/reference
+  hashes remain unchanged; no numerical tolerance or child deadline was relaxed.
 
 ## 2026-10-12 — Remove explicit CI correctness timeout
 
