@@ -16,6 +16,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris.execution.advance import advance as advance_model
 from veris.execution.initialization import initialize
 from veris.grid.halos import fill_overlap
 from veris.io import read_record, update_state, write_snapshot
@@ -24,6 +25,10 @@ from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import State
 from veris.model.variables import VARIABLES
 from veris.setups import island
+
+compiled_advance = jax.jit(
+    advance_model, static_argnames=("configuration", "constants", "physics")
+)
 
 
 def assert_same_state(actual: State, expected: State) -> None:
@@ -70,7 +75,9 @@ def test_coupled_restart_matches_uninterrupted_run(
     uninterrupted = initial
     checkpoint = initial
     for index, forcing in enumerate(cooling, start=1):
-        uninterrupted = island.compiled_step(uninterrupted, conf, phys, forcing)
+        uninterrupted = compiled_advance(
+            uninterrupted, conf, phys, {"Qnet": forcing, "Qsw": 0.0}, physics="coupled"
+        )[0]
         if index == checkpoint_step:
             checkpoint = uninterrupted
     assert not np.array_equal(initial.hIceMean, uninterrupted.hIceMean)
@@ -112,10 +119,20 @@ def test_coupled_restart_matches_uninterrupted_run(
     assert resume_step == checkpoint_step
 
     if checkpoint_step == 1:
-        stale = island.compiled_step(
-            restored, restored_conf, restored_phys, cooling[resume_step]
-        )
-        correct = island.compiled_step(checkpoint, conf, phys, cooling[resume_step])
+        stale = compiled_advance(
+            restored,
+            restored_conf,
+            restored_phys,
+            {"Qnet": cooling[resume_step], "Qsw": 0.0},
+            physics="coupled",
+        )[0]
+        correct = compiled_advance(
+            checkpoint,
+            conf,
+            phys,
+            {"Qnet": cooling[resume_step], "Qsw": 0.0},
+            physics="coupled",
+        )[0]
         assert not np.array_equal(
             np.asarray(stale.hIceMean)[2:-2, 2:-2],
             np.asarray(correct.hIceMean)[2:-2, 2:-2],
@@ -124,5 +141,11 @@ def test_coupled_restart_matches_uninterrupted_run(
     restored = jax.tree.map(lambda array: fill_overlap(array, restored_conf), restored)
     assert_same_state(restored, checkpoint)
     for forcing in cooling[resume_step:]:
-        restored = island.compiled_step(restored, restored_conf, restored_phys, forcing)
+        restored = compiled_advance(
+            restored,
+            restored_conf,
+            restored_phys,
+            {"Qnet": forcing, "Qsw": 0.0},
+            physics="coupled",
+        )[0]
     assert_same_state(restored, uninterrupted)

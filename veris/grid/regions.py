@@ -18,8 +18,9 @@ from jax.sharding import Mesh, NamedSharding
 from jax.sharding import PartitionSpec as P
 from numpy.typing import NDArray
 
+from veris.grid.geometry import OceanGeometry
 from veris.model.configuration import Configuration
-from veris.model.types import OceanGeometry, State
+from veris.model.types import State
 from veris.model.variables import VARIABLES
 
 type _Indices = NDArray[np.integer[Any]]

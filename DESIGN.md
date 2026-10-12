@@ -21,9 +21,9 @@ numerical State is never globally initialized per rank and then sliced.
 It applies supplied forcing, calls unchanged dynamics_transport in the established momentum,
 ocean-stress, transport/cleanup/ridging order, then Growth for coupled physics.
 Thermodynamics-only and dynamics-only modes share this contract. Coupling
-Diagnostics remain separate from the array-only State. Existing public `step`
-remains a supplied-transition multi-step JAX rollout; compatibility setup drivers
-delegate their timestep sequence to advance.
+Diagnostics remain separate from the array-only State. `step` performs a
+supplied-transition multi-step JAX rollout. Preset factories construct initial
+fields; the shared `advance` transition owns their timestep sequence.
 
 `Simulation` is a thin host facade over initialization, advance and the existing
 rollout/timing machinery. It owns absolute completed-step/time counters, optional
@@ -62,11 +62,12 @@ Backend/distributed setup is explicit before devices; imports change no global
 JAX settings. Local CPU sharding establishes communication/halo/output contracts;
 GPU and actual multi-host verification require the corresponding hardware.
 
-Independent legacy trajectories are frozen from jax-only commit
-fff4cd4e08613e8ec2359e316c94435e81682400 before compatibility wrappers delegate.
+Independent reference trajectories are frozen from jax-only commit
+fff4cd4e08613e8ec2359e316c94435e81682400 before the centralized timestep implementation.
 Seven cases retain all 70 State fields at steps 0, 1 and 3 and all five
 Diagnostics at steps 1 and 3, both boundaries and one float32 coupled trajectory.
-A separate all-field reference protects legacy unequal island timesteps.
+A separate all-field archive records unequal dynamics/thermodynamic durations
+and verifies canonical composition of the underlying numerical kernels.
 Checksums and a reproduction
 generator record source/configuration/forcing provenance. These golden primals
 complement independent equation/stencil/conservation and finite-difference AD
@@ -108,8 +109,8 @@ PhysicalConstants and PHYSICALCONSTANTS in `veris.model.physical_constants`;
 shared Parameter metadata, State and kernel contracts in `veris.model.types`;
 Variable in `veris.model.variables`; Diagnostics in `veris.model.diagnostics`.
 Precision metadata is defined directly in SETTINGS["dtype"]. Shared ArrayInput
-and MaskInput aliases live in `veris.model.arrays`. OceanGeometry belongs to
-`veris.grid.geometry`; `veris.model.types` re-exports it for compatibility.
+and MaskInput contracts live in `veris.model.arrays`. OceanGeometry belongs to
+`veris.grid.geometry`.
 Island-only configuration remains in `veris.setups.island`.
 
 External ocean geometry is initialized from scratch through
@@ -120,8 +121,8 @@ Core dynamics orchestration lives in
 `veris.physics.dynamics.driver.dynamics_transport`. It owns
 momentum, pre-transport ocean stresses, advection, cleanup and ridging. The pure
 `veris.execution.advance` transition applies prescribed forcing, thermodynamics
-and the final field-specific halo policy. Compatibility setups delegate that shared
-sequence; Simulation owns host execution contexts, time and I/O. Tests separate
+and the final field-specific halo policy. Simulation owns host execution contexts,
+time and I/O. Tests separate
 the stage sequence oracle from host wrapping and independent numerical kernels.
 
 ## Scientific package hierarchy
@@ -150,15 +151,13 @@ into lower layers. Geometry depends only on shared array aliases. I/O uses
 the parallel setup driver. Deferred experiment codec/preset imports retain the
 host convenience interfaces without import-time cycles.
 
-Previous module paths remain typed compatibility aliases to the canonical
-modules. Both paths expose the same objects and module globals; JAX PyTree
-registrations, compiled signatures and patches remain shared. Class ownership
-identifies the canonical modules, while previous pickle import paths remain
-resolvable. `veris.settings`, root `veris.__all__`, `veris.io` exports and existing
-setup command-line names remain available. Generated version metadata stays at
-the package root. The complete tree and migration table are maintained in
-[package-hierarchy.rst](docs/reference/package-hierarchy.rst); historical plans
-and scientific reference provenance retain their original paths.
+Each implementation has one canonical owner. The root `veris` facade exports
+the experiment and execution interfaces; `veris.io` exports host output and
+record interfaces. Setup modules supply preset initialization and command-line
+examples. Generated version metadata stays at the package root. The complete
+tree and canonical import examples are maintained in
+[package-hierarchy.rst](docs/reference/package-hierarchy.rst). Scientific capture
+provenance records the paths of its archived source revision.
 
 Tests mirror the domain packages while standalone process probes and immutable
 reference data retain shared locations. Full correctness and coverage verification

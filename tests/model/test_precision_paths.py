@@ -8,7 +8,8 @@ import numpy as np
 import pytest
 
 from veris.execution.initialization import initialize
-from veris.grid.ocean import OceanGeometry, initialize_from_ocean
+from veris.grid.geometry import OceanGeometry
+from veris.grid.ocean import initialize_from_ocean
 from veris.numerics.momentum import IceVelocities
 from veris.physics.thermodynamics import heat_flux_cesm as cesm
 from veris.setups import island

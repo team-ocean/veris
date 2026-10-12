@@ -1,5 +1,67 @@
 # Test suite redundancy audit
 
+## Canonical-only API cleanup — 2026-10-12
+
+Status: **verified** on `jax-only`, Python 3.14.7 and JAX 0.11.2. All 1,312 cases
+execute exactly once in the cold CPU session: 1,310 passes and two expected GPU
+skips, followed by passes for both native GPU contracts on the two Tesla P100s.
+CPU external wall is 756.48 seconds; maintained coverage is 4,056/4,289 lines
+(94.57%). All 4,026 unchanged previously covered lines retain coverage.
+
+The current API uses canonical scientific modules and the curated `veris` and
+`veris.io` facades. Previous-path module shims, duplicate setup timestep wrappers,
+old pickle imports and driver-only export aliases are removed with their tests
+and active documentation. Tests retained for canonical ownership, cold imports,
+JAX configuration, physics, rollouts and resource behavior continue to exercise
+those contracts directly.
+
+Preset initialization factories remain real implementations. The lifecycle and
+setup tests call public `advance` and `step` with explicit physics modes instead
+of duplicate setup `step`, `step_with_diagnostics` or `compiled_step` functions.
+Distributed output uses `grid.halos.remove_halos` and
+`io.distributed.distributed_collector`; CLI snapshots use `--output`.
+
+Original all-field archives remain independent scientific oracles. The unequal
+island-timestep archive verifies canonical composition of numerical kernels,
+without requiring a separate legacy timestep API. Archived generator, manifest
+and array bytes retain their original source provenance. Earlier audit sections
+record the contracts and evidence of their own revisions.
+
+The obsolete module-migration guide and superseded hierarchy plan/spec are
+removed. The active hierarchy reference documents canonical owners and imports.
+The cleanup changes the prior 1,395-case collection by a net reduction of 83:
+
+| Case accounting | Change |
+| --- | ---: |
+| Removed module-alias, old-pickle and reexport contracts | -86 |
+| Added canonical package ownership/export contracts | +7 |
+| Removed array reexport and obsolete shared-type-file contracts | -2 |
+| Removed duplicate unequal-timestep setup wrapper contract | -1 |
+| Removed obsolete save_output helper validation contract | -1 |
+
+Eight current root/import contracts remain in `test_package_architecture.py`.
+Compiled scientific tests move to `execution/test_compiled_advance.py`; all six
+CLI migration cases remain in `setups/test_lifecycle_cli.py`. The unequal-time
+oracle retains eager and JIT comparisons of all 75 arrays, with Diagnostics
+checks in both paths. Seven frozen lifecycle cases retain exact archived settings
+and pure/host all-field checks. The canonical parallel CLI still rejects
+nonfinite trajectories before writing a snapshot. No scientific tolerance,
+dtype or derivative direction was removed.
+
+The four-CPU closed-wall scientific probe's subprocess timeout is doubled from
+1,200 to 2,400 seconds at the user's request. Its scientific and gradient
+assertions remain. There is no unit test asserting a full-suite time limit;
+runtime measurements are external and CI has its own correctness-step limit.
+
+Ruff lint/format/annotation checks, ty, dependency validation, strict Sphinx,
+fresh wheel/sdist contents and clean installed literal public examples pass.
+The packages contain all 65 Python modules and none of the 39 obsolete files;
+245 source-archive files match the current tree. Independent whole-change review
+has no remaining Critical or Important findings. All 181 final Python-source
+hashes and ten reference-file hashes remain unchanged during verification.
+Detailed logs, JUnit, coverage, source hashes and package audits are retained in
+`test_logs/cleanup/`. Historical sections below describe their own revisions.
+
 ## Package hierarchy and runtime audit — 2026-10-12
 
 Status: **verified** on `jax-only`, Python 3.14.7 and JAX 0.11.2. The complete

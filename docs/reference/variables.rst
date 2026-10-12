@@ -59,7 +59,7 @@ Registry defaults
 Coupling diagnostics
 --------------------
 
-``step_with_diagnostics`` returns these fields in a separate frozen dataclass.
+``advance`` returns these fields in a separate frozen dataclass.
 They do not add leaves to the calculation State. The legacy combined salt
 forcing has differing freshwater normalizations in its two terms when ice
 salinity is nonzero; its units are recorded as ``unknown`` rather than assigning

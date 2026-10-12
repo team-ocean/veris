@@ -16,14 +16,12 @@ Tests mirror the [scientific package hierarchy](../docs/reference/package-hierar
 | `numerics/` | Solvers, differentiable primitives, precise equations and gradient checks |
 | `execution/` | Initialization, pure timesteps, rollouts, lifecycle and resource ownership |
 | `io/` | Scheduled output, observations, storage, selected input and complete restart |
-| `setups/` | Presets, compatibility steps and command-line examples |
+| `setups/` | Preset initialization and command-line examples |
 
-The reorganization moves 89 existing test files and preserves their cases and
-scientific oracles. Shared `conftest.py`, standalone process probes, immutable
-`reference_data/`, packaging, benchmark, runtime and module-compatibility tests
-remain at the test root. `test_package_compatibility.py` checks the 38 previous
-module paths against their canonical owners, including shared globals, legacy
-pickle resolution and unchanged public exports.
+Domain tests exercise the canonical owners and numerical contracts. Shared
+`conftest.py`, standalone process probes, immutable `reference_data/`, packaging,
+benchmark and runtime tests remain at the test root. Schema tests verify the
+single owners of State, array inputs and OceanGeometry and exercise cold imports.
 
 Activate `.venv-latest` before commands. Install the reproducible initial CPU environment
 with `module load uv/latest` and `uv pip install -r requirements-test.txt`.
@@ -38,7 +36,7 @@ Run `pytest tests/ --fast` during development. `VERIS_TEST_SEED` varies the stab
 ```sh
 pytest tests/ -n 3 --dist=loadscope --partition-cpus --max-worker-restart=0 --cov=veris --cov-report=term:skip-covered
 coverage report --omit=veris/_version.py --fail-under=80
-ruff check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py --ignore N999
+ruff check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py
 ruff format --check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py
 ruff check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py --select ANN001,ANN002,ANN003,ANN201,ANN202,ANN204,ANN205,ANN206
 ty check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py
@@ -52,9 +50,11 @@ permitted CPUs before collection or JAX backend initialization; child probes
 inherit that placement. Disable worker restart so crashes fail the full run.
 Use fewer workers if fewer CPUs are available; CPU CI selects at most three
 and enforces a 20-minute limit on the full correctness step.
-The final full CPU run passes 1,393 cases with two expected GPU skips in
-783.11 external seconds (13 minutes 3 seconds), below the 20-minute limit.
-Maintained coverage is 94.64%, with no lost unchanged executed lines. Keep solver performance measurements in the separate
+The canonical-only cleanup passed all 1,312 cases: 1,310 CPU passes and two
+expected GPU skips, both subsequently verified on native GPUs. The cold CPU run
+took 756.48 external seconds (12 minutes 36 seconds), with 94.57% maintained
+coverage and no losses on unchanged previously covered lines. Keep solver
+performance measurements in the separate
 [benchmark harness](../benchmarks/README.md).
 
 Each worker starts with a fresh private JAX compilation-cache directory and
@@ -96,9 +96,9 @@ CI enforces at least 80% coverage of maintained code by excluding only
 `veris/_version.py` from the gate. XML/JSON artifacts retain whole-package data.
 The old geographic setup and its ocean-model dependencies were removed at the
 user’s request. CPU CI is enforced. Native local execution has two Tesla P100 GPUs
-with driver 580.173.02. Both GPU-only contracts passed earlier with JAX 0.11.2 /
-CUDA 12 after the environment upgrade. Both contracts also pass on the final
-reorganized tree (15.99 seconds pytest); full GPU-suite results are not claimed.
+with driver 580.173.02. Both GPU-only contracts pass on the canonical-only tree
+with JAX 0.11.2 / CUDA 12 (14.66 seconds external wall). These targeted contracts
+verify scheduled output and the finite-output CLI; the complete suite ran on CPU.
 
 Current physical coverage includes periodic transport, rheology, wind and ocean
 stress, EVP momentum limits, and thermodynamic energy/water budgets. Serial
@@ -112,14 +112,16 @@ Run the standalone island example in a fresh Python process after
 activating `.venv-latest`:
 
 ```python
-import jax
-from veris.setups.island import initialize, step
+from veris import Experiment, Simulation
 
-jax.config.update("jax_enable_x64", True)
-state, settings, constants = initialize()
-for _ in range(3):
-    state = step(state, settings, constants, cooling=100.0)
-jax.block_until_ready(state)
+experiment = Experiment.builtin(
+    "island",
+    settings={"dtype": "float32"},
+    steps=3,
+)
+with Simulation.initialize(experiment) as simulation:
+    result = simulation.run()
+state = result.state
 ```
 
 This uses prescribed atmospheric and ocean fields; it demonstrates coupled
@@ -153,7 +155,7 @@ test isolates reduction semantics; it is not a full distributed coupled run.
 The public lifecycle tests cover definition and JSON validation, custom ocean
 geometry/masks, initialization, pure timesteps, successive host runs, forcing
 position, scheduled means, snapshots, selected input and complete serial restart.
-Frozen original all-field trajectories protect preset and compatibility behavior;
+Frozen original all-field trajectories protect preset and numerical-kernel behavior;
 their provenance and reproduction instructions are in
 [reference_data/README.md](reference_data/README.md).
 

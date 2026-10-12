@@ -14,15 +14,9 @@ from types import SimpleNamespace
 from typing import Any, TypeVar
 
 import click
-import numpy as np
 
 from veris.io.calendar import FixedDate, duration_us
 from veris.io.configuration import OutputSettings, Stream
-from veris.io.output import OutputManager
-from veris.io.storage import ArrayFields, Collector, storage_fields, write_snapshot
-from veris.model.configuration import Configuration
-from veris.model.physical_constants import PhysicalConstants
-from veris.model.types import State
 
 _Command = TypeVar("_Command", bound=Callable[..., Any])
 
@@ -37,7 +31,6 @@ def output_options(
         options = [
             click.option(
                 "--output",
-                "--final-netcdf",
                 type=click.Path(path_type=Path),
                 default=default_path,
                 show_default=True,
@@ -120,15 +113,6 @@ def output_settings(args: SimpleNamespace, step_seconds: float) -> OutputSetting
     return settings
 
 
-def make_output(
-    args: SimpleNamespace, step_seconds: float, *, collector: Collector | None = None
-) -> OutputManager:
-    """Create a lazy manager using the shared settings-only parser."""
-    return OutputManager(
-        args.netcdf or ".", output_settings(args, step_seconds), collector=collector
-    )
-
-
 def prepare_output_paths(args: SimpleNamespace) -> None:
     """Create parents for validated CLI snapshot/history destinations.
 
@@ -139,39 +123,3 @@ def prepare_output_paths(args: SimpleNamespace) -> None:
     for destination in (args.output, args.netcdf):
         if destination is not None:
             Path(destination).parent.mkdir(parents=True, exist_ok=True)
-
-
-def save_final(
-    args: SimpleNamespace,
-    state: State,
-    elapsed: timedelta,
-    settings: OutputSettings,
-    conf: Configuration,
-    phys: PhysicalConstants,
-    *,
-    collector: Collector | None = None,
-) -> None:
-    """Write the concrete final State independently of whether history was enabled."""
-
-    def collect_finite(
-        source: State | ArrayFields, names: tuple[str, ...]
-    ) -> ArrayFields | None:
-        """Validate physical output on the writing rank before opening a file."""
-        values = (collector or storage_fields)(source, names)
-        if values is not None:
-            for name, value in values.items():
-                if not np.isfinite(value).all():
-                    raise ValueError(f"nonfinite output in {name}")
-        return values
-
-    write_snapshot(
-        args.output,
-        state,
-        elapsed=elapsed,
-        start=settings.start,
-        calendar=settings.calendar,
-        variables=tuple(args.io_variables.split(",")),
-        conf=conf,
-        phys=phys,
-        collector=collect_finite,
-    )

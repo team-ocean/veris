@@ -1,10 +1,11 @@
-"""Settings parsing stays lazy and retains the legacy CLI validation."""
+"""Settings parsing stays lazy and validates the maintained CLI contract."""
 
 from pathlib import Path
 
 import pytest
 
-from veris.io.cli import make_output, output_settings
+from veris.io import OutputManager
+from veris.io.cli import output_settings
 from veris.setups.run_parallel import parse_args
 
 
@@ -26,7 +27,7 @@ def test_disabled_history_retains_calendar_and_origin(tmp_path: Path) -> None:
         2,
         30,
     )
-    with make_output(args, 600) as manager:
+    with OutputManager(args.netcdf or ".", settings) as manager:
         assert manager.settings == settings
     assert not (tmp_path / "final.nc").exists()
 

@@ -1,9 +1,9 @@
 """Direct pure advance forcing, closed-wall and AD checks on two real CPUs.
 
-Run in a fresh process configured for two CPU devices. Setup compatibility transitions now share advance; independent science
-references are frozen separately from the original maintained source commit.
-Forcing reference halos below use explicit periodic/clipped global coordinates,
-not advance or its forcing helper. Both initial States come through the public experiment initializer.
+Run in a fresh process configured for two CPU devices. Compare canonical
+transitions with direct numerical kernel composition and separately frozen
+scientific references. Forcing halos use explicit periodic/clipped global
+coordinates. Both initial States come through the public experiment initializer.
 """
 
 from dataclasses import fields, replace
@@ -16,10 +16,11 @@ from jax.sharding import PartitionSpec as P
 from jax.typing import ArrayLike
 
 import veris
-from veris.grid.halos import fill_state_overlap
+from veris.grid.halos import fill_state_overlap, remove_halos
 from veris.model.diagnostics import Diagnostics
 from veris.model.types import State
-from veris.setups import run_dyn, run_parallel
+from veris.physics.dynamics.driver import dynamics_transport
+from veris.setups import run_parallel
 
 NX, NY = 6, 4
 DTYPE = "float64"
@@ -80,7 +81,7 @@ def forcing(parameters: jax.Array) -> dict[str, jax.Array]:
 
 
 def prescribed_serial(state: State, inputs: dict[str, jax.Array]) -> State:
-    """Independently populate serial forcing halos before the legacy timestep."""
+    """Independently populate serial forcing halos before the direct kernel reference."""
     # x is periodic; atmospheric y halos copy the nearest physical cell.
     wind = jnp.pad(inputs["uWind"], ((2, 2), (0, 0)), mode="wrap")
     wind = jnp.pad(wind, ((0, 0), (2, 2)), mode="edge")
@@ -107,7 +108,7 @@ def compare_records(
     for record, reference in zip(actual, expected, strict=True):
         for item in fields(reference):
             compare(
-                run_parallel.remove_halos(getattr(record, item.name), mesh),
+                remove_halos(getattr(record, item.name), mesh),
                 getattr(reference, item.name)[2:-2, 2:-2],
                 f"{label} {type(reference).__name__}.{item.name}",
             )
@@ -169,10 +170,13 @@ def check_orientation(partitions: tuple[int, int]) -> None:
         )
         parallel = fill_state_overlap(prepare(parallel), local_conf)
 
-    def legacy(inputs: dict[str, jax.Array]) -> tuple[State, Diagnostics]:
-        return run_dyn.step_with_diagnostics(
+    def reference(inputs: dict[str, jax.Array]) -> tuple[State, Diagnostics]:
+        state, stress_u, stress_v = dynamics_transport(
             prescribed_serial(serial, inputs), conf, phys
         )
+        zeros = jnp.zeros_like(state.Area)
+        diagnostic = Diagnostics(zeros, stress_u, stress_v, zeros, zeros)
+        return fill_state_overlap(state, conf), fill_state_overlap(diagnostic, conf)
 
     def transition(
         current: State, inputs: dict[str, jax.Array]
@@ -183,16 +187,16 @@ def check_orientation(partitions: tuple[int, int]) -> None:
 
     point = jnp.zeros(2, dtype=DTYPE)
     inputs = forcing(point)
-    expected = legacy(inputs)
+    expected = reference(inputs)
     explicit_speed = {**inputs, "wSpeed": jnp.asarray(7.0, dtype=DTYPE)}
-    expected_explicit = legacy(explicit_speed)
+    expected_explicit = reference(explicit_speed)
     weights = 1 + 0.2 * jnp.sin(jnp.arange(NX)[:, None] + 2 * jnp.arange(NY)[None, :])
 
     def objective(parameters: jax.Array, sharded: bool) -> jax.Array:
         result, diagnostics = (
             transition(parallel, forcing(parameters))
             if sharded
-            else legacy(forcing(parameters))
+            else reference(forcing(parameters))
         )
         value = (
             result.hIceMean
@@ -201,7 +205,7 @@ def check_orientation(partitions: tuple[int, int]) -> None:
             + diagnostics.OceanStressU
             + diagnostics.OceanStressV
         )
-        value = run_parallel.remove_halos(value, mesh) if sharded else value[2:-2, 2:-2]
+        value = remove_halos(value, mesh) if sharded else value[2:-2, 2:-2]
         return jnp.mean(weights * value)
 
     expected_value = objective(point, False)

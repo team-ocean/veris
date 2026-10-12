@@ -506,7 +506,7 @@ PHYSICALCONSTANTS: dict[str, Parameter] = {
 }
 
 
-__all__ = ["PHYSICALCONSTANTS", "Parameter", "PhysicalConstants"]
+__all__ = ["PHYSICALCONSTANTS", "PhysicalConstants"]
 
 
 @dataclass(frozen=True)

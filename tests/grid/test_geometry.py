@@ -22,5 +22,4 @@ def test_ocean_geometry_is_the_original_frozen_schema() -> None:
         "area_u",
         "area_v",
     ]
-    assert import_module("veris.model.types").OceanGeometry is cls
-    assert import_module("veris.grid.ocean").OceanGeometry is cls
+    assert cls.__module__ == "veris.grid.geometry"

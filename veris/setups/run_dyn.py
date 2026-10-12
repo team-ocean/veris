@@ -26,7 +26,6 @@ from veris.io.cli import (
     prepare_output_paths,
 )
 from veris.model.configuration import Configuration
-from veris.model.diagnostics import Diagnostics
 from veris.model.metadata import FROM_REGISTRY, registry_defaults, validate_scalars
 from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import Parameter, State
@@ -170,7 +169,7 @@ DYNAMICS_NUMERICAL_DEFAULTS: dict[str, Any] = {
     "evpBeta": 500.0,
     "nEVPsteps": 120,
 }
-"""Reference solver choices shared by legacy and lifecycle definitions."""
+"""Reference solver choices for dynamics experiment definitions."""
 
 
 def initialize(
@@ -234,23 +233,6 @@ def initialize(
         physical_overrides=physical_overrides,
         state_overrides=values,
     )
-
-
-def step_with_diagnostics(
-    vs: State, conf: Configuration, phys: PhysicalConstants
-) -> tuple[State, Diagnostics]:
-    """Advance the shared pure dynamics transition and return coupling stress."""
-    from veris.execution.advance import advance
-
-    return advance(vs, conf, phys, physics="dynamics")
-
-
-def step(vs: State, conf: Configuration, phys: PhysicalConstants) -> State:
-    """Advance one 600-second reference step without thermodynamics."""
-    return step_with_diagnostics(vs, conf, phys)[0]
-
-
-compiled_step = jax.jit(step, static_argnames=("conf", "phys"))
 
 
 @click.command(help=__doc__)

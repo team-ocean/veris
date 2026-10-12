@@ -3,8 +3,8 @@ Model setups
 
 The public Experiment and Simulation lifecycle runs every builtin with shared
 initialization, forcing, clocks and I/O. See :doc:`/quickstart/user-guide` and
-:doc:`/quickstart/custom-ocean` for complete public workflows. Setup functions
-remain compatibility entry points and pure kernels.
+:doc:`/quickstart/custom-ocean` for complete public workflows. Setup factories
+construct preset fields, and command-line drivers use the same lifecycle.
 
 The island setup combines dynamics and growth with prescribed ocean masks
 and fields. It requires no geographic datasets or external ocean model.

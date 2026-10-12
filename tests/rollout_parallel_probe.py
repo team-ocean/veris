@@ -17,6 +17,7 @@ from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 
 from veris import Execution, Experiment, Grid, advance, initialize_experiment, step
+from veris.grid.halos import remove_halos
 from veris.model.types import State
 from veris.setups import run_parallel
 
@@ -101,7 +102,7 @@ def _check_case(case: str, backend: str, dtype: str) -> None:
     def objective(parameters: jax.Array, sharded: bool, checkpoint: bool) -> jax.Array:
         final = evolve(parameters, sharded, checkpoint)
         value = final.hIceMean + 10 * final.uIce
-        value = run_parallel.remove_halos(value, mesh) if sharded else value[2:-2, 2:-2]
+        value = remove_halos(value, mesh) if sharded else value[2:-2, 2:-2]
         x, y = jnp.indices((nx, ny), dtype=dtype)
         weights = 1 + 0.2 * jnp.sin(x + 2 * y)
         return jnp.mean(weights * value)
@@ -116,7 +117,7 @@ def _check_case(case: str, backend: str, dtype: str) -> None:
             actual = evolve(replicated_point, True, checkpoint)
             for metadata in fields(State):
                 compare(
-                    run_parallel.remove_halos(getattr(actual, metadata.name), mesh),
+                    remove_halos(getattr(actual, metadata.name), mesh),
                     getattr(reference, metadata.name)[2:-2, 2:-2],
                     f"{case} checkpoint={checkpoint} {metadata.name}",
                 )

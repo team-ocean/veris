@@ -6,10 +6,11 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris.execution.advance import advance as advance_model
 from veris.execution.initialization import initialize
 from veris.grid.halos import fill_state_overlap
 from veris.physics.dynamics.rheology import stressdiv
-from veris.setups import island, run_dyn
+from veris.setups import island
 
 
 @pytest.mark.parametrize("no_slip", [False, True])
@@ -81,6 +82,6 @@ def test_free_slip_momentum_steps_keep_both_wall_shears_zero() -> None:
     shear = jnp.zeros_like(state.sigma12).at[:, 3:-2].set(0.2)
     state = replace(state, sigma12=shear)
     for _ in range(2):
-        state = run_dyn.step(state, conf, phys)
+        state = advance_model(state, conf, phys, physics="dynamics")[0]
         np.testing.assert_array_equal(state.sigma12[:, 2], 0.0)
         np.testing.assert_array_equal(state.sigma12[:, -2], 0.0)

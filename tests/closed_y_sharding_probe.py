@@ -25,10 +25,9 @@ from veris import (
     initialize_experiment,
     step,
 )
-from veris.grid.halos import fill_overlap, fill_overlap_uv
+from veris.grid.halos import fill_overlap, fill_overlap_uv, remove_halos
 from veris.model.configuration import Configuration
 from veris.model.types import State
-from veris.setups.run_parallel import remove_halos
 
 
 def compare(

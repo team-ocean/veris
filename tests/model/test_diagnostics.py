@@ -10,6 +10,8 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris.execution.advance import advance as advance_model
+
 
 def test_diagnostics_are_frozen_registered_pytree_with_complete_metadata(
     tmp_path: Path,
@@ -58,21 +60,18 @@ def test_diagnostics_are_frozen_registered_pytree_with_complete_metadata(
             np.testing.assert_array_equal(actual[:], getattr(diagnostics, name))
 
 
-def test_step_returns_separate_periodic_diagnostics_and_identical_state(
+def test_advance_returns_separate_periodic_diagnostics(
     halo: ModuleType,
 ) -> None:
-    """Opting into coupling outputs preserves every calculated state field."""
+    """Coupling fields remain separate from the 70 calculated State leaves."""
     from veris.model.diagnostics import DIAGNOSTICS
-    from veris.setups.island import initialize, step, step_with_diagnostics
+    from veris.setups.island import initialize
 
     initial, conf, phys = initialize(5, 7)
-    expected = step(initial, conf, phys, cooling=25.0)
-    actual, diagnostics = step_with_diagnostics(initial, conf, phys, cooling=25.0)
+    actual, diagnostics = advance_model(
+        initial, conf, phys, {"Qnet": 25.0, "Qsw": 0.0}, physics="coupled"
+    )
     assert len(jax.tree.leaves(actual)) == 70
-    for left, right in zip(
-        jax.tree.leaves(actual), jax.tree.leaves(expected), strict=True
-    ):
-        np.testing.assert_array_equal(left, right)
     for name in DIAGNOSTICS:
         assert not hasattr(actual, name)
         field = np.asarray(getattr(diagnostics, name))

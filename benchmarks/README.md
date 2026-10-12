@@ -9,9 +9,9 @@ steps. Grid arguments count interior cells; each dimension adds four halo cells.
 The benchmark changes the island example's five EVP iterations to an explicit
 count, defaulting to 400. It does not establish convergence of that count.
 
-The model exposes two drivers with the same physics: `island.step` retains
-the Python integration sequence, while `island.compiled_step` compiles the
-whole sequence. Choose the callable once before an integration loop. Whole-step
+The benchmark compares eager `veris.advance` with an explicit `jax.jit`
+of the same coupled transition and prescribed heat forcing. Choose the callable
+once before an integration loop. Whole-step
 compilation reduces GPU dispatch overhead but is not consistently faster on CPU.
 CPU placement can matter even on an otherwise idle multi-socket host; the local
 affinity example below changes only the launched process.
@@ -83,10 +83,9 @@ GROUP BY name;
 
 ## What is compared
 
-`baseline` calls the Python body of the current `island.step`; if the public
-function is decorated, its `__wrapped__` body is used. `candidate` uses the public
-`island.compiled_step` when available; on historical checkouts it applies a
-fresh `jax.jit(..., static_argnames=['conf'])` to the Python body. Both variants
+`baseline` calls canonical `advance` with the island's prescribed cooling and
+zero shortwave. `candidate` applies `jax.jit` to that same State transition,
+with settings and constants bound before measurement. Both variants
 use the same current physics kernels and settings. This isolates the whole-step
 compilation boundary. It is **not a comparison against the historical source**,
 and cannot establish the gain from changes made inside EVP, growth or other

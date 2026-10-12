@@ -13,11 +13,11 @@ examples, see :doc:`/reference/integration`.
 Dynamics and transport stage
 ----------------------------
 
-Custom setup steps can reuse the shared dynamics stage. It returns
+Custom physics transitions can reuse the shared dynamics stage. It returns
 ``(state, stress_u, stress_v)``; the stresses are evaluated before transport.
 The caller supplies atmospheric forcing, optional thermodynamics and the
 final State and Diagnostics halo refresh. Under sharding, call this local
-stage inside the setup's ``jax.shard_map``.
+stage inside the caller's ``jax.shard_map``.
 
 .. automodule:: veris.physics.dynamics.driver
 

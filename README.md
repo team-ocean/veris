@@ -37,17 +37,16 @@ or precision settings.
 The [primary quickstart](docs/quickstart/user-guide.rst) includes scheduled output,
 complete save-and-resume and optional observations. The
 [custom ocean example](docs/quickstart/custom-ocean.rst) defines geometry, masks,
-initial conditions and time-varying forcing using public imports. Read the
-[migration guide](docs/quickstart/migration.rst) for existing setup scripts and
-the preserved pure rollout API.
+initial conditions and time-varying forcing using public imports. The
+[integration guide](docs/reference/integration.rst) describes pure rollouts and
+differentiation.
 
 The source hierarchy groups experiment definitions and state in `veris.model`,
 geometry and halos in `veris.grid`, scientific laws in `veris.physics`, numerical
 solvers in `veris.numerics`, and initialization and execution in `veris.execution`.
 Host storage and restart live in `veris.io`; examples and presets live in
-`veris.setups`. Existing module imports remain available. The
-[package hierarchy](docs/reference/package-hierarchy.rst) lists the complete tree
-and migration paths for specialized imports.
+`veris.setups`. The [package hierarchy](docs/reference/package-hierarchy.rst)
+lists the complete tree and owning modules for specialized imports.
 
 `Experiment` keeps numerical settings, physical constants, initial fields,
 forcing, execution resources and output controls separate. Registry defaults and

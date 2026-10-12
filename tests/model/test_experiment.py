@@ -11,10 +11,10 @@ import numpy as np
 import pytest
 
 import veris
+from veris.grid.geometry import OceanGeometry
 from veris.io import OutputSettings, Stream
 from veris.model.configuration import SETTINGS, Configuration
 from veris.model.physical_constants import PhysicalConstants
-from veris.model.types import OceanGeometry
 
 
 def test_global_grid_adapts_to_local_extents_and_packed_partition_halos() -> None:

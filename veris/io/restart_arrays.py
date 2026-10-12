@@ -16,9 +16,9 @@ import h5py
 import numpy as np
 from h5py import h5o  # ty: ignore[unresolved-import] -- public compiled HDF object API
 
+from veris.grid.geometry import OceanGeometry
 from veris.model.experiment import INITIAL_FIELDS
 from veris.model.forcing import FORCING_FIELDS
-from veris.model.types import OceanGeometry
 
 _SECTIONS = {
     "geometry": {item.name for item in fields(OceanGeometry)},

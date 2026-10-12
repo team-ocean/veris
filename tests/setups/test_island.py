@@ -8,6 +8,8 @@ import jax
 import numpy as np
 import pytest
 
+from veris.execution.advance import advance
+
 
 @pytest.fixture
 def example(halo: ModuleType) -> ModuleType:
@@ -36,7 +38,7 @@ def test_coupled_rest_equilibrium_is_preserved(example: ModuleType) -> None:
     )
     initial = vs
     for _ in range(2):
-        vs = example.step(vs, conf, phys, cooling=0)
+        vs = advance(vs, conf, phys, {"Qnet": 0, "Qsw": 0.0})[0]
     for name in ("hIceMean", "hSnowMean", "Area", "uIce", "vIce"):
         np.testing.assert_allclose(
             getattr(vs, name), getattr(initial, name), atol=1e-10
@@ -49,7 +51,7 @@ def test_coupled_forced_steps_keep_land_empty_and_halos_periodic(
     vs, conf, phys = example.initialize()
     initial_ice = np.asarray(vs.hIceMean)
     for _ in range(3):
-        vs = example.step(vs, conf, phys, cooling=100)
+        vs = advance(vs, conf, phys, {"Qnet": 100, "Qsw": 0.0})[0]
     jax.block_until_ready(vs)
     for field in jax.tree.leaves(vs):
         assert np.all(np.isfinite(field)), "ERROR nonfinite integration field"
@@ -81,18 +83,18 @@ def test_too_small_grid_has_clear_error(example: ModuleType, nx: int, ny: int) -
         example.initialize(nx=nx, ny=ny)
 
 
-def test_default_cooling_and_prescribed_forcing_replace_previous_outputs(
+def test_prescribed_heat_forcing_replaces_previous_outputs(
     example: ModuleType,
 ) -> None:
-    """Default cooling matches explicit 100 and overwrites old coupling fluxes."""
+    """Prescribed cooling overwrites previous coupling fluxes on every call."""
     import jax.numpy as jnp
 
     vs, conf, phys = example.initialize()
     changed = replace(
         vs, Qnet=jnp.full_like(vs.Qnet, -999), Qsw=jnp.full_like(vs.Qsw, -888)
     )
-    expected = example.step(vs, conf, phys)
-    actual = example.step(changed, conf, phys, cooling=100)
+    expected = advance(vs, conf, phys, {"Qnet": 100, "Qsw": 0.0})[0]
+    actual = advance(changed, conf, phys, {"Qnet": 100, "Qsw": 0.0})[0]
     for first, second in zip(
         jax.tree.leaves(actual), jax.tree.leaves(expected), strict=True
     ):
@@ -107,9 +109,10 @@ def test_example_runs_in_fresh_process_without_mesh_helper() -> None:
     code = """
 import jax
 jax.config.update("jax_enable_x64", True)
-from veris.setups.island import initialize, step
+from veris.setups.island import initialize
+from veris.execution.advance import advance
 vs, conf, phys = initialize()
-result = step(vs, conf, phys)
+result = advance(vs, conf, phys, {"Qnet": 100.0, "Qsw": 0.0})[0]
 jax.block_until_ready(result)
 assert result.hIceMean.shape == (12, 16)
 assert bool((result.hIceMean >= 0).all())

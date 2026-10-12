@@ -6,8 +6,13 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from veris.setups.run_dyn import compiled_step, initialize
-from veris.setups.run_parallel import remove_halos
+from veris.execution.advance import advance as advance_model
+from veris.grid.halos import remove_halos
+from veris.setups.run_dyn import initialize
+
+compiled_advance = jax.jit(
+    advance_model, static_argnames=("configuration", "constants", "physics")
+)
 
 
 def check() -> None:
@@ -23,7 +28,7 @@ def check() -> None:
     def serial(scale: jax.Array) -> jax.Array:
         current = replace(state, uWind=state.uWind * scale, vWind=state.vWind * scale)
         for _ in range(2):
-            current = compiled_step(current, conf, phys)
+            current = compiled_advance(current, conf, phys, physics="dynamics")[0]
         return jnp.sum(current.uIce[2:-2, 2:-2] ** 2 + current.vIce[2:-2, 2:-2] ** 2)
 
     def sharded(scale: jax.Array) -> jax.Array:
@@ -33,7 +38,7 @@ def check() -> None:
             vWind=distributed.vWind * scale,
         )
         for _ in range(2):
-            current = compiled_step(current, dc, dp)
+            current = compiled_advance(current, dc, dp, physics="dynamics")[0]
         return jnp.sum(
             remove_halos(current.uIce, mesh) ** 2
             + remove_halos(current.vIce, mesh) ** 2

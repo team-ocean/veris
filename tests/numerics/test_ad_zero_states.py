@@ -7,9 +7,14 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris.execution.advance import advance as advance_model
 from veris.numerics.momentum import tauXY
 from veris.physics.dynamics.rheology import ocean_drag_coeffs, viscosities
-from veris.setups.run_dyn import compiled_step, initialize
+from veris.setups.run_dyn import initialize
+
+compiled_advance = jax.jit(
+    advance_model, static_argnames=("configuration", "constants", "physics")
+)
 
 
 def test_zero_strain_viscosity_finite_linearization() -> None:
@@ -62,11 +67,12 @@ def test_reference_initial_dynamics_wind_gradient_matches_fd() -> None:
     state, conf, phys = initialize(6, 8, settings_overrides={"nEVPsteps": 2})
 
     def objective(scale: jax.Array) -> jax.Array:
-        result = compiled_step(
+        result = compiled_advance(
             replace(state, uWind=state.uWind * scale, vWind=state.vWind * scale),
             conf,
             phys,
-        )
+            physics="dynamics",
+        )[0]
         return jnp.sum(result.uIce[2:-2, 2:-2] ** 2 + result.vIce[2:-2, 2:-2] ** 2)
 
     point = jnp.asarray(1.0)
@@ -157,7 +163,9 @@ def test_full_stationary_state_pullback_has_no_nonfinite_leaves(
             "useAdaptiveEVP": adaptive,
         },
     )
-    result, pullback = jax.vjp(lambda vs: compiled_step(vs, conf, phys), state)
+    result, pullback = jax.vjp(
+        lambda vs: compiled_advance(vs, conf, phys, physics="dynamics")[0], state
+    )
     cotangent = jax.tree.map(jnp.zeros_like, result)
     cotangent = replace(cotangent, uIce=jnp.ones_like(result.uIce))
     gradient = pullback(cotangent)[0]

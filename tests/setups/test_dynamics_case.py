@@ -8,6 +8,8 @@ import jax
 import numpy as np
 import pytest
 
+from veris.execution.advance import advance
+
 
 def case() -> ModuleType:
     """Import lazily so missing implementation reports an explicit test failure."""
@@ -79,7 +81,7 @@ def test_dynamics_driver_refreshes_state_and_stress_halos() -> None:
         ),
     )
     local, stress_u, stress_v = dynamics_transport(initial, conf, phys)
-    actual, diagnostics = module.step_with_diagnostics(initial, conf, phys)
+    actual, diagnostics = advance(initial, conf, phys, physics="dynamics")
     for result, reference in zip(
         jax.tree.leaves(actual), jax.tree.leaves(local), strict=True
     ):
@@ -98,7 +100,10 @@ def test_dynamics_driver_refreshes_state_and_stress_halos() -> None:
         )
     for name in ("EmPmR", "forc_salt_surface", "IcePenetSW"):
         np.testing.assert_array_equal(getattr(diagnostics, name), 0)
-    compiled = module.compiled_step(initial, conf, phys)
+    compiled_advance = jax.jit(
+        advance, static_argnames=("configuration", "constants", "physics")
+    )
+    compiled = compiled_advance(initial, conf, phys, physics="dynamics")[0]
     for a, b in zip(jax.tree.leaves(compiled), jax.tree.leaves(actual), strict=True):
         np.testing.assert_allclose(a, b, atol=1e-12, rtol=1e-12)
 
@@ -114,7 +119,9 @@ def test_dynamics_wind_sensitivity_matches_finite_difference() -> None:
     """The public composition retains AD through forcing and EVP dynamics."""
     import jax.numpy as jnp
 
-    module = case()
+    compiled_advance = jax.jit(
+        advance, static_argnames=("configuration", "constants", "physics")
+    )
     from tests.numerics.test_evp_optimization import oracle_state
 
     # This smooth oracle complements the stationary, coastal zero-strain
@@ -124,7 +131,7 @@ def test_dynamics_wind_sensitivity_matches_finite_difference() -> None:
 
     def objective(scale: jax.Array) -> jax.Array:
         forced = replace(state, uWind=state.uWind * scale, vWind=state.vWind * scale)
-        result = module.compiled_step(forced, conf, phys)
+        result = compiled_advance(forced, conf, phys, physics="dynamics")[0]
         return jnp.sum(result.uIce[2:-2, 2:-2] ** 2 + result.vIce[2:-2, 2:-2] ** 2)
 
     value = jnp.asarray(1.0)

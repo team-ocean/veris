@@ -9,7 +9,7 @@ Five EVP substeps keep this example small; they are not a convergence criterion.
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
-from typing import Any, cast
+from typing import Any
 
 import jax
 import jax.numpy as jnp
@@ -17,14 +17,13 @@ import numpy as np
 
 from veris.execution.initialization import initialize as initialize_model
 from veris.model.configuration import SETTINGS, Configuration
-from veris.model.diagnostics import Diagnostics
 from veris.model.metadata import (
     FROM_REGISTRY,
     registry_defaults,
     validate_scalars,
 )
 from veris.model.physical_constants import PhysicalConstants
-from veris.model.types import Parameter, State, jit
+from veris.model.types import Parameter, State
 
 ISLAND_SETTINGS: dict[str, Parameter] = {
     "saltOcn_ref": Parameter(
@@ -128,7 +127,7 @@ class IslandSettings:
 
 
 def numerical_defaults(scenario: IslandSettings) -> dict[str, Any]:
-    """Return the scenario's numerical defaults shared by both public workflows."""
+    """Return the scenario's numerical defaults used by experiment initialization."""
     return {
         "deltatTherm": scenario.islandTimeStep,
         "deltatDyn": scenario.islandTimeStep,
@@ -156,12 +155,12 @@ def initialize(
     saturated at its specified temperature with blackbody downward longwave
     radiation. This setup supports serial execution; use the general initializer
     with supplied mesh geometry for sharded experiments. Scenario overrides stay
-    local to this module; use the step cooling argument for heat-flux forcing.
+    local to this module; prescribe heat flux through Experiment forcing.
     """
     overrides = dict(settings_overrides or {})
     scenario_values = dict(scenario_overrides or {})
     if "islandCooling" in scenario_values:
-        raise ValueError("pass islandCooling as the cooling argument to step")
+        raise ValueError("prescribe islandCooling through Experiment forcing")
     for name, value in (
         ("nx", nx),
         ("ny", ny),
@@ -291,52 +290,3 @@ def _fields(
         * ones,
     )
     return fields
-
-
-def step(
-    vs: State,
-    conf: Configuration,
-    phys: PhysicalConstants,
-    cooling: float | jax.Array | None = None,
-) -> State:
-    """Advance the calculation state with prescribed upward open-water cooling.
-
-    The Python driver and compiled_step execute the same dynamics, transport,
-    cleanup and growth sequence. Both support AD. Use step_with_diagnostics to
-    retain the output-only ice-ocean coupling fields alongside the updated state.
-    Omitted cooling uses ISLAND_SETTINGS; pass cooling explicitly to change
-    the forcing. Cooling resets atmospheric Qnet/Qsw forcing on every call, before Growth
-    replaces these state fields with ocean-coupling fluxes.
-    """
-    result, _ = step_with_diagnostics(vs, conf, phys, cooling)
-    return result
-
-
-def step_with_diagnostics(
-    vs: State,
-    conf: Configuration,
-    phys: PhysicalConstants,
-    cooling: float | jax.Array | None = None,
-) -> tuple[State, Diagnostics]:
-    """Advance a coupled step and return separate periodic ocean-coupling outputs.
-
-    Ocean stress is evaluated after momentum and before transport and growth,
-    matching the reference integration order. Growth supplies freshwater, salt
-    and penetrating shortwave outputs. Only calculation fields enter State.
-    """
-    if cooling is None:
-        cooling = float(cast(float, ISLAND_SETTINGS["islandCooling"].default))
-    from veris.execution.advance import _execute_advance
-
-    # Legacy experiments permit separate dynamics and growth timesteps. The
-    # public facade has one coupled clock; both use identical shared stages.
-    return _execute_advance(vs, conf, phys, {"Qnet": cooling, "Qsw": 0.0}, "coupled")
-
-
-compiled_step = jit(step, static_argnames=["conf", "phys"])
-"""Whole-step compiled driver; settings and constants are static; cooling stays dynamic.
-
-Shares the exact physics sequence with step. Choose this callable once outside
-the integration loop for workloads where reduced host dispatch is beneficial;
-see benchmarks/README.md for CPU/GPU measurements and their limits.
-"""

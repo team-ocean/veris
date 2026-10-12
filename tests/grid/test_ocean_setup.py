@@ -7,7 +7,8 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from veris.grid.ocean import OceanGeometry, initialize_from_ocean
+from veris.grid.geometry import OceanGeometry
+from veris.grid.ocean import initialize_from_ocean
 
 
 @pytest.fixture

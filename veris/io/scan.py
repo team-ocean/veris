@@ -75,7 +75,7 @@ class _WeakCallable:
 
 
 class ScheduledObserver:
-    """Compatibility callback with optional absolute output continuation."""
+    """Scheduled output callback with optional absolute output continuation."""
 
     def __init__(
         self,
@@ -289,7 +289,7 @@ def _compile_chunk(
     Weak function keys release their JIT owners when the caller discards the
     transition. Cached partials hold only its weak identity and immutable field
     selection; changing numerical carry/forcing remains dynamic. Arbitrary
-    callable objects and history selectors retain the scoped legacy path.
+    callable objects and history selectors retain the scoped execution path.
     """
     if (
         type(advance) is FunctionType

@@ -18,13 +18,14 @@ import numpy as np
 from jax.sharding import Mesh
 from numpy.typing import NDArray
 
+from veris.grid.geometry import OceanGeometry
 from veris.grid.halos import fill_state_overlap
 from veris.grid.ocean import _validate_geometry, initialize_from_ocean
 from veris.grid.regions import regional_geometry, regional_state
 from veris.model.configuration import Configuration
 from veris.model.experiment import Experiment
 from veris.model.physical_constants import PhysicalConstants
-from veris.model.types import OceanGeometry, State
+from veris.model.types import State
 from veris.model.variables import VARIABLES
 
 _METRICS = frozenset({"dxt", "dxu", "dyt", "dyu", "area_t", "area_u", "area_v"})

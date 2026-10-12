@@ -2,7 +2,7 @@
 
 Run with .venv-latest: python -m benchmarks.profile_veris --backend cpu
 --output test_logs/profiling/paired-cpu --trace. The baseline is the Python
-body of island.step; candidate compiles that entire body. Float64 periodic
+canonical advance call; candidate compiles that entire call. Float64 periodic
 (nx+4, ny+4) fields include the island and default prescribed forcing.
 EVP iteration count is explicit; this is not a convergence benchmark. First-call
 latency includes compilation and execution and can share cached inner kernels
@@ -223,19 +223,26 @@ def main(argv: list[str] | None = None) -> None:
     device = devices[0]
     if device.platform != args.backend:
         raise RuntimeError(f"ERROR requested {args.backend}, got {device.platform}")
+    from veris.execution.advance import advance
     from veris.setups import island
 
     with jax.default_device(device):
         initial, conf, phys = island.initialize(args.nx, args.ny)
         conf = replace(conf, nEVPsteps=args.evp_steps)
-        body = getattr(island.step, "__wrapped__", island.step)
-        fused = getattr(island, "compiled_step", None)
-        if fused is None:
-            # Historical checkouts predate the explicit compiled driver.
-            fused = jax.jit(body, static_argnames=["conf", "phys"])
+        cooling = island.IslandSettings().islandCooling
+
+        def body(state: Any) -> Any:
+            return advance(
+                state,
+                conf,
+                phys,
+                {"Qnet": cooling, "Qsw": 0.0},
+            )[0]
+
+        fused = jax.jit(body)
         variants = {
-            "baseline": lambda state: body(state, conf, phys),
-            "candidate": lambda state: fused(state, conf, phys),
+            "baseline": body,
+            "candidate": fused,
         }
         result = measure_pair(
             variants,

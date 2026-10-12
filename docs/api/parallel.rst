@@ -36,23 +36,18 @@ Parallel dynamics helpers
 -------------------------
 
 Initialize distributed JAX before accessing devices or allocating arrays.
-The parallel runner uses :func:`veris.setups.run_dyn.initialize` and
-:func:`veris.setups.run_dyn.step`; it has no separate physics transition.
+The parallel runner uses the dynamics preset through Experiment and Simulation.
+The shared :func:`veris.advance` transition owns its physics sequence.
 Launch examples appear in :doc:`/reference/setups/parallel-dynamics`.
 
 ``veris.grid.halos.remove_halos`` retains JAX arrays and supports transformations.
-It is also available from ``veris.setups.run_parallel``. The host
-``gather_output`` collects the nine reference fields on every process;
-``save_output`` writes them on process zero. All processes must participate
-in collective calls in the same order. For arbitrary State selections, use
-:func:`~veris.io.distributed.distributed_collector` with the :doc:`io` API.
+The host :func:`~veris.io.distributed.distributed_collector` trims packed halos
+and collects selected physical fields for the :doc:`io` API. All processes
+participate in collective calls in the same order; only the writing process
+creates the output file.
 
 .. autofunction:: veris.setups.run_parallel.distributed_options
 
 .. autofunction:: veris.setups.run_parallel.create_mesh
 
 .. autofunction:: veris.grid.halos.remove_halos
-
-.. autofunction:: veris.setups.run_parallel.gather_output
-
-.. autofunction:: veris.setups.run_parallel.save_output

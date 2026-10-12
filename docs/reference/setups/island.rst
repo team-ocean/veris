@@ -6,14 +6,13 @@ a two-by-two-cell island. The default interior is 8 by 12 cells at 8 km spacing;
 arrays include two halo cells on each side. Face masks prevent transport across
 the coastline. Temperatures are in kelvin and thicknesses are grid-cell means.
 
-See :func:`~veris.setups.island.initialize`,
-:func:`~veris.setups.island.step` and
-:func:`~veris.setups.island.step_with_diagnostics` in the
-:doc:`Python API </api/initialization>` for signatures and docstrings.
+See :func:`~veris.setups.island.initialize` in the
+:doc:`Python API </api/initialization>` for preset allocation, and
+:func:`veris.advance` for its complete pure timestep.
 
 The numerical State retains ice velocity and stress fields between steps.
 Output-only ocean coupling stresses and fluxes are returned separately by
-``step_with_diagnostics``. Its sequence is mass and area
+``advance``. Its sequence is mass and area
 averaging, wind forcing, ice strength, EVP dynamics, ocean stress, advection,
 cleanup, ridging, growth, and boundary halo refresh. Set
 ``settings_overrides={"enable_cyclic_y": False}`` to close the global y edges;
@@ -27,11 +26,10 @@ forcing/time and output. The public lifecycle supports serial and explicit
 x/y meshes with global physical dimensions. The caller prepares JAX resources;
 see :doc:`/quickstart/user-guide` and :doc:`/api/simulation`.
 
-Legacy initialize/step signatures remain. Legacy island timesteps retain their
-independent dynamics and thermodynamic durations; a new coupled Experiment
-requires equal durations so its single model clock is unambiguous.
+Coupled Experiments require equal dynamics and thermodynamic durations so
+their single model clock is unambiguous.
 
-Use the public ``veris.step`` to repeat this setup kernel with scan and
+Use the public ``veris.step`` to repeat the coupled transition with scan and
 checkpointing. See :doc:`../integration` for selected diagnostics and
 time-varying cooling, and :doc:`/quickstart/user-guide` for a complete example.
 
@@ -43,9 +41,9 @@ in this setup. They describe prescribed initial fields and example controls;
 they do not add fields to model Configuration, PhysicalConstants or State.
 This includes ``saltOcn_ref``, the prescribed ocean salinity, which can be
 changed through ``scenario_overrides``.
-``initialize(scenario_overrides={...})`` accepts these controls except
-``islandCooling``: use ``step(..., cooling=...)`` to select that forcing.
-An omitted cooling argument uses the default below.
+``initialize(scenario_overrides={...})`` accepts initial-condition controls.
+Prescribe heat through the Experiment forcing definition or the ``forcing``
+argument of ``advance``; the island builtin supplies the heat default below.
 
 .. exec::
 

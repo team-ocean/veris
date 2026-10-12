@@ -1,6 +1,6 @@
 """Shared Veris schemas, array contracts and typed JAX compiled callables.
 
-State is an array-only PyTree; OceanGeometry describes host input.
+State is an array-only PyTree; grid.geometry owns host geometry inputs.
 Configuration and PhysicalConstants are defined beside their respective registries.
 Island experiment types belong to their setup module.
 """
@@ -13,9 +13,6 @@ import jax
 from jax import Array
 from jax.stages import Lowered, Traced
 from jax.typing import ArrayLike
-
-from veris.grid.geometry import OceanGeometry
-from veris.model.arrays import ArrayInput, MaskInput
 
 
 class Parameter(NamedTuple):
@@ -187,15 +184,12 @@ SumInput = TypeVar("SumInput", bound=ArrayLike)
 
 
 __all__ = [
-    "ArrayInput",
     "CESMFluxes",
     "EVPCarry",
     "GrowthResult",
     "HeatFluxes",
     "Kernel",
     "LANLFluxes",
-    "MaskInput",
-    "OceanGeometry",
     "Parameter",
     "State",
     "SumInput",

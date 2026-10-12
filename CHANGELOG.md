@@ -1,5 +1,89 @@
 # Development log
 
+## 2026-10-12 — Remove compatibility scaffolding
+
+- [x] COMPLETE (@root): removed legacy source paths, setup timestep/output
+  wrappers, corresponding alias tests and obsolete migration documentation.
+  The user's explicit cleanup request supersedes the previous compatibility rule.
+- Baseline: `f2e14b6` on `jax-only`; 38 module shims plus `veris.settings`,
+  model.types schema reexports, setup timestep wrappers and parallel output
+  helpers identified. Last full suite: 1393 passes, two GPU skips, 783.11 s,
+  maintained coverage 94.64%. Root owned the single coordinated pytest session.
+- [x] Architecture RED: seven canonical-only ownership/export cases fail on
+  the compatibility layer. GREEN: all 28 architecture/schema/import-order cases
+  pass after removing 39 flat modules and obsolete setup/CLI helpers.
+- Failed caller migration: scheduled output received the new (State, Diagnostics)
+  carry with a State-only field selector. Both precision cases reproduce the
+  mismatch; select State from the canonical carry before field selection.
+- Source AST audit: 191 retained definitions unchanged apart from imports and
+  docstrings; changes are advance dispatch folding, CLI option removal and the
+  island factory's error text. All reference files retain baseline hashes.
+- Failed tooling attempt: system Python3.9 cannot parse Python3.14 type aliases.
+  Source edit script stopped after shim deletion; rerun only with activated
+  .venv-latest and idempotent deletions. No numerical source body was altered.
+- Ruling: scientific settings such as explicitDrag predate module restructuring
+  and remain part of the frozen configuration schema; their removal would be an
+  unrelated model-schema change. Keep scientific metadata and parameterizations.
+- [x] Final collection: 1312 cases. Deleted 86 module alias/old
+  pickle/reexport cases and added seven canonical ownership cases (net -79),
+  plus removed one schema reexport case, one obsolete shared-type-file case and
+  one duplicate unequal-timestep wrapper case and one obsolete save_output-only
+  contract (total net -83 from 1395). Scientific compiled/CLI cases
+  move to execution/test_compiled_advance and setups/test_lifecycle_cli;
+  physics/test_unequal_timesteps checks all 75 arrays in eager and JIT paths.
+  Seven frozen trajectories retain exact settings and pure/host all-field checks.
+- [x] Full lint, format (189 Python files/Markdown code blocks), annotation and
+  types pass. Strict Sphinx and dependencies pass. Independent whole-change
+  review has no remaining Critical/Important findings; corrected an unnecessary
+  archived settings filter before full verification. No scientific tolerance,
+  dtype or derivative direction was removed.
+- First full run found 13 stale harness contracts: twelve dynamically assembled
+  old module names in annotation tests and an obsolete factory error-message
+  match. Updated all twelve to canonical owners and the forcing message, retaining
+  every numerical and annotation assertion before a fresh complete run.
+- User clarification: no test should assert a 20-minute full-suite duration.
+  None exists. As explicitly requested, double only the four-CPU closed-wall
+  scientific probe's subprocess timeout from 1200 to 2400 seconds; retained its
+  value and gradient assertions. External runtime measurements and CI stay separate.
+- One further first-run failure was a migrated obsolete save_output-only test
+  that incorrectly demands finite-value validation from low-level write_snapshot.
+  Removed that obsolete helper contract; the maintained parallel CLI test retains
+  rejection before file creation via canonical Simulation.snapshot. No new storage
+  behavior was introduced.
+- First full result: 1297 passed, 14 stale contracts failed, two expected GPU skips,
+  784.09 s external wall (781.52 s pytest). All 14 failure reasons are confirmed in
+  first/full.log; corrections above affect only harness paths/messages and remove
+  the obsolete helper-only test.
+- [x] Final cold CPU correctness: 1310 passed, two expected GPU skips, all 1312
+  cases exactly once. External wall 756.48 s (12 minutes 36 seconds; pytest
+  754.64 s), with three module-grouped workers, disjoint CPU placement and fresh
+  private compilation caches. Both skipped contracts pass separately on the two
+  Tesla P100 GPUs (14.66 s external wall); no errors or skips in the GPU run.
+- [x] Maintained coverage: 4056/4289 lines (94.57%), preserving all 4026 unchanged
+  previously covered lines with zero unchanged coverage losses. All 181 final
+  source/test/benchmark Python hashes and ten numerical reference-file hashes
+  remain unchanged through verification. Generated version metadata retains its
+  existing exclusion from the 80% coverage gate.
+- [x] Clean wheel/sdist contain all 65 Python modules and none of the 39 obsolete
+  files; 245 source-archive files are verified. Clean installed literal README
+  and documentation examples pass, including CPU sharding, restart and JIT/AD.
+  Strict Sphinx, lint, format, annotation, type and dependency checks all pass.
+- [x] Final hierarchy: model, grid, physics (dynamics/transport/thermodynamics),
+  numerics, execution, io and setups; canonical owners are documented in
+  docs/reference/package-hierarchy.rst. Maintained modules remain at most 786
+  lines. Exact scalar/JUnit/coverage/source/package evidence is retained under
+  test_logs/cleanup/. Deliver the verified cleanup on jax-only.
+- Roles: source/deduplication audit (@structure), test quality and canonical
+  caller migration (@performance), documentation cleanup (@documentation).
+- Ruling: retain the current root/io convenience API and preset initialization
+  factories because canonical lifecycle and installed examples use them; remove
+  old-path/module/step aliases. Preserve immutable numerical reference bytes;
+  the unequal-timestep oracle tests explicit scientific kernel composition,
+  with no bypass of the public coupled-clock validator.
+- Ruling: execute in the user-designated `jax-only` checkout and complete all
+  checks before one cleanup commit. User authorization and autonomous execution
+  take precedence over skill approval menus and intermediate commits.
+
 ## 2026-10-12 — Scientific package hierarchy and 20-minute test budget
 
 - [x] COMPLETE (@root): implement the current AGENTS.md hierarchy goal on

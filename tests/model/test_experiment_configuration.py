@@ -152,8 +152,8 @@ def test_island_controls_cannot_enter_model_settings() -> None:
         island.initialize(scenario_overrides={"unknownScenario": 4})
 
 
-def test_initializer_rejects_step_only_cooling_override() -> None:
-    with pytest.raises(ValueError, match="cooling argument to step"):
+def test_initializer_requires_cooling_through_experiment_forcing() -> None:
+    with pytest.raises(ValueError, match="Experiment forcing"):
         island.initialize(scenario_overrides={"islandCooling": 25})
 
 

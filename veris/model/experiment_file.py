@@ -189,9 +189,9 @@ def experiment_from_dict(data: Any) -> Experiment:
     Geometry stores global physical inputs; runnable initialization validates its
     dimensions and scientific metric constraints before allocating a State.
     """
+    from veris.grid.geometry import OceanGeometry
     from veris.model.experiment import Execution, Experiment, Grid
     from veris.model.forcing import Forcing
-    from veris.model.types import OceanGeometry
 
     values = _mapping(data, "experiment")
     _known_keys(

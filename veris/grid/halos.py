@@ -14,9 +14,10 @@ from jax.lax import ppermute
 from jax.sharding import AbstractMesh, Mesh
 from jax.sharding import PartitionSpec as P
 
+from veris.model.arrays import MaskInput
 from veris.model.configuration import Configuration
 from veris.model.diagnostics import Diagnostics
-from veris.model.types import MaskInput, State, jit
+from veris.model.types import State, jit
 
 Boundary = Literal["edge", "zero", "normal", "shear"]
 

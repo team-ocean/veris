@@ -11,7 +11,7 @@ import jax
 import jax.numpy as jnp
 from jax import Array
 
-from veris.model.types import ArrayInput
+from veris.model.arrays import ArrayInput
 
 
 def norm_sqrt(squared_norm: ArrayInput) -> Array:

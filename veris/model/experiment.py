@@ -16,6 +16,7 @@ from typing import Any, cast
 
 import numpy as np
 
+from veris.grid.geometry import OceanGeometry
 from veris.io.configuration import OutputSettings
 from veris.model.configuration import SETTINGS, Configuration
 from veris.model.forcing import (
@@ -25,7 +26,6 @@ from veris.model.forcing import (
     _validate_shapes,
 )
 from veris.model.physical_constants import PhysicalConstants
-from veris.model.types import OceanGeometry
 
 INITIAL_FIELDS = frozenset(
     {

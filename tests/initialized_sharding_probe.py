@@ -13,11 +13,15 @@ import numpy as np
 from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 
+from veris.execution.advance import advance as advance_model
 from veris.execution.initialization import initialize
 from veris.model.types import State
 from veris.model.variables import VARIABLES
-from veris.setups.island import compiled_step, step
 from veris.setups.island import initialize as initialize_island
+
+compiled_advance = jax.jit(
+    advance_model, static_argnames=("configuration", "constants", "physics")
+)
 
 
 def pack(field: jax.Array, px: int, py: int) -> np.ndarray:
@@ -90,9 +94,21 @@ def check_initialized_step() -> None:
             f"override {field.name}",
         )
 
-    expected = step(serial, serial_settings, physical, cooling=100.0)
+    expected = advance_model(
+        serial,
+        serial_settings,
+        physical,
+        {"Qnet": 100.0, "Qsw": 0.0},
+        physics="coupled",
+    )[0]
     with jax.set_mesh(mesh):
-        actual = step(distributed, settings, distributed_physical, cooling=100.0)
+        actual = advance_model(
+            distributed,
+            settings,
+            distributed_physical,
+            {"Qnet": 100.0, "Qsw": 0.0},
+            physics="coupled",
+        )[0]
     jax.block_until_ready(actual)
     for field in fields(actual):
         assert_close(
@@ -104,9 +120,13 @@ def check_initialized_step() -> None:
     # Whole-step JIT must preserve mesh dispatch and every initialized leaf,
     # not only the eager Python composition of individually compiled kernels.
     with jax.set_mesh(mesh):
-        compiled = compiled_step(
-            distributed, settings, distributed_physical, cooling=100.0
-        )
+        compiled = compiled_advance(
+            distributed,
+            settings,
+            distributed_physical,
+            {"Qnet": 100.0, "Qsw": 0.0},
+            physics="coupled",
+        )[0]
     jax.block_until_ready(compiled)
     for field in fields(compiled):
         assert_close(
@@ -126,11 +146,23 @@ def check_initialized_step() -> None:
     weight_array = jax.device_put(weights, NamedSharding(mesh, P("x", "y")))
 
     def serial_total(cooling: jax.Array) -> jax.Array:
-        result: State = step(serial, serial_settings, physical, cooling)
+        result: State = advance_model(
+            serial,
+            serial_settings,
+            physical,
+            {"Qnet": cooling, "Qsw": 0.0},
+            physics="coupled",
+        )[0]
         return jnp.sum(result.hIceMean[2:-2, 2:-2])
 
     def distributed_total(cooling: jax.Array) -> jax.Array:
-        result: State = step(distributed, settings, distributed_physical, cooling)
+        result: State = advance_model(
+            distributed,
+            settings,
+            distributed_physical,
+            {"Qnet": cooling, "Qsw": 0.0},
+            physics="coupled",
+        )[0]
         return jnp.sum(result.hIceMean * weight_array)
 
     cooling, tangent = jnp.asarray(100.0), jnp.asarray(1.0)

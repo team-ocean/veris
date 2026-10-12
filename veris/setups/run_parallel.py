@@ -15,27 +15,19 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import replace
-from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
 import click
 import jax
-import numpy as np
 from jax.sharding import Mesh
 
-from veris.execution.rollout_output import (
-    run_timed,  # noqa: F401 -- compatibility export
-)
-from veris.grid.halos import remove_halos
 from veris.io.cli import (
     output_options,
     output_settings,
     parse_options,
     prepare_output_paths,
 )
-from veris.io.storage import selected_fields, write_snapshot
-from veris.model.types import State
 
 OUTPUT_FIELDS = (
     "hIceMean",
@@ -105,31 +97,6 @@ def create_mesh(partitions: tuple[int, int] | None, backend: str) -> Mesh:
             f"mesh {shape} must contain all {len(devices)} available {backend} devices"
         )
     return jax.make_mesh(shape, ("x", "y"), devices=devices)
-
-
-def gather_output(state: State, mesh: Mesh) -> dict[str, np.ndarray]:
-    """Collect only the nine physical reference fields on every participating host."""
-    from jax.experimental import multihost_utils
-
-    return {
-        name: np.asarray(
-            multihost_utils.process_allgather(
-                remove_halos(getattr(state, name), mesh), tiled=True
-            )
-        )
-        for name in OUTPUT_FIELDS
-    }
-
-
-def save_output(
-    path: Path, fields: Mapping[str, np.ndarray], *, process_index: int
-) -> None:
-    """Reject nonfinite physical fields and write netCDF on process zero."""
-    if process_index == 0:
-        for name, field in fields.items():
-            if not np.all(np.isfinite(field)):
-                raise ValueError(f"nonfinite output in {name}")
-        write_snapshot(path, fields, collector=selected_fields)
 
 
 @click.command(help=__doc__)

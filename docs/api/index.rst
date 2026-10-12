@@ -6,7 +6,7 @@ Signatures and docstrings are read from the implementation at documentation
 build time. Start with :doc:`/quickstart/user-guide` for a working simulation,
 then use the pages below to look up individual objects and functions.
 The :doc:`/reference/package-hierarchy` describes the scientific packages and
-the migration paths for existing module imports.
+the owning modules for specialized imports.
 
 Model initialization returns ``(state, settings, constants)``. The frozen
 :class:`~veris.model.types.State` contains the array fields used by the numerical

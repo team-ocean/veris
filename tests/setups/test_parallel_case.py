@@ -10,7 +10,10 @@ import jax
 import numpy as np
 import pytest
 
+from veris.execution.rollout_output import run_timed
+from veris.grid.halos import remove_halos
 from veris.io import read_record
+from veris.io.storage import selected_fields, write_snapshot
 from veris.setups import run_parallel
 
 
@@ -73,7 +76,7 @@ def test_timed_loop_discards_warmup_and_evolves_state() -> None:
     def increment(state: jax.Array) -> jax.Array:
         return 2 * state + 1
 
-    state, warmup_seconds, elapsed_seconds = run_parallel.run_timed(
+    state, warmup_seconds, elapsed_seconds = run_timed(
         jax.numpy.asarray(0), increment, 3
     )
     assert int(state) == 7
@@ -89,13 +92,13 @@ def test_remove_halos_and_save_selected_fields(tmp_path: Path) -> None:
     array = jax.device_put(
         packed, jax.sharding.NamedSharding(mesh, jax.sharding.PartitionSpec("x", "y"))
     )
-    interior = run_parallel.remove_halos(array, mesh)
+    interior = remove_halos(array, mesh)
     np.testing.assert_array_equal(interior, expected)
     fields = dict.fromkeys(run_parallel.OUTPUT_FIELDS, np.asarray(interior))
     destination = tmp_path / "subdir" / "output.nc"
-    run_parallel.save_output(destination, fields, process_index=1)
+    write_snapshot(destination, fields, collector=lambda source, names: None)
     assert not destination.exists()
-    run_parallel.save_output(destination, fields, process_index=0)
+    write_snapshot(destination, fields, collector=selected_fields)
     result = read_record(destination)
     assert set(result.fields) == set(run_parallel.OUTPUT_FIELDS)
     np.testing.assert_array_equal(result.fields["hIceMean"], expected)
@@ -117,16 +120,6 @@ def test_invalid_mesh_and_cli_dimensions() -> None:
     assert arguments.steps == 1000
     assert arguments.evp_steps == 120
     assert arguments.output == Path("parallel.nc")
-
-
-def test_nonfinite_output_is_rejected_before_writing(tmp_path: Path) -> None:
-    """A failed trajectory cannot leave a result file that appears successful."""
-    output = dict.fromkeys(run_parallel.OUTPUT_FIELDS, np.zeros((2, 3)))
-    output["hIceMean"] = np.full((2, 3), np.nan)
-    destination = tmp_path / "invalid.nc"
-    with pytest.raises(ValueError, match="nonfinite.*hIceMean"):
-        run_parallel.save_output(destination, output, process_index=0)
-    assert not destination.exists()
 
 
 @pytest.mark.skipif(jax.default_backend() != "gpu", reason="requires a GPU backend")

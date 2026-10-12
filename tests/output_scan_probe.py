@@ -20,9 +20,9 @@ from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 
 from veris.execution.rollout_output import output_callbacks, run_timed
+from veris.grid.halos import remove_halos
 from veris.io import OutputManager, OutputSettings, Stream
 from veris.io.distributed import distributed_collector
-from veris.setups.run_parallel import remove_halos
 
 
 def _assert_equal(actual: Any, expected: Any, label: str) -> None:

@@ -1,6 +1,6 @@
-"""Migrated commands retain numerical and file contracts through Simulation.
+"""Preset commands retain numerical and file contracts through Simulation.
 
-Frozen original trajectories anchor the migrated scientific behavior. The
+Frozen original trajectories anchor the scientific behavior. The
 lifecycle spy wraps the real initializer and never replaces physics.
 """
 
@@ -14,10 +14,12 @@ from pathlib import Path
 from typing import Any
 
 import h5netcdf
+import jax
 import numpy as np
 import pytest
 
 import veris
+from veris.execution.advance import advance
 from veris.io import read_record
 from veris.setups import run_dyn, run_parallel
 
@@ -73,8 +75,12 @@ def test_serial_cli_uses_real_lifecycle_and_preserves_reference_snapshots(
         expected, conf, phys = module.initialize(
             6, 8, settings_overrides={"nEVPsteps": 2}
         )
+    compiled_advance = jax.jit(
+        advance, static_argnames=("configuration", "constants", "physics")
+    )
+    physics = "thermodynamics" if driver == "run_growth" else "dynamics"
     for _ in range(steps):
-        expected = module.compiled_step(expected, conf, phys)
+        expected = compiled_advance(expected, conf, phys, physics=physics)[0]
     saved = read_record(final)
     assert set(saved.fields) == {item.name for item in fields(expected)}
     assert saved.calendar == "360_day"
@@ -173,8 +179,11 @@ def test_real_local_parallel_cli_retains_nine_field_output_and_resolved_definiti
     saved = read_record(final)
     assert set(saved.fields) == set(run_parallel.OUTPUT_FIELDS) and saved.time == 1200
     serial, conf, phys = run_dyn.initialize(12, 16, settings_overrides={"nEVPsteps": 2})
+    compiled_advance = jax.jit(
+        advance, static_argnames=("configuration", "constants", "physics")
+    )
     for _ in range(2):
-        serial = run_dyn.compiled_step(serial, conf, phys)
+        serial = compiled_advance(serial, conf, phys, physics="dynamics")[0]
     for name, actual in saved.fields.items():
         reference = np.asarray(getattr(serial, name))[2:-2, 2:-2]
         assert actual.shape == (12, 16)

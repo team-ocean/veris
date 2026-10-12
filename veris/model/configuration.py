@@ -132,7 +132,7 @@ SETTINGS: dict[str, Parameter] = {
 }
 
 
-__all__ = ["SETTINGS", "Configuration", "Parameter"]
+__all__ = ["SETTINGS", "Configuration"]
 
 
 @dataclass(frozen=True)

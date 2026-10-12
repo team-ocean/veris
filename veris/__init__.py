@@ -4,9 +4,9 @@ from veris.execution.advance import advance
 from veris.execution.experiment_initialization import initialize_experiment
 from veris.execution.rollout import step
 from veris.execution.simulation import RunResult, Simulation
+from veris.grid.geometry import OceanGeometry
 from veris.model.experiment import Execution, Experiment, Grid
 from veris.model.forcing import Forcing
-from veris.model.types import OceanGeometry
 
 __all__ = [
     "Execution",

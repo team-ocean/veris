@@ -17,7 +17,8 @@ import pytest
 from jax.sharding import Mesh
 
 import veris
-from veris.model.types import OceanGeometry, State
+from veris.grid.geometry import OceanGeometry
+from veris.model.types import State
 from veris.setups import island, run_dyn, run_growth
 
 

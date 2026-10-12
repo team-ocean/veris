@@ -90,7 +90,8 @@ interval. Initial samples are included by default::
    from datetime import timedelta
    import jax
    from veris.io import OutputManager, OutputSettings, Stream, write_snapshot
-   from veris.setups.run_growth import initialize, compiled_step
+   from veris import advance
+   from veris.setups.run_growth import initialize
 
    jax.config.update("jax_enable_x64", True)
    state, conf, phys = initialize()
@@ -102,7 +103,7 @@ interval. Initial samples are included by default::
    with OutputManager("history.nc", settings) as output:
        output.sample(state, timedelta(0))
        for index in range(1, 31):
-           state = compiled_step(state, conf, phys)
+           state, _ = advance(state, conf, phys, physics="thermodynamics")
            output.sample(state, index * interval)
        output.close(30 * interval)
    write_snapshot("final.nc", state, elapsed=30 * interval, conf=conf, phys=phys)
@@ -164,7 +165,8 @@ differentiates actual thermodynamic growth with respect to initial thickness::
    import jax
    import jax.numpy as jnp
    from veris.io import write_snapshot
-   from veris.setups.run_growth import initialize, compiled_step
+   from veris import advance
+   from veris.setups.run_growth import initialize
 
    jax.config.update("jax_enable_x64", True)
    initial, conf, phys = initialize()
@@ -172,7 +174,7 @@ differentiates actual thermodynamic growth with respect to initial thickness::
    def objective(scale):
        final = replace(initial, hIceMean=initial.hIceMean * scale)
        for _ in range(2):
-           final = compiled_step(final, conf, phys)
+           final, _ = advance(final, conf, phys, physics="thermodynamics")
        return jnp.mean(final.hIceMean[2:-2, 2:-2]), final
 
    (mean_thickness, final), sensitivity = jax.value_and_grad(
@@ -219,7 +221,7 @@ the Python ``Stream`` default is shown in the registry below.
      - Meaning
    * - ``--netcdf PATH``
      - History output file.
-   * - ``--output PATH`` (alias ``--final-netcdf``)
+   * - ``--output PATH``
      - Final State snapshot; each driver supplies a default netCDF path.
    * - ``--io-variables hIceMean,Area``
      - Comma-separated State variables for history streams.
@@ -235,7 +237,7 @@ the Python ``Stream`` default is shown in the registry below.
 For example::
 
    python -m veris.setups.run_growth --steps 30 \
-       --netcdf growth_history.nc --final-netcdf growth_final.nc \
+       --netcdf growth_history.nc --output growth_final.nc \
        --io-variables hIceMean,Area --average instantaneous,monthly \
        --calendar 360_day --start-date 2000-02-01
 

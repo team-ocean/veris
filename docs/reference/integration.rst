@@ -40,56 +40,53 @@ gradient, JVP, VJP and finite-difference checks; static settings, constants and
 host definitions are outside the differentiated path. Physical threshold
 conventions remain those of :doc:`automatic-differentiation`.
 
-Setup choices
+Physics modes
 -------------
 
-The same driver continues to accept the maintained setup kernels:
+``advance`` selects the complete physics sequence through ``physics``:
 
-* ``island.step`` composes dynamics, transport and growth. Its ``cooling``
-  argument restores prescribed heat forcing on every timestep.
-* ``run_dyn.step`` performs dynamics and transport with prescribed ocean and
-  wind fields. ``run_parallel`` uses this same kernel with a mesh.
-* ``run_growth.step`` performs thermodynamics only. Returned ``Qnet`` and
-  ``Qsw`` remain recursive inputs to the next step, as in the reference column.
-* ``ocean.initialize_from_ocean`` supplies geometry and initial fields, rather
-  than a separate time-stepping scheme. Bind a physics kernel appropriate to
-  those supplied fields, for example ``island.step`` for coupled evolution.
+* ``"coupled"`` advances dynamics, transport and growth. Prescribed heat supplied
+  through ``forcing`` is refreshed before each timestep.
+* ``"dynamics"`` advances momentum and transport with prescribed ocean and wind
+  fields.
+* ``"thermodynamics"`` advances growth. Missing ``Qnet`` and ``Qsw`` retain their
+  recursive values from the preceding step, as in the reference column.
 
-Both ``island.step`` and ``run_dyn.step`` use the core
-``veris.physics.dynamics.driver.dynamics_transport(state, settings, constants)`` stage. It
-advances momentum, computes ocean stress before transport, then applies
-advection, cleanup and ridging. It returns ``(state, stress_u, stress_v)`` with
-halo-inclusive arrays. Callers supply atmospheric forcing, optional
-thermodynamic growth, the sharding context and the final State/Diagnostics halo
-refresh. Under sharding, this local stage runs inside the caller's
-``jax.shard_map``.
+The core ``veris.physics.dynamics.driver.dynamics_transport`` stage advances
+momentum, computes ocean stress before transport, then applies advection,
+cleanup and ridging. It returns ``(state, stress_u, stress_v)`` with halo-inclusive
+arrays. Specialized compositions supply forcing, optional growth, the sharding
+context and final State/Diagnostics halos. Under sharding, this local stage runs
+inside the caller's ``jax.shard_map``.
 
-For example, a growth rollout is::
+For example, a growth rollout uses the same public transition::
 
-   from veris.setups import run_growth
-
-   initial, settings, constants = run_growth.initialize()
-   advance = partial(run_growth.step, conf=settings, phys=constants)
-   final = step(initial, advance, 3)
+   experiment = Experiment.builtin("growth")
+   initial, settings, constants = initialize_experiment(experiment)
+   transition = partial(
+       advance, configuration=settings, constants=constants,
+       physics=experiment.physics,
+   )
+   final = step(initial, transition, 3, has_aux=True)
 
 Selected observations and diagnostics
 -------------------------------------
 
-A pure ``observe(state)`` function selects an array PyTree after each updated
-State. With an observer, the result is ``(final_state, history)``. Each history
-leaf has a leading time axis of length ``steps``; the initial State is excluded::
+A pure observer selects an array PyTree after each updated State. For the
+``advance`` transition it accepts State and Diagnostics. The result is
+``(final_state, history)``; each history leaf has a leading time axis of length
+``steps``, excluding the initial State::
 
    final, history = step(
-       initial, advance, 3,
-       observe=lambda state: {"ice": state.hIceMean[2:-2, 2:-2]},
+       initial, transition, 3, has_aux=True,
+       observe=lambda state, diagnostic: {"ice": state.hIceMean[2:-2, 2:-2]},
    )
 
 For output-only coupling fields, use ``has_aux=True`` with a transition returning
 ``(state, diagnostics)`` and an observer accepting both arguments::
 
-   advance = partial(run_growth.step_with_diagnostics, conf=settings, phys=constants)
    final, history = step(
-       initial, advance, 3, has_aux=True,
+       initial, transition, 3, has_aux=True,
        observe=lambda state, diagnostic: {
            "ice": state.hIceMean,
            "freshwater": diagnostic.EmPmR,
@@ -109,7 +106,7 @@ Time-varying forcing and AD
 ---------------------------
 
 ``inputs`` accepts a nonempty array PyTree whose every leaf has leading length
-``steps``. The transition then receives ``advance(state, input_slice)``. For
+``steps``. The transition then receives ``transition(state, input_slice)``. For
 example, differentiate a thickness objective with respect to each prescribed
 cooling value::
 
@@ -149,30 +146,33 @@ Sharded rollouts
 ----------------
 
 Initialize the mesh and retain its context around the rollout and its JAX
-transformations. The existing setup kernel owns halo exchange and local stencil
-calculations; the scan driver does not repartition the grid::
+transformations. Define global physical dimensions and matching partitions;
+regional initialization constructs the packed State::
 
    import jax
-   from veris.setups import run_dyn
+   from veris import Execution, Experiment, Grid, advance, initialize_experiment, step
 
-   mesh = jax.make_mesh((1, jax.device_count()), ("x", "y"))
+   layout = (1, jax.device_count())
+   mesh = jax.make_mesh(layout, ("x", "y"))
+   experiment = Experiment.builtin(
+       "dynamics", grid=Grid(8, 8 * layout[1]),
+       execution=Execution(partitions=layout),
+   )
    with jax.set_mesh(mesh):
-       initial, settings, constants = run_dyn.initialize(
-           8, 8 * jax.device_count(), mesh=mesh,
+       initial, settings, constants = initialize_experiment(experiment, mesh=mesh)
+       transition = partial(
+           advance, configuration=settings, constants=constants,
+           physics=experiment.physics,
        )
-       advance = partial(run_dyn.step, conf=settings, phys=constants)
-       final = step(initial, advance, 3)
+       final = step(initial, transition, 3, has_aux=True)
 
-These initializer dimensions count global physical cells. Each partition keeps
-its own halos. Selected history arrays gain an unpartitioned leading time axis;
-select one time slice before using the existing spatial output collector.
-The compatibility island initializer remains serial. For sharded coupled
-experiments, define an island Experiment or custom OceanGeometry with global
-physical inputs and pass a matching explicit mesh to initialize_experiment.
-Retain ``jax.set_mesh(mesh)`` around pure advance/step and their transformations.
-Public advance accepts scalar or global physical spatial forcing; series retain
-an unpartitioned leading time axis. See :doc:`/quickstart/user-guide` and
-:doc:`/api/experiment`.
+Each partition keeps its own halos. Selected history arrays gain an unpartitioned
+leading time axis; select one time slice before using the spatial output
+collector. Coupled presets and custom OceanGeometry use the same global physical
+input contract. Retain ``jax.set_mesh(mesh)`` around pure advance/step and their
+transformations. Public advance accepts scalar or global physical spatial
+forcing; series retain an unpartitioned leading time axis. See
+:doc:`/quickstart/user-guide` and :doc:`/api/experiment`.
 
 Host output and timing
 ----------------------
@@ -190,9 +190,12 @@ Use ``output_callbacks(manager, step_seconds)`` to connect an OutputManager::
 
    from veris.execution.rollout_output import output_callbacks, run_timed
 
-   observe, select = output_callbacks(manager, settings.deltatDyn)
+   def state_transition(state):
+       return transition(state)[0]
+
+   observe, select = output_callbacks(manager, experiment.step_duration.total_seconds())
    final, compilation_seconds, integration_seconds = run_timed(
-       initial, advance, 100, observe=observe, select=select,
+       initial, state_transition, 100, observe=observe, select=select,
    )
 
 These callbacks select scheduled output. Each chunk ends at the earliest

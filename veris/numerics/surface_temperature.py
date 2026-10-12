@@ -13,9 +13,10 @@ from functools import partial
 import jax.numpy as jnp
 from jax import Array
 
+from veris.model.arrays import ArrayInput
 from veris.model.configuration import Configuration
 from veris.model.physical_constants import PhysicalConstants
-from veris.model.types import ArrayInput, State, SurfaceFluxResult, jit
+from veris.model.types import State, SurfaceFluxResult, jit
 
 
 @partial(jit, static_argnames=["conf", "phys"])

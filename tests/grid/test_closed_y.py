@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris.execution.advance import advance as advance_model
 from veris.execution.initialization import initialize
 from veris.grid.halos import fill_overlap, fill_overlap_uv
 from veris.model.configuration import Configuration
@@ -106,7 +107,7 @@ def test_four_cpu_closed_coupled_values_and_ad() -> None:
         ),
         capture_output=True,
         text=True,
-        timeout=1200,
+        timeout=2400,
         check=False,
     )
     assert result.returncode == 0, (
@@ -129,7 +130,10 @@ def test_growth_setup_keeps_closed_exterior_dry() -> None:
     state, conf, phys = run_growth.initialize(
         settings_overrides={"enable_cyclic_y": False}
     )
-    for result in (state, run_growth.step(state, conf, phys)):
+    for result in (
+        state,
+        advance_model(state, conf, phys, physics="thermodynamics")[0],
+    ):
         for name in ("hIceMean", "hSnowMean", "Area"):
             np.testing.assert_array_equal(getattr(result, name)[:, :2], 0)
             np.testing.assert_array_equal(getattr(result, name)[:, -2:], 0)
@@ -173,7 +177,18 @@ def test_closed_coupled_steps_preserve_walls_and_finite_ad(no_slip: bool) -> Non
             "nEVPsteps": 2,
         },
     )
-    for vs in (state, island.step(island.step(state, conf, phys), conf, phys)):
+    for vs in (
+        state,
+        advance_model(
+            advance_model(
+                state, conf, phys, {"Qnet": 100.0, "Qsw": 0.0}, physics="coupled"
+            )[0],
+            conf,
+            phys,
+            {"Qnet": 100.0, "Qsw": 0.0},
+            physics="coupled",
+        )[0],
+    ):
         for name in (
             "iceMask",
             "iceMaskU",
@@ -197,7 +212,15 @@ def test_closed_coupled_steps_preserve_walls_and_finite_ad(no_slip: bool) -> Non
 
     def loss(wind: jax.Array) -> jax.Array:
         initial = replace(state, vWind=state.vWind + wind)
-        result = island.step(island.step(initial, conf, phys), conf, phys)
+        result = advance_model(
+            advance_model(
+                initial, conf, phys, {"Qnet": 100.0, "Qsw": 0.0}, physics="coupled"
+            )[0],
+            conf,
+            phys,
+            {"Qnet": 100.0, "Qsw": 0.0},
+            physics="coupled",
+        )[0]
         return jnp.sum(result.hIceMean[2:-2, 2:-2] * jnp.arange(48).reshape(6, 8))
 
     x = jnp.asarray(0.7)

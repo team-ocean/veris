@@ -8,7 +8,7 @@ public imports; it supports serial or explicit x/y meshes and requires no
 external ocean package. Geometry is supplied in global physical dimensions;
 initialization constructs its halos and derived metrics.
 
-The compatibility adapter below accepts existing halo-inclusive geometry. Its
+The low-level adapter below accepts halo-inclusive geometry. Its
 low-level allocation alone does not define a complete physical experiment.
 
 ``veris.grid.ocean.initialize_from_ocean`` allocates a fresh State,
@@ -39,19 +39,19 @@ caller override dictionaries are left unchanged. Invalid shapes, nonfinite
 geometry and nonpositive spacings or areas are rejected on the host.
 
 The ocean adapter lives in ``veris.grid.ocean``; its input schema is
-``veris.grid.geometry.OceanGeometry``. Existing imports from
-``veris.setups.ocean`` remain available. The former ``veris.set_inits.set_inits``
-entry point has been removed. See :doc:`/reference/package-hierarchy` for the
-current module paths.
+``veris.grid.geometry.OceanGeometry``. See :doc:`/reference/package-hierarchy`
+for the owning modules.
 
 For a rollout, bind a physics kernel to the initialized model objects::
 
    from functools import partial
-   from veris import step
-   from veris.setups import island
+   from veris import advance, step
 
-   advance = partial(island.step, conf=conf, phys=phys, cooling=100.0)
-   final = step(state, advance, 3)
+   transition = partial(
+       advance, configuration=conf, constants=phys,
+       forcing={"Qnet": 100.0, "Qsw": 0.0}, physics="coupled",
+   )
+   final = step(state, transition, 3, has_aux=True)
 
 Choose and supply the ice and forcing fields needed by that kernel; geometry
 initialization alone does not define the experiment. The example uses the

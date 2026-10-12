@@ -1,7 +1,7 @@
 """Shared JAX and NumPy array inputs at numerical and grid schema boundaries.
 
-These aliases retain the original veris.model.types accepted array/mask types.
-They own no model settings, geometry or device resources.
+Numerical arrays and boolean masks have one shared schema owner.
+These contracts own no model settings, geometry or device resources.
 """
 
 import numpy as np

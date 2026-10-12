@@ -14,7 +14,9 @@ import numpy as np
 import pytest
 
 from veris import step
-from veris.grid.ocean import OceanGeometry, initialize_from_ocean
+from veris.execution.advance import advance as advance_physics
+from veris.grid.geometry import OceanGeometry
+from veris.grid.ocean import initialize_from_ocean
 from veris.model.diagnostics import Diagnostics
 from veris.model.types import State
 from veris.setups import island, run_dyn, run_growth
@@ -71,11 +73,11 @@ def make_case(
     def advance(state: State, forcing: jax.Array) -> tuple[State, Diagnostics]:
         if case == "dynamics":
             state = replace(state, uWind=initial.uWind * forcing)
-            return run_dyn.step_with_diagnostics(state, conf, phys)
+            return advance_physics(state, conf, phys, physics="dynamics")
         if case == "growth":
             state = replace(state, Qnet=jnp.full_like(state.Qnet, 100 * forcing))
-            return run_growth.step_with_diagnostics(state, conf, phys)
-        return island.step_with_diagnostics(state, conf, phys, 100 * forcing)
+            return advance_physics(state, conf, phys, physics="thermodynamics")
+        return advance_physics(state, conf, phys, {"Qnet": 100 * forcing, "Qsw": 0.0})
 
     return initial, advance
 
@@ -242,7 +244,10 @@ def test_four_cpu_device_rollout_and_derivatives(tmp_path: Path) -> None:
 def test_growth_rollout_preserves_recursive_heat_fluxes() -> None:
     """The reference growth column reuses computed fluxes on subsequent steps."""
     initial, conf, phys = run_growth.initialize()
-    advance = partial(run_growth.step, conf=conf, phys=phys)
+
+    def advance(state: State) -> State:
+        return advance_physics(state, conf, phys, physics="thermodynamics")[0]
+
     expected = initial
     reset_forcing = initial
     for _ in range(3):

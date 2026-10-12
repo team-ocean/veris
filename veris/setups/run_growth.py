@@ -30,10 +30,9 @@ from veris.io.cli import (
     prepare_output_paths,
 )
 from veris.model.configuration import SETTINGS, Configuration
-from veris.model.diagnostics import Diagnostics
 from veris.model.metadata import FROM_REGISTRY, registry_defaults, validate_scalars
 from veris.model.physical_constants import PhysicalConstants
-from veris.model.types import Parameter, State, jit
+from veris.model.types import Parameter, State
 
 GROWTH_SETTINGS: dict[str, Parameter] = {
     "nx": Parameter(2, int, "Uniform column interior extent along x", "1"),
@@ -135,29 +134,6 @@ def initialize(
     if not conf.enable_cyclic_y:
         state = fill_state_overlap(state, conf)
     return state, conf, phys
-
-
-def step_with_diagnostics(
-    state: State, conf: Configuration, phys: PhysicalConstants
-) -> tuple[State, Diagnostics]:
-    """Advance Growth alone, preserving recursive fluxes and returning coupling outputs.
-
-    Ocean stresses are zero because this experiment has no momentum integration.
-    All outputs retain the halo-inclusive shape of the input State.
-    """
-    from veris.execution.advance import advance
-
-    return advance(state, conf, phys, physics="thermodynamics")
-
-
-def step(state: State, conf: Configuration, phys: PhysicalConstants) -> State:
-    """Advance one thermodynamic timestep and return the calculation State."""
-    result, _ = step_with_diagnostics(state, conf, phys)
-    return result
-
-
-compiled_step = jit(step, static_argnames=["conf", "phys"])
-"""Compiled thermodynamic step with static configuration and physical constants."""
 
 
 @click.command(help=__doc__)

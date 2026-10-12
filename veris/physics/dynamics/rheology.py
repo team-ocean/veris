@@ -8,9 +8,10 @@ from typing import cast
 import jax.numpy as jnp
 from jax import Array
 
+from veris.model.arrays import ArrayInput
 from veris.model.configuration import Configuration
 from veris.model.physical_constants import PhysicalConstants
-from veris.model.types import ArrayInput, State, jit
+from veris.model.types import State, jit
 from veris.numerics.autodiff import norm_sqrt
 
 

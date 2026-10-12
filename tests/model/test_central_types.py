@@ -3,7 +3,6 @@
 import importlib
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -18,48 +17,38 @@ import pytest
     ],
 )
 def test_registry_types_have_local_owners(module: str, name: str) -> None:
-    cls = getattr(importlib.import_module(f"veris.{module}"), name)
+    cls = getattr(importlib.import_module(f"veris.model.{module}"), name)
     assert cls.__module__ == f"veris.model.{module}"
     assert not hasattr(importlib.import_module("veris.model.types"), name)
 
 
 def test_precision_is_setting_metadata_without_a_base_class() -> None:
-    from veris import _typing, configuration
+    from veris.model import configuration, types
 
-    assert isinstance(configuration.SETTINGS["dtype"], _typing.Parameter)
+    assert isinstance(configuration.SETTINGS["dtype"], types.Parameter)
     assert not hasattr(configuration, "PRECISION")
-    assert not hasattr(_typing, "Precision")
-    assert not hasattr(_typing, "PRECISION")
+    assert not hasattr(types, "Precision")
+    assert not hasattr(types, "PRECISION")
 
 
 def test_ocean_geometry_has_explicit_name() -> None:
-    from veris import _typing
+    from veris.grid import geometry
 
-    assert hasattr(_typing, "OceanGeometry")
-    assert not hasattr(_typing, "Geometry")
-
-
-def test_shared_type_files_are_removed() -> None:
-    root = Path(__file__).resolve().parents[2] / "veris"
-    for name in (
-        "state.py",
-        "_bulk_types.py",
-        "_solver_types.py",
-        "_thermodynamic_types.py",
-    ):
-        assert not (root / name).exists(), f"redundant type definition file: {name}"
+    assert hasattr(geometry, "OceanGeometry")
+    assert not hasattr(geometry, "Geometry")
 
 
 @pytest.mark.parametrize(
     "first",
-    ["_typing", "configuration", "physical_constants", "variables", "_metadata"],
+    ["types", "configuration", "physical_constants", "variables", "metadata"],
 )
 def test_registry_import_order_and_frozen_defaults(first: str) -> None:
     """Fresh interpreters expose cycles hidden by an already-imported test suite."""
     source = f"""
 import importlib
-importlib.import_module('veris.{first}')
-from veris.model.types import State, OceanGeometry
+importlib.import_module('veris.model.{first}')
+from veris.model.types import State
+from veris.grid.geometry import OceanGeometry
 from veris.model.configuration import Configuration
 from veris.model.physical_constants import PhysicalConstants
 assert Configuration().deltatDyn == 86400
@@ -78,11 +67,11 @@ assert OceanGeometry.__module__ == 'veris.grid.geometry'
 
 
 def test_registries_share_parameter_metadata() -> None:
-    from veris import _typing, configuration, physical_constants
+    from veris.model import configuration, physical_constants, types
 
-    assert hasattr(_typing, "Parameter")
-    assert _typing.Parameter.__module__ == "veris.model.types"
+    assert hasattr(types, "Parameter")
+    assert types.Parameter.__module__ == "veris.model.types"
     for registry in (configuration.SETTINGS, physical_constants.PHYSICALCONSTANTS):
-        assert all(type(value) is _typing.Parameter for value in registry.values())
+        assert all(type(value) is types.Parameter for value in registry.values())
     assert not hasattr(configuration, "Setting")
     assert not hasattr(physical_constants, "PhysicalConstant")

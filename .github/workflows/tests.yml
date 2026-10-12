@@ -10,9 +10,7 @@ jobs:
           python-version: '3.14'
       - run: python -m pip install -r requirements-test.txt
       - run: python -m pip install -r docs/requirements.txt
-      # Preserve the public CESM/MITgcm module names; generated metadata is
-      # reported in coverage but is not maintained lint/type-check input.
-      - run: ruff check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py --ignore N999
+      - run: ruff check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py
       - run: ruff format --check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py
       - run: ruff check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py --select ANN001,ANN002,ANN003,ANN201,ANN202,ANN204,ANN205,ANN206
       - run: ty check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py

@@ -1,11 +1,10 @@
-"""Shared timesteps preserve legacy physics and dynamic forcing derivatives.
+"""Shared timesteps preserve kernel physics and dynamic forcing derivatives.
 
 These tests cover orchestration rather than re-testing kernel equations. The
-maintained setup steps are all-field numerical oracles; independently padded
+independent kernel compositions are all-field numerical oracles; padded
 physical forcing catches missing halo preparation before staggered stencils.
 """
 
-from collections.abc import Mapping
 from dataclasses import fields, replace
 from typing import Any
 
@@ -13,26 +12,49 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from jax.typing import ArrayLike
 
-import veris
+from veris.execution.advance import advance
+from veris.grid.halos import fill_state_overlap
 from veris.model.configuration import Configuration
 from veris.model.diagnostics import Diagnostics
 from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import State
+from veris.physics.dynamics.driver import dynamics_transport
+from veris.physics.thermodynamics.growth import Growth
 from veris.setups import island, run_dyn, run_growth
 
 
-def advance(
+def kernel_reference(
     state: State,
     conf: Configuration,
     phys: PhysicalConstants,
-    forcing: Mapping[str, ArrayLike] | None = None,
-    *,
-    physics: str = "coupled",
+    physics: str,
 ) -> tuple[State, Diagnostics]:
-    """Resolve the new public interface lazily for a useful missing-API failure."""
-    return veris.advance(state, conf, phys, forcing, physics=physics)
+    """Compose numerical stages without the public forcing or timestep wrapper."""
+    zeros = jnp.zeros_like(state.Area)
+    stress_u = stress_v = zeros
+    if physics != "thermodynamics":
+        state, stress_u, stress_v = dynamics_transport(state, conf, phys)
+    freshwater = salt = penetrating = zeros
+    if physics != "dynamics":
+        values = Growth(state, conf, phys)
+        state = replace(
+            state,
+            hIceMean=values[0],
+            hSnowMean=values[1],
+            Area=values[2],
+            TSurf=values[3],
+            Qsw=values[6],
+            Qnet=values[7],
+            SeaIceLoad=values[8],
+            recip_hIceMean=values[10],
+        )
+        freshwater, salt, penetrating = values[4], values[5], values[9]
+    diagnostics = Diagnostics(penetrating, stress_u, stress_v, freshwater, salt)
+    if physics != "thermodynamics" or not conf.enable_cyclic_y:
+        state = fill_state_overlap(state, conf)
+        diagnostics = fill_state_overlap(diagnostics, conf)
+    return state, diagnostics
 
 
 def assert_pair_close(
@@ -66,7 +88,7 @@ def pad_atmosphere(value: np.ndarray, cyclic_y: bool) -> jax.Array:
 @pytest.mark.parametrize("physics", ["dynamics", "thermodynamics", "coupled"])
 @pytest.mark.parametrize("cyclic_y", [False, True])
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
-def test_public_timestep_matches_every_legacy_state_and_diagnostic(
+def test_public_timestep_matches_every_kernel_state_and_diagnostic(
     physics: str, cyclic_y: bool, dtype: str
 ) -> None:
     """Catch reordered stress/transport/growth, altered flux policy or final halos."""
@@ -80,10 +102,10 @@ def test_public_timestep_matches_every_legacy_state_and_diagnostic(
     forcing = None
     if physics == "dynamics":
         initial, conf, phys = run_dyn.initialize(4, 5, settings_overrides=options)
-        expected = run_dyn.step_with_diagnostics(initial, conf, phys)
+        expected = kernel_reference(initial, conf, phys, physics)
     elif physics == "thermodynamics":
         initial, conf, phys = run_growth.initialize(settings_overrides=options)
-        expected = run_growth.step_with_diagnostics(initial, conf, phys)
+        expected = kernel_reference(initial, conf, phys, physics)
     else:
         initial, conf, phys = island.initialize(4, 5, settings_overrides=options)
         initial = replace(
@@ -95,7 +117,16 @@ def test_public_timestep_matches_every_legacy_state_and_diagnostic(
             "Qnet": jnp.array(85.0, dtype=dtype),
             "Qsw": jnp.array(0.0, dtype=dtype),
         }
-        expected = island.step_with_diagnostics(initial, conf, phys, cooling=85.0)
+        expected = kernel_reference(
+            replace(
+                initial,
+                Qnet=jnp.full_like(initial.Qnet, 85.0),
+                Qsw=jnp.full_like(initial.Qsw, 0.0),
+            ),
+            conf,
+            phys,
+            physics,
+        )
     actual = advance(initial, conf, phys, forcing, physics=physics)
     assert_pair_close(actual, expected)
 
@@ -116,7 +147,7 @@ def test_spatial_wind_prepares_halos_and_derives_speed(
     padded = pad_atmosphere(prescribed, cyclic_y)
     forced = replace(initial, **{component: padded})
     forced = replace(forced, wSpeed=jnp.sqrt(forced.uWind**2 + forced.vWind**2))
-    expected = run_dyn.step_with_diagnostics(forced, conf, phys)
+    expected = kernel_reference(forced, conf, phys, "dynamics")
     actual = advance(
         initial,
         conf,
@@ -150,8 +181,8 @@ def test_closed_y_ocean_forcing_prepares_velocity_halos_before_dynamics(
     stored[:, 2:-2] = prescribed[x_indices, :]
     if component == "vOcean":
         stored[:, 2] = 0.0
-    expected = run_dyn.step_with_diagnostics(
-        replace(initial, **{component: jnp.asarray(stored)}), conf, phys
+    expected = kernel_reference(
+        replace(initial, **{component: jnp.asarray(stored)}), conf, phys, "dynamics"
     )
     actual = advance(
         initial,
@@ -178,6 +209,8 @@ def test_explicit_speed_takes_precedence_over_component_derivation() -> None:
         uWind=jnp.full_like(initial.uWind, 3.0),
         vWind=jnp.full_like(initial.vWind, 4.0),
         wSpeed=jnp.full_like(initial.wSpeed, 7.0),
+        Qnet=jnp.full_like(initial.Qnet, 100.0),
+        Qsw=jnp.full_like(initial.Qsw, 0.0),
     )
     actual = advance(
         initial,
@@ -185,7 +218,7 @@ def test_explicit_speed_takes_precedence_over_component_derivation() -> None:
         phys,
         {"uWind": 3.0, "vWind": 4.0, "wSpeed": 7.0, "Qnet": 100.0, "Qsw": 0.0},
     )
-    assert_pair_close(actual, island.step_with_diagnostics(expected, conf, phys, 100.0))
+    assert_pair_close(actual, kernel_reference(expected, conf, phys, "coupled"))
     np.testing.assert_array_equal(actual[0].wSpeed, 7.0)
 
 
@@ -195,8 +228,11 @@ def test_unprescribed_wind_speed_keeps_independent_state_value() -> None:
         settings_overrides={"deltatTherm": 600.0}
     )
     actual = advance(initial, conf, phys, {"Qnet": 95.0}, physics="thermodynamics")
-    expected = run_growth.step_with_diagnostics(
-        replace(initial, Qnet=jnp.full_like(initial.Qnet, 95.0)), conf, phys
+    expected = kernel_reference(
+        replace(initial, Qnet=jnp.full_like(initial.Qnet, 95.0)),
+        conf,
+        phys,
+        "thermodynamics",
     )
     assert_pair_close(actual, expected)
     np.testing.assert_array_equal(actual[0].wSpeed, initial.wSpeed)
@@ -210,7 +246,7 @@ def test_prescribed_heat_is_restored_after_growth_overwrites_it() -> None:
     forcing = {"Qnet": jnp.array(110.0), "Qsw": jnp.array(6.0)}
     actual = expected = initial
     for _ in range(3):
-        expected_pair = run_growth.step_with_diagnostics(
+        expected_pair = kernel_reference(
             replace(
                 expected,
                 Qnet=jnp.full_like(expected.Qnet, 110.0),
@@ -218,6 +254,7 @@ def test_prescribed_heat_is_restored_after_growth_overwrites_it() -> None:
             ),
             conf,
             phys,
+            "thermodynamics",
         )
         actual_pair = advance(actual, conf, phys, forcing, physics="thermodynamics")
         assert_pair_close(actual_pair, expected_pair)
@@ -232,11 +269,14 @@ def test_absent_heat_forcing_preserves_recursive_growth_fluxes() -> None:
     initial, conf, phys = run_growth.initialize()
     actual = expected = reset = initial
     for _ in range(3):
-        expected_pair = run_growth.step_with_diagnostics(expected, conf, phys)
+        expected_pair = kernel_reference(expected, conf, phys, "thermodynamics")
         actual_pair = advance(actual, conf, phys, physics="thermodynamics")
-        reset = run_growth.step(
-            replace(reset, Qnet=initial.Qnet, Qsw=initial.Qsw), conf, phys
-        )
+        reset = kernel_reference(
+            replace(reset, Qnet=initial.Qnet, Qsw=initial.Qsw),
+            conf,
+            phys,
+            "thermodynamics",
+        )[0]
         assert_pair_close(actual_pair, expected_pair)
         actual, expected = actual_pair[0], expected_pair[0]
     assert not np.allclose(actual.Qnet, reset.Qnet), (
@@ -258,7 +298,7 @@ def test_spatial_heat_fields_use_global_physical_grid(cyclic_y: bool) -> None:
     x, y = np.indices((4, 5))
     heat = 70.0 + 5.0 * x + 3.0 * y
     shortwave = 2.0 + x + 0.5 * y
-    expected = run_growth.step_with_diagnostics(
+    expected = kernel_reference(
         replace(
             initial,
             Qnet=pad_atmosphere(heat, cyclic_y),
@@ -266,6 +306,7 @@ def test_spatial_heat_fields_use_global_physical_grid(cyclic_y: bool) -> None:
         ),
         conf,
         phys,
+        "thermodynamics",
     )
     actual = advance(
         initial,
@@ -394,19 +435,21 @@ def test_dynamic_wind_component_derivatives_include_derived_thermodynamic_speed(
         )
         return loss(result, diagnostic)
 
-    def legacy_objective(value: jax.Array) -> jax.Array:
+    def kernel_objective(value: jax.Array) -> jax.Array:
         # JAX padding preserves the independent oracle's forcing derivative.
         stored = jnp.pad(value, ((2, 2), (2, 2)), mode="wrap")
         forced = replace(
             initial,
             vWind=stored,
             wSpeed=jnp.sqrt(initial.uWind**2 + stored**2),
+            Qnet=jnp.full_like(initial.Qnet, 85.0),
+            Qsw=jnp.full_like(initial.Qsw, 0.0),
         )
-        result, diagnostic = island.step_with_diagnostics(forced, conf, phys, 85.0)
+        result, diagnostic = kernel_reference(forced, conf, phys, "coupled")
         return loss(result, diagnostic)
 
     function = jax.jit(objective)
-    reference = jax.jit(legacy_objective)
+    reference = jax.jit(kernel_objective)
     np.testing.assert_allclose(function(wind), reference(wind), rtol=2e-11, atol=2e-11)
     gradient = jax.grad(function)(wind)
     np.testing.assert_allclose(

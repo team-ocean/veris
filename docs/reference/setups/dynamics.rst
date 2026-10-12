@@ -32,20 +32,22 @@ output share :doc:`/api/simulation`. A public Python experiment is::
    with Simulation.initialize(experiment) as simulation:
        result = simulation.run()
 
-Compatibility factories still return independent model objects::
+The preset factory returns initial fields and static model objects::
 
    import jax
    from functools import partial
-   from veris import step
+   from veris import advance, step
    from veris.setups import run_dyn
 
    jax.config.update("jax_enable_x64", True)
    state, settings, constants = run_dyn.initialize(32, 48)
-   advance = partial(run_dyn.step, conf=settings, phys=constants)
-   state = step(state, advance, 3)
+   transition = partial(
+       advance, configuration=settings, constants=constants, physics="dynamics",
+   )
+   state = step(state, transition, 3, has_aux=True)
 
-The setup-level ``step`` returns just State; ``compiled_step`` compiles the same
-calculation. The public ``veris.step`` runs a scan with checkpointing; see
+``advance`` returns State and Diagnostics. The public ``veris.step`` runs a
+scan with checkpointing; see
 :doc:`../integration` for forcing, diagnostic histories and sharded rollouts.
 Ocean stresses are separate Diagnostics fields. No coupling output is added to
 State. ``settings_overrides``, ``physical_overrides`` and ``scenario_overrides``

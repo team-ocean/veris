@@ -1,6 +1,6 @@
-"""Host lifecycle preserves legacy physics, absolute forcing and model time.
+"""Host lifecycle preserves pure physics, absolute forcing and model time.
 
-The maintained island transition supplies independent trajectory expectations.
+Explicit pure timesteps supply trajectory expectations independently of host runs.
 These tests exercise the public host facade; scheduled files and restart belong
 to their own test modules. No clock or diagnostic history enters numerical State.
 """
@@ -16,9 +16,9 @@ import numpy as np
 import pytest
 
 import veris
+from veris.execution.advance import advance
 from veris.model.diagnostics import Diagnostics
 from veris.model.types import State
-from veris.setups import island
 
 
 def initialize(definition: veris.Experiment) -> Any:
@@ -63,7 +63,7 @@ def assert_fields_close(
         )
 
 
-def legacy_steps(
+def reference_steps(
     initial: State,
     definition: veris.Experiment,
     count: int,
@@ -74,11 +74,11 @@ def legacy_steps(
     history = []
     diagnostic = None
     for _ in range(count):
-        state, diagnostic = island.step_with_diagnostics(
+        state, diagnostic = advance(
             state,
             definition.configuration,
             definition.physical_constants,
-            cooling=85.0,
+            {"Qnet": 85.0, "Qsw": 0.0},
         )
         if observe is not None:
             history.append(observe(state, diagnostic))
@@ -134,7 +134,7 @@ def test_public_custom_coupled_define_initialize_run_result() -> None:
         assert simulation.configuration == definition.configuration
         assert simulation.physical_constants == definition.physical_constants
         initial = simulation.state
-        expected, diagnostic, _ = legacy_steps(initial, definition, 2)
+        expected, diagnostic, _ = reference_steps(initial, definition, 2)
         result = simulation.run()
         assert isinstance(result, veris.RunResult)
         assert_fields_close(result.state, expected)
@@ -175,7 +175,7 @@ def test_single_step_and_default_remaining_run_share_state_and_clock() -> None:
     """Catch step advancing a rollout or run(None) ignoring completed timesteps."""
     definition = coupled_definition(3)
     with initialize(definition) as simulation:
-        expected_first, first_diagnostic, _ = legacy_steps(
+        expected_first, first_diagnostic, _ = reference_steps(
             simulation.state, definition, 1
         )
         first = simulation.step()
@@ -183,7 +183,7 @@ def test_single_step_and_default_remaining_run_share_state_and_clock() -> None:
         assert_fields_close(first.diagnostics, first_diagnostic)
         assert first.steps == first.completed_steps == 1
         assert first.elapsed == timedelta(seconds=600)
-        expected, diagnostic, _ = legacy_steps(expected_first, definition, 2)
+        expected, diagnostic, _ = reference_steps(expected_first, definition, 2)
         final = simulation.run()
         assert_fields_close(final.state, expected)
         assert_fields_close(final.diagnostics, diagnostic)
@@ -213,7 +213,7 @@ def test_explicit_count_can_extend_the_configured_default_duration() -> None:
     """Catch treating the default duration as a hard cap on constant-forcing runs."""
     definition = coupled_definition(1)
     with initialize(definition) as simulation:
-        expected, diagnostic, _ = legacy_steps(simulation.state, definition, 2)
+        expected, diagnostic, _ = reference_steps(simulation.state, definition, 2)
         result = simulation.run(2)
         assert_fields_close(result.state, expected)
         assert_fields_close(result.diagnostics, diagnostic)
@@ -328,11 +328,11 @@ def test_spatial_wind_and_heat_series_keep_absolute_position_across_runs() -> No
             expected = replace(
                 expected, uWind=u_wind, vWind=v_wind, wSpeed=jnp.hypot(u_wind, v_wind)
             )
-            expected, diagnostic = island.step_with_diagnostics(
+            expected, diagnostic = advance(
                 expected,
                 definition.configuration,
                 definition.physical_constants,
-                cooling=heat[index],
+                {"Qnet": heat[index], "Qsw": 0.0},
             )
             if index == 1:
                 midpoint = simulation.run(2)
@@ -361,7 +361,7 @@ def test_optional_pure_observations_include_only_updated_states_and_diagnostics(
         }
 
     with initialize(definition) as simulation:
-        expected, diagnostic, history = legacy_steps(
+        expected, diagnostic, history = reference_steps(
             simulation.state, definition, 3, observe
         )
         result = simulation.run(3, observe=observe)

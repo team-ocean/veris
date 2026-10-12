@@ -1,13 +1,11 @@
-"""Public lifecycle and compatibility wrappers match frozen original trajectories."""
+"""Pure timesteps and the public lifecycle match frozen original trajectories."""
 
 import hashlib
 import json
 from dataclasses import fields
-from importlib import import_module
 from pathlib import Path
 from typing import Any
 
-import jax
 import numpy as np
 import pytest
 
@@ -30,7 +28,7 @@ def _compare(actual: Any, reference: np.ndarray, name: str) -> None:
 
 
 @pytest.mark.parametrize("case_index", range(7))
-def test_public_and_compatibility_trajectories_match_immutable_reference(
+def test_pure_and_host_trajectories_match_immutable_reference(
     case_index: int,
 ) -> None:
     """Every State and diagnostic field anchors original ordering and startup."""
@@ -56,17 +54,6 @@ def test_public_and_compatibility_trajectories_match_immutable_reference(
         steps=3,
     )
     state, conf, phys = veris.initialize_experiment(experiment)
-    module = import_module(
-        "veris.setups.island"
-        if preset == "island"
-        else f"veris.setups.run_{'dyn' if preset == 'dynamics' else 'growth'}"
-    )
-    legacy, _, _ = (
-        module.initialize(settings_overrides=case["settings"])
-        if preset == "growth"
-        else module.initialize(*case["grid"], settings_overrides=case["settings"])
-    )
-    transition = jax.jit(module.step_with_diagnostics, static_argnums=(1, 2))
     with (
         np.load(archive, allow_pickle=False) as reference,
         veris.Simulation.initialize(experiment) as simulation,
@@ -77,7 +64,6 @@ def test_public_and_compatibility_trajectories_match_immutable_reference(
                     expected = reference[f"{name}.state.{step}.{item.name}"]
                     for label, actual in (
                         ("pure", state),
-                        ("legacy", legacy),
                         ("host", simulation.state),
                     ):
                         _compare(
@@ -91,18 +77,12 @@ def test_public_and_compatibility_trajectories_match_immutable_reference(
             state, diagnostic = veris.advance(
                 state, conf, phys, prescribed, physics=experiment.physics
             )
-            legacy, legacy_diagnostic = (
-                transition(legacy, conf, phys, prescribed["Qnet"])
-                if preset == "island"
-                else transition(legacy, conf, phys)
-            )
             result = simulation.step()
             if step + 1 in (1, 3):
                 for item in fields(diagnostic):
                     expected = reference[f"{name}.diagnostics.{step + 1}.{item.name}"]
                     for label, actual in (
                         ("pure", diagnostic),
-                        ("legacy", legacy_diagnostic),
                         ("host", result.diagnostics),
                     ):
                         _compare(

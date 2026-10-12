@@ -1,8 +1,8 @@
 Physics kernels
 ===============
 
-These functions expose the equations and stencil operations used by setup
-steps. Most accept ``(vs, conf, phys)``: a halo-inclusive State, static
+These functions expose the equations and stencil operations composed by
+``advance``. Most accept ``(vs, conf, phys)``: a halo-inclusive State, static
 Configuration and static PhysicalConstants. They return arrays or tuples;
 the caller assigns results with ``dataclasses.replace`` and supplies the
 required halo exchange and stage ordering.
@@ -19,8 +19,7 @@ See :doc:`/reference/integration` for composition and differentiation examples.
 
 .. autofunction:: veris.execution.advance.advance
 
-The :doc:`setup steps <initialization>` retain their existing behavior. The
-focused :func:`~veris.physics.dynamics.driver.dynamics_transport` stage remains available to
+The focused :func:`~veris.physics.dynamics.driver.dynamics_transport` stage is available to
 callers composing specialized transitions.
 
 Dynamics

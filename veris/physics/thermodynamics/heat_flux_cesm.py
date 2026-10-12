@@ -14,9 +14,10 @@ import jax.numpy as npx
 from jax import Array
 from jax.typing import ArrayLike
 
+from veris.model.arrays import ArrayInput, MaskInput
 from veris.model.configuration import Configuration
 from veris.model.physical_constants import PhysicalConstants
-from veris.model.types import ArrayInput, CESMFluxes, HeatFluxes, MaskInput, jit
+from veris.model.types import CESMFluxes, HeatFluxes, jit
 from veris.numerics.autodiff import norm_sqrt
 
 

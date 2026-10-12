@@ -25,9 +25,6 @@ def configuration_modules() -> tuple[ModuleType, ModuleType]:
 
 def test_registry_defaults_are_disjoint_complete_and_frozen() -> None:
     config, physical = configuration_modules()
-    from veris.settings import Configuration as ModelConfiguration
-
-    assert config.Configuration is ModelConfiguration
     assert config.SETTINGS["printEvpResidual"].default is False
     legacy = json.loads(
         (

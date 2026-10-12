@@ -1,5 +1,5 @@
-Initialization and setups
-=========================
+Initialization and presets
+==========================
 
 General allocation
 ------------------
@@ -27,8 +27,8 @@ Island experiment
 The serial island setup combines dynamics, transport and thermodynamics.
 Scenario controls are separate from model Configuration and PhysicalConstants;
 their defaults are generated from ``ISLAND_SETTINGS`` in
-:doc:`/reference/setups/island`. Bind ``conf`` and ``phys`` when using a setup
-step as the transition for :func:`veris.step`.
+:doc:`/reference/setups/island`. Use :func:`veris.advance` for the pure coupled
+transition and :func:`veris.step` for a fixed-length rollout.
 
 .. autoclass:: veris.setups.island.IslandSettings
 
@@ -38,16 +38,6 @@ step as the transition for :func:`veris.step`.
    Island scenario defaults and metadata; see :doc:`/reference/setups/island`.
 
 .. autofunction:: veris.setups.island.initialize
-
-.. autofunction:: veris.setups.island.step
-
-.. autofunction:: veris.setups.island.step_with_diagnostics
-
-``compiled_step`` compiles the same complete transition as ``step``, with
-``conf`` and ``phys`` static and ``cooling`` dynamic. Both support AD. Choose
-and bind the callable before the integration loop to reuse compilation.
-
-.. autofunction:: veris.setups.island.compiled_step
 
 Dynamics experiment
 -------------------
@@ -68,14 +58,6 @@ instead accepts interior extents per partition when given a mesh. See
 
 .. autofunction:: veris.setups.run_dyn.initialize
 
-.. autofunction:: veris.setups.run_dyn.step
-
-.. autofunction:: veris.setups.run_dyn.step_with_diagnostics
-
-``compiled_step`` compiles ``step`` with ``conf`` and ``phys`` static.
-
-.. autofunction:: veris.setups.run_dyn.compiled_step
-
 Growth experiment
 -----------------
 
@@ -92,10 +74,5 @@ fields. Its ``GROWTH_SETTINGS`` defaults and command-line usage appear in
 
 .. autofunction:: veris.setups.run_growth.initialize
 
-.. autofunction:: veris.setups.run_growth.step
-
-.. autofunction:: veris.setups.run_growth.step_with_diagnostics
-
-``compiled_step`` compiles ``step`` with ``conf`` and ``phys`` static.
-
-.. autofunction:: veris.setups.run_growth.compiled_step
+Select ``physics="thermodynamics"`` with :func:`veris.advance` to evolve the
+initialized column, or use its builtin Experiment with Simulation.

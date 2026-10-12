@@ -7,6 +7,7 @@ import jax
 import numpy as np
 import pytest
 
+from veris.execution.advance import advance
 from veris.io import read_record
 from veris.model.diagnostics import Diagnostics
 from veris.model.types import State
@@ -65,9 +66,12 @@ def test_growth_driver_preserves_recursive_fluxes_and_separate_diagnostics() -> 
         "IcePenetSW",
         "recip_hIceMean",
     ]
+    compiled_advance = jax.jit(
+        advance, static_argnames=("configuration", "constants", "physics")
+    )
     for _ in range(2):
         expected = dict(zip(names, Growth(state, conf, phys), strict=True))
-        actual, diagnostics = run_growth.step_with_diagnostics(state, conf, phys)
+        actual, diagnostics = advance(state, conf, phys, physics="thermodynamics")
         assert isinstance(diagnostics, Diagnostics)
         for name, value in expected.items():
             owner = actual if hasattr(actual, name) else diagnostics
@@ -76,7 +80,7 @@ def test_growth_driver_preserves_recursive_fluxes_and_separate_diagnostics() -> 
             )
         np.testing.assert_array_equal(diagnostics.OceanStressU, 0)
         np.testing.assert_array_equal(diagnostics.OceanStressV, 0)
-        compiled = run_growth.compiled_step(state, conf, phys)
+        compiled = compiled_advance(state, conf, phys, physics="thermodynamics")[0]
         for leaf, reference in zip(
             jax.tree.leaves(compiled), jax.tree.leaves(actual), strict=True
         ):
@@ -92,8 +96,8 @@ def test_growth_cli_records_physical_final_state(tmp_path: Path) -> None:
     path = tmp_path / "growth.nc"
     run_growth.main(["--steps", "2", "--backend", "cpu", "--output", str(path)])
     initial, conf, phys = run_growth.initialize()
-    first = run_growth.step(initial, conf, phys)
-    final = run_growth.step(first, conf, phys)
+    first = advance(initial, conf, phys, physics="thermodynamics")[0]
+    final = advance(first, conf, phys, physics="thermodynamics")[0]
     saved = read_record(path)
     assert saved.time == 2 * conf.deltatTherm
     for field in fields(State):
@@ -153,16 +157,20 @@ def test_growth_cli_rejects_nonfinite_output(
     assert not path.exists()
 
 
-def test_growth_compiled_step_longwave_gradient_matches_finite_difference() -> None:
+def test_growth_compiled_advance_longwave_gradient_matches_finite_difference() -> None:
     """Differentiate the reference column's ice response to longwave forcing."""
     from veris.setups import run_growth
 
     state, conf, phys = run_growth.initialize()
 
+    compiled_advance = jax.jit(
+        advance, static_argnames=("configuration", "constants", "physics")
+    )
+
     def final_ice(longwave: jax.Array | float) -> jax.Array:
         """Return interior mean ice after a uniformly perturbed forcing step."""
         forced = replace(state, LWdown=state.LWdown * 0 + longwave)
-        result = run_growth.compiled_step(forced, conf, phys)
+        result = compiled_advance(forced, conf, phys, physics="thermodynamics")[0]
         return result.hIceMean[2:-2, 2:-2].mean()
 
     longwave = float(state.LWdown[2, 2])

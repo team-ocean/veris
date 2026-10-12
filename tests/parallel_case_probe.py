@@ -3,6 +3,8 @@
 import jax
 import numpy as np
 
+from veris.execution.advance import advance
+from veris.io.distributed import distributed_collector
 from veris.setups import run_dyn, run_parallel
 
 
@@ -17,11 +19,17 @@ def check_parallel_case() -> None:
         parallel, local_settings, local_physical = run_dyn.initialize(
             12, 16, mesh=mesh, settings_overrides=overrides
         )
+    compiled = jax.jit(
+        advance, static_argnames=("configuration", "constants", "physics")
+    )
     for _ in range(2):
-        serial = run_dyn.compiled_step(serial, settings, physical)
+        serial = compiled(serial, settings, physical, physics="dynamics")[0]
         with jax.set_mesh(mesh):
-            parallel = run_dyn.compiled_step(parallel, local_settings, local_physical)
-    gathered = run_parallel.gather_output(parallel, mesh)
+            parallel = compiled(
+                parallel, local_settings, local_physical, physics="dynamics"
+            )[0]
+    gathered = distributed_collector(mesh)(parallel, run_parallel.OUTPUT_FIELDS)
+    assert gathered is not None
     for name, actual in gathered.items():
         expected = np.asarray(getattr(serial, name))[2:-2, 2:-2]
         assert actual.shape == (12, 16), f"ERROR {name} gathered shape"

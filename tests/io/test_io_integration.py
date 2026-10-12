@@ -13,6 +13,12 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris.execution.advance import advance as advance_model
+
+compiled_advance = jax.jit(
+    advance_model, static_argnames=("configuration", "constants", "physics")
+)
+
 
 @pytest.mark.parametrize("driver", ["run_growth", "run_dyn"])
 @pytest.mark.parametrize("steps", [0, 9])
@@ -66,7 +72,7 @@ def test_real_growth_ad_disables_output_and_writes_auxiliary_final_state(
     tmp_path: Path,
 ) -> None:
     from veris.io import OutputManager, OutputSettings, read_record, write_snapshot
-    from veris.setups.run_growth import compiled_step, initialize
+    from veris.setups.run_growth import initialize
 
     state, conf, phys = initialize()
     forbidden = tmp_path / "during_ad.nc"
@@ -75,7 +81,9 @@ def test_real_growth_ad_disables_output_and_writes_auxiliary_final_state(
         def objective(longwave: jax.Array) -> tuple[jax.Array, object]:
             result = replace(state, LWdown=jnp.full_like(state.LWdown, longwave))
             for step in range(2):
-                result = compiled_step(result, conf, phys)
+                result = compiled_advance(result, conf, phys, physics="thermodynamics")[
+                    0
+                ]
                 output.sample(result, timedelta(days=step + 1))
             return result.hIceMean[2:-2, 2:-2].mean(), result
 

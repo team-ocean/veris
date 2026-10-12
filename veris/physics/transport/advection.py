@@ -9,9 +9,10 @@ import jax.numpy as jnp
 from jax import Array
 
 from veris.grid.halos import fill_overlap
+from veris.model.arrays import ArrayInput
 from veris.model.configuration import Configuration
 from veris.model.physical_constants import PhysicalConstants
-from veris.model.types import ArrayInput, State, jit
+from veris.model.types import State, jit
 
 # in this routine, the thermodynamic time step is used instead of the dynamic one.
 # this has historical reasons as with lower resolutions, the dynamics change much

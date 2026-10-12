@@ -15,9 +15,10 @@ import jax.numpy as npx
 import numpy as np
 
 from veris.execution.initialization import initialize
+from veris.grid.geometry import OceanGeometry
 from veris.model.configuration import Configuration
 from veris.model.physical_constants import PhysicalConstants
-from veris.model.types import OceanGeometry, State
+from veris.model.types import State
 
 
 def _validate_geometry(geometry: OceanGeometry, shape: tuple[int, ...]) -> None:
@@ -129,4 +130,4 @@ def initialize_from_ocean(
     )
 
 
-__all__ = ["OceanGeometry", "initialize_from_ocean"]
+__all__ = ["initialize_from_ocean"]

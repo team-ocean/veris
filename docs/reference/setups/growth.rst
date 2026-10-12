@@ -19,8 +19,8 @@ They are not reset to initial forcing. The shared allocator requires at least
 two cells per interior axis, so the single-column experiment uses a uniform
 2 by 2 interior with two halos per edge; its pointwise equations are identical
 to a single column. Output always removes those storage halos.
-``initialize``, ``step``, ``compiled_step`` and ``step_with_diagnostics`` are also
-available for interactive use and AD.
+The preset ``initialize`` factory constructs the initial column. Use public
+``advance(..., physics="thermodynamics")`` and ``step`` for pure evolution and AD.
 
 To record and plot the evolving ice thickness, request a history stream::
 
