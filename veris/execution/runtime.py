@@ -17,7 +17,7 @@ from typing import Any
 
 import jax
 from jax.experimental import mesh_utils
-from jax.sharding import Mesh
+from jax.sharding import AxisType, Mesh
 
 from veris.execution.experiment_initialization import _validate_inputs
 from veris.model.experiment import DistributedExecution, Experiment
@@ -124,7 +124,7 @@ def create_mesh(partitions: tuple[int, int] | None, backend: str) -> Mesh:
     arrays = mesh_utils.create_hybrid_device_mesh(
         inner, outer, devices=devices, process_is_granule=process_granules
     )
-    return Mesh(arrays, ("x", "y"))
+    return Mesh(arrays, ("x", "y"), axis_types=(AxisType.Explicit,) * 2)
 
 
 def _validate_mesh(experiment: Experiment, mesh: Mesh) -> None:
@@ -203,10 +203,6 @@ def execution_resources(
             "a supplied mesh requires a preinitialized distributed service"
         )
     jax.config.update("jax_enable_x64", True)
-    if execution.backend is not None:
-        jax.config.update(
-            "jax_platforms", "cuda" if execution.backend == "gpu" else "cpu"
-        )
     owned = False
     try:
         if options is not None and not borrowed:

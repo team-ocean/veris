@@ -2,6 +2,40 @@
 
 ## 2026-10-13 — Authoritative experiment framework audit and proposal
 
+- [x] Final Task 7 full CPU gate: 1,565 passed, four GPU-only skips, zero
+  failures/errors in 959.369 s. Maintained coverage is 4,709/4,955 = 95.04%;
+  the 80% gate passes. Ruff/format/annotations/ty and diff checks pass.
+  Evidence: `test_logs/framework/full.{log,xml}` and `coverage.json`.
+- [x] Additional native GPU initial-State/spatial-forcing JIT/grad/JVP/VJP/FD
+  checks pass 2/2. Custom-ocean one-/two-GPU cases pass 4/4: snapshot maximum
+  scaled errors 6.70e-16 (float64), 6.02e-7 (float32), with exact full histories.
+  Both aegir placements match all 70 snapshot fields at maximum scaled error
+  6.04e-15 and exact histories. Documented launcher `66303563` completes `0:0`
+  in 6 s; its nine-field output matches serial at 3.68e-16 and 1200 s.
+  Independent whole-branch review remains before final delivery.
+- [x] Task 6 committed as `699d130`; authored/resolved exports, cold inspection,
+  registered providers and executable custom-ocean blueprint are delivered.
+- Task 7 acceptance: cold backend-policy regression failed before removing
+  exclusive `jax_platforms` updates. Explicit CPU/GPU launches now preserve
+  caller backend availability. Native one-/two-P100 matrix passes 12/12 cases,
+  all 70 fields, both precisions and three physics modes: maximum scaled errors
+  7.81e-15 (float64) and 6.97e-6 (float32). No numerical tolerance changed.
+- [x] Local two-rank acceptance passes 11/11 in 142.212 s: all modes/custom
+  geometry, both boundaries, spatial time forcing, instant/mean histories,
+  borrowed-service reuse and owned cleanup after snapshot failure. Strengthened
+  checks compare every history record and its bounds/sample metadata.
+- Actual `aegir` matrix: one-node `66303413` completes `0:0` in 57 s; two-node
+  `66303414` fails `1:0` on automatic hybrid mesh axes during spatial forcing.
+  Reproducing axis regression failed, then explicit x/y axis construction fixes
+  the root cause. Two-node rerun `66303463` completes `0:0` in 53 s. Both
+  placements cover eight all-mode/custom/boundary cases; every snapshot/history
+  record is independently compared with serial execution. Failed logs retained.
+- [x] Native GPU scientific/startup/gradient/CLI/two-device-output gate passes
+  60/60 with zero skips in 171.086 s. Strict Sphinx, Ruff/format/annotations/ty,
+  shell syntax and scientific-source/reference hash audit pass. Three frozen
+  archives are unchanged. Fresh wheel/sdist contain published blueprint/JSON;
+  clean installed literal lifecycle/mesh/AD and Python/CLI/inspect examples pass.
+  CI now runs the installed blueprint probe. Final full CPU gate/review remain.
 - IN PROGRESS (@root): user approved the plan and native execution. Implement
   the seven test-first units without further stage approval. Design and GPU/
   `aegir` test authorization remain in force; root owns the only pytest session.
@@ -2572,3 +2606,7 @@
   settings/fields, 100-step dynamics, all-field shared-physics lifecycle
   references, thermodynamic conservation, longwave AD/finite differences,
   parallel CLI and two-device scheduled output. Evidence: `gpu.log`, `gpu.xml`.
+
+- [x] Final native parallel CLI GPU check passes 1/1 with zero skips. Combined
+  native GPU pytest gates pass 63/63, including every four CPU-skipped GPU case;
+  scientific tolerances remain unchanged. Hardware matrices pass 16/16 cases.

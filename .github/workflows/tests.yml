@@ -33,6 +33,7 @@ jobs:
           task_package_root=$(mktemp -d)
           python -m pip install --no-cache-dir --no-deps --target "$task_package_root" test_logs/package-dist/*.whl
           PYTHONPATH="$task_package_root" python tests/installed_lifecycle_probe.py --package-root "$task_package_root" --docs-root docs
+          PYTHONPATH="$task_package_root" python tests/installed_framework_probe.py --package-root "$task_package_root" --docs-root docs
         env:
           JAX_PLATFORMS: cpu
           JAX_NUM_CPU_DEVICES: '2'

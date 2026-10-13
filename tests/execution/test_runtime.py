@@ -217,14 +217,23 @@ def test_multi_slice_mesh_uses_hybrid_construction(
     monkeypatch.setattr(jax, "devices", lambda backend: devices)
     monkeypatch.setattr(jax, "make_mesh", forbidden)
     monkeypatch.setattr(mesh_utils, "create_hybrid_device_mesh", hybrid)
+
+    def mesh_factory(arrays: Any, names: Any, **kwargs: Any) -> Any:
+        return SimpleNamespace(devices=arrays, axis_names=names, **kwargs)
+
     monkeypatch.setattr(
         runtime,
         "Mesh",
-        lambda arrays, names: SimpleNamespace(devices=arrays, axis_names=names),
+        mesh_factory,
     )
     mesh = runtime.create_mesh((1, 2), "cpu")
     assert mesh.devices.shape == (1, 2) and mesh.axis_names == ("x", "y")
     assert calls == [((1, 1), (1, 2))]
+    from jax.sharding import AxisType
+
+    assert getattr(mesh, "axis_types", None) == (AxisType.Explicit,) * 2, (
+        "ERROR hybrid mesh axes must support explicit forcing reshard"
+    )
 
 
 def test_runtime_checks_borrowed_mesh_before_enumeration(

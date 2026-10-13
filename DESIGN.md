@@ -68,6 +68,9 @@ arithmetic order, masks and branch derivative conventions remain unchanged.
 Backend/distributed setup is explicit before devices; imports change no global
 JAX settings. Local CPU sharding establishes communication/halo/output contracts;
 GPU and actual multi-host verification require the corresponding hardware.
+Explicit launches select devices without narrowing the caller's available
+backends. Hybrid multi-slice meshes use explicit x/y axes, matching local
+meshes and the differentiable spatial-forcing reshard contract.
 
 Independent reference trajectories are frozen from jax-only commit
 fff4cd4e08613e8ec2359e316c94435e81682400 before the centralized timestep implementation.
