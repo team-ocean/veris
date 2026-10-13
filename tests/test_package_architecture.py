@@ -9,10 +9,11 @@ import pytest
 
 
 def test_public_facade_exports_keep_canonical_identity() -> None:
-    """The existing root interface has the same names and underlying objects."""
+    """Public exports retain their canonical objects, including launch APIs."""
     import veris
 
     owners = {
+        "DistributedExecution": "veris.model.experiment",
         "Execution": "veris.model.experiment",
         "Experiment": "veris.model.experiment",
         "Grid": "veris.model.experiment",
@@ -23,6 +24,7 @@ def test_public_facade_exports_keep_canonical_identity() -> None:
         "advance": "veris.execution.advance",
         "initialize_experiment": "veris.execution.experiment_initialization",
         "step": "veris.execution.rollout",
+        "run_experiment": "veris.execution.runner",
     }
     assert set(veris.__all__) == set(owners)
     for name, owner in owners.items():

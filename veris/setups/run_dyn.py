@@ -14,11 +14,9 @@ from typing import Any
 
 import click
 import jax
-import jax.numpy as jnp
 import numpy as np
 from jax.sharding import Mesh
 
-from veris.execution.initialization import initialize as initialize_model
 from veris.io.cli import (
     output_options,
     output_settings,
@@ -170,9 +168,43 @@ DYNAMICS_NUMERICAL_DEFAULTS: dict[str, Any] = {
 }
 """Reference solver choices for dynamics experiment definitions."""
 
+DYNAMICS_DEFAULT_EXTENT = 1024
+DYNAMICS_DEFAULT_STEPS = 100
+DYNAMICS_PROFILES: dict[str, Any] = {
+    "example": {"grid": (16, 24), "steps": DYNAMICS_DEFAULT_STEPS},
+    "standalone": {
+        "grid": (DYNAMICS_DEFAULT_EXTENT,) * 2,
+        "steps": DYNAMICS_DEFAULT_STEPS,
+        "execution": {"backend": "cpu"},
+    },
+    "parallel": {
+        "grid": (DYNAMICS_DEFAULT_EXTENT,) * 2,
+        "steps": 1000,
+        "execution": {"backend": "cpu", "all_devices": True},
+    },
+}
+"""Intentional driver/example grids and durations with explicit owners."""
+
+
+def build_fields(
+    state: State,
+    configuration: Configuration,
+    constants: PhysicalConstants,
+    scenario: Mapping[str, Any],
+    global_shape: tuple[int, int],
+    x: np.ndarray,
+    y: np.ndarray,
+    *,
+    regional: bool,
+) -> dict[str, np.ndarray]:
+    """Supply all notebook startup fields at global physical indices."""
+    return _fields(
+        x, y, *global_shape, DynamicsSettings(**scenario), configuration.dtype
+    )
+
 
 def initialize(
-    nx: int = 1024,
+    nx: int = DYNAMICS_DEFAULT_EXTENT,
     ny: int | None = None,
     *,
     mesh: Mesh | None = None,
@@ -187,50 +219,16 @@ def initialize(
     Returned configuration nx/ny are local interior extents. Wind stays fixed
     throughout integration, matching experiment snapshot 15 of the shifted field.
     """
-    ny = nx if ny is None else ny
-    for name, size in [("nx", nx), ("ny", ny)]:
-        if type(size) is not int or size < 2:
-            raise ValueError(f"{name} must be an integer of at least two cells")
-    if mesh is not None and set(mesh.axis_names) != {"x", "y"}:
-        raise ValueError("mesh must have axes x and y")
-    px, py = (1, 1) if mesh is None else (mesh.shape["x"], mesh.shape["y"])
-    if nx % px or ny % py or nx // px < 2 or ny // py < 2:
-        raise ValueError(
-            "grid must divide evenly into mesh with at least two cells per partition"
-        )
-    options = dict(DYNAMICS_NUMERICAL_DEFAULTS)
-    options.update(settings_overrides or {})
-    options.update(nx=nx // px, ny=ny // py, use_sharding=mesh is not None)
-    conf = Configuration(**options)
-    scenario = DynamicsSettings(**dict(scenario_overrides or {}))
-    if jax.dtypes.canonicalize_dtype(conf.dtype) != jnp.dtype(conf.dtype):
-        raise ValueError(
-            f"dtype {conf.dtype} requires jax_enable_x64 before initialization"
-        )
-    if mesh is None:
-        values = _fields(
-            (np.arange(nx + 4) - 2) % nx,
-            (np.arange(ny + 4) - 2) % ny,
-            nx,
-            ny,
-            scenario,
-            conf.dtype,
-        )
-    else:
-        from veris.grid.regions import regional_state
+    from veris.setups.presets import _initialize_adapter
 
-        packed = regional_state(
-            mesh,
-            conf,
-            (nx, ny),
-            lambda ix, iy: _fields(ix, iy, nx, ny, scenario, conf.dtype),
-        )
-        values = {name: getattr(packed, name) for name in VARIABLES}
-    return initialize_model(
+    return _initialize_adapter(
+        "dynamics",
+        nx=nx,
+        ny=nx if ny is None else ny,
         mesh=mesh,
-        settings_overrides=options,
-        physical_overrides=physical_overrides,
-        state_overrides=values,
+        settings=settings_overrides,
+        constants=physical_overrides,
+        scenario=scenario_overrides,
     )
 
 

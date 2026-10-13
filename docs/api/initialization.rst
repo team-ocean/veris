@@ -1,6 +1,22 @@
 Initialization and presets
 ==========================
 
+Common experiment initialization
+--------------------------------
+
+``initialize_experiment`` allocates both serial and addressable mesh regions
+through the registered provider contract. New providers supply regional field
+replacements; the framework validates inputs, applies overrides, computes
+derived quantities and handles global boundaries. The maintained presets declare
+their archived startup policy so all 70 initial fields remain reproducible.
+The legacy setup functions below translate their arguments to this same API.
+
+.. autofunction:: veris.initialize_experiment
+
+.. autoclass:: veris.setups.presets.SetupPreset
+
+.. autofunction:: veris.setups.presets.register_preset
+
 General allocation
 ------------------
 
@@ -16,6 +32,10 @@ Ocean geometry adapter
 The host adapter validates externally supplied ocean geometry and allocates a
 Veris State independently of an ocean-model container. See
 :doc:`/reference/setups/ocean` for shapes and a usage example.
+Masks must lie in [0, 1], spacing and area must be positive, and prescribed
+ice amounts, concentration and temperatures obey the Experiment physical bounds.
+Host validation also rejects values or reciprocals outside the selected
+precision before allocating device arrays.
 
 .. autoclass:: veris.grid.geometry.OceanGeometry
 

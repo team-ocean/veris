@@ -13,15 +13,14 @@ Distributed initialization precedes backend allocation.
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
 from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any
 
 import click
 import jax
-from jax.sharding import Mesh
 
+from veris.execution.runtime import create_mesh, distributed_options
 from veris.io.cli import (
     output_options,
     output_settings,
@@ -40,63 +39,6 @@ OUTPUT_FIELDS = (
     "uOcean",
     "vOcean",
 )
-
-
-def distributed_options(
-    environment: Mapping[str, str], backend: str
-) -> dict[str, Any] | None:
-    """Resolve explicit JAX rank variables or a multi-task Slurm launch.
-
-    Supply JAX_COORDINATOR_ADDRESS, JAX_NUM_PROCESSES, and JAX_PROCESS_ID
-    together outside Slurm. GPU processes may select comma-separated device
-    indices with JAX_LOCAL_DEVICE_IDS; the default is their Slurm local rank,
-    or zero outside Slurm. A Slurm allocation without task ranks is local.
-    """
-    names = ("JAX_COORDINATOR_ADDRESS", "JAX_NUM_PROCESSES", "JAX_PROCESS_ID")
-    present = [name in environment for name in names]
-    if any(present):
-        if not all(present):
-            raise ValueError(
-                "explicit coordinator/count/process variables must be set together"
-            )
-        count, rank = int(environment[names[1]]), int(environment[names[2]])
-        if count < 1 or not 0 <= rank < count:
-            raise ValueError(
-                "process count must be positive and process ID within its range"
-            )
-        local_ids = [0]
-        if backend == "gpu":
-            local_ids = [
-                int(value)
-                for value in environment.get(
-                    "JAX_LOCAL_DEVICE_IDS", environment.get("SLURM_LOCALID", "0")
-                ).split(",")
-            ]
-            if any(index < 0 for index in local_ids):
-                raise ValueError("local device indices must be nonnegative")
-        return {
-            "coordinator_address": environment[names[0]],
-            "num_processes": count,
-            "process_id": rank,
-            "local_device_ids": local_ids,
-        }
-    if "SLURM_PROCID" in environment and int(environment.get("SLURM_NTASKS", "1")) > 1:
-        result: dict[str, Any] = {"cluster_detection_method": "slurm"}
-        if backend == "cpu":
-            result["local_device_ids"] = [0]
-        return result
-    return None
-
-
-def create_mesh(partitions: tuple[int, int] | None, backend: str) -> Mesh:
-    """Create x/y mesh using all devices of the requested execution backend."""
-    devices = jax.devices(backend)
-    shape = partitions if partitions is not None else (1, len(devices))
-    if min(shape) < 1 or shape[0] * shape[1] != len(devices):
-        raise ValueError(
-            f"mesh {shape} must contain all {len(devices)} available {backend} devices"
-        )
-    return jax.make_mesh(shape, ("x", "y"), devices=devices)
 
 
 @click.command(help=__doc__)

@@ -76,10 +76,25 @@ def validate_output(experiment: Experiment, path: str | Path | None) -> None:
 
 
 def metadata(
-    experiment: Experiment, conf: Configuration, phys: PhysicalConstants
+    experiment: Experiment,
+    conf: Configuration,
+    phys: PhysicalConstants,
+    mesh: Mesh | None = None,
 ) -> dict[str, str]:
     """Encode resolved definition alongside established numerical metadata."""
+    from veris.execution.runtime import _execution_metadata
+
+    default = jax.config.jax_default_device
+    backend = (
+        mesh.devices.flat[0].platform
+        if mesh is not None
+        else experiment.execution.backend
+        or getattr(default, "platform", None)
+        or jax.default_backend()
+    )
+    partitions = (1, 1) if mesh is None else (mesh.shape["x"], mesh.shape["y"])
     return {
+        "execution": json.dumps(dict(_execution_metadata(backend, partitions))),
         "configuration": json.dumps(asdict(conf), default=_json_scalar),
         "physical_constants": json.dumps(asdict(phys), default=_json_scalar),
         "experiment": json.dumps(experiment.to_dict()),
@@ -106,7 +121,7 @@ def output_resources(
         path,
         experiment.output,
         collector=collector,
-        attributes=metadata(experiment, conf, phys),
+        attributes=metadata(experiment, conf, phys, mesh),
     )
     observer, _ = output_callbacks(
         manager,
@@ -180,7 +195,7 @@ def snapshot(
         conf=conf,
         phys=phys,
         collector=finite_fields,
-        attributes=metadata(experiment, conf, phys),
+        attributes=metadata(experiment, conf, phys, mesh),
     )
 
 

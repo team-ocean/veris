@@ -97,6 +97,22 @@ def _freeze_fields(
     return MappingProxyType(result)
 
 
+def _precision(name: str, value: Any, dtype: str, *, reciprocal: bool = False) -> None:
+    """Reject lossy range conversions before JAX can allocate any device arrays."""
+    original = np.asarray(value)
+    with np.errstate(over="ignore", under="ignore", invalid="ignore", divide="ignore"):
+        converted = original.astype(dtype)
+        invalid = not np.isfinite(converted).all() or np.any(
+            (original != 0) & (converted == 0)
+        )
+        if reciprocal:
+            invalid = invalid or not np.isfinite(1 / converted).all()
+    if invalid:
+        raise ValueError(
+            f"{name} is not representable with valid reciprocals in {dtype}"
+        )
+
+
 def _validate_shapes(
     values: Mapping[str, Any], shape: tuple[int, int], *, series: bool = False
 ) -> None:

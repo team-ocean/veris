@@ -8,14 +8,13 @@ Five EVP substeps keep this example small; they are not a convergence criterion.
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import Any
 
 import jax
 import jax.numpy as jnp
 import numpy as np
 
-from veris.execution.initialization import initialize as initialize_model
 from veris.model.configuration import SETTINGS, Configuration
 from veris.model.metadata import (
     FROM_REGISTRY,
@@ -135,6 +134,29 @@ def numerical_defaults(scenario: IslandSettings) -> dict[str, Any]:
     }
 
 
+ISLAND_PROFILES: dict[str, Any] = {"example": {"grid": (8, 12), "steps": 3}}
+"""Explicit small coupled launch rather than a duplicate CLI default."""
+
+
+def build_fields(
+    state: State,
+    configuration: Configuration,
+    constants: PhysicalConstants,
+    scenario: Mapping[str, Any],
+    global_shape: tuple[int, int],
+    x: np.ndarray,
+    y: np.ndarray,
+    *,
+    regional: bool,
+) -> dict[str, jax.Array]:
+    """Supply island startup fields for shared serial or regional allocation."""
+    controls = IslandSettings(
+        dtype=configuration.dtype,
+        **{name: value for name, value in scenario.items() if name != "islandCooling"},
+    )
+    return _fields(state, constants, controls, *global_shape, x, y, regional=regional)
+
+
 def initialize(
     nx: int | None = None,
     ny: int | None = None,
@@ -157,51 +179,26 @@ def initialize(
     with supplied mesh geometry for sharded experiments. Scenario overrides stay
     local to this module; prescribe heat flux through Experiment forcing.
     """
-    overrides = dict(settings_overrides or {})
-    scenario_values = dict(scenario_overrides or {})
-    if "islandCooling" in scenario_values:
+    from veris.setups.presets import _initialize_adapter
+
+    scenario = dict(scenario_overrides or {})
+    if "islandCooling" in scenario:
         raise ValueError("prescribe islandCooling through Experiment forcing")
-    for name, value in (
-        ("nx", nx),
-        ("ny", ny),
-    ):
-        if value is not None:
-            overrides[name] = value
-    if dtype is not None:
-        overrides["dtype"] = dtype
-    controls = Configuration(**overrides)
     for name, value in (
         ("islandWindSpeed", wind),
         ("islandAirTemperature", air_temperature),
     ):
         if value is not None:
-            scenario_values[name] = value
-    scenario = IslandSettings(dtype=controls.dtype, **scenario_values)
-    if "use_sharding" in overrides and controls.use_sharding:
-        raise ValueError("island initialization supports serial execution only")
-    if controls.nx < 4 or controls.ny < 4:
-        raise ValueError("grid dimensions must be at least four interior cells")
-    overrides["use_sharding"] = False
-    for name, value in numerical_defaults(scenario).items():
-        overrides.setdefault(name, value)
-    vs, conf, phys = initialize_model(
-        settings_overrides=overrides, physical_overrides=physical_overrides
+            scenario[name] = value
+    return _initialize_adapter(
+        "island",
+        nx=nx,
+        ny=ny,
+        dtype=dtype,
+        settings=settings_overrides,
+        constants=physical_overrides,
+        scenario=scenario,
     )
-    fields = _fields(
-        vs,
-        phys,
-        scenario,
-        conf.nx,
-        conf.ny,
-        (np.arange(conf.nx + 4) - 2) % conf.nx,
-        (np.arange(conf.ny + 4) - 2) % conf.ny,
-    )
-    vs = replace(vs, **fields)
-    if not conf.enable_cyclic_y:
-        from veris.grid.halos import fill_state_overlap
-
-        vs = fill_state_overlap(vs, conf)
-    return vs, conf, phys
 
 
 def _fields(

@@ -34,6 +34,6 @@ def test_public_lifecycle_four_cpu_layouts_presets_and_custom_geometry() -> None
         f"ERROR public lifecycle sharding: {result.stderr[-2500:]}"
     )
     assert (
-        "20 four-CPU preset/custom initialization, run and output cases passed"
+        "24 four-CPU preset/custom initialization, run and output cases passed"
         in result.stdout
     )

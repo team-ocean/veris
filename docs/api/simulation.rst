@@ -183,3 +183,22 @@ defaults. Hard-link publication requires filesystem support.
 
 .. autoclass:: veris.execution.simulation.RunResult
    :members:
+
+Public experiment runner
+------------------------
+
+``run_experiment`` accepts the same Experiment definition and grouped overrides
+as the file codec. It preflights inputs, calendars and output destinations,
+prepares runtime resources, executes Simulation and returns its synchronized
+RunResult. ``execution_metadata`` records the actual backend, partition shape,
+process count and process index; snapshot/history attributes retain those values
+separately from the experiment definition.
+
+A supplied ``output_path`` enables the authored sampling schedule. When the
+experiment has no schedule, the runner uses one instantaneous sample per step.
+``snapshot_path`` writes final physical cells. Missing output parents are created
+after validation; existing files remain protected. Imports and definition
+inspection neither change JAX policy nor select devices. Runtime precision and
+backend policy are applied by the explicit launch operation.
+
+.. autofunction:: veris.run_experiment

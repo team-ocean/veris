@@ -17,8 +17,10 @@ import numpy as np
 from veris.execution.initialization import initialize
 from veris.grid.geometry import OceanGeometry
 from veris.model.configuration import Configuration
+from veris.model.forcing import FORCING_FIELDS, _freeze_fields, _precision
 from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import State
+from veris.model.variables import VARIABLES
 
 
 def _validate_geometry(geometry: OceanGeometry, shape: tuple[int, ...]) -> None:
@@ -43,6 +45,8 @@ def _validate_geometry(geometry: OceanGeometry, shape: tuple[int, ...]) -> None:
                 raise ValueError(f"{name} has shape {array.shape}; expected {expected}")
         if not np.isfinite(array).all():
             raise ValueError(f"{name} must contain only finite values")
+        if name.startswith("mask") and np.any((array < 0) | (array > 1)):
+            raise ValueError(f"{name} masks must lie between zero and one")
         if name in (
             "dxt",
             "dxu",
@@ -80,6 +84,27 @@ def initialize_from_ocean(
         options["dtype"] = dtype
     conf = Configuration(**options)
     dtype = conf.dtype
+    overrides = dict(state_overrides or {})
+    unknown = overrides.keys() - VARIABLES.keys()
+    if unknown:
+        raise ValueError(f"unknown State fields: {', '.join(sorted(unknown))}")
+    allowed = FORCING_FIELDS | {"hIceMean", "hSnowMean", "Area", "TSurf"}
+    _freeze_fields({k: v for k, v in overrides.items() if k in allowed}, allowed)
+    for name, value in overrides.items():
+        _precision(name, value, dtype)
+    metrics = {"dxt", "dxu", "dyt", "dyu", "area_t", "area_u", "area_v"}
+    for item in fields(geometry):
+        _precision(
+            item.name,
+            getattr(geometry, item.name),
+            dtype,
+            reciprocal=item.name in metrics,
+        )
+    with np.errstate(over="ignore", invalid="ignore"):
+        area = np.asarray(geometry.area_t, dtype=dtype)
+        west_sum = area + np.roll(area, 1, axis=0)
+        if not np.isfinite(west_sum + np.roll(west_sum, 1, axis=1)).all():
+            raise ValueError(f"area_t corner sums are not representable in {dtype}")
     ice_mask = npx.asarray(geometry.maskT[:, :, -1], dtype=dtype)
     ice_mask_u = npx.asarray(geometry.maskU[:, :, -1], dtype=dtype)
     ice_mask_v = npx.asarray(geometry.maskV[:, :, -1], dtype=dtype)
@@ -95,7 +120,6 @@ def initialize_from_ocean(
     area = npx.asarray(geometry.area_t, dtype=dtype)
     area_z = area + npx.roll(area, 1, 0)
     area_z = 0.25 * (area_z + npx.roll(area_z, 1, 1))
-    overrides = dict(state_overrides or {})
     overrides.update(
         iceMask=ice_mask,
         iceMaskU=ice_mask_u,

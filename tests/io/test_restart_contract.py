@@ -144,3 +144,55 @@ def test_publication_failure_cleans_temporary_file_and_preserves_live_simulation
         assert original.state is state
         assert original.completed_steps == 0 and not original.closed
         assert list(tmp_path.iterdir()) == []
+
+
+def test_original_version_one_execution_schema_remains_readable(tmp_path: Path) -> None:
+    destination = tmp_path / "original-v1.nc"
+    definition = veris.Experiment.builtin("growth", steps=0)
+    with veris.Simulation.initialize(definition) as model:
+        model.save_restart(destination)
+    with h5netcdf.File(destination, "r+") as file:
+        encoded = json.loads(file.attrs["experiment"])
+        encoded["execution"].pop("all_devices")
+        encoded["execution"].pop("distributed")
+        file.attrs["experiment"] = json.dumps(encoded)
+    with veris.Simulation.from_restart(destination) as model:
+        assert model.completed_steps == 0
+        assert model.experiment.execution.distributed is None
+        assert not model.experiment.execution.all_devices
+
+
+@pytest.mark.parametrize(
+    "controls",
+    [
+        {"all_devices": True},
+        {
+            "distributed": {
+                "coordinator_address": "host:12345",
+                "num_processes": 2,
+                "process_id": 0,
+            }
+        },
+    ],
+)
+def test_restart_rejects_unresolved_launch_controls_before_allocation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, controls: dict[str, Any]
+) -> None:
+    import jax
+
+    destination = tmp_path / "launch-controls.nc"
+    with veris.Simulation.initialize(
+        veris.Experiment.builtin("growth", steps=0)
+    ) as model:
+        model.save_restart(destination)
+    with h5netcdf.File(destination, "r+") as file:
+        encoded = json.loads(file.attrs["experiment"])
+        encoded["execution"].update(controls, backend=str(file.attrs["backend"]))
+        file.attrs["experiment"] = json.dumps(encoded)
+
+    def forbidden(*args: Any, **kwargs: Any) -> None:
+        pytest.fail("ERROR invalid restart launch controls selected devices")
+
+    monkeypatch.setattr(jax, "devices", forbidden)
+    with pytest.raises(ValueError, match="serial|distributed"):
+        veris.Simulation.from_restart(destination)

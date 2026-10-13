@@ -151,14 +151,14 @@ def test_builtin_initialization_preserves_every_legacy_field(
 def test_presets_record_prescribed_island_and_recursive_growth_flux_policy() -> None:
     """Preset heat inputs are queued separately from initial coupling outputs."""
     coupled = veris.Experiment.builtin("island", grid=veris.Grid(4, 6))
-    assert coupled.forcing.at(0)["Qnet"] == 100.0
-    assert coupled.forcing.at(0)["Qsw"] == 0.0
+    assert coupled.resolved_forcing.at(0)["Qnet"] == 100.0
+    assert coupled.resolved_forcing.at(0)["Qsw"] == 0.0
     state, _, _ = veris.initialize_experiment(coupled)
     np.testing.assert_array_equal(state.Qnet, 0.0)
     np.testing.assert_array_equal(state.Qsw, 0.0)
     growth = veris.Experiment.builtin("growth", grid=veris.Grid(2, 2))
-    assert "Qnet" not in growth.forcing.at(0)
-    assert "Qsw" not in growth.forcing.at(0)
+    assert "Qnet" not in growth.resolved_forcing.at(0)
+    assert "Qsw" not in growth.resolved_forcing.at(0)
 
 
 def test_growth_scenario_initializes_custom_column_without_source_edits() -> None:
@@ -210,8 +210,8 @@ def test_explicit_preset_forcing_initializes_fields_and_queues_coupled_heat() ->
         np.testing.assert_array_equal(getattr(state, name), value)
     np.testing.assert_array_equal(state.Qnet, 0.0)
     np.testing.assert_array_equal(state.Qsw, 0.0)
-    assert definition.forcing.at(0)["Qnet"] == 80.0
-    assert definition.forcing.at(0)["Qsw"] == 2.0
+    assert definition.resolved_forcing.at(0)["Qnet"] == 80.0
+    assert definition.resolved_forcing.at(0)["Qsw"] == 2.0
 
 
 @pytest.mark.parametrize("cyclic_y", [True, False], ids=["periodic", "closed-y"])

@@ -7,6 +7,13 @@ and output requirements without merging their responsibilities. `Grid` always
 counts global physical cells; Configuration retains local partition extents.
 Definitions resolve existing SETTINGS, PHYSICALCONSTANTS, VARIABLES and setup
 scenario registries. Python and versioned JSON share the same validators/codec.
+Authored settings/constants/scenario/forcing remain sparse and immutable;
+resolved numerical, scenario and forcing views are separate. Grouped Python
+overlays and file overrides share recursive mapping merge and whole-value
+replacement. Re-resolution uses original authored values, so scenario changes
+refresh inherited defaults and dtype promotion does not retain rounded defaults.
+Precedence is shared defaults < preset < experiment configuration < explicit
+Python/CLI overrides; deliberately authored rounded inputs remain deliberate.
 
 `initialize_experiment` validates before selecting devices, reuses preset field
 factories or the ocean adapter, applies physical inputs and prepares geometry,

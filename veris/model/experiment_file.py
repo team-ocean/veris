@@ -25,6 +25,7 @@ import numpy as np
 
 from veris.io.calendar import FixedDate, duration_us
 from veris.io.configuration import OUTPUT_SETTINGS, OutputSettings, Stream
+from veris.model.experiment_resolution import freeze_controls, merge_overrides
 from veris.model.physical_constants import PHYSICALCONSTANTS
 
 if TYPE_CHECKING:
@@ -51,19 +52,6 @@ def _schema_version(version: Any) -> None:
     """Validate format identity independently of overridable experiment values."""
     if type(version) is not int or version != 1:
         raise ValueError("unsupported experiment schema_version; expected version 1")
-
-
-def _merge(base: Mapping[str, Any], overrides: Mapping[str, Any]) -> dict[str, Any]:
-    """Merge nested objects while replacing scalar and sequence values entirely."""
-    result = dict(base)
-    for name, value in overrides.items():
-        prior = result.get(name)
-        result[name] = (
-            _merge(prior, value)
-            if isinstance(prior, Mapping) and isinstance(value, Mapping)
-            else value
-        )
-    return result
 
 
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -95,7 +83,7 @@ def read_experiment(
         values = _mapping(data, "experiment")
         _schema_version(values.get("schema_version", 1))
         if overrides is not None:
-            values = _merge(values, _mapping(overrides, "overrides"))
+            values = merge_overrides(values, _mapping(overrides, "overrides"))
         return experiment_from_dict(values)
     except (OSError, ValueError, TypeError) as error:
         raise ValueError(f"{source}: {error}") from error
@@ -190,7 +178,7 @@ def experiment_from_dict(data: Any) -> Experiment:
     dimensions and scientific metric constraints before allocating a State.
     """
     from veris.grid.geometry import OceanGeometry
-    from veris.model.experiment import Execution, Experiment, Grid
+    from veris.model.experiment import DistributedExecution, Execution, Experiment, Grid
     from veris.model.forcing import Forcing
 
     values = _mapping(data, "experiment")
@@ -200,15 +188,45 @@ def experiment_from_dict(data: Any) -> Experiment:
         "experiment",
     )
     _schema_version(values.pop("schema_version", 1))
+    authored_groups: dict[str, Any] = {}
+    provider = None
+    if values.get("preset") is not None:
+        from veris.setups.presets import get_preset
+
+        provider = get_preset(values["preset"])
     if "grid" in values and not isinstance(values["grid"], Grid):
         grid = _mapping(values["grid"], "grid")
         _known_keys(grid, {item.name for item in fields(Grid)}, "grid")
-        values["grid"] = Grid(**grid)
+        authored_groups["grid"] = grid
+        defaults = (
+            {} if provider is None else provider.grid_defaults(values.get("profile"))
+        )
+        values["grid"] = Grid(**{**defaults, **grid})
     if "execution" in values and not isinstance(values["execution"], Execution):
         execution = _mapping(values["execution"], "execution")
         _known_keys(execution, {item.name for item in fields(Execution)}, "execution")
+        authored_groups["execution"] = dict(execution)
+        defaults = (
+            {}
+            if provider is None
+            else provider.profile_controls(values.get("profile")).get("execution", {})
+        )
+        execution = {**defaults, **execution}
         if isinstance(execution.get("partitions"), list):
             execution["partitions"] = tuple(execution["partitions"])
+        distributed = execution.get("distributed")
+        if distributed is not None and not isinstance(
+            distributed, DistributedExecution
+        ):
+            distributed = _mapping(distributed, "execution.distributed")
+            _known_keys(
+                distributed,
+                {item.name for item in fields(DistributedExecution)},
+                "execution.distributed",
+            )
+            if isinstance(distributed.get("local_device_ids"), list):
+                distributed["local_device_ids"] = tuple(distributed["local_device_ids"])
+            execution["distributed"] = DistributedExecution(**distributed)
         values["execution"] = Execution(**execution)
     for name in ("settings", "constants", "initial_conditions", "scenario"):
         if name in values:
@@ -234,9 +252,28 @@ def experiment_from_dict(data: Any) -> Experiment:
         values["geometry"] = OceanGeometry(**geometry)
     if "output" in values:
         values["output"] = _output(values["output"])
-    if values.get("preset") is not None:
-        return Experiment.builtin(values.pop("preset"), **values)
-    return Experiment(**values)
+    experiment = (
+        Experiment.builtin(values.pop("preset"), **values)
+        if values.get("preset") is not None
+        else Experiment(**values)
+    )
+    if authored_groups:
+        from types import MappingProxyType
+
+        object.__setattr__(
+            experiment,
+            "_authored_controls",
+            MappingProxyType(
+                {
+                    **experiment._authored_controls,
+                    **{
+                        name: freeze_controls(data)
+                        for name, data in authored_groups.items()
+                    },
+                }
+            ),
+        )
+    return experiment
 
 
 def _plain(value: Any) -> Any:
@@ -328,7 +365,7 @@ def experiment_to_dict(
         },
         "physics": experiment.physics,
         "preset": experiment.preset,
-        "scenario": _plain(experiment.scenario),
+        "scenario": _plain(experiment.resolved_scenario),
         "geometry": None
         if experiment.geometry is None
         else {
@@ -338,15 +375,26 @@ def experiment_to_dict(
             for item in fields(experiment.geometry)
         },
         "initial_conditions": input_fields(
-            "initial_conditions", experiment.initial_conditions
+            "initial_conditions", experiment.resolved_initial_conditions
         ),
         "forcing": {
-            "constant": input_fields("forcing/constant", experiment.forcing.constant),
-            "series": input_fields("forcing/series", experiment.forcing.series),
+            "constant": input_fields(
+                "forcing/constant", experiment.resolved_forcing.constant
+            ),
+            "series": input_fields(
+                "forcing/series", experiment.resolved_forcing.series
+            ),
         },
         "execution": {
             "backend": experiment.execution.backend,
             "partitions": list(experiment.execution.partitions),
+            "all_devices": experiment.execution.all_devices,
+            "distributed": None
+            if experiment.execution.distributed is None
+            else {
+                item.name: _plain(getattr(experiment.execution.distributed, item.name))
+                for item in fields(experiment.execution.distributed)
+            },
         },
         "steps": experiment.steps,
         "output": _output_dict(experiment.output),

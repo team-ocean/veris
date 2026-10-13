@@ -151,8 +151,12 @@ def test_growth_cli_rejects_nonfinite_output(
 
     state, conf, phys = run_growth.initialize()
     invalid = replace(state, hIceMean=state.hIceMean.at[2, 2].set(np.nan))
+    from veris.execution import simulation
+
     monkeypatch.setattr(
-        run_growth, "initialize", lambda **kwargs: (invalid, conf, phys)
+        simulation,
+        "initialize_experiment",
+        lambda *args, **kwargs: (invalid, conf, phys),
     )
     path = tmp_path / "invalid.nc"
     with pytest.raises(FloatingPointError, match="nonfinite"):

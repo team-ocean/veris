@@ -299,20 +299,18 @@ def main() -> None:
         directory = Path(location)
         serial_references: dict[tuple[str, bool], tuple[Any, Any, Path]] = {}
         for layout in ((1, 4), (4, 1), (2, 2)):
-            for name in ("island", "dynamics", "growth"):
+            for name in ("island", "dynamics", "growth", "custom"):
                 for cyclic_y in (False, True):
                     _check(name, layout, cyclic_y, directory, serial_references)
-        for cyclic_y in (False, True):
-            _check("custom", (2, 2), cyclic_y, directory, serial_references)
     for layout in ((1, 4), (4, 1), (2, 2)):
-        for name in ("island", "dynamics", "growth"):
+        for name in ("island", "dynamics", "growth", "custom"):
             for cyclic_y in (False, True):
                 _check_small_initialization(name, layout, cyclic_y)
-    for cyclic_y in (False, True):
-        _check_small_initialization("custom", (2, 2), cyclic_y)
-    assert len(spatial_calls) == 4, "ERROR missing split-run spatial placement evidence"
+    assert len(spatial_calls) == 12, (
+        "ERROR missing split-run spatial placement evidence"
+    )
     print(
-        "public lifecycle: 20 four-CPU preset/custom initialization, run and output cases passed"
+        "public lifecycle: 24 four-CPU preset/custom initialization, run and output cases passed"
     )
 
 

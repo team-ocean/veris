@@ -22,8 +22,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from veris.execution.initialization import initialize as initialize_model
-from veris.grid.halos import fill_state_overlap
 from veris.io.cli import (
     output_options,
     output_settings,
@@ -36,9 +34,7 @@ from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import Parameter, State
 
 GROWTH_NUMERICAL_DEFAULTS: dict[str, Any] = {
-    "deltatTherm": 86400.0,
-    "deltatDyn": 86400.0,
-    "nITC": 5,
+    name: SETTINGS[name].default for name in ("deltatTherm", "deltatDyn", "nITC")
 }
 """Notebook timestep and thickness categories."""
 
@@ -88,46 +84,35 @@ class GrowthSettings:
         validate_scalars(self, GROWTH_SETTINGS, positive=frozenset({"nx", "ny"}))
 
 
-def initialize(
-    *,
-    dtype: str | None = None,
-    settings_overrides: Mapping[str, Any] | None = None,
-    physical_overrides: Mapping[str, Any] | None = None,
-    scenario_overrides: Mapping[str, Any] | None = None,
-) -> tuple[State, Configuration, PhysicalConstants]:
-    """Allocate the uniform reference column with separate settings and constants.
+GROWTH_PROFILES: dict[str, Any] = {
+    "example": {"steps": GROWTH_SETTINGS["steps"].default},
+    "standalone": {
+        "steps": GROWTH_SETTINGS["steps"].default,
+        "execution": {"backend": "cpu"},
+    },
+}
+"""Column launch durations inherit the authoritative growth run control."""
 
-    Zero-initialize all fields as initialize_growth.py does, then prescribe the
-    column inputs and unit ocean masks. Notebook numerical defaults select daily
-    timesteps and five thickness categories; explicit settings take precedence.
-    Model and physical overrides are validated by the shared initializer.
-    Enable x64 before calling
-    for float64; main does this at runtime.
-    """
-    overrides: dict[str, Any] = {
-        **GROWTH_NUMERICAL_DEFAULTS,
-        **dict(settings_overrides or {}),
-    }
-    if dtype is not None:
-        overrides["dtype"] = dtype
-    scenario = GrowthSettings(
-        dtype=overrides.get("dtype", SETTINGS["dtype"].default),
-        **dict(scenario_overrides or {}),
-    )
-    overrides.setdefault("nx", scenario.nx)
-    overrides.setdefault("ny", scenario.ny)
-    overrides.setdefault("use_sharding", False)
-    if overrides["use_sharding"]:
-        raise ValueError("growth column initialization supports serial execution only")
-    state, conf, phys = initialize_model(
-        settings_overrides=overrides, physical_overrides=physical_overrides
-    )
+
+def build_fields(
+    state: State,
+    configuration: Configuration,
+    constants: PhysicalConstants,
+    scenario: Mapping[str, Any],
+    global_shape: tuple[int, int],
+    x: np.ndarray,
+    y: np.ndarray,
+    *,
+    regional: bool,
+) -> dict[str, jax.Array]:
+    """Supply zero inactive fields and the prescribed reference column inputs."""
+    controls = GrowthSettings(dtype=configuration.dtype, **scenario)
     values = {
         item.name: jnp.zeros_like(getattr(state, item.name)) for item in fields(State)
     }
     values.update(
         {
-            name: jnp.full_like(getattr(state, name), getattr(scenario, name))
+            name: jnp.full_like(getattr(state, name), getattr(controls, name))
             for name in (
                 "hIceMean",
                 "hSnowMean",
@@ -144,16 +129,47 @@ def initialize(
     for name in ("maskInC", "maskInU", "maskInV", "iceMask", "iceMaskU", "iceMaskV"):
         values[name] = jnp.ones_like(getattr(state, name))
     values["theta"] = jnp.full_like(
-        state.theta, phys.celsius2K + scenario.oceanTemperatureC
+        state.theta, constants.celsius2K + controls.oceanTemperatureC
     )
     values["SeaIceLoad"] = jnp.full_like(
         state.SeaIceLoad,
-        phys.rhoIce * scenario.hIceMean + phys.rhoSnow * scenario.hSnowMean,
+        constants.rhoIce * controls.hIceMean + constants.rhoSnow * controls.hSnowMean,
     )
-    state = replace(state, **values)
-    if not conf.enable_cyclic_y:
-        state = fill_state_overlap(state, conf)
-    return state, conf, phys
+    return values
+
+
+def initialize(
+    *,
+    dtype: str | None = None,
+    settings_overrides: Mapping[str, Any] | None = None,
+    physical_overrides: Mapping[str, Any] | None = None,
+    scenario_overrides: Mapping[str, Any] | None = None,
+) -> tuple[State, Configuration, PhysicalConstants]:
+    """Allocate the uniform reference column with separate settings and constants.
+
+    Zero-initialize all fields as initialize_growth.py does, then prescribe the
+    column inputs and unit ocean masks. Notebook numerical defaults select daily
+    timesteps and five thickness categories; explicit settings take precedence.
+    Model and physical overrides are validated by the shared initializer.
+    Enable x64 before calling
+    for float64; main does this at runtime.
+    """
+    from veris.setups.presets import _initialize_adapter
+
+    scenario = dict(scenario_overrides or {})
+    options = dict(settings_overrides or {})
+    for name in ("nx", "ny"):
+        if name in scenario:
+            options.setdefault(name, scenario.pop(name))
+    steps = scenario.pop("steps", 0)
+    return _initialize_adapter(
+        "growth",
+        dtype=dtype,
+        steps=steps,
+        settings=options,
+        constants=physical_overrides,
+        scenario=scenario,
+    )
 
 
 @click.command(help=__doc__)

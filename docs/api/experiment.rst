@@ -37,6 +37,25 @@ with absolute forcing position, model time, scheduled output and complete serial
 restart. Definition and initialization
 are host operations; enable JAX x64 explicitly before requesting float64 allocation.
 
+Authored and resolved controls
+------------------------------
+
+``settings``, ``constants``, ``scenario`` and ``forcing`` retain immutable authored
+inputs. ``configuration``, ``physical_constants``, ``resolved_settings``,
+``resolved_scenario`` and ``resolved_forcing`` expose validated effective values.
+This preserves the distinction between an explicit value and an inherited preset
+default when an experiment changes::
+
+   updated = experiment.with_overrides({
+       "scenario": {"islandTimeStep": 300, "islandCooling": 25},
+       "settings": {"dtype": "float64"},
+   })
+
+Mappings merge by key; arrays, lists, scalars and allowed ``None`` values replace
+whole values. Explicit numerical settings or forcing continue to take precedence
+over scenario defaults. Changing precision re-evaluates inherited raw defaults;
+an explicitly supplied rounded value remains that value.
+
 Declarative files
 -----------------
 

@@ -28,7 +28,7 @@ from veris.io.lifecycle import _new_path
 from veris.io.restart_arrays import ArrayManifest, hydrate_definition, validate_links
 from veris.io.schedule import iter_segments
 from veris.io.storage import NetCDFWriter, _json_scalar, selected_fields
-from veris.model.experiment import Experiment
+from veris.model.experiment import Execution, Experiment
 from veris.model.experiment_file import (
     _nonfinite_constant,
     _unique_object,
@@ -75,6 +75,8 @@ def _serial(experiment: Experiment, backend: str) -> None:
     if (
         experiment.execution.partitions != (1, 1)
         or experiment.configuration.use_sharding
+        or experiment.execution.all_devices
+        or experiment.execution.distributed is not None
     ):
         raise ValueError(
             "complete restart supports serial execution only; distributed partitions unsupported"
@@ -98,7 +100,7 @@ def _clock(experiment: Experiment, clock: dict[str, Any]) -> tuple[int, timedelt
         experiment.step_duration
     ):
         raise ValueError("restart elapsed clock disagrees with completed steps")
-    length = experiment.forcing.length
+    length = experiment.resolved_forcing.length
     if length is not None and completed > length:
         raise ValueError("restart forcing cursor exceeds series length")
     try:
@@ -343,11 +345,18 @@ def read_restart(
                 raise ValueError("incomplete or unexpected restart metadata")
             encoded_definition = _decode(file.attrs["experiment"], "experiment")
             execution = encoded_definition.get("execution")
-            if not isinstance(execution, dict) or set(execution) != {
-                "backend",
-                "partitions",
-            }:
+            required = {"backend", "partitions"}
+            supported = {item.name for item in fields(Execution)}
+            if (
+                not isinstance(execution, dict)
+                or not required <= execution.keys() <= supported
+            ):
                 raise ValueError("restart requires complete execution metadata")
+            # Version 1 checkpoints predating explicit launch controls remain
+            # complete. Add only optional identity defaults before canonical
+            # comparison; required keys and unknown fields still fail above.
+            execution.setdefault("all_devices", False)
+            execution.setdefault("distributed", None)
             partitions = execution["partitions"]
             if (
                 not isinstance(partitions, list)
@@ -365,6 +374,8 @@ def read_restart(
                 raise ValueError("restart backend disagrees with execution metadata")
             definition = hydrate_definition(file, encoded_definition)
             experiment = experiment_from_dict(definition)
+            backend = str(file.attrs["backend"])
+            _serial(experiment, backend)
             canonical = experiment_to_dict(
                 experiment, _array_encoder=ArrayManifest().encode
             )
@@ -374,8 +385,6 @@ def read_restart(
                 raise ValueError(
                     "incomplete or incompatible resolved experiment metadata"
                 )
-            backend = str(file.attrs["backend"])
-            _serial(experiment, backend)
             _validate_inputs(experiment)
             completed, elapsed = _clock(
                 experiment, _decode(file.attrs["clock"], "clock")

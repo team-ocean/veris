@@ -18,43 +18,28 @@ import numpy as np
 from jax.sharding import Mesh
 from numpy.typing import NDArray
 
-from veris.grid.geometry import OceanGeometry
 from veris.grid.halos import fill_state_overlap
 from veris.grid.ocean import _validate_geometry, initialize_from_ocean
 from veris.grid.regions import regional_geometry, regional_state
 from veris.model.configuration import Configuration
 from veris.model.experiment import Experiment
+from veris.model.forcing import FORCING_FIELDS, _freeze_fields, _precision
 from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import State
 from veris.model.variables import VARIABLES
+from veris.setups.presets import get_preset
 
 _METRICS = frozenset({"dxt", "dxu", "dyt", "dyu", "area_t", "area_u", "area_v"})
-
-
-def _precision(name: str, value: Any, dtype: str, *, reciprocal: bool = False) -> None:
-    """Reject lossy range conversions before JAX can allocate any device arrays."""
-    original = np.asarray(value)
-    with np.errstate(over="ignore", under="ignore", invalid="ignore", divide="ignore"):
-        converted = original.astype(dtype)
-        invalid = not np.isfinite(converted).all() or np.any(
-            (original != 0) & (converted == 0)
-        )
-        if reciprocal:
-            invalid = invalid or not np.isfinite(1 / converted).all()
-    if invalid:
-        raise ValueError(
-            f"{name} is not representable with valid reciprocals in {dtype}"
-        )
 
 
 def _validate_inputs(experiment: Experiment) -> None:
     """Preflight all series values and geometry before resource selection."""
     dtype = experiment.configuration.dtype
     for inputs in (
-        experiment.initial_conditions,
-        experiment.forcing.constant,
-        experiment.forcing.series,
-        experiment.scenario,
+        experiment.resolved_initial_conditions,
+        experiment.resolved_forcing.constant,
+        experiment.resolved_forcing.series,
+        experiment.resolved_scenario,
     ):
         for name, value in inputs.items():
             _precision(name, value, dtype)
@@ -69,8 +54,6 @@ def _validate_inputs(experiment: Experiment) -> None:
     _validate_geometry(geometry, (experiment.grid.nx, experiment.grid.ny))
     for item in fields(geometry):
         value = np.asarray(getattr(geometry, item.name))
-        if item.name.startswith("mask") and np.any((value < 0) | (value > 1)):
-            raise ValueError(f"{item.name} masks must lie between zero and one")
         _precision(item.name, value, dtype, reciprocal=item.name in _METRICS)
     # Preserve the original corner-area arithmetic, including its intermediate
     # sums. Catch finite input values whose sum would overflow that precision.
@@ -87,27 +70,21 @@ def _validate_inputs(experiment: Experiment) -> None:
 def _validate_derived_inputs(experiment: Experiment) -> None:
     """Check load, inverse thickness and wind magnitude in the model precision."""
     conf, phys = experiment.configuration, experiment.physical_constants
-    scenario = experiment.scenario
-    if experiment.preset == "growth":
-        theta = phys.celsius2K + scenario["oceanTemperatureC"]
-        if not np.isfinite(theta) or theta <= 0:
-            raise ValueError(
-                "growth oceanTemperatureC must produce positive theta in kelvin"
-            )
-    defaults = {
-        "hIceMean": scenario.get(
-            "islandIceThickness",
-            scenario.get(
-                "ice_thickness", scenario.get("hIceMean", VARIABLES["hIceMean"].default)
-            ),
-        ),
-        "hSnowMean": scenario.get(
-            "islandSnowThickness",
-            scenario.get("hSnowMean", VARIABLES["hSnowMean"].default),
-        ),
-    }
+    defaults = {name: VARIABLES[name].default for name in ("hIceMean", "hSnowMean")}
+    if experiment.preset is not None:
+        provider = get_preset(experiment.preset)
+        if provider.initial_defaults is not None:
+            supplied = provider.initial_defaults(experiment.resolved_scenario, phys)
+            allowed = FORCING_FIELDS | {"hIceMean", "hSnowMean", "Area", "TSurf"}
+            _freeze_fields(supplied, allowed)
+            for name, value in supplied.items():
+                _precision(name, value, conf.dtype)
+            defaults.update(supplied)
+    defaults = {name: defaults[name] for name in ("hIceMean", "hSnowMean")}
     ice, snow = (
-        np.asarray(experiment.initial_conditions.get(name, value), dtype=conf.dtype)
+        np.asarray(
+            experiment.resolved_initial_conditions.get(name, value), dtype=conf.dtype
+        )
         for name, value in defaults.items()
     )
     with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
@@ -119,7 +96,7 @@ def _validate_derived_inputs(experiment: Experiment) -> None:
             raise ValueError(
                 f"hIceMean regularized inverse is not representable in {conf.dtype}"
             )
-    forcing = experiment.forcing
+    forcing = experiment.resolved_forcing
     keys = forcing.constant.keys() | forcing.series.keys()
     if not {"uWind", "vWind"} & keys or "wSpeed" in keys:
         return
@@ -136,14 +113,6 @@ def _validate_derived_inputs(experiment: Experiment) -> None:
             raise ValueError(
                 f"wSpeed vector magnitude is not representable in {conf.dtype}"
             )
-
-
-def _pad_geometry(geometry: OceanGeometry, conf: Configuration) -> OceanGeometry:
-    """Extend physical metrics before the adapter averages adjacent cells."""
-    x = (np.arange(conf.nx + 4) - 2) % conf.nx
-    y = np.arange(conf.ny + 4) - 2
-    y = y % conf.ny if conf.enable_cyclic_y else np.clip(y, 0, conf.ny - 1)
-    return regional_geometry(geometry, x, y)
 
 
 def _stored_field(value: Any, conf: Configuration) -> NDArray[Any]:
@@ -206,134 +175,115 @@ def _apply_inputs(
     return fill_state_overlap(state, conf) if refresh and (custom or values) else state
 
 
-def _initialize_serial(experiment: Experiment) -> State:
-    """Reuse exact setup factories or the established ocean metric adapter."""
-    conf, phys = experiment.configuration, experiment.physical_constants
-    numerical = dict(experiment.settings)
-    numerical["use_sharding"] = False
-    physical = dict(experiment.constants)
-    forcing = dict(experiment.forcing.at(0))
-    if experiment.preset == "island":
-        from veris.setups.island import initialize
+def _startup_inputs(experiment: Experiment) -> tuple[dict[str, Any], bool]:
+    """Select startup forcing and the provider's derived-field policy."""
+    forcing = dict(experiment.resolved_forcing.at(0))
+    if experiment.preset is None:
+        return forcing, True
+    provider = get_preset(experiment.preset)
+    for name in provider.startup_excluded_forcing:
+        forcing.pop(name, None)
+    return forcing, not provider.preserve_startup
 
-        scenario = {
-            k: v for k, v in experiment.scenario.items() if k != "islandCooling"
-        }
-        state, _, _ = initialize(
-            experiment.grid.nx,
-            experiment.grid.ny,
-            settings_overrides=numerical,
-            physical_overrides=physical,
-            scenario_overrides=scenario,
-        )
-        # Coupling outputs start at their established values. Prescribed heat is
-        # an input to advance(), not a replacement for startup coupling outputs.
-        forcing.pop("Qnet", None)
-        forcing.pop("Qsw", None)
-    elif experiment.preset == "dynamics":
-        from veris.setups.run_dyn import initialize
 
-        state, _, _ = initialize(
-            experiment.grid.nx,
-            experiment.grid.ny,
-            settings_overrides=numerical,
-            physical_overrides=physical,
-            scenario_overrides=experiment.scenario,
-        )
-    elif experiment.preset == "growth":
-        from veris.setups.run_growth import initialize
+def _build_region(
+    experiment: Experiment,
+    conf: Configuration,
+    x: Any,
+    y: Any,
+    *,
+    regional: bool,
+) -> State:
+    """Allocate a local baseline and apply one registered data factory."""
+    from veris.execution.initialization import initialize as allocate
 
-        state, _, _ = initialize(
-            settings_overrides={**numerical, "nx": conf.nx, "ny": conf.ny},
-            physical_overrides=physical,
-            scenario_overrides=experiment.scenario,
-        )
-    else:
-        assert experiment.geometry is not None
+    numerical = {
+        **experiment.resolved_settings,
+        "nx": conf.nx,
+        "ny": conf.ny,
+        "use_sharding": False,
+        "enable_cyclic_y": conf.enable_cyclic_y,
+    }
+    if experiment.geometry is not None:
         state, _, _ = initialize_from_ocean(
-            _pad_geometry(experiment.geometry, conf),
+            regional_geometry(experiment.geometry, x, y),
             settings_overrides=numerical,
-            physical_overrides=physical,
+            physical_overrides=experiment.resolved_constants,
         )
+        return state
+    assert experiment.preset is not None
+    provider = get_preset(experiment.preset)
+    state, _, phys = allocate(
+        settings_overrides=numerical,
+        physical_overrides=experiment.resolved_constants,
+    )
+    replacements = provider.field_factory(
+        state,
+        conf,
+        phys,
+        experiment.resolved_scenario,
+        (experiment.grid.nx, experiment.grid.ny),
+        x,
+        y,
+        regional=regional,
+    )
+    if not isinstance(replacements, Mapping):
+        raise TypeError("provider field_factory must return a mapping of State fields")
+    unknown = replacements.keys() - VARIABLES.keys()
+    if unknown:
+        raise ValueError(f"unknown provider State fields: {', '.join(sorted(unknown))}")
+    if not provider.preserve_startup:
+        allowed = FORCING_FIELDS | {"hIceMean", "hSnowMean", "Area", "TSurf"}
+        _freeze_fields({k: v for k, v in replacements.items() if k in allowed}, allowed)
+    values = {}
+    for name, value in replacements.items():
+        _precision(name, value, conf.dtype)
+        array = jnp.asarray(value, dtype=conf.dtype)
+        expected = getattr(state, name).shape
+        if array.ndim == 0:
+            array = jnp.full(expected, array, dtype=conf.dtype)
+        if array.shape != expected:
+            raise ValueError(
+                f"provider {name} has shape {array.shape}; expected halo-inclusive {expected}"
+            )
+        values[name] = array
+    state = replace(state, **values)
+    return fill_state_overlap(state, conf) if not conf.enable_cyclic_y else state
+
+
+def _initialize_serial(experiment: Experiment) -> State:
+    """Build the serial region through the same provider contract as shards."""
+    conf, phys = experiment.configuration, experiment.physical_constants
+    x = (np.arange(conf.nx + 4) - 2) % conf.nx
+    y = np.arange(conf.ny + 4) - 2
+    y = (
+        np.clip(y, 0, conf.ny - 1)
+        if experiment.geometry is not None and not conf.enable_cyclic_y
+        else y % conf.ny
+    )
+    state = _build_region(experiment, conf, x, y, regional=False)
+    forcing, custom = _startup_inputs(experiment)
     return _apply_inputs(
         state,
-        experiment.initial_conditions,
+        experiment.resolved_initial_conditions,
         forcing,
         conf,
         phys,
-        custom=experiment.preset is None,
+        custom=custom,
     )
 
 
 def _initialize_sharded(experiment: Experiment, mesh: Mesh) -> State:
     """Build only addressable regions, then establish true global boundary halos."""
-    from veris.execution.initialization import initialize as allocate
-
     conf, phys = experiment.configuration, experiment.physical_constants
-    # A regional factory must never close its local north/south edges. Global
-    # wall policies are applied to the complete packed layout after callbacks.
+    # A regional factory never closes its local edges. Global wall policies are
+    # applied to the complete packed layout after addressable callbacks finish.
     local = replace(conf, use_sharding=False, enable_cyclic_y=True)
-    numerical = {
-        **experiment.settings,
-        "nx": conf.nx,
-        "ny": conf.ny,
-        "use_sharding": False,
-        "enable_cyclic_y": True,
-    }
     global_shape = experiment.grid.nx, experiment.grid.ny
-    forcing = dict(experiment.forcing.at(0))
-    if experiment.preset == "island":
-        forcing.pop("Qnet", None)
-        forcing.pop("Qsw", None)
+    forcing, custom = _startup_inputs(experiment)
 
     def build(x: Any, y: Any) -> dict[str, Any]:
-        if experiment.preset == "dynamics":
-            from veris.setups.run_dyn import DynamicsSettings, _fields
-
-            state = State(
-                **{
-                    name: jnp.asarray(value)
-                    for name, value in _fields(
-                        x,
-                        y,
-                        *global_shape,
-                        DynamicsSettings(**dict(experiment.scenario)),
-                        conf.dtype,
-                    ).items()
-                }
-            )
-        elif experiment.preset == "island":
-            from veris.setups.island import IslandSettings, _fields
-
-            state, _, _ = allocate(
-                settings_overrides=numerical,
-                physical_overrides=experiment.constants,
-            )
-            scenario = IslandSettings(
-                dtype=conf.dtype,
-                **{
-                    k: v for k, v in experiment.scenario.items() if k != "islandCooling"
-                },
-            )
-            state = replace(
-                state,
-                **_fields(state, phys, scenario, *global_shape, x, y, regional=True),
-            )
-        elif experiment.preset == "growth":
-            from veris.setups.run_growth import initialize
-
-            state, _, _ = initialize(
-                settings_overrides=numerical,
-                physical_overrides=experiment.constants,
-                scenario_overrides=experiment.scenario,
-            )
-        else:
-            assert experiment.geometry is not None
-            state, _, _ = initialize_from_ocean(
-                regional_geometry(experiment.geometry, x, y),
-                settings_overrides=numerical,
-                physical_overrides=experiment.constants,
-            )
+        state = _build_region(experiment, local, x, y, regional=True)
 
         def region(values: Mapping[str, Any]) -> dict[str, Any]:
             return {
@@ -343,23 +293,21 @@ def _initialize_sharded(experiment: Experiment, mesh: Mesh) -> State:
 
         state = _apply_inputs(
             state,
-            region(experiment.initial_conditions),
+            region(experiment.resolved_initial_conditions),
             region(forcing),
             local,
             phys,
-            custom=experiment.preset is None,
+            custom=custom,
             stored=True,
             refresh=False,
         )
         return {item.name: getattr(state, item.name) for item in fields(state)}
 
     state = regional_state(mesh, conf, global_shape, build)
-    # Custom metric corner stencils and all user overrides need exchanged
-    # halos. Uniform periodic presets already construct their exact halos.
     if (
         not conf.enable_cyclic_y
-        or experiment.preset is None
-        or experiment.initial_conditions
+        or custom
+        or experiment.resolved_initial_conditions
         or forcing
     ):
         state = fill_state_overlap(state, conf)

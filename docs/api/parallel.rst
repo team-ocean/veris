@@ -46,8 +46,30 @@ and collects selected physical fields for the :doc:`io` API. All processes
 participate in collective calls in the same order; only the writing process
 creates the output file.
 
-.. autofunction:: veris.setups.run_parallel.distributed_options
+.. autofunction:: veris.execution.runtime.distributed_options
 
-.. autofunction:: veris.setups.run_parallel.create_mesh
+.. autofunction:: veris.execution.runtime.create_mesh
 
 .. autofunction:: veris.grid.halos.remove_halos
+
+Execution resources
+-------------------
+
+The public Python runner prepares resources before initializing State. It
+validates explicit ``DistributedExecution`` controls or adapts JAX/Slurm launch
+variables once. Explicit controls take precedence. Services started by the
+framework close on success, bootstrap failure or execution failure; caller-owned
+services remain active. Supplied meshes remain borrowed.
+
+``Execution()`` requests serial execution. ``all_devices=True`` requests an
+all-device mesh discovered at launch; the parallel dynamics profile uses that
+policy. Explicit partitions must use all available devices of the chosen
+backend. Multiple equally sized device slices use a hybrid mesh rather than an
+unsupported ``jax.make_mesh`` topology. The low-level Simulation facade still
+expects callers to prepare distributed services and meshes themselves.
+
+.. autoclass:: veris.DistributedExecution
+
+.. autoclass:: veris.execution.runtime.RuntimeResources
+
+.. autofunction:: veris.execution.runtime.execution_resources

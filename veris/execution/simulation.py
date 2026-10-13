@@ -61,6 +61,7 @@ class RunResult:
     observations: Any = None
     compilation_seconds: float = 0.0
     integration_seconds: float = 0.0
+    execution_metadata: Mapping[str, Any] | None = None
 
 
 class Simulation:
@@ -117,8 +118,8 @@ class Simulation:
                     if mesh is None
                     else regional_forcing(value, configuration.dtype, mesh)
                 )
-                for name, value in experiment.forcing.constant.items()
-                if name not in experiment.forcing.series
+                for name, value in experiment.resolved_forcing.constant.items()
+                if name not in experiment.resolved_forcing.series
             }
         physics = experiment.physics
 
@@ -263,7 +264,7 @@ class Simulation:
             count = int(steps)
         if observe is not None and not callable(observe):
             raise TypeError("observe must be a pure callable or None")
-        length = self._experiment.forcing.length
+        length = self._experiment.resolved_forcing.length
         if length is not None and self._completed_steps + count > length:
             raise ValueError(
                 f"requested steps exceed forcing length {length} "
@@ -328,7 +329,7 @@ class Simulation:
             )
         carry = self._state, diagnostic
         inputs = None
-        if count and self._experiment.forcing.series:
+        if count and self._experiment.resolved_forcing.series:
             start = self._completed_steps
             inputs = {
                 name: (
@@ -342,7 +343,7 @@ class Simulation:
                         self._mesh,
                     )
                 )
-                for name, value in self._experiment.forcing.series.items()
+                for name, value in self._experiment.resolved_forcing.series.items()
             }
         transition = self._transition if count else lambda value: value
         selector = None if observe is None else lambda value: observe(*value)

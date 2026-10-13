@@ -47,9 +47,9 @@ def test_json_file_python_override_precedence_and_resolved_roundtrip(
     assert definition.configuration.nEVPsteps == 7
     assert definition.configuration.deltatTherm == 300
     assert definition.physical_constants.rhoIce == 910
-    assert definition.forcing.at(1)["ocSalt"] == 34
-    assert definition.forcing.at(1)["uWind"] == 4
-    assert definition.forcing.at(1)["Qnet"] == 100
+    assert definition.resolved_forcing.at(1)["ocSalt"] == 34
+    assert definition.resolved_forcing.at(1)["uWind"] == 4
+    assert definition.resolved_forcing.at(1)["Qnet"] == 100
     assert definition.initial_conditions["Area"] == 0.8
     resolved = definition.to_dict()
     assert resolved["schema_version"] == 1
@@ -243,16 +243,19 @@ def test_custom_geometry_and_builtin_scenario_roundtrip(tmp_path: Path) -> None:
         restored = veris.Experiment.from_file(path)
         assert restored.to_dict() == resolved
         assert restored.configuration == definition.configuration
-        assert restored.forcing.at(0).keys() == definition.forcing.at(0).keys()
-        for name, value in definition.forcing.at(0).items():
-            np.testing.assert_array_equal(restored.forcing.at(0)[name], value)
+        assert (
+            restored.resolved_forcing.at(0).keys()
+            == definition.resolved_forcing.at(0).keys()
+        )
+        for name, value in definition.resolved_forcing.at(0).items():
+            np.testing.assert_array_equal(restored.resolved_forcing.at(0)[name], value)
         if definition.geometry is not None:
             assert restored.geometry is not None
             for name in geometry.__dataclass_fields__:
                 np.testing.assert_array_equal(
                     getattr(restored.geometry, name), getattr(geometry, name)
                 )
-    assert builtin.forcing.at(0)["Qnet"] == 70.0
+    assert builtin.resolved_forcing.at(0)["Qnet"] == 70.0
 
 
 def test_minimal_preset_file_uses_builtin_grid_and_physics_defaults(

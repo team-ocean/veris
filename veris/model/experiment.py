@@ -8,11 +8,12 @@ convention. No equations or numerical tolerances are defined here.
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field, fields, replace
 from datetime import timedelta
+from enum import Enum
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 import numpy as np
 
@@ -26,6 +27,16 @@ from veris.model.forcing import (
     _validate_shapes,
 )
 from veris.model.physical_constants import PhysicalConstants
+
+
+class _DefaultInput(Enum):
+    """Mark omitted constructor controls without confusing zero/None with omission."""
+
+    SHARED = "shared or preset default"
+
+
+_DEFAULT_INPUT: Any = _DefaultInput.SHARED
+_DEFAULTED_CONTROLS = ("grid", "physics", "steps", "execution", "output")
 
 INITIAL_FIELDS = frozenset(
     {
@@ -86,6 +97,75 @@ class Grid:
 
 
 @dataclass(frozen=True)
+class DistributedExecution:
+    """Explicit distributed bootstrap controls, validated without JAX devices.
+
+    Supply coordinator/count/rank together, or a supported cluster detector.
+    Local device IDs are immutable nonnegative indices. Execution resources
+    adapt environment defaults only when no explicit bootstrap is supplied.
+    """
+
+    coordinator_address: str | None = None
+    num_processes: int | None = None
+    process_id: int | None = None
+    local_device_ids: tuple[int, ...] | None = None
+    cluster_detection_method: str | None = None
+
+    def __post_init__(self) -> None:
+        """Reject incomplete rendezvous controls and malformed ranks/device IDs."""
+        explicit = (self.coordinator_address, self.num_processes, self.process_id)
+        if any(value is not None for value in explicit):
+            if any(value is None for value in explicit):
+                raise ValueError(
+                    "coordinator/count/process controls must be set together"
+                )
+            address = self.coordinator_address
+            if not isinstance(address, str):
+                raise ValueError(
+                    "coordinator_address must contain a host and valid port"
+                )
+            host, separator, port = address.rpartition(":")
+            if (
+                not isinstance(address, str)
+                or not host
+                or not separator
+                or any(c.isspace() for c in address)
+                or not port.isdecimal()
+                or not 1 <= int(port) <= 65535
+            ):
+                raise ValueError(
+                    "coordinator_address must contain a host and valid port"
+                )
+            if type(self.num_processes) is not int or self.num_processes < 1:
+                raise ValueError("num_processes must be a positive integer")
+            if (
+                type(self.process_id) is not int
+                or not 0 <= self.process_id < self.num_processes
+            ):
+                raise ValueError(
+                    "process_id must be an integer within the process count"
+                )
+            if self.cluster_detection_method is not None:
+                raise ValueError(
+                    "explicit coordinator controls conflict with cluster detection"
+                )
+        elif self.cluster_detection_method not in {"slurm", "ompi", "mpi4py", "k8s"}:
+            raise ValueError(
+                "distributed execution requires coordinator controls or a supported cluster detector"
+            )
+        ids = self.local_device_ids
+        if ids is not None and (
+            not isinstance(ids, tuple)
+            or not ids
+            or any(type(index) is not int or index < 0 for index in ids)
+            or len(set(ids)) != len(ids)
+        ):
+            raise ValueError(
+                "local device IDs must be a nonempty tuple of distinct nonnegative integers"
+            )
+
+
+@dataclass(frozen=True)
 class Execution:
     """Execution resource request, separate from static numerical settings.
 
@@ -96,20 +176,35 @@ class Execution:
 
     backend: str | None = None
     partitions: tuple[int, int] = (1, 1)
+    distributed: DistributedExecution | None = None
+    all_devices: bool = False
 
     def __post_init__(self) -> None:
         """Reject unsupported backends and malformed mesh dimensions."""
         if self.backend not in (None, "cpu", "gpu"):
             raise ValueError("backend must be None, cpu or gpu")
         _partitions(self.partitions)
+        if type(self.all_devices) is not bool:
+            raise TypeError("all_devices must be a bool")
+        if self.all_devices and self.partitions != (1, 1):
+            raise ValueError("all_devices conflicts with explicit partitions")
+        if self.distributed is not None:
+            if not isinstance(self.distributed, DistributedExecution):
+                raise TypeError("distributed must be DistributedExecution or None")
+            if self.backend is None:
+                raise ValueError("distributed execution requires an explicit backend")
 
 
 @dataclass(frozen=True)
 class Experiment:
     """One experiment's independent numerical, physical, input and host controls.
 
-    settings and constants are overrides passed to existing registry-backed
-    constructors. Grid owns global nx/ny; Execution owns use_sharding. Physical
+    settings, constants, scenario and forcing retain authored inputs. Inherited
+    defaults and dtype-normalized values live in configuration,
+    physical_constants, resolved_settings, resolved_scenario and resolved_forcing.
+    with_overrides merges authored values before resolving them again, preserving
+    shared defaults < preset < configuration < explicit overrides precedence.
+    Grid owns global nx/ny; Execution owns use_sharding. Physical
     constants inherit the numerical dtype. Initial conditions and forcing use
     global physical arrays without halos, in VARIABLES units. Geometry is host
     input to runnable initialization, rather than an array default allocation.
@@ -120,23 +215,57 @@ class Experiment:
     scheduled output. Definition construction allocates no model/device arrays.
     """
 
-    grid: Grid = field(default_factory=Grid)
+    _initialization_only: ClassVar[bool] = False
+
+    grid: Grid = _DEFAULT_INPUT
     settings: Mapping[str, Any] = field(default_factory=dict)
     constants: Mapping[str, Any] = field(default_factory=dict)
-    physics: str = "coupled"
+    physics: str = _DEFAULT_INPUT
     geometry: OceanGeometry | None = None
     initial_conditions: Mapping[str, Any] = field(default_factory=dict)
     forcing: Forcing = field(default_factory=Forcing)
-    execution: Execution = field(default_factory=Execution)
-    steps: int = 0
-    output: OutputSettings | None = None
+    execution: Execution = _DEFAULT_INPUT
+    steps: int = _DEFAULT_INPUT
+    output: OutputSettings | None = _DEFAULT_INPUT
     preset: str | None = None
+    profile: str | None = None
     scenario: Mapping[str, Any] = field(default_factory=dict)
     configuration: Configuration = field(init=False)
     physical_constants: PhysicalConstants = field(init=False)
+    resolved_settings: Mapping[str, Any] = field(init=False, repr=False)
+    resolved_scenario: Mapping[str, Any] = field(init=False, repr=False)
+    resolved_forcing: Forcing = field(init=False, repr=False)
+    resolved_constants: Mapping[str, Any] = field(init=False, repr=False)
+    resolved_initial_conditions: Mapping[str, Any] = field(init=False, repr=False)
+    _authored_controls: Mapping[str, Any] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         """Validate grouped controls, resolve registry objects and freeze inputs."""
+        from veris.model.experiment_file import _output
+        from veris.setups.presets import get_preset
+
+        authored = {
+            name: getattr(self, name)
+            for name in _DEFAULTED_CONTROLS
+            if getattr(self, name) is not _DEFAULT_INPUT
+        }
+        provider = None if self.preset is None else get_preset(self.preset)
+        if self.profile is not None and provider is None:
+            raise ValueError("profile requires a preset")
+        launch = {} if provider is None else provider.profile_controls(self.profile)
+        defaults = {
+            "grid": Grid()
+            if provider is None
+            else Grid(**provider.grid_defaults(self.profile)),
+            "physics": "coupled" if provider is None else provider.physics,
+            "steps": launch.get("steps", 0),
+            "execution": Execution(**launch.get("execution", {})),
+            "output": _output(launch.get("output")),
+        }
+        for name, value in defaults.items():
+            if getattr(self, name) is _DEFAULT_INPUT:
+                object.__setattr__(self, name, value)
+        object.__setattr__(self, "_authored_controls", MappingProxyType(authored))
         for name, expected in (
             ("grid", Grid),
             ("execution", Execution),
@@ -172,73 +301,102 @@ class Experiment:
             raise ValueError("use Execution for sharding, not numerical settings")
         if not isinstance(self.scenario, Mapping):
             raise TypeError("scenario must be a mapping")
+        settings = dict(self.settings)
+        scenario: dict[str, Any] = {}
+        forcing = self.forcing
         if self.preset is not None:
-            from veris.setups.presets import PRESET_PHYSICS, preset_controls
+            from veris.setups.presets import preset_controls
 
             settings, scenario = preset_controls(
-                self.preset, self.settings, self.scenario
+                self.preset, self.settings, self.scenario, self.profile
             )
-            if self.physics != PRESET_PHYSICS[self.preset]:
+            assert provider is not None
+            if self.physics != provider.physics:
                 raise ValueError("physics is incompatible with builtin preset")
             if self.geometry is not None:
                 raise ValueError("builtin preset and custom geometry are exclusive")
-            object.__setattr__(self, "settings", settings)
-            object.__setattr__(self, "scenario", MappingProxyType(scenario))
-            if self.preset == "island":
-                if min(self.grid.nx, self.grid.ny) < 4:
-                    raise ValueError("island requires at least four physical cells")
-                object.__setattr__(
-                    self,
-                    "forcing",
-                    Forcing(
-                        constant={
-                            "Qnet": scenario["islandCooling"],
-                            "Qsw": 0.0,
-                            **self.forcing.constant,
-                        },
-                        series=self.forcing.series,
-                    ),
+            if any(
+                size < minimum
+                for size, minimum in zip(
+                    (self.grid.nx, self.grid.ny), provider.minimum_shape, strict=True
                 )
+            ):
+                words = {2: "two", 4: "four"}
+                minimum = " by ".join(
+                    str(words.get(size, size)) for size in provider.minimum_shape
+                )
+                raise ValueError(
+                    f"{provider.name} requires at least {minimum} physical cells"
+                )
+            prescribed = provider.forcing_defaults
+            prescribed_defaults = (
+                prescribed if isinstance(prescribed, Mapping) else prescribed(scenario)
+            )
+            profile_forcing = launch.get("forcing", {})
+            forcing = Forcing(
+                constant={
+                    **prescribed_defaults,
+                    **profile_forcing.get("constant", {}),
+                    **self.forcing.constant,
+                },
+                series={**profile_forcing.get("series", {}), **self.forcing.series},
+            )
         elif self.scenario:
             raise ValueError("scenario controls require a builtin preset")
-        else:
-            object.__setattr__(self, "scenario", MappingProxyType({}))
         local_x, local_y = self.grid.local_shape(self.execution.partitions)
         conf = Configuration(
-            **self.settings,
+            **settings,
             nx=local_x,
             ny=local_y,
             use_sharding=self.execution.partitions != (1, 1),
         )
-        if "dtype" in self.constants and self.constants["dtype"] != conf.dtype:
+        constants = {**launch.get("constants", {}), **self.constants}
+        if "dtype" in constants and constants["dtype"] != conf.dtype:
             raise ValueError("physical constants dtype must match numerical dtype")
-        physical_options: dict[str, Any] = {**self.constants, "dtype": conf.dtype}
+        physical_options: dict[str, Any] = {**constants, "dtype": conf.dtype}
         phys = PhysicalConstants(**physical_options)
-        if self.physics == "coupled" and conf.deltatDyn != conf.deltatTherm:
+        if (
+            not self._initialization_only
+            and self.physics == "coupled"
+            and conf.deltatDyn != conf.deltatTherm
+        ):
             raise ValueError(
                 "coupled physics requires equal dynamics/thermodynamic timesteps"
             )
         object.__setattr__(self, "configuration", conf)
         object.__setattr__(self, "physical_constants", phys)
+        object.__setattr__(self, "settings", MappingProxyType(dict(self.settings)))
+        object.__setattr__(self, "constants", MappingProxyType(dict(self.constants)))
+        object.__setattr__(self, "scenario", MappingProxyType(dict(self.scenario)))
+        object.__setattr__(self, "resolved_scenario", MappingProxyType(scenario))
+        object.__setattr__(self, "resolved_forcing", forcing)
         object.__setattr__(
             self,
-            "settings",
-            MappingProxyType({name: getattr(conf, name) for name in self.settings}),
+            "resolved_constants",
+            MappingProxyType({name: getattr(phys, name) for name in constants}),
         )
         object.__setattr__(
             self,
-            "constants",
-            MappingProxyType({name: getattr(phys, name) for name in self.constants}),
+            "resolved_settings",
+            MappingProxyType({name: getattr(conf, name) for name in settings}),
         )
         initial = _freeze_fields(self.initial_conditions, INITIAL_FIELDS)
         shape = (self.grid.nx, self.grid.ny)
-        _validate_shapes(initial, shape)
         object.__setattr__(self, "initial_conditions", initial)
-        self.forcing.validate_shape(shape)
-        if self.forcing.length is not None and self.steps > self.forcing.length:
+        profile_initial = launch.get("initial_conditions", {})
+        resolved_initial = (
+            _freeze_fields({**profile_initial, **initial}, INITIAL_FIELDS)
+            if profile_initial
+            else initial
+        )
+        _validate_shapes(resolved_initial, shape)
+        object.__setattr__(self, "resolved_initial_conditions", resolved_initial)
+        forcing.validate_shape(shape)
+        if forcing.length is not None and self.steps > forcing.length:
             raise ValueError("requested steps exceed forcing series length")
         # Validate the host clock before any resource allocation.
-        _ = self.step_duration
+        if not self._initialization_only:
+            _ = self.step_duration
 
     @classmethod
     def builtin(cls, name: str, **options: Any) -> "Experiment":
@@ -248,16 +406,6 @@ class Experiment:
         column uses its scenario's 2 by 2 grid. Explicit options override preset
         settings; scenario contains only experiment-specific coefficients.
         """
-        from veris.setups.presets import PRESET_PHYSICS
-
-        if name not in PRESET_PHYSICS:
-            raise ValueError(f"unknown builtin preset {name!r}")
-        options.setdefault("physics", PRESET_PHYSICS[name])
-        if name == "growth" and "grid" not in options:
-            from veris.setups.run_growth import GrowthSettings
-
-            controls = GrowthSettings()
-            options["grid"] = Grid(controls.nx, controls.ny)
         return cls(preset=name, **options)
 
     @classmethod
@@ -274,6 +422,23 @@ class Experiment:
         from veris.model.experiment_file import experiment_to_dict
 
         return experiment_to_dict(self)
+
+    def with_overrides(self, overrides: Mapping[str, Any]) -> "Experiment":
+        """Merge explicit grouped overrides into authored inputs and revalidate.
+
+        Shared defaults < preset < authored configuration < these overrides.
+        Nested mappings merge by key; arrays, sequences, None and scalar values
+        replace whole values. The preceding definition remains unchanged.
+        """
+        from veris.model.experiment_file import experiment_from_dict
+        from veris.model.experiment_resolution import (
+            constructor_inputs,
+            merge_overrides,
+        )
+
+        return experiment_from_dict(
+            merge_overrides(constructor_inputs(self), overrides)
+        )
 
     @property
     def step_duration(self) -> timedelta:
@@ -298,3 +463,25 @@ class Experiment:
             return timedelta(microseconds=microseconds)
         except OverflowError as error:
             raise ValueError("active timestep exceeds the host clock range") from error
+
+
+@dataclass(frozen=True)
+class _InitializationExperiment(Experiment):
+    """Internal resolved inputs for legacy array-only initialization adapters.
+
+    Adapters return State/configuration/constants rather than a runnable
+    Experiment. Unequal inactive clocks and an explicit singleton mesh are
+    valid here; public Experiment/advance retain their execution restrictions.
+    All field, scalar, grid and physical validation is inherited unchanged.
+    """
+
+    _initialization_only: ClassVar[bool] = True
+    _mesh_mode: bool = field(default=False, repr=False)
+
+    def __post_init__(self) -> None:
+        """Resolve ordinary inputs and retain an explicitly supplied mesh mode."""
+        super().__post_init__()
+        if self._mesh_mode:
+            object.__setattr__(
+                self, "configuration", replace(self.configuration, use_sharding=True)
+            )

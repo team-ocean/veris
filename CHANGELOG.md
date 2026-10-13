@@ -1,5 +1,160 @@
 # Development log
 
+## 2026-10-13 — Authoritative experiment framework audit and proposal
+
+- IN PROGRESS (@root): user approved the plan and native execution. Implement
+  the seven test-first units without further stage approval. Design and GPU/
+  `aegir` test authorization remain in force; root owns the only pytest session.
+- [x] Task 1 RED: 17 new cases reproduce stale scenario defaults, float32
+  promotion rounding and absent grouped overlays. Implement immutable authored
+  settings/constants/scenario/forcing plus separate resolved views; shared
+  mapping merge now serves JSON and `Experiment.with_overrides`. Execution,
+  initialization and restart/metadata consumers use resolved values.
+- [x] Task 1 focused GREEN: 164/164 definition, overlay, preset, initialization
+  and complete-restart cases pass, no failures/errors/skips (see
+  `test_logs/framework/resolution-green.{log,xml}`). Source numerical equations
+  and frozen references are unchanged. Final fast project sample is in progress;
+  full verification precedes a later commit of the initialization ownership unit.
+- [x] Task 1 final fast gate: 141/141 passed, no failures/errors/skips in
+  242.391 s. Native task ledger records completion; no source unit is committed
+  before the full configuration/initialization gate.
+- Task 2 implements registered `SetupPreset` controls and regional field
+  factories plus explicit copied/standalone/parallel launch profiles. Model
+  resolution no longer branches on setup names. Profile overrides retain
+  authored grid/zero-step requests and allow constants, initial fields and
+  output defaults. Partial JSON grids inherit preset extents rather than
+  prematurely resolving shared Grid defaults.
+- Task 2 RED coverage includes 21 missing API cases, three omitted group/grid
+  cases and three ownership/metadata defects. One freezing helper now owns
+  nested control containers/arrays while preserving Parameter metadata. This
+  prevents caller list/array mutation from changing future resolution.
+- [x] Task 2 final focused 104/104 and fast 143/143 pass, no failures/errors/
+  skips; maintained Ruff/ty pass. Evidence: `presets-final-green` and
+  `presets-fast` logs/JUnit. Existing notebook captures retain their original
+  checksums and all-field comparisons. Task 3 shared initialization is underway.
+- Task 3 RED: eight provider/Growth/mask cases reproduce missing generic
+  initialization and adapter bounds. Eleven additional ocean cases prove
+  physical and precision checks must precede allocation. All setup-name branches
+  are replaced by one regional provider pipeline; legacy setup initializers
+  delegate to it. Current Growth physics and scientific archives are unchanged.
+- [x] Task 3 focused GREEN: 126/126 provider, ocean, notebook, startup and
+  adapter cases pass with no failures/errors/skips. The nonfinite Growth output
+  test now injects at the shared initializer rather than the unused legacy
+  adapter, preserving its rejection and no-output assertions. Expanded real
+  sharding probe covers all four setup/geometry kinds on 1x4, 4x1 and 2x2,
+  both boundaries (24 trajectories), including partition-crossing forcing.
+  Full CPU/coverage gate follows; evidence is under `test_logs/framework/`.
+- First Task 3 full gate: 1,439 passed, six failures, four expected GPU skips
+  in 876.512 s. The expanded 24-layout sharding probe passes. Failed approach:
+  routing array-only adapters through runnable clock/singleton-mesh restrictions
+  rejects valid legacy initialization. An internal initialization-only definition
+  now inherits shared validation while preserving those tuple-returning APIs;
+  public Experiment/advance retain their execution checks. Unknown scenario
+  parameters again raise TypeError. Focused regressions pass 71/71; an added
+  sub-microsecond initialization regression and legacy invalid-step tests first
+  fail, then receive narrow fixes. Full RED artifacts remain in
+  `initialization-full-red.*`; a fresh full gate is required before commit.
+- Task 4 RED: 41/41 new runner/runtime cases fail on missing interfaces.
+  Implement validated DistributedExecution, explicit all-device profile requests,
+  deep grouped execution overlays, ownership-aware resources, hybrid multi-slice
+  mesh construction and public run_experiment. Pure physics and numerical
+  State/Diagnostics remain unchanged.
+- Additional RED/GREEN regressions cover cleanup after partial bootstrap failure
+  and actual execution metadata in both snapshots and histories. RunResult adds
+  separate immutable launch metadata. Explicit histories preserve authored
+  schedules; absent schedules default to one instantaneous sample per step.
+- [x] Task 4 focused gate: 145 passed, one expected GPU skip, zero failures/
+  errors. Actual four-device all-field/spatial-forcing/output and two-process
+  zero-/one-step runs pass. Unit ownership cases mock JAX policy together with
+  bootstrap; real bootstrap policy runs in cold processes. Fix the probe's
+  authored hourly versus per-step scheduling expectation, preserving a separate
+  hourly-schedule regression. Evidence: `runtime-focused-final.*`.
+- The narrowed legacy-only unknown-key error translation passes 111/111
+  initialization contracts. Hold Task 3 completion/commit for the combined
+  Task 3/4 full gate; all initialization, scientific, AD and new runtime cases
+  must pass together before any code commit. No tests/oracles are removed.
+- Combined Task 3/4 full gate: 1,452 passed, 41 failed, four GPU skips in
+  809.403 s. All scientific/AD/sharding comparisons pass. Forty failures share
+  the complete-restart reader's exact two-key execution schema check; expanded
+  launch fields exposed it. One facade identity test requires the two approved
+  public exports. Preserve `runtime-full-red.*` and fix these before commit.
+- Added RED cases for reading the original version-one execution schema and
+  cold rejection of unresolved launch controls. The restart reader accepts known
+  optional launch fields, supplies only missing identity defaults for old files,
+  and retains strict required/unknown-key and serial-layout checks. The facade
+  identity test now explicitly verifies DistributedExecution/run_experiment
+  against their canonical owners. Focused restart/resource verification follows.
+- [x] Restart/resource regression gate: 117/117 pass, no skips/errors/failures
+  in 259.838 s. All previous full-gate failures are covered. The real four-device
+  runner probe additionally passes a supplied 2x2 mesh, all 70 field comparisons
+  and a post-return calculation proving the caller's mesh remains usable.
+  Maintained static/diff checks pass. A fresh combined full gate follows.
+- [x] Combined Task 3/4 full GREEN: 1496 passed, four expected GPU skips, no failures/errors in 881.380 s. Maintained coverage clears 80%; frozen scientific, AD, 24-layout lifecycle, actual runner meshes/processes, restart compatibility/corruption and ambient-mesh contracts all pass. Native ledger records both units complete. Commit the verified ownership/runtime unit on `jax-only`; CLI unification and inspection/blueprint remain next. Evidence: `runtime-full.*` and `runtime-full-coverage.json`.
+- Scope: fulfill the pasted consolidation request on `jax-only`;
+  audit base is `9118648ade93de72c696c68c6067fabb5b21391d`. Read AGENTS.md,
+  DESIGN.md, CHANGELOG.md and the pasted requirements. GitHub confirms the
+  requested branch. Existing untracked `test_logs/` remain local evidence.
+- [x] Audited definition/codec, low-level allocation/ocean adapter, all three
+  setup initializers, central/copied/module CLI entry points, parallel launch,
+  Simulation and pure timestep/rollout. Specialized read-only default-ownership
+  and test-quality reviews are complete; neither started pytest or edited files.
+- [x] Host probe reproduces a precedence defect: replacing island scenario
+  timestep/EVP/cooling with 300/7/25 leaves resolved controls at 600/5/100.
+  Preset resolution currently writes inherited defaults into explicit inputs.
+  A second host probe finds float32-to-float64 promotion retains rounded
+  inherited island salinity/growth thickness. Do not patch individual CLI flags;
+  preserve authored values separately and resolve the full overlay chain.
+- [x] Identified setup-name dispatch duplicated between serial/sharded
+  initialization and runtime resources owned by the parallel example. Current
+  builtin, copied-example and driver grids/durations differ; preserve these
+  deliberately through explicit profile/experiment values with one owner.
+- [x] Prepared and self-reviewed the architectural proposal in
+  `docs/superpowers/specs/2026-10-13-experiment-framework-design.md`, including
+  complete entry-point inventory, defaults, raw/resolved configuration semantics,
+  provider/runner contracts and requirement-by-requirement verification gates.
+  No production or test sources changed. Explicitly invoked Superpowers requires
+  written-spec and implementation-plan review before implementation; proposal
+  commits still obey the repository's full-suite gate.
+- User authorizes native local GPU verification and parallel execution locally
+  or through Slurm on `aegir`. Required evidence will distinguish local meshes,
+  separate processes and actual multi-node execution.
+- [x] Fresh deterministic fast CPU baseline: 139 passed, no failures/errors or
+  skips, 433.029 s in JUnit. The only pytest session is terminal. Artifacts:
+  `test_logs/framework-audit/baseline-fast.{log,xml}`. Previous full results
+  remain baseline history, not evidence of completing this consolidation.
+- [x] User approved the written design; prepare its implementation plan next.
+  Unsandboxed device inspection confirms two available Tesla P100 GPUs. Slurm
+  reports `aegir` up with 20 idle nodes; the partition supplies CPU nodes.
+- [x] Wrote and self-reviewed
+  `docs/superpowers/plans/2026-10-13-experiment-framework.md`: seven test-first
+  units cover raw/resolved precedence, registered providers/default owners,
+  shared initialization, execution resources/runner, all CLI adapters,
+  authored/resolved export/blueprint, and complete scientific/GPU/distributed
+  verification. Plan review and execution-method selection remain pending;
+  production/test sources are unchanged. Recommend native implementation with
+  a final independent review because interfaces and pytest ownership are coupled.
+- [x] Authorized launch baseline: Slurm job `66298493` on `aegir`, one node
+  (`node453`), two CPU ranks, 8x12 dynamics grid, one 600 s timestep/two EVP
+  iterations completes with scheduler ExitCode `0:0` in 35 s. All nine selected
+  physical outputs match the serial run (maximum scaled error 8.12e-17); both
+  snapshot and final instantaneous history have time 600 s. Evidence:
+  `baseline-aegir-one-equivalence.json` under `test_logs/framework-audit/`.
+- [x] Found a real multi-node correctness blocker before implementation:
+  otherwise equivalent two-node job `66298494` (`node453`, `node454`) fails
+  with ExitCode `1:0` in 33 s. Both ranks reach `run_parallel.create_mesh`, then
+  installed JAX 0.11.2 `sharding_impls.make_mesh` rejects devices spanning more
+  than one `slice_index`. Its hybrid-mesh API supplies the relevant construction
+  contract. Task 4 now explicitly includes this failing topology/regression;
+  no production patch has been made while plan review is pending.
+- Native GPU baseline initially passes both central CLI cases but the parallel
+  CLI subprocess aborts after CUDA OOM (3.74 GiB allocation) while its GPU parent
+  retains default memory reservations. Devices return to 3 MiB used after exit.
+  [x] Identical three cases pass with `XLA_PYTHON_CLIENT_PREALLOCATE=false`,
+  as recommended by JAX's GPU allocation documentation; the failure log remains
+  intact. This is a verification-environment change, not a numerical code fix.
+  Logs/JUnit: `baseline-gpu*` under `test_logs/framework-audit/`; combined result
+  is `hardware-baseline-summary.json`. All launched jobs/processes are terminal.
+
 ## 2026-10-13 — Centralized Click command line interface
 
 - [x] COMPLETE (@root): add the installed `veris` command and corresponding
