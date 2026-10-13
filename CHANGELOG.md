@@ -2,6 +2,9 @@
 
 ## 2026-10-13 — Authoritative experiment framework audit and proposal
 
+- [x] Final native parallel CLI GPU check passes 1/1 with zero skips. Combined
+  native GPU pytest gates pass 63/63, including every four CPU-skipped GPU case;
+  scientific tolerances remain unchanged. Hardware matrices pass 16/16 cases.
 - [x] Final Task 7 full CPU gate: 1,565 passed, four GPU-only skips, zero
   failures/errors in 959.369 s. Maintained coverage is 4,709/4,955 = 95.04%;
   the 80% gate passes. Ruff/format/annotations/ty and diff checks pass.
@@ -2606,7 +2609,3 @@
   settings/fields, 100-step dynamics, all-field shared-physics lifecycle
   references, thermodynamic conservation, longwave AD/finite differences,
   parallel CLI and two-device scheduled output. Evidence: `gpu.log`, `gpu.xml`.
-
-- [x] Final native parallel CLI GPU check passes 1/1 with zero skips. Combined
-  native GPU pytest gates pass 63/63, including every four CPU-skipped GPU case;
-  scientific tolerances remain unchanged. Hardware matrices pass 16/16 cases.
