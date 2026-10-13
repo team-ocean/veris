@@ -3,5 +3,5 @@ include README.md LICENSE DESIGN.md CHANGELOG.md pytest.ini requirements-test.tx
 recursive-include veris *.pyi *.slurm py.typed
 recursive-include veris/cli/templates *.py
 recursive-include tests *.py *.md *.json *.npz *.txt
-recursive-include docs *.rst *.py *.txt *.conf *.md Makefile LICENSE
+recursive-include docs *.rst *.py *.json *.txt *.conf *.md Makefile LICENSE
 recursive-include benchmarks *.py *.md

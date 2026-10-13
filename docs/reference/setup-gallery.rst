@@ -30,3 +30,8 @@ for command-line options. Importing a setup does not run a simulation.
    setups/dynamics
    setups/growth
    setups/parallel-dynamics
+
+New experiments use the shared :doc:`/quickstart/setup-blueprint`, either with
+prescribed ocean geometry or a registered regional field factory. Python and
+CLI launch the same public runner; authored/resolved exports preserve setup
+identity and override precedence.

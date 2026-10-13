@@ -153,6 +153,7 @@ def test_original_version_one_execution_schema_remains_readable(tmp_path: Path) 
         model.save_restart(destination)
     with h5netcdf.File(destination, "r+") as file:
         encoded = json.loads(file.attrs["experiment"])
+        encoded.pop("profile")
         encoded["execution"].pop("all_devices")
         encoded["execution"].pop("distributed")
         file.attrs["experiment"] = json.dumps(encoded)

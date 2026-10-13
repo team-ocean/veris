@@ -155,3 +155,10 @@ Command-line examples use the maintained setup drivers::
 See :doc:`integration` for pure rollout composition and
 :doc:`automatic-differentiation` for derivative conventions. Scientific capture
 manifests record source paths at their archived revisions.
+
+``veris.execution.runtime`` owns launch validation, distributed cleanup and
+mesh discovery; ``veris.execution.runner`` exposes the shared Python runner.
+``veris.cli.overrides`` translates grouped CLI inputs through the existing host
+merge. ``veris.setups.presets`` holds provider metadata/factories and launch
+profiles; it contains no timestep implementation. See
+:doc:`/quickstart/setup-blueprint` for the full initialization/execution path.

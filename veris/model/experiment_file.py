@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import math
 from collections.abc import Callable, Mapping
-from dataclasses import fields
+from dataclasses import fields, is_dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
 from numbers import Real
@@ -25,7 +25,12 @@ import numpy as np
 
 from veris.io.calendar import FixedDate, duration_us
 from veris.io.configuration import OUTPUT_SETTINGS, OutputSettings, Stream
-from veris.model.experiment_resolution import freeze_controls, merge_overrides
+from veris.model.experiment_resolution import (
+    _open_controls,
+    constructor_inputs,
+    freeze_controls,
+    merge_overrides,
+)
 from veris.model.physical_constants import PHYSICALCONSTANTS
 
 if TYPE_CHECKING:
@@ -50,8 +55,10 @@ def _known_keys(data: Mapping[str, Any], names: set[str], context: str) -> None:
 
 def _schema_version(version: Any) -> None:
     """Validate format identity independently of overridable experiment values."""
-    if type(version) is not int or version != 1:
-        raise ValueError("unsupported experiment schema_version; expected version 1")
+    if type(version) is not int or version not in (1, 2):
+        raise ValueError(
+            "unsupported experiment schema_version; expected version 1 or 2"
+        )
 
 
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -169,6 +176,31 @@ def _output(value: Any) -> OutputSettings | None:
     return OutputSettings(**values)
 
 
+def _execution(value: Any, defaults: Any = None) -> Any:
+    """Normalize one execution group after recursively applying profile defaults."""
+    from veris.model.experiment import DistributedExecution, Execution
+
+    if isinstance(value, Execution):
+        return value
+    controls = _mapping(value, "execution")
+    controls = merge_overrides(_open_controls(defaults) or {}, controls)
+    _known_keys(controls, {item.name for item in fields(Execution)}, "execution")
+    if isinstance(controls.get("partitions"), list):
+        controls["partitions"] = tuple(controls["partitions"])
+    distributed = controls.get("distributed")
+    if distributed is not None and not isinstance(distributed, DistributedExecution):
+        distributed = _mapping(distributed, "execution.distributed")
+        _known_keys(
+            distributed,
+            {item.name for item in fields(DistributedExecution)},
+            "execution.distributed",
+        )
+        if isinstance(distributed.get("local_device_ids"), list):
+            distributed["local_device_ids"] = tuple(distributed["local_device_ids"])
+        controls["distributed"] = DistributedExecution(**distributed)
+    return Execution(**controls)
+
+
 def experiment_from_dict(data: Any) -> Experiment:
     """Construct an experiment from grouped, version 1 declarative values.
 
@@ -178,7 +210,7 @@ def experiment_from_dict(data: Any) -> Experiment:
     dimensions and scientific metric constraints before allocating a State.
     """
     from veris.grid.geometry import OceanGeometry
-    from veris.model.experiment import DistributedExecution, Execution, Experiment, Grid
+    from veris.model.experiment import Execution, Experiment, Grid
     from veris.model.forcing import Forcing
 
     values = _mapping(data, "experiment")
@@ -211,23 +243,7 @@ def experiment_from_dict(data: Any) -> Experiment:
             if provider is None
             else provider.profile_controls(values.get("profile")).get("execution", {})
         )
-        execution = {**defaults, **execution}
-        if isinstance(execution.get("partitions"), list):
-            execution["partitions"] = tuple(execution["partitions"])
-        distributed = execution.get("distributed")
-        if distributed is not None and not isinstance(
-            distributed, DistributedExecution
-        ):
-            distributed = _mapping(distributed, "execution.distributed")
-            _known_keys(
-                distributed,
-                {item.name for item in fields(DistributedExecution)},
-                "execution.distributed",
-            )
-            if isinstance(distributed.get("local_device_ids"), list):
-                distributed["local_device_ids"] = tuple(distributed["local_device_ids"])
-            execution["distributed"] = DistributedExecution(**distributed)
-        values["execution"] = Execution(**execution)
+        values["execution"] = _execution(execution, defaults)
     for name in ("settings", "constants", "initial_conditions", "scenario"):
         if name in values:
             values[name] = _mapping(values[name], name)
@@ -251,7 +267,16 @@ def experiment_from_dict(data: Any) -> Experiment:
         _known_keys(geometry, {item.name for item in fields(OceanGeometry)}, "geometry")
         values["geometry"] = OceanGeometry(**geometry)
     if "output" in values:
-        values["output"] = _output(values["output"])
+        output = values["output"]
+        if isinstance(output, Mapping):
+            authored_groups["output"] = _mapping(output, "output")
+            inherited = (
+                {}
+                if provider is None
+                else provider.profile_controls(values.get("profile")).get("output", {})
+            )
+            output = merge_overrides(_open_controls(inherited) or {}, output)
+        values["output"] = _output(output)
     experiment = (
         Experiment.builtin(values.pop("preset"), **values)
         if values.get("preset") is not None
@@ -278,6 +303,18 @@ def experiment_from_dict(data: Any) -> Experiment:
 
 def _plain(value: Any) -> Any:
     """Return fresh JSON-compatible containers and built-in numeric scalars."""
+    if isinstance(value, datetime):
+        return value.isoformat(timespec="microseconds")
+    if isinstance(value, timedelta):
+        return {"microseconds": duration_us(value)}
+    if is_dataclass(value) and not isinstance(value, type):
+        return _plain(
+            {
+                item.name: getattr(value, item.name)
+                for item in fields(value)
+                if item.init
+            }
+        )
     if isinstance(value, Mapping):
         return {name: _plain(item) for name, item in value.items()}
     if isinstance(value, np.ndarray):
@@ -331,6 +368,7 @@ def _output_dict(output: OutputSettings | None) -> dict[str, Any] | None:
 def experiment_to_dict(
     experiment: Experiment,
     *,
+    mode: str = "resolved",
     _array_encoder: Callable[[str, np.ndarray], Any] | None = None,
 ) -> dict[str, Any]:
     """Serialize resolved constructor defaults and complete grouped host inputs.
@@ -340,7 +378,26 @@ def experiment_to_dict(
     override keys. Returned dictionaries and lists do not alias the definition.
     """
 
+    if mode not in ("resolved", "authored"):
+        raise ValueError("export mode must be resolved or authored")
+    version = (
+        2
+        if experiment.profile is not None
+        or experiment.execution.distributed is not None
+        or experiment.execution.all_devices
+        else 1
+    )
+
     def input_value(path: str, value: Any) -> Any:
+        if isinstance(value, Mapping):
+            return {
+                name: input_value(f"{path}/{name}", item)
+                for name, item in value.items()
+            }
+        if isinstance(value, (list, tuple)):
+            return [
+                input_value(f"{path}/{index}", item) for index, item in enumerate(value)
+            ]
         if _array_encoder is not None and isinstance(value, np.ndarray):
             return _array_encoder(path, value)
         return _plain(value)
@@ -350,8 +407,17 @@ def experiment_to_dict(
             name: input_value(f"{path}/{name}", value) for name, value in values.items()
         }
 
+    if mode == "authored":
+        return {
+            "schema_version": version,
+            **{
+                name: input_value(name, value)
+                for name, value in constructor_inputs(experiment).items()
+            },
+        }
     return {
-        "schema_version": 1,
+        "schema_version": version,
+        "profile": experiment.profile,
         "grid": {"nx": experiment.grid.nx, "ny": experiment.grid.ny},
         "settings": {
             item.name: _plain(getattr(experiment.configuration, item.name))

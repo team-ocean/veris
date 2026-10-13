@@ -194,3 +194,12 @@ Module snapshots and default histories retain their existing field selections,
 calendars and per-step sampling. Explicit stream schedules remain authoritative.
 The Slurm script supplies deliberate small smoke overrides while the shared
 runtime owns mesh discovery and distributed service cleanup.
+
+Inspect and export definitions
+-------------------------------
+
+``veris inspect SETUP`` prints a resolved JSON definition without launching JAX
+devices. Add ``--export PATH`` to create a new file, ``--authored`` to retain
+sparse authored controls, and the same ``--set SECTION.KEY=JSON`` overrides used
+by run. Existing export files are protected. See
+:doc:`/quickstart/setup-blueprint` for literal paired installed Python/CLI examples.

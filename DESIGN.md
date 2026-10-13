@@ -181,3 +181,14 @@ reference data retain shared locations. Full correctness and coverage verificati
 uses one coordinated pytest session with externally measured wall time.
 Test selection, scientific tolerances, frozen reference bytes and required
 numerical/gradient assertions remain part of the correctness contract.
+
+Experiment delivery contract
+----------------------------
+
+All CLI/module run entry points use `veris.run_experiment`, with explicit grouped
+overrides applied to authored inputs before resolution. Provider factories supply
+regional data; shared initialization owns validation, derived fields and global
+boundaries. Runtime resources keep distributed/mesh ownership outside numerical
+State. Authored and pinned resolved exports use the same codec; version-one
+definitions/checkpoints remain readable. The executable custom-ocean setup
+blueprint and clean-installed Python/CLI probe validate the documented interface.

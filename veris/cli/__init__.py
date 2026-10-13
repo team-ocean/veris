@@ -132,3 +132,59 @@ def run_command(
         )
     except (OSError, ValueError, TypeError, RuntimeError, FloatingPointError) as error:
         raise click.ClickException(str(error)) from error
+
+
+@cli.command("inspect")
+@click.argument(
+    "setup_file", type=click.Path(exists=True, dir_okay=False, path_type=Path)
+)
+@click.option(
+    "--export",
+    "destination",
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Write a new JSON definition instead of stdout.",
+)
+@click.option(
+    "--authored",
+    is_flag=True,
+    help="Export sparse authored controls instead of pinned resolved values.",
+)
+@click.option(
+    "--set", "set_values", multiple=True, help="Grouped override: SECTION.KEY=JSON."
+)
+def inspect_command(
+    setup_file: Path,
+    destination: Path | None,
+    authored: bool,
+    set_values: tuple[str, ...],
+) -> None:
+    """Inspect/export a validated definition without configuring JAX or devices."""
+    import json
+
+    from veris.cli.overrides import parse_overrides
+    from veris.cli.run import load_experiment
+    from veris.execution.experiment_initialization import _validate_inputs
+
+    try:
+        definition = load_experiment(setup_file).with_overrides(
+            parse_overrides(set_values)
+        )
+        _validate_inputs(definition)
+        encoded = (
+            json.dumps(
+                definition.to_dict(mode="authored" if authored else "resolved"),
+                indent=2,
+                allow_nan=False,
+            )
+            + "\n"
+        )
+        if destination is None:
+            click.echo(encoded, nl=False)
+        else:
+            with destination.open("x", encoding="utf-8") as file:
+                file.write(encoded)
+            click.echo(
+                f"Exported {'authored' if authored else 'resolved'} configuration to {destination}"
+            )
+    except (OSError, ValueError, TypeError) as error:
+        raise click.ClickException(str(error)) from error

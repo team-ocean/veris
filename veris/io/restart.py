@@ -344,6 +344,7 @@ def read_restart(
             if set(file.attrs) != _ATTRIBUTES or file.attrs["Conventions"] != "CF-1.10":
                 raise ValueError("incomplete or unexpected restart metadata")
             encoded_definition = _decode(file.attrs["experiment"], "experiment")
+            encoded_definition.setdefault("profile", None)
             execution = encoded_definition.get("execution")
             required = {"backend", "partitions"}
             supported = {item.name for item in fields(Execution)}

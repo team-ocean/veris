@@ -241,7 +241,7 @@ class Experiment:
 
     def __post_init__(self) -> None:
         """Validate grouped controls, resolve registry objects and freeze inputs."""
-        from veris.model.experiment_file import _output
+        from veris.model.experiment_file import _execution, _output
         from veris.setups.presets import get_preset
 
         authored = {
@@ -259,7 +259,7 @@ class Experiment:
             else Grid(**provider.grid_defaults(self.profile)),
             "physics": "coupled" if provider is None else provider.physics,
             "steps": launch.get("steps", 0),
-            "execution": Execution(**launch.get("execution", {})),
+            "execution": _execution(launch.get("execution", {})),
             "output": _output(launch.get("output")),
         }
         for name, value in defaults.items():
@@ -400,7 +400,7 @@ class Experiment:
 
     @classmethod
     def builtin(cls, name: str, **options: Any) -> "Experiment":
-        """Define island, dynamics or growth using the maintained setup defaults.
+        """Define a registered scientific preset using its authoritative defaults.
 
         Grid defaults come from the public Grid registry, except the growth
         column uses its scenario's 2 by 2 grid. Explicit options override preset
@@ -417,11 +417,11 @@ class Experiment:
 
         return read_experiment(path, overrides=overrides)
 
-    def to_dict(self) -> dict[str, Any]:
-        """Return independent JSON-compatible data with resolved scalar defaults."""
+    def to_dict(self, *, mode: str = "resolved") -> dict[str, Any]:
+        """Export pinned resolved values or sparse authored controls as fresh JSON data."""
         from veris.model.experiment_file import experiment_to_dict
 
-        return experiment_to_dict(self)
+        return experiment_to_dict(self, mode=mode)
 
     def with_overrides(self, overrides: Mapping[str, Any]) -> "Experiment":
         """Merge explicit grouped overrides into authored inputs and revalidate.

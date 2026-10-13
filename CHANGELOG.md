@@ -124,6 +124,31 @@
   `hardware/aegir-two-equivalence.json` and job log under `test_logs/framework/`.
   Final packaged/GPU/blueprint acceptance still remains.
 - [x] Task 5 full GREEN: 1536 passed, four expected GPU skips, no failures/errors in 926.569 s. Maintained coverage clears 80%; strict docs/static/annotation/shell checks pass. Native task ledger marks the adapter unit complete. Commit on `jax-only`, then proceed to authored/resolved export and cold inspection/blueprint. Evidence: `cli-full.*` and `cli-full-coverage.json`.
+- [x] Task 5 committed as `bcd5d29` after 1,536 passing tests/four GPU skips
+  and 95% maintained coverage. Task 6 begins with authored/resolved export and
+  cold inspect/export regressions; no production implementation yet. The
+  custom-ocean blueprint remains a prepared draft until installed execution
+  proves paired Python/CLI equivalence. Final GPU/packaging/review gates remain.
+- Task 6 RED covers missing sparse/pinned modes, cold inspect/export, profile
+  identity/version selection, partial output provenance, partial profile bootstrap
+  and missing blueprint source. One codec now exports authored/resolved views;
+  version 2 represents active profile/distributed/all-device declarations while
+  version 1 remains supported. Shared execution decoding deeply merges profile
+  controls; old checkpoints normalize only missing identity defaults.
+- [x] Task 6 focused GREEN: 126/126 pass, no failures/errors/skips, 253.490 s.
+  Strict Sphinx/static checks pass. The custom-ocean factory cold test passes.
+  A clean installed wheel executes the exact published Python/CLI/inspect blocks:
+  all 70 physical fields and authored/resolved configs match at 1800 s. Evidence:
+  `installed-framework.log`, `exports-profile-green.*` and package/docs artifacts.
+  Published authored/resolved growth JSON examples are included in the sdist;
+  final focused/full gates remain before committing this delivery unit.
+- Final GPU matrix exposed a runtime policy issue before scientific comparison:
+  the first CPU launch narrows `jax_platforms` to CPU, so a subsequent GPU request
+  in that interpreter cannot use available P100s. Preserve the failure log and
+  partial CPU reference. A cold policy regression is prepared; fix after the
+  active Task 6 full gate finishes, then rerun GPU acceptance with fresh paths.
+  Do not treat GPU matrix startup as successful GPU evidence.
+- [x] Task 6 full GREEN: 1554 passed, four expected GPU skips, no failures/errors in 916.686 s. Maintained coverage clears 80%; strict docs/static/annotation and clean-installed literal blueprint proof pass. Commit the export/inspection/blueprint unit on `jax-only`. Known CPU-then-GPU platform narrowing is explicitly tracked for Task 7; GPU acceptance and final goal completion remain unproven.
 - Scope: fulfill the pasted consolidation request on `jax-only`;
   audit base is `9118648ade93de72c696c68c6067fabb5b21391d`. Read AGENTS.md,
   DESIGN.md, CHANGELOG.md and the pasted requirements. GitHub confirms the

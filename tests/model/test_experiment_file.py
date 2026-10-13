@@ -159,7 +159,7 @@ def test_file_arrays_replace_whole_fields_and_cannot_alias_serialized_data(
     "data, message",
     [
         ([], "object|mapping"),
-        ({"schema_version": 2}, "version"),
+        ({"schema_version": 3}, "version"),
         ({"schema_version": True}, "version"),
         ({"unknown": 1}, "unknown"),
         ({"grid": {"nx": 2, "ny": 4, "unknown": 1}}, "unknown"),
@@ -294,6 +294,6 @@ def test_python_overrides_cannot_relabel_an_unsupported_file_schema(
 ) -> None:
     """A schema version identifies the format of the file before any overrides."""
     path = tmp_path / "future.json"
-    path.write_text(json.dumps({"schema_version": 2}))
+    path.write_text(json.dumps({"schema_version": 3}))
     with pytest.raises(ValueError, match="version"):
         veris.Experiment.from_file(path, overrides={"schema_version": 1})

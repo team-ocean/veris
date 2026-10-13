@@ -215,3 +215,14 @@ definitions, settings, constants and host validation are outside that path.
    :members:
 
 .. autofunction:: veris.execution.experiment_initialization.initialize_experiment
+
+Export modes
+------------
+
+``experiment.to_dict()`` defaults to ``mode="resolved"`` and pins all effective
+values, including profile identity. ``mode="authored"`` retains sparse caller
+inputs and grouped omissions. Reading authored data then changing dtype/scenario
+recomputes inherited defaults; resolved data retains deliberately pinned literals.
+Returned arrays/containers do not alias the immutable definition. Schema version 1
+remains supported; profile/distributed/all-device declarations use version 2.
+Inspect/export from the CLI without selecting devices using ``veris inspect``.

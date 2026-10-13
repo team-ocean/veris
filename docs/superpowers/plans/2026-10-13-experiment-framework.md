@@ -168,12 +168,12 @@ the CLI delegates its resulting Experiment to the public runner.
 **Consumes:** Task 1 authored/resolved definition, Task 2 profile identity and Task 4 execution controls.
 **Produces:** `Experiment.to_dict(*, mode: str = "resolved") -> dict[str, Any]`, modes `resolved`/`authored`; `veris inspect SETUP --export PATH [--authored]` with the same override parser as run.
 
-- [ ] Write tests that resolved exports pin all effective values and authored exports remain sparse. Re-reading authored data and changing scenario/dtype re-evaluates defaults; changing a fully resolved pinned config keeps deliberate literal values. Preserve geometry/forcing immutable array roundtrips and restart's private array hook.
-- [ ] Write unknown/malformed mode/schema and no-clobber export tests, source factory/version/profile identity checks and cold inspection assertions.
-- [ ] Run the new tests and capture missing modes/inspection behavior.
-- [ ] Extend the single codec rather than adding another serializer. Retain version 1 loading; use a new version only for newly represented profile/distributed metadata, with explicit version compatibility tests. Restart remains exact saved State/halos, never initialization plus recomputation.
-- [ ] Add the approved paired blueprint Python/CLI example, authored/resolved JSON examples, custom geometry/provider instructions and local/distributed/aegir launches. Execute exact examples from a clean installed wheel with identical resolved controls/physical fields.
-- [ ] Run codec/restart/inspection/installed-example checks, strict docs, maintained static checks and fast mode; update CHANGELOG. Include full CPU/coverage verification before any code commit.
+- [x] Write tests that resolved exports pin all effective values and authored exports remain sparse. Re-reading authored data and changing scenario/dtype re-evaluates defaults; changing a fully resolved pinned config keeps deliberate literal values. Preserve geometry/forcing immutable array roundtrips and restart's private array hook.
+- [x] Write unknown/malformed mode/schema and no-clobber export tests, source factory/version/profile identity checks and cold inspection assertions.
+- [x] Run the new tests and capture missing modes/inspection behavior.
+- [x] Extend the single codec rather than adding another serializer. Retain version 1 loading; use a new version only for newly represented profile/distributed metadata, with explicit version compatibility tests. Restart remains exact saved State/halos, never initialization plus recomputation.
+- [x] Add the approved paired blueprint Python/CLI example, authored/resolved JSON examples, custom geometry/provider instructions and local/distributed/aegir launches. Execute exact examples from a clean installed wheel with identical resolved controls/physical fields.
+- [x] Run codec/restart/inspection/installed-example checks, strict docs, maintained static checks and fast mode; update CHANGELOG. Include full CPU/coverage verification before any code commit.
 
 ## Task 7: Prove scientific, GPU and distributed completion and finish delivery
 
