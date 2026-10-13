@@ -30,11 +30,34 @@ from veris.model.configuration import Configuration
 from veris.model.types import State
 
 
+def host_array(value: ArrayLike) -> np.ndarray:
+    """Gather non-addressable test fields on every distributed controller."""
+    if (
+        isinstance(value, jax.Array)
+        and not value.is_fully_addressable
+        and not value.is_fully_replicated
+    ):
+        from jax.experimental import multihost_utils
+
+        value = multihost_utils.process_allgather(value, tiled=True)
+    return np.asarray(value)
+
+
+def placed(value: ArrayLike, sharding: NamedSharding) -> jax.Array:
+    """Keep local placement unchanged; construct addressable distributed inputs."""
+    if jax.process_count() == 1:
+        return jax.device_put(value, sharding)
+    source = np.asarray(value)
+    return jax.make_array_from_callback(
+        source.shape, sharding, lambda index: source[index]
+    )
+
+
 def compare(
     actual: ArrayLike, expected: ArrayLike, label: str, tolerance: float = 2e-10
 ) -> None:
     """Report finite aggregate discrepancies without printing large arrays."""
-    left, right = np.asarray(actual), np.asarray(expected)
+    left, right = host_array(actual), host_array(expected)
     error = np.abs(left - right)
     if not (np.isfinite(left).all() and np.isfinite(right).all()):
         raise AssertionError(f"ERROR {label}: nonfinite values")
@@ -89,11 +112,11 @@ def check_halos(mesh: Mesh, ny: int = 5) -> None:
             return fill_overlap_uv(value, value, conf)[mode == "normal"]
 
         with jax.set_mesh(mesh):
-            value = jax.device_put(data, sharding)
-            tangent = jax.device_put(direction, sharding)
+            value = placed(data, sharding)
+            tangent = placed(direction, sharding)
             actual, derivative = jax.jvp(refresh, (value,), (tangent,))
             _, pullback = jax.vjp(refresh, value)
-            gradient = pullback(jax.device_put(weights, sharding))[0]
+            gradient = pullback(placed(weights, sharding))[0]
             compare(actual, expected, f"{px}x{py} {mode} halo", 0)
             compare(refresh(actual), expected, f"{px}x{py} {mode} idempotence", 0)
             compare(derivative, tangent_expected, f"{px}x{py} {mode} JVP", 0)
@@ -154,10 +177,14 @@ def check_coupled(mesh: Mesh, no_slip: bool, dtype: str) -> None:
         jnp.arange(nx)[:, None] + 2 * jnp.arange(ny)[None, :]
     )
 
-    def evolve(parameters: jax.Array, sharded: bool) -> State:
+    def evolve(
+        parameters: jax.Array, sharded: bool, initial: State | None = None
+    ) -> State:
         state, settings, physical = (
             (parallel, local_conf, local_phys) if sharded else (serial, conf, phys)
         )
+        if initial is not None:
+            state = initial
         state = replace(state, hIceMean=state.hIceMean * (1 + parameters[0]))
 
         def transition(current: State, cooling: jax.Array) -> State:
@@ -172,8 +199,10 @@ def check_coupled(mesh: Mesh, no_slip: bool, dtype: str) -> None:
             inputs=jnp.asarray([80.0, 110.0], dtype=dtype) + 50 * parameters[1],
         )
 
-    def objective(parameters: jax.Array, sharded: bool) -> jax.Array:
-        result = evolve(parameters, sharded)
+    def objective(
+        parameters: jax.Array, sharded: bool, initial: State | None = None
+    ) -> jax.Array:
+        result = evolve(parameters, sharded, initial)
         value = result.hIceMean + 10 * result.vIce
         physical = remove_halos(value, mesh) if sharded else value[2:-2, 2:-2]
         return jnp.mean(spatial_weights * physical)
@@ -182,7 +211,7 @@ def check_coupled(mesh: Mesh, no_slip: bool, dtype: str) -> None:
     expected_gradient = jax.grad(lambda p: objective(p, False))(point)
     with jax.set_mesh(mesh):
         replicated = NamedSharding(mesh, P())
-        point = jax.device_put(point, replicated)
+        point = placed(point, replicated)
         actual = evolve(point, True)
         for field in fields(actual):
             compare(
@@ -194,9 +223,10 @@ def check_coupled(mesh: Mesh, no_slip: bool, dtype: str) -> None:
         # The north corner shear is a physical boundary unknown stored in a
         # halo column, so interior-only comparisons would omit its dynamics.
         local_nx = nx // px
+        stored_shear = host_array(actual.sigma12)
         north_shear = np.concatenate(
             [
-                np.asarray(actual.sigma12)[
+                stored_shear[
                     rx * (local_nx + 4) + 2 : rx * (local_nx + 4) + local_nx + 2,
                     -2,
                 ]
@@ -204,22 +234,37 @@ def check_coupled(mesh: Mesh, no_slip: bool, dtype: str) -> None:
             ]
         )
         compare(north_shear, reference.sigma12[2:-2, -2], "north wall shear", tolerance)
-        compare(np.asarray(actual.vIce)[:, :3], 0, "south wall velocity", 0)
-        compare(np.asarray(actual.vIce)[:, -2:], 0, "north wall velocity", 0)
-        function = jax.jit(lambda p: objective(p, True))
-        value, pullback = jax.vjp(function, point)
+        stored_velocity = host_array(actual.vIce)
+        compare(stored_velocity[:, :3], 0, "south wall velocity", 0)
+        compare(stored_velocity[:, -2:], 0, "north wall velocity", 0)
+        distributed = jax.process_count() > 1
+        if distributed:
+
+            def explicit_objective(p: jax.Array, initial: State) -> jax.Array:
+                frozen = jax.tree.map(jax.lax.stop_gradient, initial)
+                return objective(p, True, frozen)
+
+            function = jax.jit(explicit_objective)
+            arguments = (point, parallel)
+            state_tangent = jax.tree.map(jnp.zeros_like, parallel)
+        else:
+            function = jax.jit(lambda p: objective(p, True))
+            arguments = (point,)
+            state_tangent = None
+        value, pullback = jax.vjp(function, *arguments)
         gradient = pullback(jnp.ones_like(value))[0]
         compare(value, objective(point, False), "coupled scalar objective", tolerance)
         compare(gradient, expected_gradient, "coupled VJP serial/sharded", tolerance)
         for axis in range(2):
-            direction = jax.device_put(jnp.eye(2, dtype=dtype)[axis], replicated)
-            _, tangent = jax.jvp(function, (point,), (direction,))
+            direction = placed(jnp.eye(2, dtype=dtype)[axis], replicated)
+            tangents = (direction, state_tangent) if distributed else (direction,)
+            _, tangent = jax.jvp(function, arguments, tangents)
             compare(tangent, gradient[axis], f"coupled JVP/VJP axis={axis}", tolerance)
             assert abs(float(tangent)) > 1e-8, "ERROR zero coupled sensitivity"
             delta = 0.01 if dtype == "float32" else 1e-4
             finite_difference = (
-                function(point + delta * direction)
-                - function(point - delta * direction)
+                function(point + delta * direction, *arguments[1:])
+                - function(point - delta * direction, *arguments[1:])
             ) / (2 * delta)
             fd_tolerance = 2e-4 if dtype == "float32" else 2e-7
             compare(
@@ -238,23 +283,54 @@ def check_coupled(mesh: Mesh, no_slip: bool, dtype: str) -> None:
 @click.option("--backend", type=click.Choice(["cpu", "gpu"]), default="cpu")
 @click.option("--dtype", type=click.Choice(["float32", "float64"]), default="float64")
 @click.option("--halos-only", is_flag=True, help="Run only communication and its AD.")
-def main(backend: str, dtype: str, halos_only: bool) -> None:
+@click.option(
+    "--distributed", is_flag=True, help="Initialize the launched controllers."
+)
+def main(backend: str, dtype: str, halos_only: bool, distributed: bool) -> None:
     """Exercise all device-grid orientations and both wall-slip choices."""
+    from veris.execution.runtime import distributed_options
+
     jax.config.update("jax_enable_x64", True)
+    if distributed:
+        import os
+
+        if backend == "cpu":
+            jax.config.update("jax_num_cpu_devices", 1)
+            jax.config.update("jax_cpu_collectives_implementation", "gloo")
+        options = distributed_options(os.environ, backend)
+        assert options is not None, "ERROR distributed probe needs launch controls"
+        jax.distributed.initialize(**options)
+    try:
+        run_checks(backend, dtype, halos_only)
+    finally:
+        if distributed:
+            jax.distributed.shutdown()
+
+
+def run_checks(backend: str, dtype: str, halos_only: bool) -> None:
+    """Run the same halo prelude and coupled checks on local or global meshes."""
+    from veris.execution.runtime import create_mesh
+
     devices = jax.devices(backend)
     count = len(devices)
     assert count >= 2, "ERROR at least two devices required"
     layouts = [(1, count), (count, 1)]
     if count >= 4 and count % 2 == 0:
         layouts.append((2, count // 2))
-    with jax.default_device(devices[0]):
+
+    def mesh_for(px: int, py: int) -> Mesh:
+        if jax.process_count() > 1:
+            return create_mesh((px, py), backend)
+        return Mesh(np.asarray(devices, dtype=object).reshape(px, py), ("x", "y"))
+
+    with jax.default_device(jax.local_devices(backend=backend)[0]):
         for px, py in layouts:
-            mesh = Mesh(np.asarray(devices, dtype=object).reshape(px, py), ("x", "y"))
+            mesh = mesh_for(px, py)
             for local_ny in (2, 5):
                 check_halos(mesh, local_ny)
         if not halos_only:
             px, py = layouts[-1] if count >= 4 else (1, count)
-            mesh = Mesh(np.asarray(devices, dtype=object).reshape(px, py), ("x", "y"))
+            mesh = mesh_for(px, py)
             for no_slip in (False, True):
                 check_coupled(mesh, no_slip, dtype)
 

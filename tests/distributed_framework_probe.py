@@ -8,8 +8,10 @@ from pathlib import Path
 
 import numpy as np
 
-from veris import Experiment, Forcing, Grid, run_experiment
+from veris import Execution, Experiment, Forcing, Grid, run_experiment
 from veris.io import OutputSettings, Stream
+
+DYNAMICS_REPETITIONS = 32
 
 
 def definition(kind: str, cyclic_y: bool) -> Experiment:
@@ -55,6 +57,88 @@ def definition(kind: str, cyclic_y: bool) -> Experiment:
     )
 
 
+def repeated_dynamics_definition() -> Experiment:
+    """Use the strong reference wind and nested EVP loop at a real halo cut."""
+    return Experiment.builtin(
+        "dynamics",
+        grid=Grid(64, 64),
+        steps=2,
+        settings={"nEVPsteps": 4},
+        execution=Execution(backend="cpu"),
+    )
+
+
+def repeat_dynamics(output_root: Path, partitions: tuple[int, int]) -> None:
+    """Compare fresh distributed rollouts with all serial physical fields.
+
+    The native two-node failure is intermittent: independent final halo
+    exchanges can overlap the nested EVP loop. Recompile each trajectory and
+    inspect addressable interiors without adding collective synchronization
+    between the solver and its halo exchanges. The parent writes the serial
+    reference before either rank initializes its backend.
+    """
+    import jax
+
+    from veris import Simulation, initialize_experiment
+    from veris.execution.runtime import create_mesh, distributed_options
+    from veris.grid.regions import physical_indices
+    from veris.io import read_record
+
+    reference = read_record(output_root / "reference.nc").fields
+    assert len(reference) == 70, "ERROR repeated dynamics reference field count"
+    jax.config.update("jax_enable_x64", True)
+    jax.config.update("jax_enable_compilation_cache", False)
+    jax.config.update("jax_num_cpu_devices", 1)
+    jax.config.update("jax_cpu_collectives_implementation", "gloo")
+    options = distributed_options(os.environ, "cpu")
+    assert options is not None, "ERROR repeated dynamics needs two processes"
+    jax.distributed.initialize(**options)
+    try:
+        mesh = create_mesh(partitions, "cpu")
+        model = repeated_dynamics_definition().with_overrides(
+            {"execution": {"partitions": partitions}}
+        )
+        initial, conf, phys = initialize_experiment(model, mesh=mesh)
+        failures = []
+        for trial in range(DYNAMICS_REPETITIONS):
+            with (
+                jax.default_device(mesh.local_devices[0]),
+                Simulation(model, initial, conf, phys, mesh) as simulation,
+            ):
+                result = simulation.run()
+                jax.block_until_ready(result.state)
+                assert result.elapsed.total_seconds() == 1200.0
+                for name, expected in reference.items():
+                    for shard in getattr(result.state, name).addressable_shards:
+                        index = tuple(
+                            slice(part.start or 0, part.stop or extent)
+                            for part, extent in zip(
+                                shard.index,
+                                model.grid.storage_shape(partitions),
+                                strict=True,
+                            )
+                        )
+                        x, y = physical_indices(index, conf, (64, 64))
+                        target = expected[np.ix_(x[2:-2], y[2:-2])]
+                        actual = np.asarray(shard.data)[2:-2, 2:-2]
+                        scaled = float(
+                            np.max(np.abs(actual - target) / (1 + np.abs(target)))
+                        )
+                        if not scaled <= 1e-10:
+                            failures.append((trial, name, scaled))
+            jax.clear_caches()
+        assert not failures, (
+            f"ERROR repeated dynamics rank{jax.process_index()}: "
+            f"{len(failures)} mismatches, first={failures[:3]}"
+        )
+        print(
+            f"PASS repeated dynamics rank{jax.process_index()}: "
+            f"{DYNAMICS_REPETITIONS} trajectories, 70 fields"
+        )
+    finally:
+        jax.distributed.shutdown()
+
+
 def main() -> None:
     """Run real physics on both ranks; preserve borrowed services and close owned ones."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -66,7 +150,12 @@ def main() -> None:
     parser.add_argument("--borrowed", action="store_true")
     parser.add_argument("--local-cpu-devices", type=int, choices=(1, 2), default=1)
     parser.add_argument("--snapshot-failure", action="store_true")
+    parser.add_argument("--repeat-dynamics", action="store_true")
+    parser.add_argument("--dynamics-mesh", nargs=2, type=int, default=(1, 2))
     args = parser.parse_args()
+    if args.repeat_dynamics:
+        repeat_dynamics(args.output_root, tuple(args.dynamics_mesh))
+        return
     import jax
 
     from veris.execution.runtime import create_mesh, distributed_options

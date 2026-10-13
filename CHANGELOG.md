@@ -1,5 +1,26 @@
 # Development log
 
+## 2026-10-14 — Multi-process halo completion ordering
+
+- [x] The final cleanup run exposed intermittent two-node nested-EVP/final-halo
+  communication errors. A maintained 32-compilation, all-70-field regression
+  fails on unmodified source; both 1x2 and 2x1 native layouts pass after grouping
+  State/Diagnostics behind a completion barrier before the final halo refresh.
+  Actual executor graphs confirm the solver-to-first-exchange buffer dependency.
+- [x] Restrict the barrier to sharded multi-process runs. A broader local barrier
+  exposed an in-process collective AD collision; retain local compilation and
+  extend the closed-wall probe to explicit distributed State inputs. Native
+  four-rank job66310034 completes0:0 in189s, both slip choices and all halo/AD
+  prelude checks pass; unchanged local/distributed derivative cases pass2/2.
+- [x] Combined final-source verification:1590 CPU passes/4 expected GPU skips,
+  zero failures/errors,1129.51s wall, maintained4631/4884=94.82% coverage.
+  All four GPU-only cases pass natively; static/docs/clean-install gates pass.
+  Scientific equations, references and tolerances are unchanged.
+- [x] Final documented launcher job66311448 completes0:0 in6s onnodes453/454,
+  two nodes/two ranks on aegir. All9 output fields and1200s clock match serial,
+  maximum scaled error3.67618e-16. Evidence:compatibility-audit/narrow-* under
+  test_logs/, including narrow-final-aegir-equivalence.json and SLURM accounting.
+
 ## 2026-10-13 — Authoritative experiment framework
 
 - [x] Tasks 1–7 complete; independent whole-branch review identified four

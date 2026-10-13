@@ -133,6 +133,11 @@ def _advance_local(
     # The column reference leaves periodic output halos as produced by Growth.
     # Dynamics/coupled always refresh; closed walls always need field policies.
     if physics != "thermodynamics" or not conf.enable_cyclic_y:
+        if conf.use_sharding and jax.process_count() > 1:
+            # Keep unchanged fields' final exchanges behind the complete solver
+            # result. Otherwise their independent permutes can overlap nested
+            # EVP collectives across processes, mismatching Gloo messages.
+            state, diagnostics = jax.lax.optimization_barrier((state, diagnostics))
         state = fill_state_overlap(state, conf)
         diagnostics = fill_state_overlap(diagnostics, conf)
     return state, diagnostics

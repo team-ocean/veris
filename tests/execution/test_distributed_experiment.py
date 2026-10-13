@@ -15,7 +15,14 @@ from veris import run_experiment
 from veris.io import read_record
 
 
-def _launch(root: Path, kind: str, cyclic_y: bool, extra: tuple[str, ...] = ()) -> None:
+def _launch(
+    root: Path,
+    kind: str,
+    cyclic_y: bool,
+    extra: tuple[str, ...] = (),
+    *,
+    closed_ad: bool = False,
+) -> None:
     project = Path(__file__).resolve().parents[2]
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
@@ -45,6 +52,12 @@ def _launch(root: Path, kind: str, cyclic_y: bool, extra: tuple[str, ...] = ()) 
                 str(root),
                 *extra,
             ]
+            if closed_ad:
+                command = [
+                    sys.executable,
+                    str(project / "tests/closed_y_sharding_probe.py"),
+                    "--distributed",
+                ]
             processes.append(
                 subprocess.Popen(
                     command,
@@ -55,7 +68,7 @@ def _launch(root: Path, kind: str, cyclic_y: bool, extra: tuple[str, ...] = ()) 
                 )
             )
         for rank, process in enumerate(processes):
-            _, stderr = process.communicate(timeout=150)
+            _, stderr = process.communicate(timeout=360 if closed_ad else 150)
             assert process.returncode == 0, (
                 f"ERROR distributed rank{rank}: {stderr[-2200:]}"
             )
@@ -151,3 +164,30 @@ def test_real_distributed_borrowing_and_snapshot_exception_cleanup(
             )
     if extra == ("--snapshot-failure",):
         assert not (tmp_path / "final.nc").exists()
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("partitions", [(1, 2), (2, 1)])
+def test_repeated_nested_evp_rollouts_match_all_serial_fields(
+    tmp_path: Path, partitions: tuple[int, int]
+) -> None:
+    """Exercise the intermittent nested-loop/final-halo communication failure."""
+    from tests.distributed_framework_probe import repeated_dynamics_definition
+
+    run_experiment(
+        repeated_dynamics_definition(), snapshot_path=tmp_path / "reference.nc"
+    )
+    _launch(
+        tmp_path,
+        "dynamics",
+        True,
+        ("--repeat-dynamics", "--dynamics-mesh", *(str(p) for p in partitions)),
+    )
+
+
+@pytest.mark.slow
+def test_distributed_closed_coupled_derivatives_after_halo_prelude(
+    tmp_path: Path,
+) -> None:
+    """Preserve mixed halo/AD history before both closed-wall slip choices."""
+    _launch(tmp_path, "island", False, closed_ad=True)
