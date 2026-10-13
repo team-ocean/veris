@@ -11,6 +11,14 @@ Install the current checkout in an activated Python environment:
 python -m pip install -e .
 ```
 
+The central [command line interface](docs/cli.rst) lists, copies and runs setups:
+
+```bash
+veris show-setups
+veris copy-setup growth --to ./my-growth
+veris run ./my-growth/setup.py --steps 2 --output growth.nc
+```
+
 This coupled example supplies prescribed ocean geometry, masks and atmospheric
 fields without an external ocean model:
 

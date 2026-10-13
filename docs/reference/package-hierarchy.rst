@@ -31,15 +31,26 @@ canonical modules below when importing individual kernels or host helpers.
        input, snapshots and complete restart.
    * - ``veris.setups``
      - Island, dynamics, growth and parallel examples and preset controls.
+   * - ``veris.cli``
+     - Central Click commands, setup template discovery/copying and file execution.
 
 Implementation tree
 -------------------
 
-Every directory shown is a Python package with an ``__init__.py``. Those package
-initializers are omitted below except for the public facade at the root::
+Every directory shown is a Python package with an ``__init__.py``, except the
+CLI template directories, which are packaged data. Package initializers are
+omitted below except for the public facade at the root::
 
    veris/
      __init__.py
+     cli/
+       __main__.py
+       run.py
+       setups.py
+       templates/
+         dynamics/setup.py
+         growth/setup.py
+         island/setup.py
      model/
        arrays.py
        configuration.py

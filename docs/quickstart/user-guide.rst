@@ -5,6 +5,9 @@ Install Veris into an activated Python environment::
 
    python -m pip install -e .
 
+For discovery, editable setup templates and execution from a shell, see
+:doc:`/cli`.
+
 Veris is standalone. Its public lifecycle uses an immutable ``Experiment`` and
 a host ``Simulation``; it requires no external ocean model. This complete CPU
 example couples momentum, ice/snow transport and thermodynamic growth with

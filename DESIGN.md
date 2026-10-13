@@ -159,6 +159,16 @@ tree and canonical import examples are maintained in
 [package-hierarchy.rst](docs/reference/package-hierarchy.rst). Scientific capture
 provenance records the paths of its archived source revision.
 
+The host-only `veris.cli` Click group is exposed by the installed `veris`
+command and `python -m veris.cli`. Discovery/copy never imports template code
+or configures JAX. Builtin/external folders contain editable `setup.py`
+factories returning Experiment. Run loads those factories or the existing
+versioned JSON codec, applies explicit execution/precision overrides and owns
+Simulation/mesh/distributed resources. Definitions remain authoritative when
+options are omitted; float overrides update numerical and physical precision
+together. Snapshot/history use existing physical-field I/O and no-clobber
+contracts. No numerical kernels or preset initializers are duplicated.
+
 Tests mirror the domain packages while standalone process probes and immutable
 reference data retain shared locations. Full correctness and coverage verification
 uses one coordinated pytest session with externally measured wall time.

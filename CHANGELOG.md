@@ -1,5 +1,70 @@
 # Development log
 
+## 2026-10-13 — Centralized Click command line interface
+
+- [x] COMPLETE (@root): add the installed `veris` command and corresponding
+  documentation on `jax-only`. Current local/remote HEAD is `dfb5313`; the
+  checkout has no tracked modifications. Existing `test_logs/` are local
+  evidence and must not be staged wholesale.
+- Read DESIGN.md and AGENTS.md. Inspected Vercor's current CLI documentation:
+  `show-setups`, `copy-setup`, `run`, version/help, logging and precision.
+  Its documentation is accessible with curl; the web page opener fails.
+  GitHub's `nutrik/vercor` `jax-only` tree returns 404; no obsolete branch
+  is used as a source reference.
+- Proposed a bounded CLI extension using existing Experiment/Simulation APIs,
+  copied Python preset templates, native JSON definitions, CPU/GPU/mesh and
+  output controls, and `VERIS_SETUP_DIR` discovery. The user explicitly approved
+  this design before implementation. Work stays in the requested `jax-only`
+  checkout; Click is already a package dependency.
+- Read-only test-quality/documentation role (@cli_contract_audit) reviews
+  integration contracts and packaging requirements. Root owns the only pytest
+  session. Use the established `.venv-latest`, not the absent `.venv`.
+- [x] Tests precede the CLI implementation: initial RED is the missing
+  `veris.cli` module. First focused run: 34 passed, one CPU-expected GPU skip,
+  one assertion-wording failure (`divide` versus existing `divisible` error).
+  Check the error's partition context instead. Separate reference trace-level
+  RED rejects `-v trace`; add it as logging level 5.
+- [x] Implemented group/module entry point, deterministic template registry,
+  non-overwriting directory copies, factory/JSON loading and existing lifecycle
+  execution, shipped templates and console-script packaging. Explicit precision
+  overrides update settings and serialized physical-constant dtype together.
+- [x] Added CLI documentation with generated current help and links from Usage,
+  quickstart, setup gallery, README and package hierarchy; DESIGN.md records
+  ownership. Read-only implementation reviews are underway (@cli_code_review,
+  @cli_contract_audit).
+- [x] Independent reviews: no remaining required findings. Review reproducer
+  confirms omitted distributed backend reached ambiguous initialization (RED).
+  Require explicit CPU/GPU backend for distributed launches before initializing
+  resources; preserve omitted backend for local definitions. Expanded focused
+  CLI suite: 39 passed, two CPU-expected GPU skips (31.91 s).
+- [x] Clean wheel installation smoke executes version, setup discovery, copy
+  and one-step float32 growth outside source paths. Package-focused run:
+  37 passed, two CPU-expected GPU skips (46.65 s); strengthened later CLI checks
+  additionally execute a copied coupled island and omitted-option JSON output.
+- [x] Maintained lint, formatting (201 files), annotation checks and ty pass.
+  Strict Sphinx passes after correcting two heading underline lengths; generated
+  help asserts command success. Initial docs warnings were formatting only.
+- [x] Full CPU correctness: 1382 passed/four expected GPU skips, zero failures,
+  789.82 pytest seconds/793.60 external seconds. All four skipped cases are
+  subsequently verified on native GPUs. Maintained coverage is 4199/4449
+  (94.38%); the 80% gate passes. Whole-package coverage includes generated
+  version metadata (4340/4802, 90.38%). Evidence: `test_logs/central-cli/`.
+- [x] Native GPU checks: four passed, no failures/errors/skips, 33.40 pytest
+  seconds/36.70 external seconds on two Tesla P100s with JAX 0.11.2/CUDA 12.
+  Cover central serial growth and two-GPU dynamics with float32 snapshots,
+  existing two-GPU scheduled output and parallel-driver finite output.
+  Initial sandbox attempt cannot initialize CUDA (`CUDA_ERROR_NO_DEVICE`);
+  explicitly user-authorized GPU escalation succeeds. Do not diagnose this
+  sandbox visibility failure as a model/runtime regression.
+- [x] Final strict docs and maintained tooling checks pass. Fresh wheel/sdist
+  build succeeds; clean installed wheel executes all three copied presets for
+  one real CPU timestep outside the source checkout, with finite float32 fields
+  and correct absolute times. Editable reinstall registers the local command.
+  Existing setuptools deprecation notices are unrelated to this feature.
+- Deliver this cohesive CLI feature on the requested `jax-only` branch after
+  all required checks pass. Scientific kernels, reference data and tolerances
+  are unchanged; local logs/build artifacts remain unstaged.
+
 ## 2026-10-12 — Investigate GitHub correctness failure #30
 
 - [x] COMPLETE (@root): use GitHub CLI to diagnose and fix hosted correctness

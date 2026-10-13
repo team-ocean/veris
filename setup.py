@@ -51,7 +51,8 @@ setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     packages=find_packages(),
-    package_data={"veris": ["py.typed", "*.pyi"]},
+    package_data={"veris": ["py.typed", "*.pyi"], "veris.cli": ["templates/*/*.py"]},
+    entry_points={"console_scripts": ["veris=veris.cli:cli"]},
     install_requires=INSTALL_REQUIRES,
     classifiers=[c for c in CLASSIFIERS.split("\n") if c],
 )

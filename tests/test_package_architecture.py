@@ -38,6 +38,7 @@ def test_public_facade_exports_keep_canonical_identity() -> None:
         "veris.execution.simulation",
         "veris.io.restart",
         "veris.setups.run_parallel",
+        "veris.cli",
     ],
 )
 def test_cold_import_orders_preserve_jax_configuration(first: str) -> None:

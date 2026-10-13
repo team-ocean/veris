@@ -17,6 +17,7 @@ implementation as part of his `Master's thesis <https://nbi.ku.dk/teamocean/docs
 
    quickstart/user-guide
    quickstart/custom-ocean
+   cli
 
 .. toctree::
    :maxdepth: 2
