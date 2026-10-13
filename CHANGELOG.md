@@ -90,6 +90,40 @@
   and a post-return calculation proving the caller's mesh remains usable.
   Maintained static/diff checks pass. A fresh combined full gate follows.
 - [x] Combined Task 3/4 full GREEN: 1496 passed, four expected GPU skips, no failures/errors in 881.380 s. Maintained coverage clears 80%; frozen scientific, AD, 24-layout lifecycle, actual runner meshes/processes, restart compatibility/corruption and ambient-mesh contracts all pass. Native ledger records both units complete. Commit the verified ownership/runtime unit on `jax-only`; CLI unification and inspection/blueprint remain next. Evidence: `runtime-full.*` and `runtime-full-coverage.json`.
+- [x] Ownership/runtime unit committed on `jax-only` as `10a5d88` after the
+  1,496-pass/four-GPU-skip full gate and 95% maintained coverage.
+- Task 5 IN PROGRESS: central/module CLIs delegate to public run_experiment;
+  grouped --set parsing rejects duplicate/conflicting aliases and malformed JSON.
+  Driver numeric defaults come from profiles, with explicit flag provenance;
+  parallel zero-step runs now work. RED: 15/22 framework cases and 9/9 parser
+  cases. Initial focused run exposes four calendar/sampling/error-message
+  regressions; narrow fixes restore module per-step sampling without replacing
+  authored streams and present --netcdf in the CLI error. Final focused pytest
+  session is 50578 (`cli-focused-final.*`); verify it before a full gate/commit.
+- Tasks 6/7 remain: authored/resolved exports and cold inspection, executable
+  blueprint/installed documentation, final CPU/GPU/local-distributed/aegir
+  validation, package checks and independent whole-branch review. Ignored native
+  workspace contains prepared test drafts; do not count drafts as implementation.
+- [x] Task 5 initial final focused: 87 passed, three expected GPU skips, no
+  failures/errors in 76.399 s. Strengthened copied templates now execute real
+  steps with all-field comparisons; additional custom-geometry and module-driver
+  parity covers both boundary modes. The Slurm example delegates all-device
+  mesh discovery/backend defaults to the parallel profile/shared runtime.
+  Expanded equivalence tests are running (`cli-equivalence-final.*`).
+- [x] Task 5 final focused: 81 passed, three expected GPU skips, no failures/
+  errors. All copied templates execute real steps; Python/CLI parity includes
+  custom geometry, both boundary modes and all 70 fields. Module-console invalid
+  controls are concise and create no files. Required static/annotation/format
+  checks pass; strict Sphinx was green before the console-only wrapper. Full
+  adapter correctness/coverage verification now precedes its commit.
+- [x] Actual two-node integration regression: aegir job `66302436` on
+  `node453/node454` completes with ExitCode `0:0` in 48 s. All 70 physical fields
+  match serial at maximum scaled error 2.50e-15; snapshot/history time is 600 s,
+  and execution metadata reports two processes and 1x2 partitions. This directly
+  verifies the hybrid mesh fix for the previous multi-slice failure. Evidence:
+  `hardware/aegir-two-equivalence.json` and job log under `test_logs/framework/`.
+  Final packaged/GPU/blueprint acceptance still remains.
+- [x] Task 5 full GREEN: 1536 passed, four expected GPU skips, no failures/errors in 926.569 s. Maintained coverage clears 80%; strict docs/static/annotation/shell checks pass. Native task ledger marks the adapter unit complete. Commit on `jax-only`, then proceed to authored/resolved export and cold inspection/blueprint. Evidence: `cli-full.*` and `cli-full-coverage.json`.
 - Scope: fulfill the pasted consolidation request on `jax-only`;
   audit base is `9118648ade93de72c696c68c6067fabb5b21391d`. Read AGENTS.md,
   DESIGN.md, CHANGELOG.md and the pasted requirements. GitHub confirms the

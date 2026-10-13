@@ -99,6 +99,9 @@ def copy_setup_command(setup: str, to: Path | None) -> None:
     "--io-variables",
     help="Comma-separated snapshot fields (default: all); also selects fields for a default history.",
 )
+@click.option(
+    "--set", "set_values", multiple=True, help="Grouped override: SECTION.KEY=JSON."
+)
 def run_command(
     setup_file: Path,
     loglevel: str,
@@ -109,6 +112,7 @@ def run_command(
     output: Path,
     netcdf: Path | None,
     io_variables: str | None,
+    set_values: tuple[str, ...],
 ) -> None:
     """Run a Python setup factory or a versioned JSON experiment file."""
     logging.basicConfig(
@@ -124,6 +128,7 @@ def run_command(
             backend=backend,
             mesh=mesh,
             io_variables=io_variables,
+            set_values=set_values,
         )
     except (OSError, ValueError, TypeError, RuntimeError, FloatingPointError) as error:
         raise click.ClickException(str(error)) from error

@@ -8,20 +8,21 @@ Scenario coefficients are experimental controls, not universal physical laws.
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any
 
 import click
-import jax
 import numpy as np
 from jax.sharding import Mesh
 
 from veris.io.cli import (
+    console_main,
+    driver_definition,
     output_options,
-    output_settings,
+    parameter_namespace,
     parse_options,
-    prepare_output_paths,
+    run_driver,
 )
 from veris.model.configuration import Configuration
 from veris.model.metadata import FROM_REGISTRY, registry_defaults, validate_scalars
@@ -233,48 +234,36 @@ def initialize(
 
 
 @click.command(help=__doc__)
-@click.option("--steps", type=click.IntRange(min=0), default=100)
-@click.option("--backend", type=click.Choice(["cpu", "gpu"]), default="cpu")
-@click.option("--nx", type=click.IntRange(min=2), default=1024)
+@click.option("--steps", type=click.IntRange(min=0))
+@click.option("--backend", type=click.Choice(["cpu", "gpu"]))
+@click.option("--nx", type=click.IntRange(min=2))
 @click.option("--ny", type=click.IntRange(min=2))
-@click.option("--evp-steps", type=click.IntRange(min=1), default=120)
+@click.option("--evp-steps", type=click.IntRange(min=1))
+@click.option(
+    "--set", "set_values", multiple=True, help="Grouped override: SECTION.KEY=JSON."
+)
 @output_options("dynamics.nc", tuple(VARIABLES))
 def cli(**kwargs: Any) -> SimpleNamespace:
-    """Parse the standalone experiment options."""
-    return SimpleNamespace(**kwargs)
+    """Parse explicit controls without promoting parser defaults to overrides."""
+    return parameter_namespace(kwargs)
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Integrate the reference experiment and save physical fields as netCDF."""
+    """Translate standalone profile flags and invoke the public Python runner."""
     args = parse_options(cli, argv)
-    jax.config.update("jax_enable_x64", True)
-    from veris import Execution, Experiment, Grid, Simulation
-
-    definition = Experiment.builtin(
-        "dynamics",
-        grid=Grid(args.nx, args.nx if args.ny is None else args.ny),
-        settings={"nEVPsteps": args.evp_steps},
-        execution=Execution(backend=args.backend),
-        steps=args.steps,
-    )
-    definition = replace(
-        definition,
-        output=output_settings(args, definition.step_duration.total_seconds()),
-    )
-    prepare_output_paths(args)
-    with Simulation.initialize(definition, output_path=args.netcdf) as simulation:
-        result = simulation.run()
-        output = {
-            name: np.asarray(getattr(result.state, name))[2:-2, 2:-2]
-            for name in VARIABLES
-        }
-        if not all(np.isfinite(value).all() for value in output.values()):
-            raise RuntimeError("nonfinite dynamics output")
-        simulation.snapshot(args.output, variables=tuple(args.io_variables.split(",")))
-    print(
-        f"dynamics: {args.steps} steps, {args.backend}, compile {result.compilation_seconds:.3f}s, run {result.integration_seconds:.3f}s, {args.output}"
-    )
+    definition = driver_definition("dynamics", "standalone", args)
+    try:
+        result = run_driver(definition, args)
+    except ValueError as error:
+        if str(error).startswith("nonfinite output"):
+            raise RuntimeError(str(error)) from error
+        raise
+    assert result.execution_metadata is not None
+    if result.execution_metadata["process_index"] == 0:
+        print(
+            f"dynamics: {result.completed_steps} steps, {result.execution_metadata['backend']}, compile {result.compilation_seconds:.3f}s, run {result.integration_seconds:.3f}s, {args.output}"
+        )
 
 
 if __name__ == "__main__":
-    main()
+    console_main(main)

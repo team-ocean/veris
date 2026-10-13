@@ -9,7 +9,8 @@
 #SBATCH --output=veris-parallel-%j.log
 
 # Submit from the project root: sbatch veris/setups/run_parallel.slurm
-# CLI arguments override the small smoke-run defaults, e.g. --nx 256 --steps 10.
+# CLI arguments override deliberate smoke controls, e.g. --nx 256 --steps 10.
+# The parallel profile and shared runtime discover the global all-device mesh.
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-$PWD}"
 if [[ -f .venv-latest/bin/activate ]]; then
@@ -25,5 +26,5 @@ export JAX_NUM_CPU_DEVICES=1
 export JAX_CPU_COLLECTIVES_IMPLEMENTATION=gloo
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-4}"
 srun --cpu-bind=cores python -m veris.setups.run_parallel \
-    --nx 64 --mesh 1 "${SLURM_NTASKS:-2}" --steps 2 --evp-steps 4 \
-    "$@" --backend cpu
+    --nx 64 --steps 2 --evp-steps 4 \
+    "$@"

@@ -12,20 +12,19 @@ Distributed initialization precedes backend allocation.
 
 from __future__ import annotations
 
-import os
-from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any
 
 import click
-import jax
 
 from veris.execution.runtime import create_mesh, distributed_options
 from veris.io.cli import (
+    console_main,
+    driver_definition,
     output_options,
-    output_settings,
+    parameter_namespace,
     parse_options,
-    prepare_output_paths,
+    run_driver,
 )
 
 OUTPUT_FIELDS = (
@@ -40,84 +39,59 @@ OUTPUT_FIELDS = (
     "vOcean",
 )
 
+__all__ = ["create_mesh", "distributed_options", "main", "parse_args"]
+
 
 @click.command(help=__doc__)
-@click.option("--nx", type=click.IntRange(min=2), default=1024)
+@click.option("--nx", type=click.IntRange(min=2))
 @click.option("--ny", type=click.IntRange(min=2))
 @click.option("--mesh", nargs=2, type=click.IntRange(min=1), metavar="PX PY")
-@click.option("--steps", type=click.IntRange(min=1), default=1000)
-@click.option("--evp-steps", type=click.IntRange(min=1), default=120)
-@click.option("--backend", type=click.Choice(["cpu", "gpu"]), default="cpu")
+@click.option("--steps", type=click.IntRange(min=0))
+@click.option("--evp-steps", type=click.IntRange(min=1))
+@click.option("--backend", type=click.Choice(["cpu", "gpu"]))
+@click.option(
+    "--set", "set_values", multiple=True, help="Grouped override: SECTION.KEY=JSON."
+)
 @output_options("parallel.nc", OUTPUT_FIELDS)
 def cli(**kwargs: Any) -> SimpleNamespace:
-    """Parse global physical grid, device topology and integration options."""
-    return SimpleNamespace(**kwargs)
+    """Parse explicit global grid/device controls without launching resources."""
+    return parameter_namespace(kwargs)
 
 
 def parse_args(argv: list[str] | None = None) -> SimpleNamespace:
-    """Validate command arguments before distributed initialization."""
-    return parse_options(cli, argv)
+    """Parse flags and expose profile defaults for legacy parser callers."""
+    from veris.setups.presets import get_preset, preset_controls
+
+    args = parse_options(cli, argv)
+    preset = get_preset("dynamics")
+    profile = preset.profile_controls("parallel")
+    defaults = {
+        "steps": profile["steps"],
+        "nx": preset.grid_defaults("parallel")["nx"],
+        "backend": profile["execution"]["backend"],
+        "evp_steps": preset_controls("dynamics", {}, {})[0]["nEVPsteps"],
+    }
+    for name, value in defaults.items():
+        if getattr(args, name) is None:
+            setattr(args, name, value)
+    return args
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Initialize distributed communication, integrate, gather and shut down."""
-    arguments = parse_args(argv)
-    jax.config.update("jax_enable_x64", True)
-    # Explicit "gpu" platforms expand to every accelerator plugin in JAX;
-    # selecting CUDA avoids requiring an unrelated ROCm installation.
-    jax.config.update("jax_platforms", "cuda" if arguments.backend == "gpu" else "cpu")
-    options = distributed_options(os.environ, arguments.backend)
-    started_distributed = False
-    try:
-        if options is not None:
-            if arguments.backend == "cpu":
-                jax.config.update("jax_num_cpu_devices", 1)
-                jax.config.update("jax_cpu_collectives_implementation", "gloo")
-            jax.distributed.initialize(**options)
-            started_distributed = True
-
-        from veris import Execution, Experiment, Grid, Simulation
-
-        partitions = tuple(arguments.mesh) if arguments.mesh else None
-        mesh = create_mesh(partitions, arguments.backend)
-        layout = mesh.shape["x"], mesh.shape["y"]
-        definition = Experiment.builtin(
-            "dynamics",
-            grid=Grid(
-                arguments.nx, arguments.nx if arguments.ny is None else arguments.ny
-            ),
-            settings={"nEVPsteps": arguments.evp_steps},
-            execution=Execution(backend=arguments.backend, partitions=layout),
-            steps=arguments.steps,
+    """Translate the parallel profile and let the public runner own resources."""
+    args = parse_args(argv)
+    result = run_driver(driver_definition("dynamics", "parallel", args), args)
+    assert result.execution_metadata is not None
+    metadata = result.execution_metadata
+    if metadata["process_index"] == 0:
+        px, py = metadata["partitions"]
+        print(
+            f"mesh={px}x{py} backend={metadata['backend']} steps={result.completed_steps}"
         )
-        definition = replace(
-            definition,
-            output=output_settings(arguments, definition.step_duration.total_seconds()),
+        print(
+            f"compilation={result.compilation_seconds:.3f}s integration={result.integration_seconds:.3f}s output={args.output}"
         )
-        prepare_output_paths(arguments)
-        # A one-device topology uses the serial facade; its status still reports
-        # the explicit 1x1 CLI topology. Communication remains caller-owned.
-        execution_mesh = None if layout == (1, 1) else mesh
-        with Simulation.initialize(
-            definition, mesh=execution_mesh, output_path=arguments.netcdf
-        ) as simulation:
-            result = simulation.run()
-            simulation.snapshot(
-                arguments.output, variables=tuple(arguments.io_variables.split(","))
-            )
-        compilation, elapsed = result.compilation_seconds, result.integration_seconds
-        rank = jax.process_index()
-        if rank == 0:
-            print(
-                f"mesh={mesh.shape['x']}x{mesh.shape['y']} backend={arguments.backend} steps={arguments.steps}"
-            )
-            print(
-                f"compilation={compilation:.3f}s integration={elapsed:.3f}s output={arguments.output}"
-            )
-    finally:
-        if started_distributed:
-            jax.distributed.shutdown()
 
 
 if __name__ == "__main__":
-    main()
+    console_main(main)

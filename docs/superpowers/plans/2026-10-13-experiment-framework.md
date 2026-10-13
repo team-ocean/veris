@@ -154,12 +154,12 @@ the CLI delegates its resulting Experiment to the public runner.
 **Consumes:** Public runner and with_overrides from Tasks 1/4; launch profiles from Task 2.
 **Produces:** Shared execution through every maintained entry; grouped `--set SECTION.KEY=JSON` override parsing.
 
-- [ ] Write nonzero Python/central CLI/module-driver equivalence for all presets, custom geometry and both boundary modes, comparing resolved controls and all physical State fields. Copied growth/dynamics templates must execute real steps.
-- [ ] Write file/preset/CLI precedence cases, omitted flags, zero/False values, nested forcing/output overrides, array replacement and precision promotion. Reject unknown/malformed paths/JSON and conflicting dedicated/generic flags rather than silently choosing an ordering.
-- [ ] Write zero-step parallel CLI and no-effect invalid preflight tests, preserving no-clobber snapshot/history and variable-selection behavior.
-- [ ] Run the new file to capture current missing override/adapter behavior.
-- [ ] Translate flags into one explicit override mapping and invoke the public runner. CLI parser defaults must not overwrite authored config. Consume launch profile owners; remove execution orchestration from setup modules. Retain current installed/module entry points and copied-factory source loading.
-- [ ] Run all CLI/output/installed-template contracts and fast mode. Update CLI/driver docs and CHANGELOG; full CPU/coverage gate before committing the adapter unit.
+- [x] Write nonzero Python/central CLI/module-driver equivalence for all presets, custom geometry and both boundary modes, comparing resolved controls and all physical State fields. Copied growth/dynamics templates must execute real steps.
+- [x] Write file/preset/CLI precedence cases, omitted flags, zero/False values, nested forcing/output overrides, array replacement and precision promotion. Reject unknown/malformed paths/JSON and conflicting dedicated/generic flags rather than silently choosing an ordering.
+- [x] Write zero-step parallel CLI and no-effect invalid preflight tests, preserving no-clobber snapshot/history and variable-selection behavior.
+- [x] Run the new file to capture current missing override/adapter behavior.
+- [x] Translate flags into one explicit override mapping and invoke the public runner. CLI parser defaults must not overwrite authored config. Consume launch profile owners; remove execution orchestration from setup modules. Retain current installed/module entry points and copied-factory source loading.
+- [x] Run all CLI/output/installed-template contracts and fast mode. Update CLI/driver docs and CHANGELOG; full CPU/coverage gate before committing the adapter unit.
 
 ## Task 6: Export authored/resolved definitions and publish an executable blueprint
 

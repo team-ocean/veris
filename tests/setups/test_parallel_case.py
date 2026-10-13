@@ -109,7 +109,6 @@ def test_invalid_mesh_and_cli_dimensions() -> None:
     with pytest.raises(ValueError, match="devices"):
         run_parallel.create_mesh((jax.device_count() + 1, 1), "cpu")
     for arguments in (
-        ["--steps", "0"],
         ["--evp-steps", "0"],
         ["--mesh", "0", "1"],
         ["--nx", "-1"],
@@ -120,6 +119,7 @@ def test_invalid_mesh_and_cli_dimensions() -> None:
     assert arguments.steps == 1000
     assert arguments.evp_steps == 120
     assert arguments.output == Path("parallel.nc")
+    assert run_parallel.parse_args(["--steps", "0"]).steps == 0
 
 
 @pytest.mark.skipif(jax.default_backend() != "gpu", reason="requires a GPU backend")

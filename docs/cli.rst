@@ -169,3 +169,28 @@ or multi-task Slurm configuration as :doc:`reference/setups/parallel-dynamics`;
 configure a partitioned definition/``--mesh`` and an explicit CPU/GPU backend
 before launch. The runner owns
 distributed initialization and shuts it down on success or failure.
+
+Grouped overrides and shared execution
+--------------------------------------
+
+All run commands call :func:`veris.run_experiment`. Numeric module-driver
+launch defaults come from named profiles; omitted parser flags preserve those
+values. The standalone parallel profile discovers all devices at launch, and
+``--steps 0`` writes initialization-only output.
+
+Use ``--set SECTION.KEY=JSON`` for controls without dedicated flags::
+
+   veris run ./my-island/setup.py --steps 2 --set scenario.islandWindSpeed=0.0 --set settings.enable_cyclic_y=false --output calm.nc
+   python -m veris.setups.run_growth --steps 2 --set forcing.constant.LWdown=300.0 --output growth.nc
+
+Mappings merge by key; arrays and stream lists replace whole values. Values use
+JSON, including lowercase ``true``, ``false`` and ``null``. Quote JSON strings,
+for example ``--set 'settings.dtype="float32"'``. Unknown controls, malformed
+JSON, duplicate paths and overlapping dedicated/generic aliases fail before
+resource acquisition or output creation. Use one explicit source for each
+control rather than combining ``--steps`` with ``--set steps=...``.
+
+Module snapshots and default histories retain their existing field selections,
+calendars and per-step sampling. Explicit stream schedules remain authoritative.
+The Slurm script supplies deliberate small smoke overrides while the shared
+runtime owns mesh discovery and distributed service cleanup.

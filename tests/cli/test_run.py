@@ -152,7 +152,9 @@ def test_copied_builtin_factory_runs_with_its_preset(
             "run",
             str(directory / "setup.py"),
             "--steps",
-            "1" if preset == "island" else "0",
+            "1",
+            "--set",
+            "settings.nEVPsteps=2",
             "--output",
             str(output),
         ],
@@ -160,9 +162,17 @@ def test_copied_builtin_factory_runs_with_its_preset(
     assert result.exit_code == 0, result.output
     saved = read_record(output)
     assert saved.fields["hIceMean"].shape == (definition.grid.nx, definition.grid.ny)
-    assert saved.time == (
-        definition.step_duration.total_seconds() if preset == "island" else 0
-    )
+    assert saved.time == definition.step_duration.total_seconds()
+    with Simulation.initialize(
+        definition.with_overrides({"steps": 1, "settings": {"nEVPsteps": 2}})
+    ) as model:
+        expected = model.run()
+    for name, actual in saved.fields.items():
+        reference = np.asarray(getattr(expected.state, name))[2:-2, 2:-2]
+        error = np.abs(actual - reference)
+        assert np.all(error <= 1e-12 * (1 + np.abs(reference))), (
+            f"ERROR copied {preset} {name}: max_abs={error.max():.6g}"
+        )
 
 
 @pytest.mark.parametrize(
