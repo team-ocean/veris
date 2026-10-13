@@ -100,6 +100,12 @@ application, derived load/inverse thickness and global boundaries. Declare
 can be checked before resource selection. New providers need no core name
 branches. See :doc:`/api/initialization` and its tested registry contract.
 
+Preset numerical defaults may select ``dtype``; profile and explicit settings
+override it before final scenario normalization. Callable defaults must return
+a dtype that is stable under that normalization. Cycles fail during definition
+validation; an explicit dtype can settle the choice. Authored scenario arrays
+and nested controls are owned immutable copies.
+
 Local and distributed execution
 --------------------------------
 
@@ -129,6 +135,11 @@ For distributed Python, request the same execution values on every process::
 Launch those processes with explicit JAX rank variables or an ``srun`` allocation.
 The runner closes services it starts; caller-owned services/meshes remain usable.
 The low-level Simulation facade still accepts already prepared resources.
+Known runner-owned CPU rank counts must match the requested device mesh before
+bootstrap, with one CPU device per rank. Borrowed services can provide multiple
+CPU devices per rank and are checked against their actual mesh.
+Explicit owned meshes on either backend must provide at least one device per
+process; impossible known rank requests fail before launch policy or bootstrap.
 
 The maintained smoke launcher uses the CPU ``aegir`` partition and the parallel
 profile's all-device discovery::

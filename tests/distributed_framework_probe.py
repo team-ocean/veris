@@ -64,6 +64,7 @@ def main() -> None:
     parser.add_argument("--cyclic-y", type=int, choices=(0, 1), required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--borrowed", action="store_true")
+    parser.add_argument("--local-cpu-devices", type=int, choices=(1, 2), default=1)
     parser.add_argument("--snapshot-failure", action="store_true")
     args = parser.parse_args()
     import jax
@@ -72,18 +73,19 @@ def main() -> None:
     from veris.execution.simulation import Simulation
 
     rank = int(os.environ.get("JAX_PROCESS_ID", os.environ.get("SLURM_PROCID", "0")))
+    partitions = (1, 2 * args.local_cpu_devices if args.borrowed else 2)
     model = definition(args.kind, bool(args.cyclic_y)).with_overrides(
-        {"execution": {"backend": "cpu", "partitions": (1, 2)}}
+        {"execution": {"backend": "cpu", "partitions": partitions}}
     )
     mesh = None
     if args.borrowed:
         jax.config.update("jax_enable_x64", True)
-        jax.config.update("jax_num_cpu_devices", 1)
+        jax.config.update("jax_num_cpu_devices", args.local_cpu_devices)
         jax.config.update("jax_cpu_collectives_implementation", "gloo")
         options = distributed_options(os.environ, "cpu")
         assert options is not None
         jax.distributed.initialize(**options)
-        mesh = create_mesh((1, 2), "cpu")
+        mesh = create_mesh(partitions, "cpu")
     if args.snapshot_failure:
 
         def fail(*args: object, **kwargs: object) -> None:
@@ -105,6 +107,7 @@ def main() -> None:
             assert (
                 result.execution_metadata is not None
                 and result.execution_metadata["process_count"] == 2
+                and result.execution_metadata["partitions"] == partitions
             )
         except RuntimeError as exc:
             if not args.snapshot_failure or "injected snapshot failure" not in str(exc):

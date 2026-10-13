@@ -1,6 +1,26 @@
 # Development log
 
-## 2026-10-13 — Authoritative experiment framework audit and proposal
+## 2026-10-13 — Authoritative experiment framework
+
+- [x] Tasks 1–7 complete; independent whole-branch review identified four
+  Important findings, all reproduced and fixed in one pass: cold owned CPU/GPU
+  rank checks, preset dtype before scenario normalization, recursive ownership
+  of authored controls and shared island salinity bounds. Real borrowed
+  services with two CPU devices per rank remain usable. No deferred findings.
+- [x] Final reviewed-source CPU gate: 1,578 passed, four GPU-only skips,
+  zero failures/errors in 963.098 s. Maintained coverage: 4,732/4,979 = 95.04%.
+  The four skipped accelerator cases passed on native GPUs; reviewed-source
+  GPU AD/CLI/two-device output gate passes 6/6. Fresh all-mode/custom hardware
+  matrices pass 16 GPU cases and 16 one-/two-node aegir cases. Jobs `66304339`
+  (one node, 54 s) and `66304340` (two nodes, 56 s) complete `0:0`; snapshots
+  match serial at 6.04e-15 maximum scaled error and full histories match exactly.
+- [x] Final Ruff/format/annotations/ty, shell syntax, strict Sphinx and clean
+  wheel/sdist pass. Installed literal Python/CLI/config-export/mesh/JIT/AD
+  examples pass. Scientific source and all three reference archives are
+  unchanged. Evidence: `test_logs/framework/final-reviewed-*`,
+  `review-final-contracts.xml`, `review-gpu.xml`, `final-review.json` and
+  `hardware/aegir-review-equivalence.json`. Retain the intentionally interrupted
+  pre-extension suite as partial evidence; it is not a passing gate.
 
 - [x] Final native parallel CLI GPU check passes 1/1 with zero skips. Combined
   native GPU pytest gates pass 63/63, including every four CPU-skipped GPU case;
@@ -39,7 +59,7 @@
   archives are unchanged. Fresh wheel/sdist contain published blueprint/JSON;
   clean installed literal lifecycle/mesh/AD and Python/CLI/inspect examples pass.
   CI now runs the installed blueprint probe. Final full CPU gate/review remain.
-- IN PROGRESS (@root): user approved the plan and native execution. Implement
+- [x] @root: user approved the plan and native execution. Implemented
   the seven test-first units without further stage approval. Design and GPU/
   `aegir` test authorization remain in force; root owns the only pytest session.
 - [x] Task 1 RED: 17 new cases reproduce stale scenario defaults, float32

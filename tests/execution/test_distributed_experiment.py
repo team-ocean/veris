@@ -124,14 +124,21 @@ def test_two_process_all_modes_spatial_forcing_history_and_clock(
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("extra", [("--borrowed",), ("--snapshot-failure",)])
+@pytest.mark.parametrize(
+    "extra",
+    [
+        ("--borrowed",),
+        ("--borrowed", "--local-cpu-devices", "2"),
+        ("--snapshot-failure",),
+    ],
+)
 def test_real_distributed_borrowing_and_snapshot_exception_cleanup(
     tmp_path: Path, extra: tuple[str, ...]
 ) -> None:
     _launch(tmp_path, "dynamics", True, extra)
     for rank in range(2):
         status = json.loads((tmp_path / f"rank-{rank}.json").read_text())
-        if extra == ("--borrowed",):
+        if "--borrowed" in extra:
             assert (
                 status["borrowed"]
                 and not status["closed_owned"]

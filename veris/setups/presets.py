@@ -186,6 +186,7 @@ def _load_builtins() -> None:
                 "hIceMean": values["islandIceThickness"],
                 "hSnowMean": values["islandSnowThickness"],
                 "Area": values["islandIceArea"],
+                "ocSalt": values["saltOcn_ref"],
             },
             startup_excluded_forcing=frozenset({"Qnet", "Qsw"}),
             preserve_startup=True,
@@ -299,16 +300,41 @@ def _initialize_adapter(
 def preset_controls(
     name: str, settings: Controls, scenario: Controls, profile: str | None = None
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Apply scientific/profile defaults before authored numerical controls."""
+    """Resolve preset/profile/authored precision before final scenario values.
+
+    Callable numerical defaults may declare precision. Evaluate them with the
+    provisional scenario, then re-resolve raw values in that precision. Their
+    dtype must remain stable under normalization unless an explicit/profile
+    precision overrides it; a precision-dependent cycle is rejected.
+    """
     from veris.model.experiment_resolution import merge_overrides
 
     preset = get_preset(name)
     launch = preset.profile_controls(profile)
     combined = merge_overrides(launch.get("settings", {}), settings)
     values = merge_overrides(launch.get("scenario", {}), scenario)
-    resolved = preset.resolve_scenario(
-        values, combined.get("dtype", SETTINGS["dtype"].default)
-    )
     defaults = preset.numerical_defaults
-    numerical = defaults if isinstance(defaults, Mapping) else defaults(resolved)
+
+    def numerical_values(resolved: Controls) -> Controls:
+        return defaults if isinstance(defaults, Mapping) else defaults(resolved)
+
+    provisional_dtype = combined.get(
+        "dtype",
+        defaults.get("dtype", SETTINGS["dtype"].default)
+        if isinstance(defaults, Mapping)
+        else SETTINGS["dtype"].default,
+    )
+    resolved = preset.resolve_scenario(values, provisional_dtype)
+    numerical = numerical_values(resolved)
+    dtype = combined.get("dtype", numerical.get("dtype", SETTINGS["dtype"].default))
+    if dtype != provisional_dtype:
+        resolved = preset.resolve_scenario(values, dtype)
+        numerical = numerical_values(resolved)
+        if (
+            combined.get("dtype", numerical.get("dtype", SETTINGS["dtype"].default))
+            != dtype
+        ):
+            raise ValueError(
+                "preset numerical dtype must be stable under scenario normalization"
+            )
     return {**numerical, **combined}, dict(resolved)

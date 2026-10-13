@@ -202,6 +202,34 @@ def execution_resources(
         raise ValueError(
             "a supplied mesh requires a preinitialized distributed service"
         )
+    if options is not None and not borrowed:
+        count = options.get("num_processes")
+        launch_environment = os.environ if environment is None else environment
+        if (
+            count is None
+            and options.get("cluster_detection_method") == "slurm"
+            and "SLURM_NTASKS" in launch_environment
+        ):
+            count = _integer(launch_environment["SLURM_NTASKS"], "process count")
+        if count is not None:
+            if count < 1:
+                raise ValueError("distributed process count must be positive")
+            if (
+                not execution.all_devices
+                and execution.partitions[0] * execution.partitions[1] < count
+            ):
+                raise ValueError(
+                    "owned mesh must provide at least one device per process; "
+                    f"partitions {execution.partitions} cannot serve {count} processes"
+                )
+            if execution.backend == "cpu":
+                shape = (1, count) if execution.all_devices else execution.partitions
+                if shape[0] * shape[1] != count:
+                    raise ValueError(
+                        "owned CPU mesh must have one device per process; "
+                        f"partitions {shape} do not match {count} processes"
+                    )
+                experiment.grid.local_shape(shape)
     jax.config.update("jax_enable_x64", True)
     owned = False
     try:

@@ -20,6 +20,7 @@ import numpy as np
 from veris.grid.geometry import OceanGeometry
 from veris.io.configuration import OutputSettings
 from veris.model.configuration import SETTINGS, Configuration
+from veris.model.experiment_resolution import freeze_controls
 from veris.model.forcing import (
     Forcing,
     _freeze_fields,
@@ -301,6 +302,8 @@ class Experiment:
             raise ValueError("use Execution for sharding, not numerical settings")
         if not isinstance(self.scenario, Mapping):
             raise TypeError("scenario must be a mapping")
+        for name in ("settings", "constants", "scenario"):
+            object.__setattr__(self, name, freeze_controls(getattr(self, name)))
         settings = dict(self.settings)
         scenario: dict[str, Any] = {}
         forcing = self.forcing
@@ -365,9 +368,6 @@ class Experiment:
             )
         object.__setattr__(self, "configuration", conf)
         object.__setattr__(self, "physical_constants", phys)
-        object.__setattr__(self, "settings", MappingProxyType(dict(self.settings)))
-        object.__setattr__(self, "constants", MappingProxyType(dict(self.constants)))
-        object.__setattr__(self, "scenario", MappingProxyType(dict(self.scenario)))
         object.__setattr__(self, "resolved_scenario", MappingProxyType(scenario))
         object.__setattr__(self, "resolved_forcing", forcing)
         object.__setattr__(

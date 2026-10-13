@@ -71,6 +71,12 @@ GPU and actual multi-host verification require the corresponding hardware.
 Explicit launches select devices without narrowing the caller's available
 backends. Hybrid multi-slice meshes use explicit x/y axes, matching local
 meshes and the differentiable spatial-forcing reshard contract.
+Known owned meshes provide at least one device per distributed process; CPU
+launches use exactly one per rank. These logical checks precede launch policy
+and bootstrap. Borrowed services may supply multiple devices per rank.
+Preset precision includes numerical defaults before final scenario normalization;
+callable defaults must remain stable under it. Authored settings, constants and
+scenario containers are recursively owned immutable inputs.
 
 Independent reference trajectories are frozen from jax-only commit
 fff4cd4e08613e8ec2359e316c94435e81682400 before the centralized timestep implementation.
