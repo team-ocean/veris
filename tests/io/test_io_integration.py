@@ -13,6 +13,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris import Experiment, initialize_experiment
 from veris.execution.advance import advance as advance_model
 
 compiled_advance = jax.jit(
@@ -72,9 +73,8 @@ def test_real_growth_ad_disables_output_and_writes_auxiliary_final_state(
     tmp_path: Path,
 ) -> None:
     from veris.io import OutputManager, OutputSettings, read_record, write_snapshot
-    from veris.setups.run_growth import initialize
 
-    state, conf, phys = initialize()
+    state, conf, phys = initialize_experiment(Experiment.builtin("growth"))
     forbidden = tmp_path / "during_ad.nc"
     with OutputManager(forbidden, OutputSettings(enabled=False)) as output:
 

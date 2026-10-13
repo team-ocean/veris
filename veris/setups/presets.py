@@ -6,7 +6,7 @@ differences. Registration and lookup select no devices and allocate no arrays.
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, fields
-from typing import Any, cast
+from typing import Any
 
 from veris.model.configuration import SETTINGS
 from veris.model.experiment_resolution import freeze_controls
@@ -19,10 +19,6 @@ type ScenarioFactory = Callable[[Controls, str], Controls]
 type NumericalDefaults = Controls | Callable[[Controls], Controls]
 type InitialDefaults = Callable[[Controls, PhysicalConstants], Controls]
 type FieldFactory = Callable[..., Controls]
-
-
-class _UnknownScenarioError(ValueError):
-    """Identify schema errors for legacy Python-argument error translation."""
 
 
 @dataclass(frozen=True)
@@ -120,9 +116,7 @@ class SetupPreset:
             )
         unknown = values.keys() - self.scenario_registry.keys()
         if unknown:
-            raise _UnknownScenarioError(
-                f"unknown scenario controls: {', '.join(sorted(unknown))}"
-            )
+            raise ValueError(f"unknown scenario controls: {', '.join(sorted(unknown))}")
         result = self.scenario_factory(values, dtype)
         allowed = FORCING_FIELDS | {"hIceMean", "hSnowMean", "Area", "TSurf"}
         _freeze_fields(
@@ -155,7 +149,7 @@ def _scenario(
     return {
         item.name: getattr(control, item.name)
         for item in fields(control)
-        if item.name not in {"dtype", "nx", "ny", "steps"}
+        if item.name != "dtype"
     }
 
 
@@ -213,10 +207,7 @@ def _load_builtins() -> None:
             run_growth.build_fields,
             numerical_defaults=run_growth.GROWTH_NUMERICAL_DEFAULTS,
             preserve_startup=True,
-            grid=(
-                cast(int, run_growth.GROWTH_SETTINGS["nx"].default),
-                cast(int, run_growth.GROWTH_SETTINGS["ny"].default),
-            ),
+            grid=run_growth.GROWTH_DEFAULT_GRID,
             profiles=run_growth.GROWTH_PROFILES,
             initial_defaults=lambda values, constants: {
                 "hIceMean": values["hIceMean"],
@@ -246,55 +237,6 @@ def get_preset(name: str) -> SetupPreset:
     if not isinstance(name, str) or name not in _PRESETS:
         raise ValueError(f"unknown builtin preset {name!r}")
     return _PRESETS[name]
-
-
-def _initialize_adapter(
-    name: str,
-    *,
-    nx: int | None = None,
-    ny: int | None = None,
-    dtype: str | None = None,
-    steps: Any = 0,
-    mesh: Any = None,
-    settings: Controls | None = None,
-    constants: Controls | None = None,
-    scenario: Controls | None = None,
-) -> Any:
-    """Translate legacy initialization controls into the common Experiment API."""
-    from jax.sharding import Mesh
-
-    from veris.execution.experiment_initialization import initialize_experiment
-    from veris.model.experiment import Execution, Grid, _InitializationExperiment
-
-    options = dict(settings or {})
-    if options.pop("use_sharding", False) and mesh is None:
-        raise ValueError("sharded initialization requires an explicit mesh")
-    if mesh is not None and (
-        not isinstance(mesh, Mesh) or set(mesh.axis_names) != {"x", "y"}
-    ):
-        raise ValueError("mesh must be a JAX Mesh with x and y axes")
-    shape = dict(get_preset(name).grid_defaults())
-    for key, explicit in (("nx", nx), ("ny", ny)):
-        shape[key] = options.pop(key, shape[key])
-        if explicit is not None:
-            shape[key] = explicit
-    if dtype is not None:
-        options["dtype"] = dtype
-    partitions = (1, 1) if mesh is None else (mesh.shape["x"], mesh.shape["y"])
-    try:
-        definition = _InitializationExperiment.builtin(
-            name,
-            grid=Grid(**shape),
-            settings=options,
-            constants=constants or {},
-            scenario=scenario or {},
-            execution=Execution(partitions=partitions),
-            _mesh_mode=mesh is not None,
-            steps=steps,
-        )
-    except _UnknownScenarioError as error:
-        raise TypeError(str(error)) from error
-    return initialize_experiment(definition, mesh=mesh)
 
 
 def preset_controls(

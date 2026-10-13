@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import fields, replace
 from functools import partial
 from typing import Literal, cast
@@ -137,19 +136,6 @@ def _validate_mesh(mesh: Mesh | AbstractMesh) -> None:
     """Require the two processor-grid axes used by the exchange algorithm."""
     if set(mesh.axis_names) != {"x", "y"}:
         raise ValueError("halo exchange requires an active mesh with axes x and y")
-
-
-def make_sharded_fill_overlap(
-    mesh: Mesh, *, enable_cyclic_y: bool = True, boundary: Boundary = "edge"
-) -> Callable[[MaskInput], Array]:
-    """Bind the existing two-cell exchange to an explicitly supplied device mesh."""
-    _validate_mesh(mesh)
-    return shard_map(
-        partial(fill_overlap_shard, enable_cyclic_y=enable_cyclic_y, boundary=boundary),
-        mesh=mesh,
-        in_specs=P("x", "y"),
-        out_specs=P("x", "y"),
-    )
 
 
 @partial(jit, static_argnames=["conf", "boundary"])

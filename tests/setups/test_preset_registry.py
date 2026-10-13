@@ -11,13 +11,13 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from veris import Experiment, Grid
+from veris import Experiment, Grid, initialize_experiment
 from veris.execution.initialization import initialize
 from veris.io import OutputSettings, Stream
 from veris.model.configuration import SETTINGS, Configuration
 from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import Parameter, State
-from veris.setups import island, presets, run_dyn, run_growth
+from veris.setups import presets, run_growth
 
 
 @pytest.mark.parametrize(
@@ -139,13 +139,7 @@ def test_registered_field_factory_preserves_legacy_startup(
         (np.arange(shape[1] + 4) - 2) % shape[1],
         regional=False,
     )
-    reference = (
-        island.initialize(*shape, dtype=dtype)[0]
-        if name == "island"
-        else run_dyn.initialize(*shape, settings_overrides={"dtype": dtype})[0]
-        if name == "dynamics"
-        else run_growth.initialize(dtype=dtype)[0]
-    )
+    reference, _, _ = initialize_experiment(definition)
     for item in fields(State):
         np.testing.assert_array_equal(
             values.get(item.name, getattr(baseline, item.name)),

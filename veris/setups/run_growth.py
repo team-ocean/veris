@@ -41,9 +41,6 @@ GROWTH_NUMERICAL_DEFAULTS: dict[str, Any] = {
 """Notebook timestep and thickness categories."""
 
 GROWTH_SETTINGS: dict[str, Parameter] = {
-    "nx": Parameter(2, int, "Uniform column interior extent along x", "1"),
-    "ny": Parameter(2, int, "Uniform column interior extent along y", "1"),
-    "steps": Parameter(150, int, "Default number of thermodynamic steps", "1"),
     "hIceMean": Parameter(1.3, float, "Initial grid-cell mean ice thickness", "m"),
     "hSnowMean": Parameter(0.1, float, "Initial grid-cell mean snow thickness", "m"),
     "Area": Parameter(0.9, float, "Initial ice concentration", "1"),
@@ -67,9 +64,6 @@ class GrowthSettings:
     """Registry-backed reference column controls kept outside differentiable State."""
 
     dtype: str = field(default=FROM_REGISTRY, kw_only=True)
-    nx: int = FROM_REGISTRY
-    ny: int = FROM_REGISTRY
-    steps: int = FROM_REGISTRY
     hIceMean: float = FROM_REGISTRY
     hSnowMean: float = FROM_REGISTRY
     Area: float = FROM_REGISTRY
@@ -83,17 +77,20 @@ class GrowthSettings:
 
     def __post_init__(self) -> None:
         """Normalize reference controls to the model precision."""
-        validate_scalars(self, GROWTH_SETTINGS, positive=frozenset({"nx", "ny"}))
+        validate_scalars(self, GROWTH_SETTINGS, positive=frozenset())
 
+
+GROWTH_DEFAULT_GRID = (2, 2)
+GROWTH_DEFAULT_STEPS = 150
 
 GROWTH_PROFILES: dict[str, Any] = {
-    "example": {"steps": GROWTH_SETTINGS["steps"].default},
+    "example": {"steps": GROWTH_DEFAULT_STEPS},
     "standalone": {
-        "steps": GROWTH_SETTINGS["steps"].default,
+        "steps": GROWTH_DEFAULT_STEPS,
         "execution": {"backend": "cpu"},
     },
 }
-"""Column launch durations inherit the authoritative growth run control."""
+"""Column dimensions and launch duration stay separate from physical scenario inputs."""
 
 
 def build_fields(
@@ -140,40 +137,6 @@ def build_fields(
     return values
 
 
-def initialize(
-    *,
-    dtype: str | None = None,
-    settings_overrides: Mapping[str, Any] | None = None,
-    physical_overrides: Mapping[str, Any] | None = None,
-    scenario_overrides: Mapping[str, Any] | None = None,
-) -> tuple[State, Configuration, PhysicalConstants]:
-    """Allocate the uniform reference column with separate settings and constants.
-
-    Zero-initialize all fields as initialize_growth.py does, then prescribe the
-    column inputs and unit ocean masks. Notebook numerical defaults select daily
-    timesteps and five thickness categories; explicit settings take precedence.
-    Model and physical overrides are validated by the shared initializer.
-    Enable x64 before calling
-    for float64; main does this at runtime.
-    """
-    from veris.setups.presets import _initialize_adapter
-
-    scenario = dict(scenario_overrides or {})
-    options = dict(settings_overrides or {})
-    for name in ("nx", "ny"):
-        if name in scenario:
-            options.setdefault(name, scenario.pop(name))
-    steps = scenario.pop("steps", 0)
-    return _initialize_adapter(
-        "growth",
-        dtype=dtype,
-        steps=steps,
-        settings=options,
-        constants=physical_overrides,
-        scenario=scenario,
-    )
-
-
 @click.command(help=__doc__)
 @click.option("--steps", type=click.IntRange(min=0))
 @click.option("--backend", type=click.Choice(["cpu", "gpu"]))
@@ -190,12 +153,7 @@ def main(argv: list[str] | None = None) -> None:
     """Translate standalone profile flags and invoke the public Python runner."""
     args = parse_options(cli, argv)
     definition = driver_definition("growth", "standalone", args)
-    try:
-        result = run_driver(definition, args)
-    except ValueError as error:
-        if str(error).startswith("nonfinite output"):
-            raise FloatingPointError(str(error)) from error
-        raise
+    result = run_driver(definition, args)
     assert result.execution_metadata is not None
     if result.execution_metadata["process_index"] == 0:
         print(f"Saved {result.completed_steps} growth steps to {args.output}")

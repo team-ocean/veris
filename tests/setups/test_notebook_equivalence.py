@@ -14,10 +14,9 @@ import jax
 import numpy as np
 import pytest
 
-from veris import Experiment, Grid, Simulation
+from veris import Experiment, Grid, Simulation, initialize_experiment
 from veris.execution.advance import advance
 from veris.model.types import State
-from veris.setups import run_dyn, run_growth
 
 _ROOT = Path(__file__).resolve().parents[1] / "reference_data"
 
@@ -59,9 +58,11 @@ def test_all_notebook_startup_fields_and_shared_constants(
     manifest, source = notebook_reference
     case = next(case for case in manifest["cases"] if case["name"] == preset)
     state, conf, phys = (
-        run_growth.initialize()
+        initialize_experiment(Experiment.builtin("growth"))
         if preset == "growth"
-        else run_dyn.initialize(*case["grid"])
+        else initialize_experiment(
+            Experiment.builtin("dynamics", grid=Grid(*case["grid"]))
+        )
     )
     assert set(manifest["state_fields"]) == {item.name for item in fields(State)}
     for item in fields(State):
@@ -85,7 +86,9 @@ def test_dynamics_physical_fields_follow_original_100_step_notebook(
     manifest, source = notebook_reference
     case = next(case for case in manifest["cases"] if case["name"] == "dynamics")
     definition = Experiment.builtin("dynamics", grid=Grid(*case["grid"]), steps=100)
-    state, conf, phys = run_dyn.initialize(*case["grid"])
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin("dynamics", grid=Grid(*case["grid"]))
+    )
     transition = jax.jit(
         advance, static_argnames=("configuration", "constants", "physics")
     )

@@ -11,8 +11,10 @@ import numpy as np
 import pytest
 
 from veris.execution.rollout_output import run_timed
+from veris.execution.runtime import create_mesh, distributed_options
 from veris.grid.halos import remove_halos
 from veris.io import read_record
+from veris.io.cli import driver_definition, parse_options
 from veris.io.storage import selected_fields, write_snapshot
 from veris.setups import run_parallel
 
@@ -44,26 +46,27 @@ def test_explicit_bootstrap_and_incomplete_environment() -> None:
         "JAX_NUM_PROCESSES": "4",
         "JAX_PROCESS_ID": "2",
     }
-    assert run_parallel.distributed_options(environment, "cpu") == {
+    assert distributed_options(environment, "cpu") == {
         "coordinator_address": "node001:12345",
         "num_processes": 4,
         "process_id": 2,
         "local_device_ids": [0],
     }
     with pytest.raises(ValueError, match="together"):
-        run_parallel.distributed_options({"JAX_PROCESS_ID": "1"}, "cpu")
+        distributed_options({"JAX_PROCESS_ID": "1"}, "cpu")
     environment["JAX_PROCESS_ID"] = "4"
     with pytest.raises(ValueError, match="process"):
-        run_parallel.distributed_options(environment, "cpu")
+        distributed_options(environment, "cpu")
 
 
 def test_local_and_slurm_bootstrap() -> None:
     """An allocation alone must not start distributed rendezvous."""
-    assert run_parallel.distributed_options({}, "cpu") is None
-    assert run_parallel.distributed_options({"SLURM_JOB_ID": "42"}, "cpu") is None
-    assert run_parallel.distributed_options(
-        {"SLURM_NTASKS": "2", "SLURM_PROCID": "1"}, "cpu"
-    ) == {"cluster_detection_method": "slurm", "local_device_ids": [0]}
+    assert distributed_options({}, "cpu") is None
+    assert distributed_options({"SLURM_JOB_ID": "42"}, "cpu") is None
+    assert distributed_options({"SLURM_NTASKS": "2", "SLURM_PROCID": "1"}, "cpu") == {
+        "cluster_detection_method": "slurm",
+        "local_device_ids": [0],
+    }
 
 
 def test_timed_loop_discards_warmup_and_evolves_state() -> None:
@@ -107,19 +110,21 @@ def test_remove_halos_and_save_selected_fields(tmp_path: Path) -> None:
 def test_invalid_mesh_and_cli_dimensions() -> None:
     """Bad extents fail before allocating model arrays."""
     with pytest.raises(ValueError, match="devices"):
-        run_parallel.create_mesh((jax.device_count() + 1, 1), "cpu")
+        create_mesh((jax.device_count() + 1, 1), "cpu")
     for arguments in (
         ["--evp-steps", "0"],
         ["--mesh", "0", "1"],
         ["--nx", "-1"],
     ):
         with pytest.raises(SystemExit):
-            run_parallel.parse_args(arguments)
-    arguments = run_parallel.parse_args([])
-    assert arguments.steps == 1000
-    assert arguments.evp_steps == 120
+            parse_options(run_parallel.cli, arguments)
+    arguments = parse_options(run_parallel.cli, [])
+    definition = driver_definition("dynamics", "parallel", arguments)
+    assert definition.steps == 1000
+    assert definition.configuration.nEVPsteps == 120
+    assert arguments.steps is None and arguments.evp_steps is None
     assert arguments.output == Path("parallel.nc")
-    assert run_parallel.parse_args(["--steps", "0"]).steps == 0
+    assert parse_options(run_parallel.cli, ["--steps", "0"]).steps == 0
 
 
 @pytest.mark.skipif(jax.default_backend() != "gpu", reason="requires a GPU backend")

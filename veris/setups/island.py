@@ -157,50 +157,6 @@ def build_fields(
     return _fields(state, constants, controls, *global_shape, x, y, regional=regional)
 
 
-def initialize(
-    nx: int | None = None,
-    ny: int | None = None,
-    wind: float | None = None,
-    air_temperature: float | None = None,
-    *,
-    dtype: str | None = None,
-    settings_overrides: Mapping[str, Any] | None = None,
-    scenario_overrides: Mapping[str, Any] | None = None,
-    physical_overrides: Mapping[str, Any] | None = None,
-) -> tuple[State, Configuration, PhysicalConstants]:
-    """Return an island experiment with separate local scenario controls.
-
-    Registry defaults select an 8-km grid, 600-second timesteps and five EVP
-    substeps. Explicit arguments override scenario settings and are recorded in
-    the initialized arrays; explicit deltatDyn, deltatTherm and nEVPsteps overrides
-    take precedence over the island scenario defaults. Atmosphere is
-    saturated at its specified temperature with blackbody downward longwave
-    radiation. This setup supports serial execution; use the general initializer
-    with supplied mesh geometry for sharded experiments. Scenario overrides stay
-    local to this module; prescribe heat flux through Experiment forcing.
-    """
-    from veris.setups.presets import _initialize_adapter
-
-    scenario = dict(scenario_overrides or {})
-    if "islandCooling" in scenario:
-        raise ValueError("prescribe islandCooling through Experiment forcing")
-    for name, value in (
-        ("islandWindSpeed", wind),
-        ("islandAirTemperature", air_temperature),
-    ):
-        if value is not None:
-            scenario[name] = value
-    return _initialize_adapter(
-        "island",
-        nx=nx,
-        ny=ny,
-        dtype=dtype,
-        settings=settings_overrides,
-        constants=physical_overrides,
-        scenario=scenario,
-    )
-
-
 def _fields(
     vs: State,
     phys: PhysicalConstants,

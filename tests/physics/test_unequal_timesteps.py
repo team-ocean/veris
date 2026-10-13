@@ -16,27 +16,31 @@ import numpy as np
 import pytest
 
 import veris
+from veris import Experiment, Grid, initialize_experiment
 from veris.grid.halos import fill_state_overlap
 from veris.model.diagnostics import Diagnostics
 from veris.model.types import State
 from veris.physics.dynamics.driver import dynamics_transport
 from veris.physics.thermodynamics.growth import Growth
-from veris.setups import island
 
 
 @pytest.mark.parametrize("compiled", [False, True])
 def test_unequal_kernel_timesteps_match_frozen_original(compiled: bool) -> None:
     """Check native arrays against archived original Dyn600/Therm3600 science."""
-    state, conf, phys = island.initialize(
-        4,
-        6,
-        settings_overrides={
-            "dtype": "float64",
-            "nEVPsteps": 2,
-            "deltatDyn": 600,
-            "deltatTherm": 3600,
-        },
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin(
+            "island",
+            grid=Grid(4, 6),
+            settings={
+                "dtype": "float64",
+                "nEVPsteps": 2,
+                "deltatDyn": 600,
+                "deltatTherm": 600,
+            },
+        )
     )
+
+    conf = replace(conf, deltatTherm=3600)
 
     def compose(initial: State) -> tuple[State, Diagnostics]:
         """Apply original forcing and stage order with independent intervals."""
@@ -87,9 +91,12 @@ def test_unequal_kernel_timesteps_match_frozen_original(compiled: bool) -> None:
 
 def test_public_coupled_execution_rejects_unequal_timesteps() -> None:
     """Canonical coupled execution retains its single-clock time contract."""
-    state, conf, phys = island.initialize(
-        4, 6, settings_overrides={"deltatDyn": 600, "deltatTherm": 3600}
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin(
+            "island", grid=Grid(4, 6), settings={"deltatDyn": 600, "deltatTherm": 600}
+        )
     )
+    conf = replace(conf, deltatTherm=3600)
     with pytest.raises(ValueError, match="coupled physics requires equal timesteps"):
         veris.advance(state, conf, phys)
     with pytest.raises(ValueError, match="equal dynamics/thermodynamic timesteps"):

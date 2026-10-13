@@ -1,7 +1,7 @@
 """Run the reference dynamics case on a local or distributed JAX mesh.
 
 Adapted from ``jax_halo_exchange:run_parallel.py``. Global physical nx/ny are
-partitioned by run_dyn.initialize; each device stores its own two-cell halos.
+partitioned by initialize_experiment; each device stores its own two-cell halos.
 The timed integration compiles scan shapes before executing the trajectory.
 Output contains
 the nine reference fields after removing every partition's halos, in (x, y)
@@ -17,7 +17,6 @@ from typing import Any
 
 import click
 
-from veris.execution.runtime import create_mesh, distributed_options
 from veris.io.cli import (
     console_main,
     driver_definition,
@@ -39,7 +38,7 @@ OUTPUT_FIELDS = (
     "vOcean",
 )
 
-__all__ = ["create_mesh", "distributed_options", "main", "parse_args"]
+__all__ = ["main"]
 
 
 @click.command(help=__doc__)
@@ -58,28 +57,9 @@ def cli(**kwargs: Any) -> SimpleNamespace:
     return parameter_namespace(kwargs)
 
 
-def parse_args(argv: list[str] | None = None) -> SimpleNamespace:
-    """Parse flags and expose profile defaults for legacy parser callers."""
-    from veris.setups.presets import get_preset, preset_controls
-
-    args = parse_options(cli, argv)
-    preset = get_preset("dynamics")
-    profile = preset.profile_controls("parallel")
-    defaults = {
-        "steps": profile["steps"],
-        "nx": preset.grid_defaults("parallel")["nx"],
-        "backend": profile["execution"]["backend"],
-        "evp_steps": preset_controls("dynamics", {}, {})[0]["nEVPsteps"],
-    }
-    for name, value in defaults.items():
-        if getattr(args, name) is None:
-            setattr(args, name, value)
-    return args
-
-
 def main(argv: list[str] | None = None) -> None:
     """Translate the parallel profile and let the public runner own resources."""
-    args = parse_args(argv)
+    args = parse_options(cli, argv)
     result = run_driver(driver_definition("dynamics", "parallel", args), args)
     assert result.execution_metadata is not None
     metadata = result.execution_metadata

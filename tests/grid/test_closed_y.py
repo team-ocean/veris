@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris import Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance as advance_model
 from veris.execution.initialization import initialize
 from veris.grid.halos import fill_overlap, fill_overlap_uv
@@ -125,10 +126,9 @@ def test_closed_allocation_without_mesh_retains_execution_setting() -> None:
 
 def test_growth_setup_keeps_closed_exterior_dry() -> None:
     """The prescribed column must apply walls after its initial-field overrides."""
-    from veris.setups import run_growth
 
-    state, conf, phys = run_growth.initialize(
-        settings_overrides={"enable_cyclic_y": False}
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin("growth", settings={"enable_cyclic_y": False})
     )
     for result in (
         state,
@@ -166,16 +166,13 @@ def test_closed_intensive_transport_preserves_constant(speed: float) -> None:
 @pytest.mark.parametrize("no_slip", [True, False])
 def test_closed_coupled_steps_preserve_walls_and_finite_ad(no_slip: bool) -> None:
     """Setup overrides and repeated refreshes cannot revive dry exterior masks."""
-    from veris.setups import island
 
-    state, conf, phys = island.initialize(
-        nx=6,
-        ny=8,
-        settings_overrides={
-            "enable_cyclic_y": False,
-            "noSlip": no_slip,
-            "nEVPsteps": 2,
-        },
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin(
+            "island",
+            grid=Grid(6, 8),
+            settings={"enable_cyclic_y": False, "noSlip": no_slip, "nEVPsteps": 2},
+        )
     )
     for vs in (
         state,

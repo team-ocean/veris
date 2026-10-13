@@ -9,11 +9,13 @@ axis. The mesh must use all devices of the selected backend. If omitted, it is
 cells on each edge, exchanged by existing Veris kernels. Only addressable
 partitions are allocated on each process.
 
-The CLI defines a dynamics Experiment and borrows its explicitly initialized
-mesh through Simulation. The same public Python workflow supports coupled,
-growth and custom ocean geometry/forcing with x/y partitions. Backend setup
-and distributed initialization must precede device enumeration; Simulation
-never starts or shuts down a caller-owned distributed service. Distributed
+The CLI defines a dynamics Experiment with the parallel profile and calls
+``run_experiment``. The shared runtime validates launch controls, initializes
+distributed services and constructs the mesh before State allocation. The same
+public Python workflow supports coupled, growth and custom ocean geometry/forcing
+with x/y partitions. Framework-owned services close when the run ends; supplied
+meshes and caller-owned services remain borrowed. The lower-level Simulation
+facade requires callers to prepare those resources explicitly. Distributed
 restart is unsupported. Local CPU tests validate sharding; actual GPU and
 multihost runs require suitable hardware.
 

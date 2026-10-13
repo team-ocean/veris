@@ -26,6 +26,8 @@ import click
 import jax
 import numpy as np
 
+from veris import Experiment, Grid, initialize_experiment
+
 
 @click.command(help=__doc__)
 @click.option("--backend", type=click.Choice(["cpu", "gpu"]), default="cpu")
@@ -227,7 +229,9 @@ def main(argv: list[str] | None = None) -> None:
     from veris.setups import island
 
     with jax.default_device(device):
-        initial, conf, phys = island.initialize(args.nx, args.ny)
+        initial, conf, phys = initialize_experiment(
+            Experiment.builtin("island", grid=Grid(args.nx, args.ny))
+        )
         conf = replace(conf, nEVPsteps=args.evp_steps)
         cooling = island.IslandSettings().islandCooling
 

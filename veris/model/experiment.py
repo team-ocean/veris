@@ -8,12 +8,12 @@ convention. No equations or numerical tolerances are defined here.
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field, fields, replace
+from dataclasses import dataclass, field, fields
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, ClassVar, cast
+from typing import Any, cast
 
 import numpy as np
 
@@ -216,8 +216,6 @@ class Experiment:
     scheduled output. Definition construction allocates no model/device arrays.
     """
 
-    _initialization_only: ClassVar[bool] = False
-
     grid: Grid = _DEFAULT_INPUT
     settings: Mapping[str, Any] = field(default_factory=dict)
     constants: Mapping[str, Any] = field(default_factory=dict)
@@ -358,11 +356,7 @@ class Experiment:
             raise ValueError("physical constants dtype must match numerical dtype")
         physical_options: dict[str, Any] = {**constants, "dtype": conf.dtype}
         phys = PhysicalConstants(**physical_options)
-        if (
-            not self._initialization_only
-            and self.physics == "coupled"
-            and conf.deltatDyn != conf.deltatTherm
-        ):
+        if self.physics == "coupled" and conf.deltatDyn != conf.deltatTherm:
             raise ValueError(
                 "coupled physics requires equal dynamics/thermodynamic timesteps"
             )
@@ -395,8 +389,7 @@ class Experiment:
         if forcing.length is not None and self.steps > forcing.length:
             raise ValueError("requested steps exceed forcing series length")
         # Validate the host clock before any resource allocation.
-        if not self._initialization_only:
-            _ = self.step_duration
+        _ = self.step_duration
 
     @classmethod
     def builtin(cls, name: str, **options: Any) -> "Experiment":
@@ -463,25 +456,3 @@ class Experiment:
             return timedelta(microseconds=microseconds)
         except OverflowError as error:
             raise ValueError("active timestep exceeds the host clock range") from error
-
-
-@dataclass(frozen=True)
-class _InitializationExperiment(Experiment):
-    """Internal resolved inputs for legacy array-only initialization adapters.
-
-    Adapters return State/configuration/constants rather than a runnable
-    Experiment. Unequal inactive clocks and an explicit singleton mesh are
-    valid here; public Experiment/advance retain their execution restrictions.
-    All field, scalar, grid and physical validation is inherited unchanged.
-    """
-
-    _initialization_only: ClassVar[bool] = True
-    _mesh_mode: bool = field(default=False, repr=False)
-
-    def __post_init__(self) -> None:
-        """Resolve ordinary inputs and retain an explicitly supplied mesh mode."""
-        super().__post_init__()
-        if self._mesh_mode:
-            object.__setattr__(
-                self, "configuration", replace(self.configuration, use_sharding=True)
-            )

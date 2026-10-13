@@ -32,15 +32,16 @@ output share :doc:`/api/simulation`. A public Python experiment is::
    with Simulation.initialize(experiment) as simulation:
        result = simulation.run()
 
-The preset factory returns initial fields and static model objects::
+The shared initializer returns initial fields and static model objects::
 
    import jax
    from functools import partial
-   from veris import advance, step
-   from veris.setups import run_dyn
+   from veris import Experiment, Grid, advance, initialize_experiment, step
 
    jax.config.update("jax_enable_x64", True)
-   state, settings, constants = run_dyn.initialize(32, 48)
+   state, settings, constants = initialize_experiment(
+       Experiment.builtin("dynamics", grid=Grid(32, 48))
+   )
    transition = partial(
        advance, configuration=settings, constants=constants, physics="dynamics",
    )
@@ -50,8 +51,8 @@ The preset factory returns initial fields and static model objects::
 scan with checkpointing; see
 :doc:`../integration` for forcing, diagnostic histories and sharded rollouts.
 Ocean stresses are separate Diagnostics fields. No coupling output is added to
-State. ``settings_overrides``, ``physical_overrides`` and ``scenario_overrides``
-allow controlled experiments without changing source files.
+State. Experiment ``settings``, ``constants`` and ``scenario`` groups allow
+controlled experiments without changing source files.
 
 Reference adaptations
 ---------------------

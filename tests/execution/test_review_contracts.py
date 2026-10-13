@@ -17,7 +17,7 @@ from veris import (
 )
 from veris.execution.runtime import execution_resources
 from veris.model.physical_constants import PhysicalConstants
-from veris.setups import island, presets
+from veris.setups import presets
 
 
 @pytest.mark.parametrize("processes,partitions", [(3, (1, 2)), (2, (1, 4))])
@@ -121,9 +121,9 @@ def test_authored_constant_sequences_are_owned_across_noop_resolution() -> None:
     assert model.with_overrides({}).physical_constants == model.physical_constants
 
 
-@pytest.mark.parametrize("legacy", [False, True])
+@pytest.mark.parametrize("explicit_grid", [False, True])
 def test_island_salinity_alias_obeys_shared_physical_bound_before_allocation(
-    monkeypatch: pytest.MonkeyPatch, legacy: bool
+    monkeypatch: pytest.MonkeyPatch, explicit_grid: bool
 ) -> None:
     from veris.execution import initialization
 
@@ -132,8 +132,12 @@ def test_island_salinity_alias_obeys_shared_physical_bound_before_allocation(
 
     monkeypatch.setattr(initialization, "initialize", forbidden)
     with pytest.raises(ValueError, match="ocSalt|salinity|saltOcn"):
-        if legacy:
-            island.initialize(4, 4, scenario_overrides={"saltOcn_ref": -1.0})
+        if explicit_grid:
+            initialize_experiment(
+                Experiment.builtin(
+                    "island", grid=Grid(4, 4), scenario={"saltOcn_ref": -1.0}
+                )
+            )
         else:
             initialize_experiment(
                 Experiment.builtin("island", scenario={"saltOcn_ref": -1.0})

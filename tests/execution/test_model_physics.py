@@ -13,6 +13,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris import Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance
 from veris.grid.halos import fill_state_overlap
 from veris.model.configuration import Configuration
@@ -21,7 +22,6 @@ from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import State
 from veris.physics.dynamics.driver import dynamics_transport
 from veris.physics.thermodynamics.growth import Growth
-from veris.setups import island, run_dyn, run_growth
 
 
 def kernel_reference(
@@ -101,13 +101,19 @@ def test_public_timestep_matches_every_kernel_state_and_diagnostic(
     }
     forcing = None
     if physics == "dynamics":
-        initial, conf, phys = run_dyn.initialize(4, 5, settings_overrides=options)
+        initial, conf, phys = initialize_experiment(
+            Experiment.builtin("dynamics", grid=Grid(4, 5), settings=options)
+        )
         expected = kernel_reference(initial, conf, phys, physics)
     elif physics == "thermodynamics":
-        initial, conf, phys = run_growth.initialize(settings_overrides=options)
+        initial, conf, phys = initialize_experiment(
+            Experiment.builtin("growth", settings=options)
+        )
         expected = kernel_reference(initial, conf, phys, physics)
     else:
-        initial, conf, phys = island.initialize(4, 5, settings_overrides=options)
+        initial, conf, phys = initialize_experiment(
+            Experiment.builtin("island", grid=Grid(4, 5), settings=options)
+        )
         initial = replace(
             initial,
             Qnet=jnp.full_like(initial.Qnet, -777.0),
@@ -137,10 +143,12 @@ def test_spatial_wind_prepares_halos_and_derives_speed(
     cyclic_y: bool, component: str
 ) -> None:
     """Catch staggered forcing using stale halos or thermodynamics using old speed."""
-    initial, conf, phys = run_dyn.initialize(
-        4,
-        5,
-        settings_overrides={"nEVPsteps": 2, "enable_cyclic_y": cyclic_y},
+    initial, conf, phys = initialize_experiment(
+        Experiment.builtin(
+            "dynamics",
+            grid=Grid(4, 5),
+            settings={"nEVPsteps": 2, "enable_cyclic_y": cyclic_y},
+        )
     )
     x, y = np.indices((4, 5))
     prescribed = 3.0 + 0.7 * x + 0.3 * y
@@ -168,10 +176,12 @@ def test_closed_y_ocean_forcing_prepares_velocity_halos_before_dynamics(
     component: str,
 ) -> None:
     """Catch using atmospheric edge halos or retaining the owned south normal flow."""
-    initial, conf, phys = run_dyn.initialize(
-        4,
-        5,
-        settings_overrides={"nEVPsteps": 2, "enable_cyclic_y": False},
+    initial, conf, phys = initialize_experiment(
+        Experiment.builtin(
+            "dynamics",
+            grid=Grid(4, 5),
+            settings={"nEVPsteps": 2, "enable_cyclic_y": False},
+        )
     )
     x, y = np.indices((4, 5))
     prescribed = 0.02 + 0.003 * x + 0.002 * y
@@ -203,7 +213,9 @@ def test_closed_y_ocean_forcing_prepares_velocity_halos_before_dynamics(
 
 def test_explicit_speed_takes_precedence_over_component_derivation() -> None:
     """Catch replacing a separately prescribed thermodynamic wind magnitude."""
-    initial, conf, phys = island.initialize(4, 5, settings_overrides={"nEVPsteps": 2})
+    initial, conf, phys = initialize_experiment(
+        Experiment.builtin("island", grid=Grid(4, 5), settings={"nEVPsteps": 2})
+    )
     expected = replace(
         initial,
         uWind=jnp.full_like(initial.uWind, 3.0),
@@ -224,8 +236,8 @@ def test_explicit_speed_takes_precedence_over_component_derivation() -> None:
 
 def test_unprescribed_wind_speed_keeps_independent_state_value() -> None:
     """Catch deriving wind magnitude when no wind components were supplied."""
-    initial, conf, phys = run_growth.initialize(
-        settings_overrides={"deltatTherm": 600.0}
+    initial, conf, phys = initialize_experiment(
+        Experiment.builtin("growth", settings={"deltatTherm": 600.0})
     )
     actual = advance(initial, conf, phys, {"Qnet": 95.0}, physics="thermodynamics")
     expected = kernel_reference(
@@ -240,8 +252,8 @@ def test_unprescribed_wind_speed_keeps_independent_state_value() -> None:
 
 def test_prescribed_heat_is_restored_after_growth_overwrites_it() -> None:
     """Catch applying constant atmospheric heat only on the first timestep."""
-    initial, conf, phys = run_growth.initialize(
-        settings_overrides={"deltatTherm": 600.0}
+    initial, conf, phys = initialize_experiment(
+        Experiment.builtin("growth", settings={"deltatTherm": 600.0})
     )
     forcing = {"Qnet": jnp.array(110.0), "Qsw": jnp.array(6.0)}
     actual = expected = initial
@@ -266,7 +278,7 @@ def test_prescribed_heat_is_restored_after_growth_overwrites_it() -> None:
 
 def test_absent_heat_forcing_preserves_recursive_growth_fluxes() -> None:
     """Catch unconditionally restoring default heat fluxes for the growth preset."""
-    initial, conf, phys = run_growth.initialize()
+    initial, conf, phys = initialize_experiment(Experiment.builtin("growth"))
     actual = expected = reset = initial
     for _ in range(3):
         expected_pair = kernel_reference(expected, conf, phys, "thermodynamics")
@@ -287,13 +299,12 @@ def test_absent_heat_forcing_preserves_recursive_growth_fluxes() -> None:
 @pytest.mark.parametrize("cyclic_y", [False, True])
 def test_spatial_heat_fields_use_global_physical_grid(cyclic_y: bool) -> None:
     """Catch scalar-only heat handling, axis swaps or ignoring prescribed shortwave."""
-    initial, conf, phys = run_growth.initialize(
-        settings_overrides={
-            "nx": 4,
-            "ny": 5,
-            "deltatTherm": 600.0,
-            "enable_cyclic_y": cyclic_y,
-        }
+    initial, conf, phys = initialize_experiment(
+        Experiment.builtin(
+            "growth",
+            grid=Grid(4, 5),
+            settings={"deltatTherm": 600.0, "enable_cyclic_y": cyclic_y},
+        )
     )
     x, y = np.indices((4, 5))
     heat = 70.0 + 5.0 * x + 3.0 * y
@@ -320,8 +331,12 @@ def test_spatial_heat_fields_use_global_physical_grid(cyclic_y: bool) -> None:
 
 def smooth_coupled_case() -> tuple[State, Configuration, PhysicalConstants]:
     """Keep concentration below ridging and temperature below melting thresholds."""
-    initial, conf, phys = island.initialize(
-        4, 5, settings_overrides={"nEVPsteps": 2, "useAdaptiveEVP": False}
+    initial, conf, phys = initialize_experiment(
+        Experiment.builtin(
+            "island",
+            grid=Grid(4, 5),
+            settings={"nEVPsteps": 2, "useAdaptiveEVP": False},
+        )
     )
     x, y = np.indices((4, 5))
     a = pad_atmosphere(
@@ -479,7 +494,9 @@ def test_invalid_pure_timestep_definition_is_informative(
     forcing: Any, physics: str, message: str
 ) -> None:
     """Catch unsupported evolved-field forcing, wrong grid shape or ignored mode."""
-    initial, conf, phys = island.initialize(4, 5, settings_overrides={"nEVPsteps": 2})
+    initial, conf, phys = initialize_experiment(
+        Experiment.builtin("island", grid=Grid(4, 5), settings={"nEVPsteps": 2})
+    )
     with pytest.raises((TypeError, ValueError), match=message):
         advance(initial, conf, phys, forcing, physics=physics)
 
@@ -487,7 +504,7 @@ def test_invalid_pure_timestep_definition_is_informative(
 @pytest.mark.parametrize("component", ["uWind", "vWind"])
 def test_calm_prescribed_wind_uses_zero_norm_linearization(component: str) -> None:
     """Match the maintained symmetric-difference convention at a calm wind."""
-    initial, conf, phys = run_growth.initialize()
+    initial, conf, phys = initialize_experiment(Experiment.builtin("growth"))
 
     def objective(wind: jax.Array) -> jax.Array:
         forcing = {"uWind": jnp.array(0.0), "vWind": jnp.array(0.0)}
@@ -514,7 +531,7 @@ def test_calm_prescribed_wind_uses_zero_norm_linearization(component: str) -> No
 @pytest.mark.parametrize("mismatch", ["shape", "dtype", "x64"])
 def test_state_metadata_mismatch_fails_before_physics(mismatch: str) -> None:
     """Reject inconsistent array storage rather than silently changing precision."""
-    state, conf, phys = run_growth.initialize()
+    state, conf, phys = initialize_experiment(Experiment.builtin("growth"))
     if mismatch == "shape":
         conf = replace(conf, nx=4, ny=5)
     elif mismatch == "dtype":

@@ -19,7 +19,8 @@ They are not reset to initial forcing. The shared allocator requires at least
 two cells per interior axis, so the single-column experiment uses a uniform
 2 by 2 interior with two halos per edge; its pointwise equations are identical
 to a single column. Output always removes those storage halos.
-The preset ``initialize`` factory constructs the initial column. Use public
+``initialize_experiment(Experiment.builtin("growth", grid=Grid(2, 2)))``
+constructs the initial column. Use public
 ``advance(..., physics="thermodynamics")`` and ``step`` for pure evolution and AD.
 
 The setup uses the ``jax_halo_exchange`` notebook's initial conditions and daily
@@ -55,6 +56,22 @@ The column zero-initializes unprescribed fields exactly as
 ``initialize_growth.py`` does. Prescribed fields and physical constants retain
 the reference values. Experimental inputs live in the scenario registry below;
 physical constants stay in PhysicalConstants.
+
+Grid dimensions and run duration belong to ``Grid`` and ``Experiment.steps``.
+``GrowthSettings`` and ``GROWTH_SETTINGS`` contain only the physical column
+scenario; provider and launch profiles retain the 2 by 2 grid and 150-step defaults.
+Scenario and physical overrides use the same grouped definition as other
+presets::
+
+   import jax
+   from veris import Experiment, Grid, initialize_experiment
+
+   jax.config.update("jax_enable_x64", True)
+   experiment = Experiment.builtin(
+       "growth", grid=Grid(2, 2), scenario={"hIceMean": 1.3},
+       constants={"rhoIce": 900.0},
+   )
+   state, settings, constants = initialize_experiment(experiment)
 
 Initial fields and shared settings/constants are checked against the standalone
 reference ``jax_halo_exchange`` commit

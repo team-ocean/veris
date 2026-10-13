@@ -1,27 +1,20 @@
 """Reference snapshot geometry and independent dynamics-driver composition."""
 
 from dataclasses import replace
-from importlib import import_module
-from types import ModuleType
 
 import jax
 import numpy as np
 import pytest
 
+from veris import Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance
-
-
-def case() -> ModuleType:
-    """Import lazily so missing implementation reports an explicit test failure."""
-    try:
-        return import_module("veris.setups.run_dyn")
-    except ModuleNotFoundError:
-        pytest.fail("dynamics case is not implemented")
 
 
 def test_reference_initial_fields_and_wind() -> None:
     """A shifted/rotated wind or swapped face mask must change this oracle."""
-    state, conf, phys = case().initialize(8, 10)
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin("dynamics", grid=Grid(8, 10))
+    )
     assert conf.nx == 8 and conf.ny == 10 and not conf.use_sharding
     assert conf.nEVPsteps == 120 and conf.useAdaptiveEVP
     assert conf.deltatDyn == 600 and not conf.useRelativeWind
@@ -73,8 +66,9 @@ def test_dynamics_driver_refreshes_state_and_stress_halos() -> None:
 
     from veris.physics.dynamics.driver import dynamics_transport
 
-    module = case()
-    initial, conf, phys = module.initialize(6, 8, settings_overrides={"nEVPsteps": 2})
+    initial, conf, phys = initialize_experiment(
+        Experiment.builtin("dynamics", grid=Grid(6, 8), settings={"nEVPsteps": 2})
+    )
     # A pass-through field with stale halos detects a missing driver refresh.
     initial = replace(
         initial,
@@ -114,7 +108,7 @@ def test_dynamics_driver_refreshes_state_and_stress_halos() -> None:
 def test_invalid_grid_rejected(nx: int, ny: float) -> None:
     """Grid validation occurs before field allocation."""
     with pytest.raises((ValueError, TypeError)):
-        case().initialize(nx, ny)
+        initialize_experiment(Experiment.builtin("dynamics", grid=Grid(nx, ny)))  # ty: ignore[invalid-argument-type]
 
 
 def test_dynamics_wind_sensitivity_matches_finite_difference() -> None:

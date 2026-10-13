@@ -9,7 +9,20 @@ through the registered provider contract. New providers supply regional field
 replacements; the framework validates inputs, applies overrides, computes
 derived quantities and handles global boundaries. The maintained presets declare
 their archived startup policy so all 70 initial fields remain reproducible.
-The legacy setup functions below translate their arguments to this same API.
+The island, dynamics and growth presets all use this initializer. Define grouped
+controls through ``Experiment`` before allocating arrays::
+
+   import jax
+   from veris import Experiment, Grid, initialize_experiment
+
+   jax.config.update("jax_enable_x64", True)
+   experiment = Experiment.builtin(
+       "island", grid=Grid(8, 12),
+       settings={"enable_cyclic_y": False},
+       scenario={"islandWindSpeed": 5.0},
+       constants={"rhoIce": 900.0},
+   )
+   state, settings, constants = initialize_experiment(experiment)
 
 .. autofunction:: veris.initialize_experiment
 
@@ -22,7 +35,8 @@ General allocation
 
 The general allocator initializes registry defaults. Supply consistent grid
 metrics, masks and forcing through ``state_overrides`` to construct a physical
-experiment. For an existing example, use one of the setup initializers below.
+experiment. For an existing example, construct its builtin Experiment and use
+``initialize_experiment``.
 
 .. autofunction:: veris.execution.initialization.initialize
 
@@ -57,15 +71,13 @@ transition and :func:`veris.step` for a fixed-length rollout.
 
    Island scenario defaults and metadata; see :doc:`/reference/setups/island`.
 
-.. autofunction:: veris.setups.island.initialize
-
 Dynamics experiment
 -------------------
 
 This setup advances dynamics and transport with prescribed ocean and wind
-fields. Its ``nx`` and ``ny`` arguments count global physical cells; the
-returned Configuration records local interior extents. The general allocator
-instead accepts interior extents per partition when given a mesh. See
+fields. Define global physical dimensions with ``Grid``; the Configuration
+returned by ``initialize_experiment`` records local interior extents. The general
+allocator instead accepts interior extents per partition when given a mesh. See
 :doc:`/reference/setups/dynamics` and
 :doc:`/reference/setups/parallel-dynamics` for the scenario registry and runs.
 
@@ -75,8 +87,6 @@ instead accepts interior extents per partition when given a mesh. See
    :type: dict[str, veris.model.types.Parameter]
 
    Dynamics scenario defaults and metadata; see :doc:`/reference/setups/dynamics`.
-
-.. autofunction:: veris.setups.run_dyn.initialize
 
 Growth experiment
 -----------------
@@ -91,8 +101,6 @@ fields. Its ``GROWTH_SETTINGS`` defaults and command-line usage appear in
    :type: dict[str, veris.model.types.Parameter]
 
    Growth scenario defaults and metadata; see :doc:`/reference/setups/growth`.
-
-.. autofunction:: veris.setups.run_growth.initialize
 
 Select ``physics="thermodynamics"`` with :func:`veris.advance` to evolve the
 initialized column, or use its builtin Experiment with Simulation.

@@ -14,7 +14,6 @@ from typing import Any
 
 import click
 import numpy as np
-from jax.sharding import Mesh
 
 from veris.io.cli import (
     console_main,
@@ -204,35 +203,6 @@ def build_fields(
     )
 
 
-def initialize(
-    nx: int = DYNAMICS_DEFAULT_EXTENT,
-    ny: int | None = None,
-    *,
-    mesh: Mesh | None = None,
-    settings_overrides: Mapping[str, Any] | None = None,
-    scenario_overrides: Mapping[str, Any] | None = None,
-    physical_overrides: Mapping[str, Any] | None = None,
-) -> tuple[State, Configuration, PhysicalConstants]:
-    """Initialize global interior dimensions with local halos on each mesh shard.
-
-    Only addressable partitions are materialized on each process. This supports
-    multi-process CPU execution without allocating a full global state per rank.
-    Returned configuration nx/ny are local interior extents. Wind stays fixed
-    throughout integration, matching experiment snapshot 15 of the shifted field.
-    """
-    from veris.setups.presets import _initialize_adapter
-
-    return _initialize_adapter(
-        "dynamics",
-        nx=nx,
-        ny=nx if ny is None else ny,
-        mesh=mesh,
-        settings=settings_overrides,
-        constants=physical_overrides,
-        scenario=scenario_overrides,
-    )
-
-
 @click.command(help=__doc__)
 @click.option("--steps", type=click.IntRange(min=0))
 @click.option("--backend", type=click.Choice(["cpu", "gpu"]))
@@ -252,12 +222,7 @@ def main(argv: list[str] | None = None) -> None:
     """Translate standalone profile flags and invoke the public Python runner."""
     args = parse_options(cli, argv)
     definition = driver_definition("dynamics", "standalone", args)
-    try:
-        result = run_driver(definition, args)
-    except ValueError as error:
-        if str(error).startswith("nonfinite output"):
-            raise RuntimeError(str(error)) from error
-        raise
+    result = run_driver(definition, args)
     assert result.execution_metadata is not None
     if result.execution_metadata["process_index"] == 0:
         print(

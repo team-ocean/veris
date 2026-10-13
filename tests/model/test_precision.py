@@ -7,11 +7,11 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris import Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance as advance_model
 from veris.execution.initialization import initialize
 from veris.model.configuration import SETTINGS
 from veris.model.physical_constants import PHYSICALCONSTANTS
-from veris.setups import island
 
 compiled_advance = jax.jit(
     advance_model, static_argnames=("configuration", "constants", "physics")
@@ -38,7 +38,9 @@ def test_policy_types_every_array_and_static_coefficient(dtype: str) -> None:
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
 def test_coupled_step_and_gradients_preserve_precision(dtype: str) -> None:
     """Real dynamics, growth, diagnostics and AD must not promote field precision."""
-    state, settings, constants = island.initialize(4, 5, dtype=dtype)
+    state, settings, constants = initialize_experiment(
+        Experiment.builtin("island", grid=Grid(4, 5), settings={"dtype": dtype})
+    )
     result, diagnostics = advance_model(
         state, settings, constants, {"Qnet": 100.0, "Qsw": 0.0}, physics="coupled"
     )

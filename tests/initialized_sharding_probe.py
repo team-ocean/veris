@@ -13,11 +13,11 @@ import numpy as np
 from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 
+from veris import Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance as advance_model
 from veris.execution.initialization import initialize
 from veris.model.types import State
 from veris.model.variables import VARIABLES
-from veris.setups.island import initialize as initialize_island
 
 compiled_advance = jax.jit(
     advance_model, static_argnames=("configuration", "constants", "physics")
@@ -69,7 +69,9 @@ def check_initialized_step() -> None:
         assert array.dtype == np.dtype(settings.dtype)
         assert_close(array, VARIABLES[field.name].default, f"default {field.name}")
 
-    serial, serial_settings, physical = initialize_island(px * nx, py * ny)
+    serial, serial_settings, physical = initialize_experiment(
+        Experiment.builtin("island", grid=Grid(px * nx, py * ny))
+    )
     serial_settings = replace(serial_settings, nEVPsteps=2)
     packed = {
         field.name: pack(getattr(serial, field.name), px, py)

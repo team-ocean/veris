@@ -6,11 +6,11 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris import Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance as advance_model
 from veris.execution.initialization import initialize
 from veris.grid.halos import fill_state_overlap
 from veris.physics.dynamics.rheology import stressdiv
-from veris.setups import island
 
 
 @pytest.mark.parametrize("no_slip", [False, True])
@@ -68,14 +68,12 @@ def test_opposite_wall_shear_produces_equal_tangential_drag() -> None:
 
 def test_free_slip_momentum_steps_keep_both_wall_shears_zero() -> None:
     """Relaxation must not inherit spurious north traction from halo refresh."""
-    state, conf, phys = island.initialize(
-        6,
-        8,
-        settings_overrides={
-            "enable_cyclic_y": False,
-            "noSlip": False,
-            "nEVPsteps": 2,
-        },
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin(
+            "island",
+            grid=Grid(6, 8),
+            settings={"enable_cyclic_y": False, "noSlip": False, "nEVPsteps": 2},
+        )
     )
     # A nonzero interior stress makes accidental nearest-row copying visible
     # even with symmetric forcing and vanishing physical boundary shear.

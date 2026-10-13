@@ -5,6 +5,7 @@ from dataclasses import FrozenInstanceError, replace
 import numpy as np
 import pytest
 
+from veris import Experiment, Grid, initialize_experiment
 from veris.execution.initialization import initialize
 from veris.model.configuration import SETTINGS, Configuration
 from veris.model.physical_constants import PHYSICALCONSTANTS
@@ -50,22 +51,26 @@ def test_allocation_extents_are_recorded_and_settings_overrides_are_used() -> No
 
 
 def test_island_overrides_drive_geometry_fields_and_time_controls() -> None:
-    state, settings, constants = island.initialize(
-        settings_overrides={"nx": 4, "ny": 5},
-        scenario_overrides={
-            "saltOcn_ref": 33,
-            "islandGridSpacing": 2000,
-            "islandWindSpeed": -3,
-            "islandAirTemperature": 265,
-            "islandIceThickness": 2,
-            "islandSnowThickness": 0.1,
-            "islandIceArea": 0.6,
-            "islandOceanDepth": -80,
-            "islandCoriolis": -1e-4,
-            "islandTimeStep": 300,
-            "islandEVPsteps": 7,
-        },
-        physical_overrides={"rhoIce": 910, "rhoSnow": 310},
+    state, settings, constants = initialize_experiment(
+        Experiment.builtin(
+            "island",
+            grid=Grid(4, 5),
+            settings={},
+            constants={"rhoIce": 910, "rhoSnow": 310},
+            scenario={
+                "saltOcn_ref": 33,
+                "islandGridSpacing": 2000,
+                "islandWindSpeed": -3,
+                "islandAirTemperature": 265,
+                "islandIceThickness": 2,
+                "islandSnowThickness": 0.1,
+                "islandIceArea": 0.6,
+                "islandOceanDepth": -80,
+                "islandCoriolis": -0.0001,
+                "islandTimeStep": 300,
+                "islandEVPsteps": 7,
+            },
+        )
     )
     assert (settings.nx, settings.ny) == (4, 5)
     np.testing.assert_array_equal(state.ocSalt, 33)
@@ -93,27 +98,25 @@ def test_island_overrides_drive_geometry_fields_and_time_controls() -> None:
     np.testing.assert_array_equal(state.fCori, -1e-4)
 
 
-def test_explicit_island_arguments_and_model_timestep_overrides_win() -> None:
-    state, settings, _ = island.initialize(
-        nx=4,
-        ny=6,
-        wind=2,
-        air_temperature=262,
-        settings_overrides={
-            "nx": 8,
-            "ny": 8,
-            "deltatDyn": 200,
-            "deltatTherm": 400,
-            "nEVPsteps": 3,
-        },
-        scenario_overrides={"islandWindSpeed": 4, "islandAirTemperature": 266},
+def test_grouped_overrides_drive_island_fields_and_numerical_controls() -> None:
+    definition = Experiment.builtin(
+        "island",
+        grid=Grid(8, 8),
+        scenario={"islandWindSpeed": 4, "islandAirTemperature": 266},
+    ).with_overrides(
+        {
+            "grid": {"nx": 4, "ny": 6},
+            "settings": {"deltatDyn": 200, "deltatTherm": 200, "nEVPsteps": 3},
+            "scenario": {"islandWindSpeed": 2, "islandAirTemperature": 262},
+        }
     )
+    state, settings, _ = initialize_experiment(definition)
     assert (settings.nx, settings.ny) == (4, 6)
     np.testing.assert_array_equal(state.uWind, 2)
     np.testing.assert_array_equal(state.ATemp, 262)
     assert (settings.deltatDyn, settings.deltatTherm, settings.nEVPsteps) == (
         200,
-        400,
+        200,
         3,
     )
 
@@ -137,24 +140,30 @@ def test_invalid_registered_experiment_controls_are_rejected(
 ) -> None:
     assert kwargs.keys() <= island.ISLAND_SETTINGS.keys()
     with pytest.raises((ValueError, TypeError), match=next(iter(kwargs))):
-        island.initialize(scenario_overrides=kwargs)
+        initialize_experiment(Experiment.builtin("island", scenario=kwargs))
 
 
 def test_island_rejects_sharding_without_mesh_support() -> None:
     with pytest.raises(ValueError, match="shard|serial"):
-        island.initialize(settings_overrides={"use_sharding": True})
+        initialize_experiment(
+            Experiment.builtin("island", settings={"use_sharding": True})
+        )
 
 
 def test_island_controls_cannot_enter_model_settings() -> None:
     with pytest.raises(TypeError, match="islandWindSpeed"):
         initialize(settings_overrides={"islandWindSpeed": 4})
-    with pytest.raises(TypeError, match="unknownScenario"):
-        island.initialize(scenario_overrides={"unknownScenario": 4})
+    with pytest.raises(ValueError, match="unknownScenario"):
+        initialize_experiment(
+            Experiment.builtin("island", scenario={"unknownScenario": 4})
+        )
 
 
-def test_initializer_requires_cooling_through_experiment_forcing() -> None:
-    with pytest.raises(ValueError, match="Experiment forcing"):
-        island.initialize(scenario_overrides={"islandCooling": 25})
+def test_island_cooling_resolves_to_prescribed_experiment_forcing() -> None:
+    definition = Experiment.builtin("island", scenario={"islandCooling": 25})
+    assert definition.resolved_forcing.at(0)["Qnet"] == 25
+    state, _, _ = initialize_experiment(definition)
+    np.testing.assert_array_equal(state.Qnet, 0)
 
 
 @pytest.mark.parametrize("dtype", ["float32", "float64"])

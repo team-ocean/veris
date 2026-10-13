@@ -3,21 +3,29 @@
 import jax
 import numpy as np
 
+from veris import Execution, Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance
+from veris.execution.runtime import create_mesh
 from veris.io.distributed import distributed_collector
-from veris.setups import run_dyn, run_parallel
+from veris.setups import run_parallel
 
 
 def check_parallel_case() -> None:
     """Ensure rectangular partition interiors equal the serial reference case."""
-    mesh = run_parallel.create_mesh((2, 2), "cpu")
+    mesh = create_mesh((2, 2), "cpu")
     overrides = {"nEVPsteps": 2}
-    serial, settings, physical = run_dyn.initialize(
-        12, 16, settings_overrides=overrides
+    serial, settings, physical = initialize_experiment(
+        Experiment.builtin("dynamics", grid=Grid(12, 16), settings=overrides)
     )
     with jax.set_mesh(mesh):
-        parallel, local_settings, local_physical = run_dyn.initialize(
-            12, 16, mesh=mesh, settings_overrides=overrides
+        parallel, local_settings, local_physical = initialize_experiment(
+            Experiment.builtin(
+                "dynamics",
+                grid=Grid(12, 16),
+                settings=overrides,
+                execution=Execution(partitions=(mesh.shape["x"], mesh.shape["y"])),
+            ),
+            mesh=mesh,
         )
     compiled = jax.jit(
         advance, static_argnames=("configuration", "constants", "physics")

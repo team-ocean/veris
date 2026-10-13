@@ -9,12 +9,12 @@ import jax
 import numpy as np
 import pytest
 
+from veris import Experiment, initialize_experiment
 from veris.execution.advance import advance as advance_model
 from veris.execution.rollout_output import output_callbacks, run_timed
 from veris.io import OutputManager, OutputSettings, Stream, read_record
 from veris.model.diagnostics import Diagnostics
 from veris.model.types import State
-from veris.setups import run_growth
 
 
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
@@ -25,7 +25,9 @@ def test_growth_scheduled_means_preserve_plain_physics(
     physics_x64 = dtype == "float64"
     previous_x64 = jax.config.x64_enabled
     with jax.enable_x64(physics_x64):
-        initial, conf, phys = run_growth.initialize(dtype=dtype)
+        initial, conf, phys = initialize_experiment(
+            Experiment.builtin("growth", settings={"dtype": dtype})
+        )
         transition = partial(
             advance_model, configuration=conf, constants=phys, physics="thermodynamics"
         )

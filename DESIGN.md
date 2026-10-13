@@ -17,8 +17,11 @@ Python/CLI overrides; deliberately authored rounded inputs remain deliberate.
 
 `initialize_experiment` validates before selecting devices, reuses preset field
 factories or the ocean adapter, applies physical inputs and prepares geometry,
-derived quantities and field-aware halos. `veris.grid.regions` constructs only
-addressable packed partitions, caching all fields per regional callback. Global
+derived quantities and field-aware halos. Setup modules declare regional preset
+factories; callers use `Experiment.builtin` with grouped grid, settings, scenario
+and constants. Runnable definitions share coupled-clock and host-clock
+validation. `veris.grid.regions` constructs only addressable packed partitions,
+caching all fields per regional callback. Global
 indices preserve the island location and spatial forcing; internal meridional
 boundaries are exchanges rather than extra closed walls. Each partition has two
 halos per side. Global geometry/input arrays belong to the host definition;
@@ -128,6 +131,9 @@ Precision metadata is defined directly in SETTINGS["dtype"]. Shared ArrayInput
 and MaskInput contracts live in `veris.model.arrays`. OceanGeometry belongs to
 `veris.grid.geometry`.
 Island-only configuration remains in `veris.setups.island`.
+Configuration retains the unused `explicitDrag` setting because version-one
+complete restart files persist its full settings schema. Retaining this field
+does not activate an alternate drag algorithm.
 
 External ocean geometry is initialized from scratch through
 `veris.grid.ocean.initialize_from_ocean` and the shared

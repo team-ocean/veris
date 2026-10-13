@@ -25,10 +25,14 @@ The x direction is always periodic. ``enable_cyclic_y=True`` (the default)
 also wraps the global y edges. Set it to ``False`` at initialization to use
 closed, impermeable southern and northern walls::
 
-   from veris.setups.island import initialize
-   state, settings, constants = initialize(
-       settings_overrides={"enable_cyclic_y": False}
+   import jax
+   from veris import Experiment, Grid, initialize_experiment
+
+   jax.config.update("jax_enable_x64", True)
+   experiment = Experiment.builtin(
+       "island", grid=Grid(8, 12), settings={"enable_cyclic_y": False},
    )
+   state, settings, constants = initialize_experiment(experiment)
 
 Closed walls retain every interior tracer row. Exterior masks are dry, normal
 ice velocities and meridional transport vanish at both walls, and ``noSlip``
@@ -63,9 +67,10 @@ halo refresh preserves that independent traction but cannot reconstruct it.
 Floating-point precision
 ------------------------
 
-Choose ``dtype="float32"`` or ``dtype="float64"`` once when calling
-``veris.execution.initialization.initialize`` or the island initializer. Both returned
-static objects retain this policy. Their floating coefficients, derived values
+Choose ``settings={"dtype": "float32"}`` or ``settings={"dtype": "float64"}``
+when defining an Experiment, then call ``initialize_experiment``. The general
+allocator also accepts ``dtype`` directly. Both returned static objects retain
+this policy. Their floating coefficients, derived values
 and lookup tables use the selected NumPy scalar type; all state and work arrays
 use the matching JAX dtype. Integers and Boolean switches retain their types.
 ``float64`` requires JAX x64 enabled before initialization. Veris rejects silent
@@ -76,6 +81,10 @@ array dtype. NetCDF storage uses the actual array dtype, as shown in :doc:`varia
 Precision is defined directly by the ``Parameter`` entry at
 ``veris.model.configuration.SETTINGS["dtype"]``. Configuration objects declare their own keyword-only
 ``dtype`` field using that same default; there is no precision base class.
+
+``explicitDrag`` is retained in Configuration because version-one complete
+restart files store the full settings schema. The current solvers do not read
+this field; changing it leaves the numerical calculation unchanged.
 
 Registry defaults
 -----------------

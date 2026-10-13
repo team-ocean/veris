@@ -16,11 +16,11 @@ from jax.sharding import PartitionSpec as P
 from jax.typing import ArrayLike
 
 import veris
+from veris.execution.runtime import create_mesh
 from veris.grid.halos import fill_state_overlap, remove_halos
 from veris.model.diagnostics import Diagnostics
 from veris.model.types import State
 from veris.physics.dynamics.driver import dynamics_transport
-from veris.setups import run_parallel
 
 NX, NY = 6, 4
 DTYPE = "float64"
@@ -154,7 +154,7 @@ def check_forcing_halos(state: State, inputs: dict[str, jax.Array], mesh: Mesh) 
 
 def check_orientation(partitions: tuple[int, int]) -> None:
     """Check eager/JIT fields, independent forcing halos, and nonzero pure AD."""
-    mesh = run_parallel.create_mesh(partitions, "cpu")
+    mesh = create_mesh(partitions, "cpu")
     definition = veris.Experiment.builtin(
         "dynamics", grid=veris.Grid(NX, NY), settings=OPTIONS
     )

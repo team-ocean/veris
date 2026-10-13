@@ -10,6 +10,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris import Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance as advance_model
 
 
@@ -65,9 +66,10 @@ def test_advance_returns_separate_periodic_diagnostics(
 ) -> None:
     """Coupling fields remain separate from the 70 calculated State leaves."""
     from veris.model.diagnostics import DIAGNOSTICS
-    from veris.setups.island import initialize
 
-    initial, conf, phys = initialize(5, 7)
+    initial, conf, phys = initialize_experiment(
+        Experiment.builtin("island", grid=Grid(5, 7))
+    )
     actual, diagnostics = advance_model(
         initial, conf, phys, {"Qnet": 25.0, "Qsw": 0.0}, physics="coupled"
     )

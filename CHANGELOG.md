@@ -21,6 +21,174 @@
   maximum scaled error3.67618e-16. Evidence:compatibility-audit/narrow-* under
   test_logs/, including narrow-final-aegir-equivalence.json and SLURM accounting.
 
+## 2026-10-13 — Whole-source compatibility audit (completed 2026-10-14)
+
+- [x] @root: audit all maintained source after the experiment framework, remove
+  obsolete adapters and duplicate entry points, migrate tests/docs and complete
+  all required gates on jax-only.
+- [x] @source-audit: read-only physics/numerics/grid and execution review.
+  [x] @docs-audit: API/model/I/O and documentation review. Independent final
+  source/test review has no outstanding findings. Root owns the only pytest.
+- Eight new canonical-ownership cases fail before removal. Deleted the three
+  setup initializers, their private translation/error class and clock/mesh
+  bypass subclass; removed parallel runtime reexports/parser defaults, duplicate
+  output parsing, unused path preparation and redundant halo binding.
+- First focused migration: 72 passed, four failures. Failures are stale error
+  wording plus test-side singleton sharding and a mesh context inside a traced
+  callback. Canonical sampling validation, explicit NamedSharding and host-only
+  mesh contexts replace those assumptions; numerical tolerances are unchanged.
+- Extended focused gate: 135 passed, four failures, one expected GPU skip.
+  Four dynamic-module lifecycle comparisons still called deleted initializers;
+  migrate those to explicit canonical definitions without changing their
+  all-field snapshot/trajectory assertions. Ruff/format/annotations/ty, shell
+  syntax and strict Sphinx already pass. Full verification follows.
+- Independent whole-diff review finds no Critical/Important/Minor findings.
+  Lifecycle/error propagation regressions pass 8/8. Clean wheel/sdist contain
+  exactly 76 Python modules matching current source; installed lifecycle,
+  custom-ocean/restart/AD/mesh and paired Python/CLI blueprint probes pass.
+  Six changed literal initialization/output/AD documentation examples execute
+  successfully from the clean wheel. No scientific kernel/reference bytes change.
+- aegir job 66307089 completes 0:0 in 46 s. All nine 64x64 output fields match
+  serial, maximum scaled error 3.68e-16, with the same 1200-second clock.
+  Evidence: test_logs/compatibility-audit/aegir-equivalence.json.
+- Final caller review identifies duplicated GrowthSettings nx/ny/steps input
+  fields, which became ignored scenario controls after Experiment took ownership.
+  Added three rejection cases and a literal 2x2/150-step/default-versus-explicit
+  allocation contract. Existing source CPU gate is still running; these newly
+  authored cases will run sequentially after it, before extending implementation.
+- First full CPU gate passes 1,583/1,587 cases with four expected GPU skips,
+  zero failures/errors in 986.84 s external wall. Maintained coverage is
+  4,634/4,883 = 94.90%. The subsequent growth cleanup requires a fresh final gate.
+- Growth controls RED: three constructors accept obsolete run controls; one
+  literal default/explicit-allocation case already passes. Remove their
+  dataclass/registry fields, move unchanged 2x2/150 defaults to provider/profile
+  ownership, and remove now-unused test import adapters. No physics/reference
+  bytes or numerical assertions change. Final-source gates follow.
+- First growth focused run: 62 passes, 18 failures, all caused by omitting the
+  required empty positive-field set after removing nx/ny validation. The shared
+  scalar validator requires an explicit positive argument; retain its finite/
+  dtype checks with positive=frozenset(). No tolerance or physical bound changes.
+- Growth final focused gate passes 80/80; independent delta review has no
+  findings. Explicit run-control rejection calls receive the same narrow type
+  suppression as other deliberately invalid constructor tests. Final full CPU,
+  native GPU, static, strict-doc and clean-install gates are now planned against
+  this final source. The earlier full gate remains valid preliminary evidence.
+- Final-source static, strict Sphinx and clean wheel/sdist gates pass. Fresh
+  installed lifecycle/restart/custom-ocean/mesh/JIT/AD and literal paired Python/
+  CLI/export blueprint probes pass. Final package inventory matches all 76
+  Python modules byte-for-byte except generated version metadata.
+- Native two-P100 parity matrix passes 12/12: all 70 fields, both precisions,
+  three physics modes, one/two GPUs. Maximum scaled errors: 7.81e-15 float64,
+  6.97e-6 float32. Final CPU and accelerator pytest gates remain in progress.
+- Final two-GPU evolving-state JVP/VJP/duality and serial finite-difference
+  sharding probe passes using canonical initialization. Six changed literal
+  initialization/output/AD examples pass again from the final clean wheel.
+  Hash verification proves all 234 Python/stub/reference files remain unchanged
+  throughout final-source verification. Final CPU and GPU pytest gates remain.
+- Final-source full CPU gate passes 1,587/1,591 cases with all four expected
+  GPU skips, zero failures/errors in 971.17 s external wall (pytest 969.34 s).
+  Maintained coverage is 4,630/4,882 = 94.84%; the 80% gate passes. Native GPU
+  pytest is now the sole pytest session. User requests a fresh final parallel
+  run on aegir; plan two ranks on two nodes after the accelerator gate.
+- Native GPU pytest passes 12/12 with zero skips/failures/errors in 413.88 s,
+  including all four CPU-skipped cases, all notebook startup fields/100-step
+  dynamics and coupled/rollout/growth AD. All 234 source/reference verification
+  hashes remain unchanged. Fresh final two-node aegir validation is submitted;
+  its terminal status/equivalence and the authorized git commit remain.
+- Final requested two-node job 66308107 completes 0:0 in 48 s but fails
+  numerical equivalence: maximum scaled velocity error ~0.0124 near the internal
+  y=32 interface, ice1.2e-4 and area2.5e-4 absolute. Winds/currents and all static
+  controls match. No commit is made while this correctness blocker remains.
+- All-field diagnostic job66308146 completes0:0 in5s: all70 startup fields and
+  two direct synchronized jitted advance calls match serial (max scaled stress
+  error2.92e-12, velocities3.27e-16). Standalone initialization/advance and file
+  collection pass; enclosing runtime execution remains under investigation.
+- Scan/checkpoint hypothesis rejected: job66308779 completes0:0 in17s and all
+  six scan/timing/checkpoint/carry variants match all70 serial fields. Lifecycle
+  job66308982 completes0:0 in21s: manual Simulation, default-device initialization
+  and run_experiment with a supplied mesh match; the parallel profile with a
+  newly acquired mesh differs in15 fields. Configuration/constants and runtime
+  metadata are identical. Testing mesh acquisition variants before any fix.
+- Mesh/profile hypothesis rejected: job66309066 passes/fails different identical
+  variants intermittently; all startup fields match. Thirty exact halo-only
+  recompilations and small/large isolated nested permutations pass. Repeated
+  real dynamics job66309124 completes0:0 in62s: baseline fails2/12 trajectories
+  on both ranks while an ordering-barrier control passes12/12, all70 fields.
+  Both ranks' optimized programs are byte-identical. Add a maintained repeated
+  dynamics regression and run it natively before changing production source.
+- Maintained regression uses32 fresh compilations and all70 physical fields on
+  both ranks. Independent review catches persistent-cache reuse; explicitly
+  disable disk caching as well as clearing memory caches. One-host checks pass;
+  native RED job66309254 fails1:0 in76s with96 field/trial mismatches on rank0.
+- Sharded execution now groups State/Diagnostics behind one optimization barrier
+  before final halo refreshes. Native GREEN job66309287 completes0:0 in64s,
+  all32 trajectories on both ranks pass. Focused primal/AD and compiler-dependency
+  verification are still running; no completion claim or commit yet.
+- Failed diagnostic approach: global compiler VLOG6 creates excessive output;
+  cancel jobs66309325/66309326 after62s and discard their excessive compiler
+  chatter. Retain accounting and use only module-filtered logs as evidence.
+- Native32-repeat x-partition job66309361 completes0:0 in62s onnodes455/456,
+  all70 fields pass bothranks. Actual filtered executor graphs from66309344/
+  66309345 prove the grouped barrier creates a buffer-completion chain from
+  EVP to the first outer collective on bothranks; later collectives follow it.
+  This resolves the weaker State-only barrier's apparent x-axis caveat.
+- Focused real distributed/primal/AD gate passes57/57, zero failures/errors/skips
+  in625.69s. New repeated regression now covers both1x2 and2x1 layouts; a fresh
+  full CPU/coverage gate is running. Maintained lint/format/annotations/ty and
+  shell syntax pass. Generated Versioneer stays excluded from static checking.
+- Fresh full run initially uses one worker; prior full timing actually used
+  three (summed case time2497s versus969s suite wall). Interrupt the one-worker
+  run cleanly and retain its partial artifacts as incomplete evidence. Final
+  gate uses the established three disjoint16-CPU workers on the48 allowed CPUs.
+  No source changes or failures prompted the restart; no pytest instances overlap.
+- Fresh two-P100 matrix passes12/12 and evolving sharded JVP/VJP/FD passes.
+  Strict Sphinx, exact76-module clean wheel/sdist inventory, installed lifecycle/
+  framework/restart/custom-ocean/mesh/AD and six literal documentation examples
+  pass after the ordering fix. All234 verified source/reference hashes match.
+- Post-barrier full gate fails1/1593:1588pass/4GPUskips in928.34s. Closed-wall
+  local4-CPU free-slip coupled VJP differs4.71504e-4 despite matching all70
+  primals. Isolated current-mode JVP/VJP/FD matches; a following compilation
+  crashes InProcessCommunicator with5participants for4, confirming a collective
+  rendezvous collision. Do not broaden this barrier to all local execution.
+- Scope the completion gate to sharded multi-process launches, preserving the
+  established single-process compilation path. Extend the existing closed-wall
+  probe to actual controllers, keeping all halo/JVP/VJP prelude checks and both
+  wall-slip choices. Non-addressable fields use collective host inspection and
+  explicit JIT inputs; local placement/physics/tolerances remain unchanged.
+- First distributed-AD harness job66309971 fails1:0 in48s because JAX forbids
+  closing over non-addressable State arrays. Pass that State explicitly and
+  freeze only its base during parameter-direction AD. Rerun66310034 passes the
+  previously failing free-slip case onall4ranks; no-slip and local gates remain.
+- Fresh two-GPU checkpointed dynamics/coupled rollouts pass bothfloat64/float32,
+  including all-field primals, JVP/VJP/FD and initial/forcing directions. Broad
+  barrier's isolated local rerun passes too; its earlier collision is intermittent.
+- Native four-rank closed-wall job66310034 completes0:0 in189s onnodes453/454:
+  all six halo/AD prelude contexts, both slip choices, all70 coupled primals,
+  wall policies and parameter-direction JVP/VJP/finite differences pass.
+  Narrowed focused gate passes2/2 in408.854s: unchanged local four-CPU probe and
+  maintained distributed probe, zero failures/errors/skips. Static checks,
+  strict Sphinx, clean wheel/sdist and installed lifecycle/framework/six literal
+  examples pass. Fresh three-worker full CPU gate is running on final source.
+- Final narrowed-source full CPU gate passes1590/1594 with all4 expected GPU
+  skips, zero failures/errors in1129.51s external wall (pytest1127.586s), within
+  the1200s target. Maintained coverage4631/4884=94.82% exceeds80%. All234 source/
+  reference hashes remain unchanged. Native four GPU-only cases are now the
+  sole pytest session; the fresh final two-node aegir job and commits remain.
+- Final native GPU-only gate passes4/4, zero skips/failures/errors in27.89s
+  external wall. Fresh serial launcher output is complete; final two-node/
+  two-rank aegir job66311448 is submitted after all correctness gates. Terminal
+  accounting, nine-field/clock equivalence and commits remain.
+- [x] Final requested aegir job66311448 completes0:0 in6s onnodes453/454:
+  two nodes/two ranks, all9 output fields and1200s clock match serial, maximum
+  scaled error3.67618e-16. Terminal job/batch/srun accounting and equivalence are
+  retained in narrow-final-* artifacts. All final gates and independent review
+  pass; commit the ordering fix and canonical cleanup as separate units.
+- Existing canonical cleanup remains complete. Its explicit breaking-import
+  authorization and native execution ruling apply to this continued audit.
+  Work stays in the user-designated jax-only checkout; numerical equations,
+  frozen scientific data, prescribed-ocean examples and AD tolerances remain
+  authoritative.
+
 ## 2026-10-13 — Authoritative experiment framework
 
 - [x] Tasks 1–7 complete; independent whole-branch review identified four

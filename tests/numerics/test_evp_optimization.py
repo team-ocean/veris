@@ -15,10 +15,10 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
+from veris import Experiment, Grid, initialize_experiment
 from veris.model.configuration import Configuration
 from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import State
-from veris.setups.island import initialize
 
 REFERENCE = (
     Path(__file__).resolve().parents[1] / "reference_data" / "evp_pre_barrier.npz"
@@ -35,7 +35,9 @@ CASES = [
 
 def oracle_state(masked: bool) -> tuple[State, Configuration, PhysicalConstants]:
     """Construct periodic 6x9 interiors with variable ice, stress and forcing."""
-    vs, conf, phys = initialize(6, 9)
+    vs, conf, phys = initialize_experiment(
+        Experiment.builtin("island", grid=Grid(6, 9))
+    )
     x, y = np.meshgrid(np.arange(6), np.arange(9), indexing="ij")
 
     def field(values: np.ndarray) -> jax.Array:

@@ -16,6 +16,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris import Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance as advance_model
 from veris.execution.initialization import initialize
 from veris.grid.halos import fill_overlap
@@ -24,7 +25,6 @@ from veris.model.configuration import Configuration
 from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import State
 from veris.model.variables import VARIABLES
-from veris.setups import island
 
 compiled_advance = jax.jit(
     advance_model, static_argnames=("configuration", "constants", "physics")
@@ -53,12 +53,13 @@ def test_coupled_restart_matches_uninterrupted_run(
 ) -> None:
     """Float32 snapshots and reconstructed halos resume the same trajectory."""
     dtype = "float32"
-    initial, conf, phys = island.initialize(
-        nx=6,
-        ny=8,
-        dtype=dtype,
-        settings_overrides={"nEVPsteps": 3},
-        physical_overrides={"rhoAir": 1.25},
+    initial, conf, phys = initialize_experiment(
+        Experiment.builtin(
+            "island",
+            grid=Grid(6, 8),
+            settings={"nEVPsteps": 3, "dtype": dtype},
+            constants={"rhoAir": 1.25},
+        )
     )
     x = jnp.arange(10, dtype=getattr(jnp, dtype))[:, None] - 2
     y = jnp.arange(12, dtype=getattr(jnp, dtype))[None, :] - 2

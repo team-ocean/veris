@@ -1,5 +1,44 @@
 # Test suite redundancy audit
 
+## Whole-source compatibility audit — 2026-10-13
+
+Preset callers now use `Experiment.builtin` and `initialize_experiment` directly.
+Setup initialization adapters, their validation bypasses, duplicate CLI parsing,
+runtime reexports and redundant halo binding are removed. Ownership/rejection
+tests replace their obsolete contracts; physical field, frozen all-field,
+unequal-clock, CLI, sharding and derivative assertions remain. Growth grid/steps
+defaults move unchanged to provider/profile ownership.
+
+The requested final two-node run revealed an intermittent communication failure.
+`test_repeated_nested_evp_rollouts_match_all_serial_fields` owns its regression:
+32 fresh compilations in each partition direction, all 70 physical fields on
+both ranks against an independently computed serial reference. It disables disk
+and memory compilation caches. Repetition is necessary to reproduce the runtime
+race; it is not another sampling of a deterministic linear map. The native
+unmodified regression fails before the execution-layer ordering barrier; both
+1x2 and 2x1 pass afterward. Actual executor graphs confirm a buffer-completion
+dependency from EVP to the first final halo exchange. The barrier applies to
+multiple JAX processes; local execution retains its established compilation
+path after a broader barrier exposed an in-process collective AD collision.
+
+`test_distributed_closed_coupled_derivatives_after_halo_prelude` extends the
+existing closed-wall probe to real controllers. It retains all six halo/JVP/VJP
+prelude contexts, both slip choices, all 70 coupled fields and the original
+parameter-direction JVP/VJP/finite-difference checks. Distributed State arrays
+are explicit compiled inputs; host inspection gathers non-addressable values.
+The original local probe retains its placement and objective path. Scientific
+kernels, archives, tolerances and derivative directions are unchanged.
+
+Final verification and exact accounting are recorded in `CHANGELOG.md` and
+`test_logs/compatibility-audit/narrow-*`. Earlier sections retain their own
+historical contracts, paths and measurements.
+
+Final CPU verification executes all 1,594 cases: 1,590 passes, four expected
+GPU skips, zero failures/errors, 1,129.51 seconds external wall and 94.82%
+maintained coverage. All four skipped cases pass on native GPUs. Final aegir
+job 66311448 completes `0:0` on two nodes/two ranks; all nine launcher fields
+and the 1,200-second clock match serial at 3.68e-16 maximum scaled error.
+
 ## Canonical-only API cleanup — 2026-10-12
 
 Status: **verified** on `jax-only`, Python 3.14.7 and JAX 0.11.2. All 1,312 cases
@@ -74,7 +113,8 @@ Historical sections below retain their original paths, policies and measurements
 
 The hierarchy separates `model`, `grid`, `physics`, `numerics`, `execution`, `io`
 and `setups`. The [package hierarchy](../docs/reference/package-hierarchy.rst)
-contains the complete tree and all 38 migration paths. Mathematical definitions,
+contains the complete current tree. The historical migration paths and alias
+checks below were removed by the canonical cleanup. Mathematical definitions,
 field ordering, masks, arithmetic order and tolerances remain unchanged.
 
 | Change | Ownership and preservation evidence |

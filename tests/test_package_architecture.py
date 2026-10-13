@@ -109,14 +109,37 @@ def test_model_schemas_have_explicit_owners() -> None:
 @pytest.mark.parametrize(
     "module,names",
     [
-        ("veris.setups.island", ("step", "step_with_diagnostics", "compiled_step")),
-        ("veris.setups.run_dyn", ("step", "step_with_diagnostics", "compiled_step")),
-        ("veris.setups.run_growth", ("step", "step_with_diagnostics", "compiled_step")),
+        (
+            "veris.setups.island",
+            ("initialize", "step", "step_with_diagnostics", "compiled_step"),
+        ),
+        (
+            "veris.setups.run_dyn",
+            ("initialize", "step", "step_with_diagnostics", "compiled_step"),
+        ),
+        (
+            "veris.setups.run_growth",
+            ("initialize", "step", "step_with_diagnostics", "compiled_step"),
+        ),
         (
             "veris.setups.run_parallel",
-            ("run_timed", "remove_halos", "gather_output", "save_output"),
+            (
+                "create_mesh",
+                "distributed_options",
+                "parse_args",
+                "run_timed",
+                "remove_halos",
+                "gather_output",
+                "save_output",
+            ),
         ),
-        ("veris.io.cli", ("make_output", "save_final")),
+        (
+            "veris.io.cli",
+            ("output_settings", "prepare_output_paths", "make_output", "save_final"),
+        ),
+        ("veris.grid.halos", ("make_sharded_fill_overlap",)),
+        ("veris.model.experiment", ("_InitializationExperiment",)),
+        ("veris.setups.presets", ("_initialize_adapter", "_UnknownScenarioError")),
     ],
 )
 def test_setups_and_cli_do_not_export_obsolete_execution_helpers(

@@ -1,23 +1,17 @@
 """Standalone coupled integration with an island and no ocean model."""
 
-import importlib
 from dataclasses import replace
-from types import ModuleType
 
 import jax
 import numpy as np
 import pytest
 
+from veris import Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance
 
 
-@pytest.fixture
-def example(halo: ModuleType) -> ModuleType:
-    return importlib.import_module("veris.setups.island")
-
-
-def test_island_masks_block_both_sides_of_coast(example: ModuleType) -> None:
-    vs, _, _ = example.initialize()
+def test_island_masks_block_both_sides_of_coast() -> None:
+    vs, _, _ = initialize_experiment(Experiment.builtin("island"))
     mask = np.asarray(vs.iceMask)
     assert mask.shape == (12, 16)
     assert np.any(mask == 0) and np.any(mask == 1)
@@ -28,13 +22,19 @@ def test_island_masks_block_both_sides_of_coast(example: ModuleType) -> None:
         assert np.all(np.asarray(getattr(vs, name))[mask == 0] == 0)
 
 
-def test_coupled_rest_equilibrium_is_preserved(example: ModuleType) -> None:
+def test_coupled_rest_equilibrium_is_preserved() -> None:
     from veris.model.physical_constants import PhysicalConstants
 
     constants = PhysicalConstants()
 
-    vs, conf, phys = example.initialize(
-        wind=0, air_temperature=constants.celsius2K + constants.tempFrz
+    vs, conf, phys = initialize_experiment(
+        Experiment.builtin(
+            "island",
+            scenario={
+                "islandWindSpeed": 0,
+                "islandAirTemperature": constants.celsius2K + constants.tempFrz,
+            },
+        )
     )
     initial = vs
     for _ in range(2):
@@ -45,10 +45,8 @@ def test_coupled_rest_equilibrium_is_preserved(example: ModuleType) -> None:
         )
 
 
-def test_coupled_forced_steps_keep_land_empty_and_halos_periodic(
-    example: ModuleType,
-) -> None:
-    vs, conf, phys = example.initialize()
+def test_coupled_forced_steps_keep_land_empty_and_halos_periodic() -> None:
+    vs, conf, phys = initialize_experiment(Experiment.builtin("island"))
     initial_ice = np.asarray(vs.hIceMean)
     for _ in range(3):
         vs = advance(vs, conf, phys, {"Qnet": 100, "Qsw": 0.0})[0]
@@ -78,18 +76,16 @@ def test_coupled_forced_steps_keep_land_empty_and_halos_periodic(
 
 
 @pytest.mark.parametrize("nx, ny", [(1, 12), (8, 1)])
-def test_too_small_grid_has_clear_error(example: ModuleType, nx: int, ny: int) -> None:
+def test_too_small_grid_has_clear_error(nx: int, ny: int) -> None:
     with pytest.raises(ValueError, match="at least"):
-        example.initialize(nx=nx, ny=ny)
+        initialize_experiment(Experiment.builtin("island", grid=Grid(nx, ny)))
 
 
-def test_prescribed_heat_forcing_replaces_previous_outputs(
-    example: ModuleType,
-) -> None:
+def test_prescribed_heat_forcing_replaces_previous_outputs() -> None:
     """Prescribed cooling overwrites previous coupling fluxes on every call."""
     import jax.numpy as jnp
 
-    vs, conf, phys = example.initialize()
+    vs, conf, phys = initialize_experiment(Experiment.builtin("island"))
     changed = replace(
         vs, Qnet=jnp.full_like(vs.Qnet, -999), Qsw=jnp.full_like(vs.Qsw, -888)
     )
@@ -107,11 +103,13 @@ def test_example_runs_in_fresh_process_without_mesh_helper() -> None:
     import sys
 
     code = """
+from veris import Experiment, Grid, Execution, initialize_experiment
+
 import jax
 jax.config.update("jax_enable_x64", True)
-from veris.setups.island import initialize
+
 from veris.execution.advance import advance
-vs, conf, phys = initialize()
+vs, conf, phys = initialize_experiment(Experiment.builtin('island'))
 result = advance(vs, conf, phys, {"Qnet": 100.0, "Qsw": 0.0})[0]
 jax.block_until_ready(result)
 assert result.hIceMean.shape == (12, 16)

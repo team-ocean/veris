@@ -13,13 +13,12 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from veris import step
+from veris import Experiment, Grid, initialize_experiment, step
 from veris.execution.advance import advance as advance_physics
 from veris.grid.geometry import OceanGeometry
 from veris.grid.ocean import initialize_from_ocean
 from veris.model.diagnostics import Diagnostics
 from veris.model.types import State
-from veris.setups import island, run_dyn, run_growth
 
 
 def make_case(
@@ -28,11 +27,17 @@ def make_case(
     """Bind real physics, including an independently allocated external ocean grid."""
     options = {"nEVPsteps": 2, "dtype": dtype, "deltatTherm": 600.0}
     if case == "growth":
-        initial, conf, phys = run_growth.initialize(settings_overrides=options)
+        initial, conf, phys = initialize_experiment(
+            Experiment.builtin("growth", settings=options)
+        )
     elif case == "dynamics":
-        initial, conf, phys = run_dyn.initialize(6, 8, settings_overrides=options)
+        initial, conf, phys = initialize_experiment(
+            Experiment.builtin("dynamics", grid=Grid(6, 8), settings=options)
+        )
     else:
-        initial, conf, phys = island.initialize(6, 8, settings_overrides=options)
+        initial, conf, phys = initialize_experiment(
+            Experiment.builtin("island", grid=Grid(6, 8), settings=options)
+        )
         if case == "ocean":
             geometry = OceanGeometry(
                 maskT=initial.iceMask[..., None],
@@ -243,7 +248,7 @@ def test_four_cpu_device_rollout_and_derivatives(tmp_path: Path) -> None:
 
 def test_growth_rollout_preserves_recursive_heat_fluxes() -> None:
     """The reference growth column reuses computed fluxes on subsequent steps."""
-    initial, conf, phys = run_growth.initialize()
+    initial, conf, phys = initialize_experiment(Experiment.builtin("growth"))
 
     def advance(state: State) -> State:
         return advance_physics(state, conf, phys, physics="thermodynamics")[0]

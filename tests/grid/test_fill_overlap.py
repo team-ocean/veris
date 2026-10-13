@@ -41,8 +41,11 @@ def test_shard_map_halo_matches_serial_on_one_device(halo: ModuleType) -> None:
     interior = np.arange(28.0).reshape(4, 7)
     initial = jnp.asarray(np.pad(interior, 2, constant_values=-99))
     initial = jax.device_put(initial, NamedSharding(mesh, P("x", "y")))
-    fill = halo.make_sharded_fill_overlap(mesh)
-    np.testing.assert_array_equal(fill(initial), np.pad(interior, 2, mode="wrap"))
+    with jax.set_mesh(mesh):
+        result = halo.fill_overlap(
+            initial, Configuration(nx=4, ny=7, use_sharding=True)
+        )
+    np.testing.assert_array_equal(result, np.pad(interior, 2, mode="wrap"))
 
 
 def test_four_cpu_halo_exchange_and_adjoint_in_fresh_process() -> None:
@@ -103,5 +106,5 @@ def test_sharded_dispatch_requires_named_mesh(halo: ModuleType) -> None:
     with pytest.raises(ValueError, match="mesh"):
         halo.fill_overlap(data, Configuration(use_sharding=True))
     mesh = jax.make_mesh((1,), ("devices",))
-    with pytest.raises(ValueError, match="x.*y"):
-        halo.make_sharded_fill_overlap(mesh)
+    with jax.set_mesh(mesh), pytest.raises(ValueError, match="x.*y"):
+        halo.fill_overlap(data, Configuration(use_sharding=True))

@@ -7,6 +7,7 @@ import jax
 import numpy as np
 import pytest
 
+from veris import Experiment, initialize_experiment
 from veris.execution.advance import advance
 from veris.io import read_record
 from veris.model.diagnostics import Diagnostics
@@ -16,9 +17,8 @@ from veris.physics.thermodynamics.growth import Growth
 
 def test_growth_case_matches_reference_initial_column() -> None:
     """Match the standalone reference initial thermodynamic column."""
-    from veris.setups import run_growth
 
-    state, conf, phys = run_growth.initialize()
+    state, conf, phys = initialize_experiment(Experiment.builtin("growth"))
     assert isinstance(state, State)
     assert (conf.nx, conf.ny) == (2, 2)
     assert not conf.use_sharding
@@ -53,9 +53,8 @@ def test_growth_case_matches_reference_initial_column() -> None:
 
 def test_growth_driver_preserves_recursive_fluxes_and_separate_diagnostics() -> None:
     """Retain recursive coupling fluxes without adding diagnostic State leaves."""
-    from veris.setups import run_growth
 
-    state, conf, phys = run_growth.initialize()
+    state, conf, phys = initialize_experiment(Experiment.builtin("growth"))
     names = [
         "hIceMean",
         "hSnowMean",
@@ -98,7 +97,7 @@ def test_growth_cli_records_physical_final_state(tmp_path: Path) -> None:
 
     path = tmp_path / "growth.nc"
     run_growth.main(["--steps", "2", "--backend", "cpu", "--output", str(path)])
-    initial, conf, phys = run_growth.initialize()
+    initial, conf, phys = initialize_experiment(Experiment.builtin("growth"))
     first = advance(initial, conf, phys, physics="thermodynamics")[0]
     final = advance(first, conf, phys, physics="thermodynamics")[0]
     saved = read_record(path)
@@ -122,10 +121,11 @@ def test_growth_cli_rejects_negative_steps(tmp_path: Path) -> None:
 
 def test_growth_initialize_accepts_model_overrides() -> None:
     """Apply physical overrides when deriving the initial ice load."""
-    from veris.setups import run_growth
 
-    state, conf, phys = run_growth.initialize(
-        settings_overrides={"deltatTherm": 600.0}, physical_overrides={"rhoIce": 920.0}
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin(
+            "growth", settings={"deltatTherm": 600.0}, constants={"rhoIce": 920.0}
+        )
     )
     assert conf.deltatTherm == 600.0
     np.testing.assert_allclose(state.SeaIceLoad, phys.rhoIce * 1.3 + phys.rhoSnow * 0.1)
@@ -149,7 +149,7 @@ def test_growth_cli_rejects_nonfinite_output(
     """Reject a nonfinite column before writing its output archive."""
     from veris.setups import run_growth
 
-    state, conf, phys = run_growth.initialize()
+    state, conf, phys = initialize_experiment(Experiment.builtin("growth"))
     invalid = replace(state, hIceMean=state.hIceMean.at[2, 2].set(np.nan))
     from veris.execution import simulation
 
@@ -159,16 +159,15 @@ def test_growth_cli_rejects_nonfinite_output(
         lambda *args, **kwargs: (invalid, conf, phys),
     )
     path = tmp_path / "invalid.nc"
-    with pytest.raises(FloatingPointError, match="nonfinite"):
+    with pytest.raises(ValueError, match="nonfinite"):
         run_growth.main(["--steps", "1", "--output", str(path)])
     assert not path.exists()
 
 
 def test_growth_compiled_advance_longwave_gradient_matches_finite_difference() -> None:
     """Differentiate the reference column's ice response to longwave forcing."""
-    from veris.setups import run_growth
 
-    state, conf, phys = run_growth.initialize()
+    state, conf, phys = initialize_experiment(Experiment.builtin("growth"))
 
     compiled_advance = jax.jit(
         advance, static_argnames=("configuration", "constants", "physics")

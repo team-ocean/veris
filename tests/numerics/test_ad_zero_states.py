@@ -7,10 +7,10 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris import Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance as advance_model
 from veris.numerics.momentum import tauXY
 from veris.physics.dynamics.rheology import ocean_drag_coeffs, viscosities
-from veris.setups.run_dyn import initialize
 
 compiled_advance = jax.jit(
     advance_model, static_argnames=("configuration", "constants", "physics")
@@ -19,7 +19,9 @@ compiled_advance = jax.jit(
 
 def test_zero_strain_viscosity_finite_linearization() -> None:
     """Zero is the symmetric norm linearization; primal viscosity is unchanged."""
-    state, conf, phys = initialize(4, 6)
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin("dynamics", grid=Grid(4, 6))
+    )
     zeros = jnp.zeros_like(state.uIce)
     state = replace(state, SeaIceStrength=jnp.ones_like(zeros) * 1000)
 
@@ -38,7 +40,9 @@ def test_zero_strain_viscosity_finite_linearization() -> None:
 @pytest.mark.parametrize("kernel", ["wind", "ocean"])
 def test_zero_relative_speed_reverse_ad(kernel: str) -> None:
     """Inactive sqrt branches must not poison calm wind/relative-current AD."""
-    state, conf, phys = initialize(4, 6)
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin("dynamics", grid=Grid(4, 6))
+    )
     zeros = jnp.zeros_like(state.uIce)
     state = replace(
         state,
@@ -64,7 +68,9 @@ def test_zero_relative_speed_reverse_ad(kernel: str) -> None:
 
 def test_reference_initial_dynamics_wind_gradient_matches_fd() -> None:
     """Differentiate the actual stationary, coastal experiment initial state."""
-    state, conf, phys = initialize(6, 8, settings_overrides={"nEVPsteps": 2})
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin("dynamics", grid=Grid(6, 8), settings={"nEVPsteps": 2})
+    )
 
     def objective(scale: jax.Array) -> jax.Array:
         result = compiled_advance(
@@ -90,7 +96,9 @@ def test_uniform_advection_thickness_sensitivity_is_finite() -> None:
     """Zero slope ratios in inactive limiter branches preserve mass sensitivity."""
     from veris.physics.transport.advection import Advection
 
-    state, conf, phys = initialize(6, 8)
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin("dynamics", grid=Grid(6, 8))
+    )
     state = replace(state, uIce=0.01 * state.iceMaskU, vIce=0.02 * state.iceMaskV)
 
     def total(thickness: jax.Array) -> jax.Array:
@@ -110,7 +118,9 @@ def test_dry_corner_mask_linearization_is_finite() -> None:
     """A zero-count corner must not differentiate an inactive reciprocal zero."""
     from veris.grid.averaging import c_point_to_z_point
 
-    state, conf, phys = initialize(4, 6)
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin("dynamics", grid=Grid(4, 6))
+    )
     zeros = jnp.zeros_like(state.iceMask)
 
     def value(mask: jax.Array) -> jax.Array:
@@ -127,7 +137,9 @@ def test_zero_strain_stress_retains_linear_shear_response() -> None:
     """Guarding the norm must retain viscosity times the linear shear strain."""
     from veris.physics.dynamics.rheology import stress
 
-    state, conf, phys = initialize(4, 6)
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin("dynamics", grid=Grid(4, 6))
+    )
     ones = jnp.ones_like(state.uIce)
     state = replace(state, SeaIceStrength=1000 * ones)
     zeros = jnp.zeros_like(ones)
@@ -154,14 +166,12 @@ def test_full_stationary_state_pullback_has_no_nonfinite_leaves(
     no_slip: bool, adaptive: bool
 ) -> None:
     """Unused output cotangents must not contaminate any input State field."""
-    state, conf, phys = initialize(
-        4,
-        6,
-        settings_overrides={
-            "nEVPsteps": 2,
-            "noSlip": no_slip,
-            "useAdaptiveEVP": adaptive,
-        },
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin(
+            "dynamics",
+            grid=Grid(4, 6),
+            settings={"nEVPsteps": 2, "noSlip": no_slip, "useAdaptiveEVP": adaptive},
+        )
     )
     result, pullback = jax.vjp(
         lambda vs: compiled_advance(vs, conf, phys, physics="dynamics")[0], state

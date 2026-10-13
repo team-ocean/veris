@@ -17,9 +17,9 @@ from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 
 from veris import Execution, Experiment, Grid, advance, initialize_experiment, step
+from veris.execution.runtime import create_mesh
 from veris.grid.halos import remove_halos
 from veris.model.types import State
-from veris.setups import run_parallel
 
 
 def check_parallel_rollout(backend: str, dtype: str) -> None:
@@ -33,7 +33,7 @@ def _check_case(case: str, backend: str, dtype: str) -> None:
     devices = jax.devices(backend)
     px = 2 if len(devices) % 2 == 0 else 1
     py = len(devices) // px
-    mesh = run_parallel.create_mesh((px, py), backend)
+    mesh = create_mesh((px, py), backend)
     nx, ny = 6 * px, 8 * py
     options = {"dtype": dtype, "nEVPsteps": 2, "deltatTherm": 600.0}
     tolerance = 5e-5 if dtype == "float32" else 2e-10

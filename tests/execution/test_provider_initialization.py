@@ -1,4 +1,4 @@
-"""One shared initializer owns future providers and all maintained adapters."""
+"""One shared initializer owns future providers and all maintained providers."""
 
 from collections.abc import Mapping
 from dataclasses import fields, replace
@@ -15,7 +15,7 @@ from veris.io import OutputSettings
 from veris.model.configuration import Configuration
 from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import Parameter, State
-from veris.setups import island, presets, run_growth
+from veris.setups import presets
 
 
 def _scenario(values: Mapping[str, Any], dtype: str) -> dict[str, Any]:
@@ -92,21 +92,20 @@ def test_registered_provider_initializes_and_runs_without_core_dispatch(
         ({"steps": True}, "steps"),
     ],
 )
-def test_growth_adapter_uses_shared_physical_validation(
+def test_growth_preset_uses_shared_physical_validation(
     scenario: dict[str, float], message: str
 ) -> None:
     with pytest.raises(ValueError, match=message):
-        run_growth.initialize(scenario_overrides=scenario)
+        initialize_experiment(Experiment.builtin("growth", scenario=scenario))
 
 
-def test_legacy_initialization_does_not_require_a_runnable_host_clock() -> None:
-    """Pure kernels may initialize sub-microsecond clocks unavailable to the facade."""
+def test_experiment_initialization_requires_a_runnable_host_clock() -> None:
+    """Preset initialization shares the public clock contract without bypasses."""
     controls = {"deltatDyn": 1e-9, "deltatTherm": 1e-9}
-    state, conf, _ = island.initialize(4, 6, settings_overrides=controls)
-    assert conf.deltatDyn == conf.deltatTherm == 1e-9
-    assert np.isfinite(state.hIceMean).all()
     with pytest.raises(ValueError, match="microseconds"):
-        Experiment.builtin("island", grid=Grid(4, 6), settings=controls)
+        initialize_experiment(
+            Experiment.builtin("island", grid=Grid(4, 6), settings=controls)
+        )
 
 
 def test_ocean_adapter_and_experiment_reject_the_same_invalid_mask() -> None:

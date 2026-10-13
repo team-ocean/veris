@@ -90,11 +90,12 @@ interval. Initial samples are included by default::
    from datetime import timedelta
    import jax
    from veris.io import OutputManager, OutputSettings, Stream, write_snapshot
-   from veris import advance
-   from veris.setups.run_growth import initialize
+   from veris import Experiment, Grid, advance, initialize_experiment
 
    jax.config.update("jax_enable_x64", True)
-   state, conf, phys = initialize()
+   state, conf, phys = initialize_experiment(
+       Experiment.builtin("growth", grid=Grid(2, 2))
+   )
    interval = timedelta(seconds=float(conf.deltatTherm))
    settings = OutputSettings(streams=(
        Stream("snapshots", ("hIceMean", "Area"), interval),
@@ -165,11 +166,12 @@ differentiates actual thermodynamic growth with respect to initial thickness::
    import jax
    import jax.numpy as jnp
    from veris.io import write_snapshot
-   from veris import advance
-   from veris.setups.run_growth import initialize
+   from veris import Experiment, Grid, advance, initialize_experiment
 
    jax.config.update("jax_enable_x64", True)
-   initial, conf, phys = initialize()
+   initial, conf, phys = initialize_experiment(
+       Experiment.builtin("growth", grid=Grid(2, 2))
+   )
 
    def objective(scale):
        final = replace(initial, hIceMean=initial.hIceMean * scale)

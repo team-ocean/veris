@@ -5,9 +5,6 @@ one unpartitioned global interior modulo its dimensions; it never exchanges
 neighbor buffers using the production algorithm.
 """
 
-from collections.abc import Callable
-from typing import cast
-
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -16,7 +13,8 @@ from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 from numpy.typing import NDArray
 
-from veris.grid.halos import make_sharded_fill_overlap
+from veris.grid.halos import fill_overlap
+from veris.model.configuration import Configuration
 
 
 def check_layout(px: int, py: int) -> None:
@@ -41,26 +39,27 @@ def check_layout(px: int, py: int) -> None:
     mesh = jax.make_mesh((px, py), ("x", "y"))
     sharding = NamedSharding(mesh, P("x", "y"))
     data: Array = jax.device_put(jnp.asarray(packed), sharding)
-    # shard_map preserves this array-to-array callback despite its broad stubs.
-    fill = cast(
-        Callable[[Array], Array],
-        make_sharded_fill_overlap(mesh),
-    )
-    actual: NDArray[np.float64] = np.asarray(fill(data))
-    if not np.array_equal(actual, expected):
-        location = np.unravel_index(np.argmax(np.abs(actual - expected)), actual.shape)
-        raise AssertionError(
-            f"ERROR layout {px}x{py} at {location}: {actual[location]} != {expected[location]}"
-        )
-    # A halo refresh is an idempotent projection, including the reverse pass.
-    refreshed = fill(data)
-    np.testing.assert_array_equal(fill(refreshed), expected)
 
-    def filled_sum(value: Array) -> Array:
-        """Differentiate the sum of the refreshed interior and halo cells."""
-        return jnp.sum(fill(value))
+    def fill(value: Array) -> Array:
+        return fill_overlap(value, Configuration(nx=nx, ny=ny, use_sharding=True))
 
     with jax.set_mesh(mesh):
+        actual: NDArray[np.float64] = np.asarray(fill(data))
+        if not np.array_equal(actual, expected):
+            location = np.unravel_index(
+                np.argmax(np.abs(actual - expected)), actual.shape
+            )
+            raise AssertionError(
+                f"ERROR layout {px}x{py} at {location}: {actual[location]} != {expected[location]}"
+            )
+        # A halo refresh is an idempotent projection, including the reverse pass.
+        refreshed = fill(data)
+        np.testing.assert_array_equal(fill(refreshed), expected)
+
+        def filled_sum(value: Array) -> Array:
+            """Differentiate the sum of the refreshed interior and halo cells."""
+            return jnp.sum(fill(value))
+
         gradient: Array = jax.grad(filled_sum)(data)
     counts: NDArray[np.float64] = np.zeros_like(packed)
     for rank_x in range(px):

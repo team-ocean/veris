@@ -11,17 +11,19 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+from veris import Experiment, initialize_experiment
 from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import State
 from veris.numerics.surface_temperature import solve4temp
-from veris.setups.run_growth import initialize
 
 
 def surface_case(
     dtype: str,
 ) -> tuple[State, PhysicalConstants, jax.Array, Callable[[jax.Array], jax.Array]]:
     """Build the snow-covered Newton solve shared by reference and stability checks."""
-    state, conf, phys = initialize(dtype=dtype)
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin("growth", settings={"dtype": dtype})
+    )
     temperature = jnp.full_like(state.TSurf, 260.0)
     snow = jnp.full_like(state.hSnowMean, 0.1)
     freezing = jnp.full_like(state.theta, phys.celsius2K + phys.tempFrz)

@@ -7,15 +7,14 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris import Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance
 
 
 @pytest.mark.parametrize("adaptive", [False, True])
 def test_compiled_advance_matches_evolving_eager_trajectory(adaptive: bool) -> None:
     """Compare all fields through changing forcing on a nonuniform masked grid."""
-    from veris.setups import island
 
-    initialize = island.initialize
     compiled_advance = jax.jit(
         advance, static_argnames=("configuration", "constants", "physics")
     )
@@ -23,7 +22,9 @@ def test_compiled_advance_matches_evolving_eager_trajectory(adaptive: bool) -> N
     assert hasattr(compiled_advance, "lower"), (
         "ERROR coupled step must expose compiled lowering"
     )
-    initial, conf, phys = initialize(6, 9)
+    initial, conf, phys = initialize_experiment(
+        Experiment.builtin("island", grid=Grid(6, 9))
+    )
     conf = replace(conf, useAdaptiveEVP=adaptive)
     pattern = jnp.sin(jnp.arange(initial.uWind.size).reshape(initial.uWind.shape))
     initial = replace(initial, uWind=initial.uWind + 0.3 * pattern)
@@ -42,14 +43,14 @@ def test_compiled_advance_matches_evolving_eager_trajectory(adaptive: bool) -> N
 
 def test_compiled_advance_cooling_jvp_vjp_and_finite_difference() -> None:
     """Dynamic cooling remains differentiable through the compiled growth step."""
-    from veris.setups import island
 
-    initialize = island.initialize
     compiled_advance = jax.jit(
         advance, static_argnames=("configuration", "constants", "physics")
     )
 
-    initial, conf, phys = initialize(5, 7)
+    initial, conf, phys = initialize_experiment(
+        Experiment.builtin("island", grid=Grid(5, 7))
+    )
 
     def compiled(cooling: jax.Array) -> jax.Array:
         return (

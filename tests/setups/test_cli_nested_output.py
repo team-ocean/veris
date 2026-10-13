@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 import veris
+from veris import Experiment, initialize_experiment
 from veris.io import OutputSettings, read_record
 from veris.setups import run_growth
 
@@ -36,7 +37,7 @@ def test_growth_cli_creates_separate_nested_final_and_history_parents(
         )
         is None
     )
-    state, _, _ = run_growth.initialize()
+    state, _, _ = initialize_experiment(Experiment.builtin("growth"))
     for path, stream in ((final, "snapshot"), (history, "instantaneous")):
         record = read_record(path, stream=stream)
         assert set(record.fields) == {"hIceMean", "Area"}

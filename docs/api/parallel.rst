@@ -17,8 +17,6 @@ behavior and :doc:`/quickstart/user-guide` for packed storage and meshes.
 
 .. autofunction:: veris.grid.halos.fill_overlap_shard
 
-.. autofunction:: veris.grid.halos.make_sharded_fill_overlap
-
 .. autofunction:: veris.grid.halos.fill_overlap
 
 .. autofunction:: veris.grid.halos.fill_overlap_uv
@@ -35,8 +33,9 @@ Reductions
 Parallel dynamics helpers
 -------------------------
 
-Initialize distributed JAX before accessing devices or allocating arrays.
-The parallel runner uses the dynamics preset through Experiment and Simulation.
+The public runner prepares distributed JAX before accessing devices or allocating
+arrays. The parallel driver selects the dynamics preset and parallel profile,
+then delegates to :func:`veris.run_experiment`.
 The shared :func:`veris.advance` transition owns its physics sequence.
 Launch examples appear in :doc:`/reference/setups/parallel-dynamics`.
 

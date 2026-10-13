@@ -6,9 +6,9 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+from veris import Execution, Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance as advance_model
 from veris.grid.halos import remove_halos
-from veris.setups.run_dyn import initialize
 
 compiled_advance = jax.jit(
     advance_model, static_argnames=("configuration", "constants", "physics")
@@ -20,9 +20,17 @@ def check() -> None:
     count = len(jax.devices())
     shape = (2, 2) if count == 4 else (1, count)
     mesh = jax.make_mesh(shape, ("x", "y"))
-    state, conf, phys = initialize(8, 12, settings_overrides={"nEVPsteps": 2})
-    distributed, dc, dp = initialize(
-        8, 12, mesh=mesh, settings_overrides={"nEVPsteps": 2}
+    state, conf, phys = initialize_experiment(
+        Experiment.builtin("dynamics", grid=Grid(8, 12), settings={"nEVPsteps": 2})
+    )
+    distributed, dc, dp = initialize_experiment(
+        Experiment.builtin(
+            "dynamics",
+            grid=Grid(8, 12),
+            settings={"nEVPsteps": 2},
+            execution=Execution(partitions=(mesh.shape["x"], mesh.shape["y"])),
+        ),
+        mesh=mesh,
     )
 
     def serial(scale: jax.Array) -> jax.Array:

@@ -1,6 +1,6 @@
 """Runnable public initialization adapts physical inputs without changing presets.
 
-Preset compatibility uses existing setup initializers as the numerical oracle.
+Preset inputs are checked against explicit physical values and registry controls.
 Custom geometry and boundary expectations use independent physical-cell indices;
 no production halo helper builds their expected values.
 """
@@ -19,7 +19,6 @@ from jax.sharding import Mesh
 import veris
 from veris.grid.geometry import OceanGeometry
 from veris.model.types import State
-from veris.setups import island, run_dyn, run_growth
 
 
 @pytest.fixture
@@ -63,20 +62,6 @@ def _halo(physical: np.ndarray, cyclic_y: bool, boundary: str = "edge") -> np.nd
     return expected
 
 
-def _assert_states_equal(actual: State, expected: State) -> None:
-    """Check all fields exactly and report one aggregate mismatch per failure."""
-    assert type(actual) is type(expected)
-    for item in fields(expected):
-        first = np.asarray(getattr(actual, item.name))
-        second = np.asarray(getattr(expected, item.name))
-        assert first.shape == second.shape, f"ERROR {item.name} shape changed"
-        assert first.dtype == second.dtype, f"ERROR {item.name} dtype changed"
-        assert np.array_equal(first, second), (
-            f"ERROR {item.name} preset mismatch: "
-            f"max absolute difference={np.max(np.abs(first - second)):.6g}"
-        )
-
-
 @pytest.mark.parametrize(
     "name,dtype",
     [
@@ -86,7 +71,7 @@ def _assert_states_equal(actual: State, expected: State) -> None:
         ("growth", "float64"),
     ],
 )
-def test_builtin_initialization_preserves_every_legacy_field(
+def test_builtin_initialization_preserves_prescribed_fields_and_controls(
     name: str, dtype: str
 ) -> None:
     """Applying custom cleanup to presets would change their historical fields."""
@@ -104,27 +89,10 @@ def test_builtin_initialization_preserves_every_legacy_field(
             "islandIceArea": 0.65,
             "saltOcn_ref": 33.0,
         }
-        expected, expected_conf, expected_phys = island.initialize(
-            grid.nx,
-            grid.ny,
-            settings_overrides=settings,
-            physical_overrides=constants,
-            scenario_overrides=scenario,
-        )
     elif name == "dynamics":
         scenario = {"length": 12000.0, "wind_speed": 7.0, "ice_thickness": 0.4}
-        expected, expected_conf, expected_phys = run_dyn.initialize(
-            grid.nx,
-            grid.ny,
-            settings_overrides=settings,
-            physical_overrides=constants,
-            scenario_overrides=scenario,
-        )
     else:
         settings.update(deltatDyn=7200.0, deltatTherm=3600.0)
-        expected, expected_conf, expected_phys = run_growth.initialize(
-            settings_overrides=settings, physical_overrides=constants
-        )
     definition = veris.Experiment.builtin(
         name,
         grid=grid,
@@ -134,9 +102,25 @@ def test_builtin_initialization_preserves_every_legacy_field(
         steps=3,
     )
     actual, conf, phys = veris.initialize_experiment(definition, mesh=None)
-    _assert_states_equal(actual, expected)
-    assert conf == expected_conf == definition.configuration
-    assert phys == expected_phys == definition.physical_constants
+    for item in fields(State):
+        value = np.asarray(getattr(actual, item.name))
+        assert value.shape == (grid.nx + 4, grid.ny + 4)
+        assert value.dtype == np.dtype(dtype) and np.isfinite(value).all()
+    expected_ice = {"island": 1.2, "dynamics": 0.4, "growth": 1.3}[name]
+    ice = np.full(actual.hIceMean.shape, expected_ice, dtype=dtype)
+    if name == "island":
+        ice *= np.asarray(actual.iceMask)
+        np.testing.assert_array_equal(actual.ocSalt, np.asarray(33.0, dtype=dtype))
+        np.testing.assert_array_equal(actual.uWind, np.asarray(-3.0, dtype=dtype))
+    np.testing.assert_array_equal(actual.hIceMean, ice)
+    if name == "dynamics":
+        # The notebook keeps initial thickness in its closed wall cells.
+        assert np.any(ice[np.asarray(actual.iceMask) == 0] != 0)
+    else:
+        expected_load = actual.hIceMean * phys.rhoIce + actual.hSnowMean * phys.rhoSnow
+        np.testing.assert_array_equal(actual.SeaIceLoad, expected_load)
+    assert conf == definition.configuration
+    assert phys == definition.physical_constants
     assert definition.steps == 3
     assert (
         definition.physics

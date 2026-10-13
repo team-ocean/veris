@@ -19,9 +19,10 @@ import numpy as np
 import pytest
 
 import veris
+from veris import Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance
 from veris.io import read_record
-from veris.setups import run_dyn, run_parallel
+from veris.setups import run_parallel
 
 
 @pytest.mark.parametrize(
@@ -70,10 +71,10 @@ def test_serial_cli_uses_real_lifecycle_and_preserves_reference_snapshots(
     assert options["output_path"] == history
     assert definition.preset == ("growth" if driver == "run_growth" else "dynamics")
     if driver == "run_growth":
-        expected, conf, phys = module.initialize()
+        expected, conf, phys = initialize_experiment(Experiment.builtin("growth"))
     else:
-        expected, conf, phys = module.initialize(
-            6, 8, settings_overrides={"nEVPsteps": 2}
+        expected, conf, phys = initialize_experiment(
+            Experiment.builtin("dynamics", grid=Grid(6, 8), settings={"nEVPsteps": 2})
         )
     compiled_advance = jax.jit(
         advance, static_argnames=("configuration", "constants", "physics")
@@ -178,7 +179,9 @@ def test_real_local_parallel_cli_retains_nine_field_output_and_resolved_definiti
     assert "mesh=2x2 backend=cpu steps=2" in result.stdout
     saved = read_record(final)
     assert set(saved.fields) == set(run_parallel.OUTPUT_FIELDS) and saved.time == 1200
-    serial, conf, phys = run_dyn.initialize(12, 16, settings_overrides={"nEVPsteps": 2})
+    serial, conf, phys = initialize_experiment(
+        Experiment.builtin("dynamics", grid=Grid(12, 16), settings={"nEVPsteps": 2})
+    )
     compiled_advance = jax.jit(
         advance, static_argnames=("configuration", "constants", "physics")
     )
@@ -195,3 +198,21 @@ def test_real_local_parallel_cli_retains_nine_field_output_and_resolved_definiti
         metadata = json.loads(file.attrs["experiment"])
     assert metadata["grid"] == {"nx": 12, "ny": 16}
     assert metadata["execution"]["partitions"] == [2, 2]
+
+
+@pytest.mark.parametrize("driver", ["run_dyn", "run_growth"])
+def test_module_driver_preserves_shared_runner_validation_error(
+    driver: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Module entry points propagate the canonical runner failure unchanged."""
+    module = import_module(f"veris.setups.{driver}")
+    error = ValueError("nonfinite output in hIceMean")
+
+    def reject(*args: Any, **kwargs: Any) -> Any:
+        raise error
+
+    monkeypatch.setattr(module, "run_driver", reject)
+    with pytest.raises(ValueError, match="nonfinite output") as failure:
+        module.main(["--steps", "0", "--output", str(tmp_path / "invalid.nc")])
+    assert failure.value is error
+    assert not (tmp_path / "invalid.nc").exists()

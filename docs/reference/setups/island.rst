@@ -6,7 +6,7 @@ a two-by-two-cell island. The default interior is 8 by 12 cells at 8 km spacing;
 arrays include two halo cells on each side. Face masks prevent transport across
 the coastline. Temperatures are in kelvin and thicknesses are grid-cell means.
 
-See :func:`~veris.setups.island.initialize` in the
+See :func:`veris.initialize_experiment` in the
 :doc:`Python API </api/initialization>` for preset allocation, and
 :func:`veris.advance` for its complete pure timestep.
 
@@ -15,8 +15,8 @@ Output-only ocean coupling stresses and fluxes are returned separately by
 ``advance``. Its sequence is mass and area
 averaging, wind forcing, ice strength, EVP dynamics, ocean stress, advection,
 cleanup, ridging, growth, and boundary halo refresh. Set
-``settings_overrides={"enable_cyclic_y": False}`` to close the global y edges;
-see :doc:`../settings`. It restores prescribed
+``settings={"enable_cyclic_y": False}`` on the Experiment to close the global y
+edges; see :doc:`../settings`. It restores prescribed
 open-water heat forcing each step because growth returns ocean-coupling fluxes
 in the same state fields.
 
@@ -40,8 +40,8 @@ Scenario controls
 in this setup. They describe prescribed initial fields and example controls;
 they do not add fields to model Configuration, PhysicalConstants or State.
 This includes ``saltOcn_ref``, the prescribed ocean salinity, which can be
-changed through ``scenario_overrides``.
-``initialize(scenario_overrides={...})`` accepts initial-condition controls.
+changed through ``Experiment.builtin("island", scenario={...})``.
+Use ``initial_conditions={...}`` for direct physical field replacements.
 Prescribe heat through the Experiment forcing definition or the ``forcing``
 argument of ``advance``; the island builtin supplies the heat default below.
 

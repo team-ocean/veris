@@ -4,23 +4,19 @@ CLI histories default to one sample per model step; the lower-level API
 supports independent stream schedules. Final snapshots contain physical cells.
 """
 
-
-# ruff: noqa: DTZ001 -- model dates intentionally have no timezone.
-
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, TypeVar
 
 import click
 
-from veris.io.calendar import FixedDate, duration_us
+from veris.io.calendar import duration_us
 from veris.io.configuration import (
     OUTPUT_SETTINGS,
     STREAM_SETTINGS,
-    OutputSettings,
     Stream,
 )
 
@@ -88,49 +84,6 @@ def parse_options(
     if not isinstance(result, SimpleNamespace):
         raise SystemExit(0)
     return result
-
-
-def output_settings(args: SimpleNamespace, step_seconds: float) -> OutputSettings:
-    """Parse host output controls without opening files or allocating arrays."""
-    if args.netcdf is not None and args.netcdf.resolve() == args.output.resolve():
-        raise ValueError("history and final snapshot require distinct paths")
-    step = timedelta(seconds=step_seconds)
-    interval = timedelta(
-        seconds=step_seconds if args.sample_seconds is None else args.sample_seconds
-    )
-    if duration_us(interval) <= 0 or duration_us(interval) % duration_us(step):
-        raise ValueError(
-            "sampling interval must be a positive integer multiple of model timestep"
-        )
-    year, month, day = (int(part) for part in args.start_date.split("-"))
-    start = (
-        datetime(year, month, day)
-        if args.calendar == "gregorian"
-        else FixedDate(year, month, day)
-    )
-    streams = tuple(
-        Stream(period, tuple(args.io_variables.split(",")), interval, period)
-        for period in args.average.split(",")
-    )
-    settings = OutputSettings(
-        start=start,
-        calendar=args.calendar,
-        streams=streams,
-        enabled=args.netcdf is not None,
-    )
-    return settings
-
-
-def prepare_output_paths(args: SimpleNamespace) -> None:
-    """Create parents for validated CLI snapshot/history destinations.
-
-    Drivers call this after validating their Experiment and output settings.
-    Existing files are never opened or replaced here; public Simulation keeps
-    its strict parent and no-clobber preflight for general API callers.
-    """
-    for destination in (args.output, args.netcdf):
-        if destination is not None:
-            Path(destination).parent.mkdir(parents=True, exist_ok=True)
 
 
 def parameter_namespace(options: Mapping[str, Any]) -> SimpleNamespace:

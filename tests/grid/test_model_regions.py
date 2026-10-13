@@ -7,7 +7,7 @@ import jax
 import numpy as np
 import pytest
 
-from veris import OceanGeometry
+from veris import Experiment, Grid, OceanGeometry, initialize_experiment
 from veris.grid.regions import (
     physical_indices,
     regional_forcing,
@@ -65,9 +65,10 @@ def test_regional_geometry_preserves_vertical_masks_and_metric_vectors() -> None
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
 def test_legacy_island_serial_face_masks_retain_startup_roll_halos(dtype: str) -> None:
     """Step-zero legacy evidence includes the outermost unrefreshed mask halos."""
-    from veris.setups.island import initialize
 
-    state, _, _ = initialize(6, 8, dtype=dtype)
+    state, _, _ = initialize_experiment(
+        Experiment.builtin("island", grid=Grid(6, 8), settings={"dtype": dtype})
+    )
     physical = np.ones((6, 8), dtype=dtype)
     physical[2:4, 3:5] = 0
     mask = np.pad(physical, 2, mode="wrap")

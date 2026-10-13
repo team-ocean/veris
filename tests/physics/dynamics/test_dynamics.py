@@ -8,21 +8,25 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from veris import Experiment, Grid, initialize_experiment
 from veris.numerics.momentum import IceVelocities, WindForcingXY
 from veris.physics.dynamics.area_mass import AreaWS, SeaIceMass
 from veris.physics.dynamics.ocean_stress import OceanStressUV
 from veris.physics.dynamics.rheology import SeaIceStrength
 from veris.physics.transport.advection import Advection
 from veris.physics.transport.cleanup import clean_up_advection, ridging
-from veris.setups.island import initialize
 
 
 @pytest.mark.parametrize("cyclic_y", [False, True])
 def test_dynamics_transport_preserves_intermediate_state(cyclic_y: bool) -> None:
     """An extra halo refresh or reordered stress/transport must change this result."""
     advance = import_module("veris.physics.dynamics.driver").dynamics_transport
-    initial, conf, phys = initialize(
-        5, 7, settings_overrides={"nEVPsteps": 2, "enable_cyclic_y": cyclic_y}
+    initial, conf, phys = initialize_experiment(
+        Experiment.builtin(
+            "island",
+            grid=Grid(5, 7),
+            settings={"nEVPsteps": 2, "enable_cyclic_y": cyclic_y},
+        )
     )
     # Deliberately unrefreshed forcing halos detect a misplaced final refresh.
     initial = replace(
