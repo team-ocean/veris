@@ -1,5 +1,53 @@
 # Development log
 
+## 2026-10-14 — Architecture goal completion audit
+
+- [x] Verify the full architecture goal against the current `jax-only` tree
+  and obtain a read-only completion review. Implementation is
+  committed as `0134158` (multi-process halo ordering) and `9e7f1e1` (canonical
+  cleanup); the GitHub connector confirms the latter commit is published.
+- [x] Recheck all 234 final source/stub/reference hashes. The manifest covers
+  every maintained package, test and benchmark Python/stub file. Current wheel
+  and sdist contain the same 76 Python modules and match source bytes except
+  generated version metadata. No numerical implementation changed after the
+  recorded complete correctness gates, so no redundant pytest run is needed.
+- [x] Inspect authoritative JUnit and coverage: CPU 1,590 passes / four GPU
+  skips / zero failures or errors across all 1,594 cases; every skipped case
+  passes the native four-case GPU gate. Maintained coverage is 4,631/4,884 =
+  94.82%. Local/distributed closed-wall derivative gate passes 2/2; actual
+  four-rank checks retain both slip choices and all halo/AD prelude contexts.
+- [x] Fresh Ruff lint, format, annotations, ty, shell syntax and diff checks
+  pass. Inspect strict Sphinx and clean-installed lifecycle, restart, custom
+  ocean, sharding, framework and six literal documentation-example results.
+- [x] Recompute final two-node aegir netCDF equivalence: all nine physical
+  fields, shapes, finite values, record metadata and 1,200-second clock match
+  serial; maximum scaled field error 3.67618e-16. Terminal job/batch/srun
+  accounting for job 66311448 is COMPLETED / 0:0. The initial inspection
+  incorrectly assumed root-level variables; the documented snapshot group
+  supplies the actual fields and clock.
+- [x] Fresh SLURM accounting confirms jobs 66311448 (two ranks) and 66310034
+  (four ranks) completed 0:0 on two aegir nodes. Independent final review of
+  `e09008c..9e7f1e1` and current ownership/docs/tests has no Critical, Important
+  or Minor findings and identifies no remaining source work. Maintained public
+  modules/functions/classes have docstrings; the largest maintained module is
+  786 lines. Finite hardware checks do not imply universal compiler behavior.
+- [x] Completion requirements: source audit, implemented refactors, API-change
+  justification, independent scientific/AD preservation, prescribed-ocean
+  example, static/format/correctness/coverage gates, CPU/GPU/native distributed
+  evidence, maintained CI and Git commits are all verified. The only new change
+  in this completion turn is this log; verified source and test bytes stay fixed.
+
+| Architectural smell | Final refactoring and its impact |
+| --- | --- |
+| Flat modules and compatibility aliases obscured ownership. | Scientific domain packages and curated root/I/O facades give each implementation one owner. Consumers depend on explicit contracts; domain tests and focused changes are easier to locate. |
+| Settings, constants and evolving arrays shared responsibility. | Frozen Configuration/PhysicalConstants, array-only State and separate Diagnostics keep static controls and coupling outputs outside evolving state. Numerical kernels and gradients can be exercised without host resources. |
+| Setup initializers, defaults and CLI paths drifted independently. | Provider factories supply fields; Experiment resolution and one initializer/runner own validation and delivery. Python/CLI and serial/sharded runs share precedence and precision behavior, so new providers reuse the existing pipeline. |
+| Setup drivers repeated physics orchestration. | Core dynamics owns its stage order; advance composes one physical step and step owns pure iteration. Stage, all-field trajectory and derivative tests validate these boundaries independently. |
+| Meshes, clocks, files and callbacks leaked into execution contracts. | Host execution resources and Simulation own lifecycle, counters and cleanup while borrowing caller resources explicitly. Pure execution remains differentiable; failure and ownership tests cover resource behavior. |
+| Output, restart and definition translation had overlapping responsibilities. | I/O calendar/schedule/storage/collection/lifecycle/restart modules own distinct contracts and share the authoritative experiment codec. Stream and restart behavior can evolve without a second definition schema. |
+| Redundant wrappers, parsers, run controls and validation bypasses remained. | Authorized obsolete APIs are removed; grid, scenario and launch duration have separate owners. Current callers and documentation use canonical interfaces, reducing duplicate maintenance and misleading extension points. |
+| Final halo exchanges could overlap nested solver communication. | A measured execution-layer completion barrier is limited to multi-process sharding. Equations and local compilation stay fixed; repeated all-field and native derivative regressions test the discovered failure. |
+
 ## 2026-10-14 — Multi-process halo completion ordering
 
 - [x] The final cleanup run exposed intermittent two-node nested-EVP/final-halo
