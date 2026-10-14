@@ -50,9 +50,7 @@ def copy_setup_command(setup: str, to: Path | None) -> None:
 
 
 @cli.command("run")
-@click.argument(
-    "setup_file", type=click.Path(exists=True, dir_okay=False, path_type=Path)
-)
+@click.argument("setup_file", metavar="SETUP")
 @click.option(
     "-v",
     "--loglevel",
@@ -103,7 +101,7 @@ def copy_setup_command(setup: str, to: Path | None) -> None:
     "--set", "set_values", multiple=True, help="Grouped override: SECTION.KEY=JSON."
 )
 def run_command(
-    setup_file: Path,
+    setup_file: str,
     loglevel: str,
     float_type: str | None,
     backend: str | None,
@@ -114,7 +112,7 @@ def run_command(
     io_variables: str | None,
     set_values: tuple[str, ...],
 ) -> None:
-    """Run a Python setup factory or a versioned JSON experiment file."""
+    """Run a registered setup name, Python factory or JSON experiment file."""
     logging.basicConfig(
         level=5 if loglevel == "trace" else getattr(logging, loglevel.upper())
     )
@@ -135,9 +133,7 @@ def run_command(
 
 
 @cli.command("inspect")
-@click.argument(
-    "setup_file", type=click.Path(exists=True, dir_okay=False, path_type=Path)
-)
+@click.argument("setup_file", metavar="SETUP")
 @click.option(
     "--export",
     "destination",
@@ -153,12 +149,12 @@ def run_command(
     "--set", "set_values", multiple=True, help="Grouped override: SECTION.KEY=JSON."
 )
 def inspect_command(
-    setup_file: Path,
+    setup_file: str,
     destination: Path | None,
     authored: bool,
     set_values: tuple[str, ...],
 ) -> None:
-    """Inspect/export a validated definition without configuring JAX or devices."""
+    """Inspect/export a setup name or file without configuring JAX or devices."""
     import json
 
     from veris.cli.overrides import parse_overrides

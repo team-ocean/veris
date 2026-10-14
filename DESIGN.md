@@ -190,6 +190,9 @@ Simulation/mesh/distributed resources. Definitions remain authoritative when
 options are omitted; float overrides update numerical and physical precision
 together. Snapshot/history use existing physical-field I/O and no-clobber
 contracts. No numerical kernels or preset initializers are duplicated.
+Run and inspect also accept builtin/external names from the same registry as
+show-setups and copy-setup. A shared host resolver gives existing files priority,
+rejects missing explicit paths and resolves names without executing factories.
 
 Tests mirror the domain packages while standalone process probes and immutable
 reference data retain shared locations. Full correctness and coverage verification

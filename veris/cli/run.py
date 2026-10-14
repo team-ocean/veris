@@ -16,11 +16,12 @@ from pathlib import Path
 from typing import Any
 
 from veris import Experiment
+from veris.cli.setups import resolve_setup
 
 
-def load_experiment(source: Path) -> Experiment:
-    """Load a JSON definition or invoke a Python factory with sibling imports."""
-    source = source.resolve()
+def load_experiment(source: str | Path) -> Experiment:
+    """Load a file or named factory, allowing imports from its setup directory."""
+    source = resolve_setup(source).resolve()
     if source.suffix == ".json":
         return Experiment.from_file(source)
     if source.suffix != ".py":
@@ -43,7 +44,7 @@ def load_experiment(source: Path) -> Experiment:
 
 
 def run_experiment(
-    source: Path,
+    source: str | Path,
     *,
     output: Path,
     netcdf: Path | None = None,

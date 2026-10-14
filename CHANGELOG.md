@@ -1,5 +1,47 @@
 # Development log
 
+## 2026-10-14 — Named external setups
+
+- [x] COMPLETE (@root): extend the existing external-template registry so custom
+  setup names work with run/inspect as well as show-setups/copy-setup. Preserve
+  explicit Python/JSON paths, shared overrides and the canonical model runner.
+  Work remains on jax-only in the existing checkout and .venv-latest environment.
+- Inspection confirms discovery/copy already support VERIS_SETUP_DIR; Click's
+  file-only arguments prevent registered names from reaching the loader. Add
+  failing behavioral tests before a shared host resolver; no physics changes.
+- Root owns the only pytest instance. Existing test_logs/ are local evidence
+  and will not be staged wholesale. Full correctness, static checks, installed
+  external-directory execution and independent quality review precede commit.
+- RED: ten named-command cases reproduce file-only argument rejection; two
+  explicit-file compatibility cases pass. Review-driven path/collision RED
+  exposes eight failures: Path conversion loses ./, dangling symlinks fall
+  through to builtin names, and missing Python/JSON paths use registry errors.
+- [x] Shared resolution preserves raw CLI input, gives existing files priority,
+  rejects explicit paths/directories/dangling symlinks before named lookup, and
+  reuses discovery for copying/loading. Named behavioral tests pass 26/26.
+- [x] Ruff lint/format/annotations, ty, diff checks, strict Sphinx and wheel/sdist
+  builds pass. Clean-installed blueprint plus external named discovery/copy/
+  inspect/run passes with relative assets and sibling imports; all 70 physical
+  fields match Python. Independent review finds no remaining source issues;
+  replace verbose probe comparisons with compact scalar error diagnostics.
+- [x] Deterministic fast sample passes 162/162 in 459.474 s. Final wheel's 76
+  Python modules match current source (except generated version metadata), and
+  the sdist includes the new named-command tests. Reviewed source hashes match.
+- [x] Clean-installed named prescribed-ocean setup passes CPU/GPU equivalence:
+  all 70 physical fields and the 1,800-second clock match, maximum scaled error
+  1.58583e-14. Local P100 execution uses the existing no-preallocation policy.
+- [x] Full CPU correctness passes 1,616/1,620 cases with four expected GPU-only
+  skips, zero failures/errors, 1,100.47 s external wall. Maintained coverage is
+  4,646/4,897 = 94.87%; whole-package coverage (including generated metadata)
+  is 4,787/5,250 = 91.18%. Final source/test hashes match reviewed bytes.
+- [x] Native GPU pytest passes all four CPU-skipped cases with no skips,
+  failures or errors in 29.570 s, including one/two-GPU CLI and scheduled-output
+  execution. Final correctness covers all 1,620 cases across CPU/native GPU.
+- [x] Final independent review and required gates are complete; commit this
+  single named-setup feature on jax-only. Evidence is under
+  test_logs/named-setups/; root owns the only pytest session. Numerical kernels,
+  scientific references and tolerances are unchanged.
+
 ## 2026-10-14 — Architecture goal completion audit
 
 - [x] Verify the full architecture goal against the current `jax-only` tree

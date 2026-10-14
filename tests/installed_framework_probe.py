@@ -1,4 +1,4 @@
-"""Execute the literal paired setup blueprint against a clean installed wheel."""
+"""Verify the paired blueprint and named external setups from an installed wheel."""
 
 import argparse
 import json
@@ -90,11 +90,68 @@ def main() -> None:
             assert json.loads(Path("authored.json").read_text())["settings"] == dict(
                 original.settings
             )
+            # Author a named setup outside both checkout and installed package.
+            # The wrapper also verifies sibling imports and relative input assets.
+            template = root / "external" / "my-sea-ice"
+            template.mkdir(parents=True)
+            shutil.copyfile(root / "setup.py", template / "configured_setup.py")
+            (template / "steps.txt").write_text("3\n")
+            (template / "setup.py").write_text(
+                "from pathlib import Path\n"
+                "from configured_setup import build_experiment as configured\n"
+                "def build_experiment():\n"
+                "    steps = int((Path(__file__).parent / 'steps.txt').read_text())\n"
+                "    return configured().with_overrides({'steps': steps})\n"
+            )
+            named_environment = dict(environment, VERIS_SETUP_DIR=str(template.parent))
+            commands = (
+                ["veris", "show-setups"],
+                ["veris", "copy-setup", "my-sea-ice", "--to", "named-copy"],
+                ["veris", "inspect", "my-sea-ice", "--export", "named.json"],
+                [
+                    "veris",
+                    "run",
+                    "my-sea-ice",
+                    "--backend",
+                    "cpu",
+                    "--output",
+                    "named.nc",
+                ],
+            )
+            for arguments in commands:
+                completed = subprocess.run(
+                    arguments,
+                    env=named_environment,
+                    capture_output=True,
+                    text=True,
+                    timeout=180,
+                    check=False,
+                )
+                assert completed.returncode == 0, (
+                    f"ERROR installed named setup {arguments}: {completed.stderr[-1800:]}"
+                )
+                if arguments[1] == "show-setups":
+                    assert "my-sea-ice" in completed.stdout.splitlines()
+            assert Path("named-copy/steps.txt").read_text() == "3\n"
+            assert (
+                veris.Experiment.from_file("named.json").to_dict() == original.to_dict()
+            )
+            named = read_record("named.nc")
+            assert named.time == expected.time and set(named.fields) == set(
+                expected.fields
+            )
+            for name, value in expected.fields.items():
+                error = float(
+                    np.max(np.abs(named.fields[name] - value) / (1 + np.abs(value)))
+                )
+                assert error <= 1e-12, (
+                    f"ERROR installed named setup {name}: max_scaled={error:.6g}"
+                )
         finally:
             os.chdir(previous)
             sys.path.pop(0)
     print(
-        "installed framework blueprint: Python/CLI70 fields and authored/resolved exports match"
+        "installed framework: Python/file/named CLI70 fields, assets and exports match"
     )
 
 

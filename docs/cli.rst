@@ -64,13 +64,32 @@ On Linux/macOS, separate several roots with ``:``; Windows uses ``;``::
    export VERIS_SETUP_DIR=/path/to/extra-setups:/path/to/other-setups
    veris show-setups
    veris copy-setup my-basin --to ./experiment
+   veris inspect my-basin
+   veris run my-basin --backend cpu --steps 3 --output basin.nc
 
 Names are sorted and must be unique across builtin and external roots.
 Missing roots and duplicate names produce errors. Discovery inspects only
 these directories and does not import their Python files.
 
-Run a setup file
-----------------
+To create your own setup outside the Veris repository, copy a builtin under
+your chosen name into an external root, then edit its ``setup.py``::
+
+   veris copy-setup island --to /path/to/extra-setups/my-sea-ice
+   export VERIS_SETUP_DIR=/path/to/extra-setups
+   veris show-setups
+   veris inspect my-sea-ice
+   veris run my-sea-ice --backend cpu --steps 3 --output my-sea-ice.nc
+
+The folder name is the CLI setup name; avoid names ending in ``.py`` or
+``.json``, which identify files. Set ``VERIS_SETUP_DIR`` in each shell that
+should discover it. An existing file takes precedence over name lookup;
+directories and dangling symlinks are rejected. Explicit paths (including
+``./`` prefixes) and missing ``.py``/``.json`` files never fall back to a setup
+name. Named runs use the same factory, overrides and output behavior as file
+runs. Builtin names can also be run directly, for example ``veris run growth``.
+
+Run a setup
+-----------
 
 Run a copied Python setup, optionally overriding execution controls::
 
