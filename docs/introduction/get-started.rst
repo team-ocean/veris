@@ -2,12 +2,7 @@ Getting started
 ===============
 
 This guide shows you how to install Veris, run your first sea-ice simulation and
-read its results. A simulation calculates how the ice changes over time. The
-guide follows the steps in the `Veros getting-started guide
-<https://veros.readthedocs.io/en/latest/introduction/get-started.html>`_, using
-Veris's standalone model, which runs without an external ocean model. It uses
-JAX, a Python library for calculations with arrays (tables of numbers), and an
-experiment interface for defining inputs and settings.
+read its results.
 
 Installation
 ------------
@@ -23,13 +18,11 @@ you want to keep the source, run::
    source .venv/bin/activate
    python -m pip install -e .
 
-On Windows, activate the environment with ``.venv\Scripts\activate`` instead.
 If you already have this checkout, start with environment creation in the
 repository root. The editable installation makes source changes available
 without reinstalling. The installation also adds the packages Veris needs to
-run, including JAX for computer processors (CPU) and support for netCDF, a file
-format for storing arrays and information about them. Veris requires no
-external ocean model.
+run, including JAX for computer processors (CPU) and support for netCDF files.
+Veris requires no external ocean model.
 
 Check that the command is available::
 
@@ -40,7 +33,7 @@ Use ``python -m veris.cli`` to run the command-line interface (CLI) through Pyth
 Running on a graphics processor (GPU) needs a compatible GPU installation of
 JAX; follow the
 `JAX installation instructions <https://docs.jax.dev/en/latest/installation.html>`_
-for your hardware before selecting ``--backend gpu``. The steps below use CPU.
+for your hardware before selecting ``--backend gpu`` in CLI. The steps below use CPU.
 
 Setting up a model
 ------------------
@@ -57,8 +50,8 @@ The list contains ``dynamics``, ``growth`` and ``island``. The growth setup chan
 ice and snow without horizontal dynamics, or motion across the surface. Island
 combines ice motion, transport (movement of ice and snow between cells) and
 growth. It supplies ocean masks (arrays marking land and ocean) and atmospheric
-fields (weather values across the grid). The grid divides the modeled area into
-cells. Their physical assumptions and scenario controls are in the
+fields. The grid divides the modeled area into cells.
+Their physical assumptions and scenario controls are in the
 :doc:`/reference/setup-gallery`.
 
 Open ``setup.py`` to change the experiment. Its ``build_experiment()`` factory
@@ -82,9 +75,8 @@ names; choose another destination when repeating the commands. The short run
 shows the workflow; its inputs have not been calibrated for a physical study.
 
 For interactive Python use, see :doc:`/quickstart/user-guide`. It runs a coupled
-experiment, which combines motion and growth, through ``Simulation``. It saves
+experiment, which combines dynamics and growth, through ``Simulation``. It saves
 output on a schedule and shows how to continue a saved run exactly.
-The CLI and Python runner use the same model implementation.
 
 Reading output
 ~~~~~~~~~~~~~~
@@ -134,8 +126,7 @@ Once a serial setup (one without a device mesh) works, use
 :doc:`/reference/setups/parallel-dynamics` for local CPU/GPU meshes, which group
 devices on one computer, and multi-process SLURM launches. SLURM starts work on
 a computing cluster. Veris uses JAX sharding to divide arrays across devices
-and distributed services to coordinate separate Python processes. Its launcher
-does not require Veros's MPI communication packages.
+and distributed services to coordinate separate Python processes.
 The CLI's mesh and backend options are documented in :doc:`/cli`.
 
 Extending Veris

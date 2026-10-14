@@ -1,13 +1,10 @@
 Veris: a versatile sea ice simulator in JAX
 ===========================================
 
-Veris models sea-ice dynamics (how ice moves) and thermodynamics (how ice grows
-and melts through heat exchange). It uses JAX, a Python library that calculates
-with arrays, or tables of numbers. Automatic differentiation calculates how
-changes in inputs affect results. Veris supports both forward and reverse modes,
-which carry these calculations from inputs to outputs or from outputs back to
-inputs. It can divide work across computer processors (CPUs) and graphics
-processors (GPUs). The package includes several setups to show how to use it.
+Veris implements sea ice dynamics and thermodynamics using JAX
+for array operations. It supports forward and reverse modes of
+automatic differentiation and parallel execution on CPUs and GPUs.
+The package includes several setups to show how to use it.
 
 Veris was derived from the `MITgcm SEAICE package
 <https://mitgcm.readthedocs.io/en/latest/phys_pkgs/seaice.html>`_.
