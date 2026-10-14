@@ -510,7 +510,7 @@ __all__ = ["PHYSICALCONSTANTS", "PhysicalConstants"]
 
 
 @dataclass(frozen=True)
-@registry_defaults({"dtype": SETTINGS["dtype"], **PHYSICALCONSTANTS})
+@registry_defaults({"dtype": SETTINGS["dtype"]} | PHYSICALCONSTANTS)
 class PhysicalConstants:
     """Validated immutable physical constants initialized from the registry."""
 

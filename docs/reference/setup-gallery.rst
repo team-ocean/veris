@@ -15,18 +15,13 @@ The three isolated cases derive from ``veris_minimum_working_example`` branch
 ``jax_halo_exchange`` (reference commit
 ``2571998f8feb6a5943b214361c122ca78b44c3a8``).
 
-Activate the installed environment from the project root::
-
-   source .venv-latest/bin/activate
-
-The runners select float64 at runtime and write netCDF output. Use ``--help``
-for command-line options. Importing a setup does not run a simulation.
+For installation and a first run, see :doc:`/introduction/get-started`.
+Use ``--help`` for command-line options. Importing a setup does not run a simulation.
 
 .. toctree::
    :maxdepth: 1
 
    setups/island
-   setups/ocean
    setups/dynamics
    setups/growth
    setups/parallel-dynamics

@@ -7,6 +7,34 @@ import sys
 import tarfile
 from pathlib import Path
 
+import pytest
+
+
+@pytest.mark.parametrize(
+    ("module_name", "class_name"),
+    (
+        ("veris.model.configuration", "Configuration"),
+        ("veris.model.physical_constants", "PhysicalConstants"),
+        ("veris.setups.island", "IslandSettings"),
+        ("veris.setups.run_growth", "GrowthSettings"),
+    ),
+)
+def test_documented_registry_classes_have_viewable_source(
+    module_name: str, class_name: str
+) -> None:
+    """Registry decorators must allow Sphinx to generate real source links."""
+    from sphinx.errors import PycodeError
+    from sphinx.pycode import ModuleAnalyzer
+
+    try:
+        analyzer = ModuleAnalyzer.for_module(module_name)
+        analyzer.find_tags()
+    except PycodeError as error:
+        pytest.fail(f"ERROR documentation source {module_name}: {error}", pytrace=False)
+    assert class_name in analyzer.tags, (
+        f"ERROR documentation source lacks {module_name}.{class_name}"
+    )
+
 
 def test_sdist_contains_test_helpers_references_and_documented_architecture(
     tmp_path: Path,
@@ -73,8 +101,16 @@ def test_sdist_contains_test_helpers_references_and_documented_architecture(
     for path in (source / "tests").rglob("*"):
         if path.is_file() and path.suffix in {".py", ".md", ".json", ".npz", ".txt"}:
             required.add(str(path.relative_to(source)))
-    for path in (source / "docs").rglob("*.md"):
-        required.add(str(path.relative_to(source)))
+    for path in (source / "docs").rglob("*"):
+        if path.is_file() and path.suffix in {
+            ".md",
+            ".rst",
+            ".py",
+            ".json",
+            ".txt",
+            ".conf",
+        }:
+            required.add(str(path.relative_to(source)))
     # The archive must run its benchmark tests and retain source documentation.
     required.add("requirements-profile.txt")
     for path in (root / "benchmarks").rglob("*"):

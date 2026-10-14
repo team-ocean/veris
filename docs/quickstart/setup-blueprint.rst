@@ -49,12 +49,10 @@ Inspection validates host inputs without configuring JAX or enumerating devices:
    veris inspect setup.py --export resolved.json
    veris inspect setup.py --authored --export authored.json
 
-The default resolved export pins all effective scientific values. Authored
-export retains omissions, so later scenario/dtype/profile changes recompute
-inherited defaults. Both are fresh JSON dictionaries/files. Schema version 1
-remains readable; version 2 represents explicit profile/distributed/all-device
-controls. Durations retain exact integer microseconds. Existing export paths
-are protected. Run either JSON file through the same CLI/Python loader.
+Run either JSON export through the same CLI/Python loader. Use a resolved
+export to pin effective values, or an authored export to preserve inherited
+defaults. See :ref:`experiment-export-modes` for the precise schema and merge
+contracts. Existing export paths are protected.
 
 A compact authored growth example is included alongside its fully pinned
 ``growth-resolved.json`` export:
@@ -65,15 +63,8 @@ A compact authored growth example is included alongside its fully pinned
 Defaults and overrides
 -----------------------
 
-Precedence is shared registry < setup preset/profile < experiment configuration
-< explicit Python/CLI overrides. Nested mappings merge; arrays and stream lists
-replace whole values. Dedicated and grouped CLI aliases must not overlap.
-
-``settings`` and ``constants`` own numeric/physical controls. ``Grid`` owns
-global dimensions; ``Execution`` owns partitions/backend/distributed requests.
-``scenario`` contains only scientific inputs. Numerical settings override preset
-aliases such as ``islandTimeStep``. Coupled integration requires equal dynamics
-and thermodynamic timesteps; no implicit subcycling is performed.
+Use the grouped controls and precedence described in :doc:`/api/experiment`.
+Dedicated and grouped CLI aliases must not overlap; see :doc:`/cli` for syntax.
 
 For an existing setup, use ``Experiment.builtin("growth")`` or a documented
 profile, such as ``Experiment.builtin("dynamics", profile="standalone")``.
@@ -115,11 +106,9 @@ on a local CPU mesh or the available GPUs::
    JAX_NUM_CPU_DEVICES=2 veris run setup.py --backend cpu --mesh 1 2 --output cpu-mesh.nc
    JAX_PLATFORMS=cuda,cpu veris run setup.py --backend gpu --mesh 1 2 --output gpu-mesh.nc
 
-The global grid must divide into partitions with at least two cells per local
-axis. Meshes use all selected backend devices; multiple slices use hybrid mesh
-construction. Explicit ``DistributedExecution`` controls override JAX/Slurm
-launch environment. Supply coordinator/count/rank together, or a supported
-cluster detector; distributed launches require an explicit backend.
+Mesh and distributed resource requirements are defined in
+:doc:`/api/parallel`. Explicit ``DistributedExecution`` controls override the
+JAX/Slurm launch environment.
 
 For distributed Python, request the same execution values on every process::
 
@@ -133,13 +122,9 @@ For distributed Python, request the same execution values on every process::
    result = run_experiment(definition, snapshot_path=Path("distributed.nc"))
 
 Launch those processes with explicit JAX rank variables or an ``srun`` allocation.
-The runner closes services it starts; caller-owned services/meshes remain usable.
-The low-level Simulation facade still accepts already prepared resources.
-Known runner-owned CPU rank counts must match the requested device mesh before
-bootstrap, with one CPU device per rank. Borrowed services can provide multiple
-CPU devices per rank and are checked against their actual mesh.
-Explicit owned meshes on either backend must provide at least one device per
-process; impossible known rank requests fail before launch policy or bootstrap.
+The runner owns the resources it starts; :doc:`/api/parallel` describes borrowed
+resources and validation. The low-level Simulation facade accepts already
+prepared resources.
 
 The maintained smoke launcher uses the CPU ``aegir`` partition and the parallel
 profile's all-device discovery::

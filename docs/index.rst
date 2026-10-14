@@ -15,6 +15,7 @@ implementation as part of his `Master's thesis <https://nbi.ku.dk/teamocean/docs
    :maxdepth: 2
    :caption: Usage
 
+   introduction/get-started
    quickstart/user-guide
    quickstart/custom-ocean
    quickstart/setup-blueprint
@@ -27,6 +28,7 @@ implementation as part of his `Master's thesis <https://nbi.ku.dk/teamocean/docs
    reference/package-hierarchy
    reference/setup-gallery
    reference/integration
+   reference/setups/ocean
    reference/settings
    reference/physical-constants
    reference/variables
@@ -38,5 +40,11 @@ implementation as part of his `Master's thesis <https://nbi.ku.dk/teamocean/docs
    :caption: Python API
 
    api/index
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Development
+
+   development
 
 Source code: `team-ocean/veris <https://github.com/team-ocean/veris>`_.

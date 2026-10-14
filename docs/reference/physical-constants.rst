@@ -19,13 +19,15 @@ Independently rounded coefficients in established parameterizations retain
 their numerical defaults. Similar names do not imply interchangeable formulas.
 Ice-removal thresholds such as ``hIce_min``, basal-drag thresholds such as
 ``basalDragMinArea``, and bulk-flux wind floors belong here because they define
-the physical parameterizations. Override them through ``physical_overrides``
-at initialization, or replace fields on ``PhysicalConstants``.
+the physical parameterizations. Supply ``constants={...}`` in an
+:doc:`Experiment </api/experiment>`, or replace fields on ``PhysicalConstants``.
+The low-level :func:`veris.execution.initialization.initialize` instead uses
+``physical_overrides``.
 
 ``pressReplFac`` weights the strain-dependent replacement pressure in the ice
 constitutive law. Its default remains 1.0; fractional values retain their
-continuous weighting behavior. Configure it through ``physical_overrides``
-or immutable replacement of ``PhysicalConstants``.
+continuous weighting behavior. Configure it through the same constants group
+or immutable replacement.
 
 ``evpStressRelaxation`` and ``evpShearRelaxation`` also belong here: the first
 scales the equilibrium stresses, while their ratio scales equilibrium

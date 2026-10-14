@@ -9,7 +9,7 @@ After replacing State fields manually, use
 boundaries. The x direction is periodic; y boundaries follow
 ``Configuration.enable_cyclic_y``. For sharded arrays, retain the active
 ``jax.set_mesh(mesh)`` context. See :doc:`/reference/settings` for solid-wall
-behavior and :doc:`/quickstart/user-guide` for packed storage and meshes.
+behavior and :doc:`experiment` for packed storage and meshes.
 
 .. automodule:: veris.grid.halos
 
@@ -67,7 +67,13 @@ backend. Multiple equally sized device slices use a hybrid mesh rather than an
 unsupported ``jax.make_mesh`` topology. The low-level Simulation facade still
 expects callers to prepare distributed services and meshes themselves.
 
-.. autoclass:: veris.DistributedExecution
+An explicitly sized, framework-owned mesh must provide at least one device per
+process. Owned CPU launches use exactly one device per rank, so a known rank
+count must match the mesh size before bootstrap. Borrowed services may expose
+multiple CPU devices per rank and are checked against the actual mesh. Impossible
+known rank/mesh requests fail before launch policy or distributed initialization.
+
+.. autoclass:: veris.model.experiment.DistributedExecution
 
 .. autoclass:: veris.execution.runtime.RuntimeResources
 

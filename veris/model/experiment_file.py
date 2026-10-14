@@ -79,7 +79,7 @@ def _nonfinite_constant(value: str) -> Any:
 def read_experiment(
     path: str | Path, overrides: Mapping[str, Any] | None = None
 ) -> Experiment:
-    """Read version 1 JSON and apply explicit overrides with path-aware errors."""
+    """Read version 1 or 2 JSON and apply overrides with path-aware errors."""
     source = Path(path)
     try:
         data = json.loads(
@@ -202,7 +202,7 @@ def _execution(value: Any, defaults: Any = None) -> Any:
 
 
 def experiment_from_dict(data: Any) -> Experiment:
-    """Construct an experiment from grouped, version 1 declarative values.
+    """Construct an experiment from grouped version 1 or 2 declarative values.
 
     The optional schema_version defaults to 1. Numerical and physical options
     retain the validation and defaults of their existing immutable constructors.

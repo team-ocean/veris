@@ -35,8 +35,13 @@ remain separate from numerical State, preserving model precision and evolution.
 For float32 runs, mean buffers and saved mean fields use twice the bytes per
 value compared with float32 fields.
 
+.. _output-sampling:
+
 Sampling and calendar windows
 -----------------------------
+
+This section describes direct ``OutputManager.sample`` calls. For managed
+``Simulation`` output and the timed runner, see :ref:`scheduled-output-integration`.
 
 Pass elapsed model time as ``datetime.timedelta``. Scheduling uses integer
 microseconds, anchored to the simulation start. Integration step boundaries must
@@ -80,8 +85,8 @@ supported, invalid dates are rejected, and fixed-calendar years start at one::
    fixed = Calendar(FixedDate(2000, 2, 30, hour=12), "360_day")
    assert fixed.date_at(timedelta(days=1)) == FixedDate(2000, 3, 1, hour=12)
 
-Ordinary integration
---------------------
+Direct sampling
+---------------
 
 This thermodynamic example writes daily snapshots and monthly means to separate
 groups in the same file. The model timestep supplies an exactly aligned sample
@@ -114,6 +119,48 @@ has its own unlimited time dimension, calendar, time units, bounds, sample
 counts and coverage metadata. Field dimensions and attributes come from
 :doc:`variables`, preserving staggered ``x_center``, ``x_face``, ``y_center`` and
 ``y_face`` names. ``cell_methods`` distinguishes point values from means.
+
+.. _scheduled-output-integration:
+
+Scheduled integration
+----------------------
+
+For ordinary experiments, attach ``OutputSettings`` to an ``Experiment`` and
+let ``Simulation`` sample it; see :doc:`/quickstart/user-guide`. This uses
+``run_timed`` and ``output_callbacks`` internally. Custom host drivers can wire
+those helpers directly as shown in :doc:`integration`.
+
+These callbacks select scheduled output. Each chunk ends at the earliest
+instantaneous sample, averaging-window boundary or final model time. There is
+no default chunk cap; an explicit ``chunk_size`` adds a maximum number of
+steps per chunk. Calendar boundaries between model times flush at the next
+model time, retaining their exact original time bounds in the file.
+
+Each mean stream carries one float64 running sum per requested field and a
+sample count on the device. Unfinished sums survive chunk boundaries; no
+timestep field histories are allocated for these means. Sampling obeys
+``sample_initial`` and the complete-window rule above.
+
+Reduced fields keep their storage halos and sharding until the serial or
+distributed collector removes halos and gathers physical cells. Every rank
+enters collection in the same order; only the writing rank creates a file.
+Custom collectors receive already averaged fields and must commute with
+averaging, as halo removal and linear gathering do. A collector that applies a
+nonlinear transformation per sample requires a different reduction strategy.
+
+A scheduled run reserves a fresh manager through ``begin_reduced()`` and writes
+through ``write_reduced()``. Direct ``manager.sample()`` calls and reduced runs
+cannot share a manager. Reduced-mode ``close()`` closes the lazy writer; window
+completion belongs to the scheduled runner. Direct sampling retains its host
+running sums and calendar checks. Context-manager exit closes files on errors.
+
+Instantaneous records use endpoint States and, when requested, the initial
+State once. Mean samples use pre-step fields, so the half-open calendar windows
+and complete-window rule above also apply to managed output. Successive
+``Simulation.run`` calls retain unfinished sums/counts and the original cadence;
+closing discards an unfinished window. Output and pure observation histories may
+share a trajectory. Resolved definitions/settings/constants are saved as file
+attributes by the lifecycle.
 
 Final snapshots and selected input
 ----------------------------------
@@ -210,38 +257,11 @@ snapshots. No gathering occurs during AD::
        conf=conf, phys=phys, collector=collector,
    )
 
-Driver options
---------------
+Command-line output
+--------------------
 
-Maintained drivers use Click and write netCDF output. The CLI sampling default is the driver's model timestep, while
-the Python ``Stream`` default is shown in the registry below.
-
-.. list-table::
-   :header-rows: 1
-
-   * - Option
-     - Meaning
-   * - ``--netcdf PATH``
-     - History output file.
-   * - ``--output PATH``
-     - Final State snapshot; each driver supplies a default netCDF path.
-   * - ``--io-variables hIceMean,Area``
-     - Comma-separated State variables for history streams.
-   * - ``--sample-seconds NUMBER``
-     - Positive sample interval, exactly reachable by model steps.
-   * - ``--average instantaneous,daily,monthly,annual``
-     - Comma-separated periods, producing independent stream groups.
-   * - ``--calendar gregorian|360_day|noleap``
-     - Model calendar.
-   * - ``--start-date YYYY-MM-DD``
-     - Model origin; supports February 30 with ``360_day``.
-
-For example::
-
-   python -m veris.setups.run_growth --steps 30 \
-       --netcdf growth_history.nc --output growth_final.nc \
-       --io-variables hIceMean,Area --average instantaneous,monthly \
-       --calendar 360_day --start-date 2000-02-01
+See :doc:`/cli` for final snapshots, sampled histories and module-driver output
+options. Output stream defaults are generated below.
 
 Registry defaults
 -----------------

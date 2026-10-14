@@ -59,7 +59,7 @@ GROWTH_SETTINGS: dict[str, Parameter] = {
 
 
 @dataclass(frozen=True)
-@registry_defaults({"dtype": SETTINGS["dtype"], **GROWTH_SETTINGS})
+@registry_defaults({"dtype": SETTINGS["dtype"]} | GROWTH_SETTINGS)
 class GrowthSettings:
     """Registry-backed reference column controls kept outside differentiable State."""
 

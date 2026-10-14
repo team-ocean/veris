@@ -172,7 +172,7 @@ collector. Coupled presets and custom OceanGeometry use the same global physical
 input contract. Retain ``jax.set_mesh(mesh)`` around pure advance/step and their
 transformations. Public advance accepts scalar or global physical spatial
 forcing; series retain an unpartitioned leading time axis. See
-:doc:`/quickstart/user-guide` and :doc:`/api/experiment`.
+:doc:`/api/experiment`.
 
 Host output and timing
 ----------------------
@@ -198,32 +198,10 @@ Use ``output_callbacks(manager, step_seconds)`` to connect an OutputManager::
        initial, state_transition, 100, observe=observe, select=select,
    )
 
-These callbacks select scheduled output. Each chunk ends at the earliest
-instantaneous sample, averaging-window boundary or final model time. There is
-no default chunk cap; an explicit ``chunk_size`` adds a maximum number of
-steps per chunk. Calendar boundaries between model times flush at the next
-model time, retaining their exact original time bounds in the file.
-
-Each mean stream carries one float64 running sum per requested field and a
-sample count on the device. Unfinished sums survive chunk boundaries; no
-timestep field histories are allocated for these means. Samples use the State
-before each transition, so averaging windows remain half-open and obey
-``sample_initial``. Only complete, nonempty windows with nonnegative starting
-times are written. Partial first and final windows are discarded.
-Instantaneous records use endpoint States and the initial State when requested.
-
-Reduced fields keep their storage halos and sharding until the serial or
-distributed collector removes halos and gathers physical cells. Every rank
-enters collection in the same order; only the writing rank creates a file.
-Custom collectors receive already averaged fields and must commute with
-averaging, as halo removal and linear gathering do. A collector that applies a
-nonlinear transformation per sample requires a different reduction strategy.
-
-A scheduled run reserves a fresh manager through ``begin_reduced()`` and writes
-through ``write_reduced()``. Direct ``manager.sample()`` calls and reduced runs
-cannot share a manager. Reduced-mode ``close()`` closes the lazy writer; window
-completion belongs to the scheduled runner. Direct sampling retains its host
-running sums and calendar checks. Context-manager exit closes files on errors.
+The :ref:`scheduled-output-integration` reference defines chunk boundaries,
+mean accumulation, collector requirements and the exclusive reduced-writing
+manager lifecycle. Calendar and sampling rules live there alongside direct
+``OutputManager.sample`` usage.
 
 Arbitrary host observers retain the existing ``observe(sample, iteration)``
 interface. They receive selected initial and subsequent samples from bounded

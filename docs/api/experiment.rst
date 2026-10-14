@@ -21,21 +21,10 @@ model arrays or selecting a JAX backend::
        steps=3,
    )
 
-Runnable initialization is available through ``initialize_experiment``. For
-example, the coupled island preset supplies consistent geometry and prescribed
-atmospheric fields::
-
-   from veris import Experiment, Grid, initialize_experiment
-
-   experiment = Experiment.builtin(
-       "island", grid=Grid(6, 8), settings={"dtype": "float32"}, steps=3,
-   )
-   state, configuration, constants = initialize_experiment(experiment)
-
-The public :doc:`simulation` facade initializes and executes successive runs
-with absolute forcing position, model time, scheduled output and complete serial
-restart. Definition and initialization
-are host operations; enable JAX x64 explicitly before requesting float64 allocation.
+Use :func:`veris.initialize_experiment` for allocation and the
+:doc:`simulation` facade for host execution. :doc:`initialization` documents
+preset providers and low-level allocation. These are host operations; enable
+JAX x64 before requesting float64 allocation (see :doc:`/reference/settings`).
 
 Authored and resolved controls
 ------------------------------
@@ -43,10 +32,12 @@ Authored and resolved controls
 ``settings``, ``constants``, ``scenario`` and ``forcing`` retain immutable authored
 inputs. ``configuration``, ``physical_constants``, ``resolved_settings``,
 ``resolved_scenario`` and ``resolved_forcing`` expose validated effective values.
-This preserves the distinction between an explicit value and an inherited preset
-default when an experiment changes::
+Precedence is shared registry defaults < setup preset/profile < experiment
+configuration < explicit Python/CLI overrides. This preserves the distinction
+between an explicit value and an inherited preset default when an experiment
+changes::
 
-   updated = experiment.with_overrides({
+   updated = Experiment.builtin("island").with_overrides({
        "scenario": {"islandTimeStep": 300, "islandCooling": 25},
        "settings": {"dtype": "float64"},
    })
@@ -59,11 +50,12 @@ an explicitly supplied rounded value remains that value.
 Declarative files
 -----------------
 
-``Experiment.from_file(path, overrides=...)`` reads version 1 JSON. The version
-may be omitted; unsupported versions and duplicate or unknown keys fail clearly.
+``Experiment.from_file(path, overrides=...)`` reads version 1 or 2 JSON. An
+omitted version means 1; unsupported versions and duplicate or unknown keys
+fail clearly.
 Preset defaults, then file values, then explicit Python overrides determine the
-resolved definition. Mappings merge by key; arrays and lists replace whole
-values. A runnable definition can be written as:
+resolved definition, using the merge rules above. A runnable definition can be
+written as:
 
 .. code-block:: json
 
@@ -77,12 +69,11 @@ values. A runnable definition can be written as:
      "steps": 3
    }
 
-``experiment.to_dict()`` returns independent JSON-compatible data with resolved
-numerical and physical defaults. Derived scalar values are reconstructed from
-those inputs. Output durations use ``{"microseconds": integer}``; human-written
-files can also use ``{"seconds": number}`` when exactly representable in
-microseconds. Gregorian origins use timezone-free ISO dates. Fixed-calendar
-origins use objects with integer year, month, day and optional time components.
+Output durations use ``{"microseconds": integer}``; human-written files can
+also use ``{"seconds": number}`` when exactly representable in microseconds.
+Gregorian origins use timezone-free ISO dates. Fixed-calendar origins use
+objects with integer year, month, day and optional time components. See
+:ref:`experiment-export-modes` for authored and resolved exports.
 
 Dimensions, units and precedence
 --------------------------------
@@ -214,7 +205,7 @@ definitions, settings, constants and host validation are outside that path.
 .. autoclass:: veris.model.forcing.Forcing
    :members:
 
-.. autofunction:: veris.execution.experiment_initialization.initialize_experiment
+.. _experiment-export-modes:
 
 Export modes
 ------------
@@ -223,6 +214,8 @@ Export modes
 values, including profile identity. ``mode="authored"`` retains sparse caller
 inputs and grouped omissions. Reading authored data then changing dtype/scenario
 recomputes inherited defaults; resolved data retains deliberately pinned literals.
-Returned arrays/containers do not alias the immutable definition. Schema version 1
-remains supported; profile/distributed/all-device declarations use version 2.
+Both return independent JSON-compatible data; derived scalars are reconstructed
+from the stored inputs. Returned arrays/containers do not alias the definition.
+Schema version 1 remains supported; profile/distributed/all-device declarations
+use version 2.
 Inspect/export from the CLI without selecting devices using ``veris inspect``.

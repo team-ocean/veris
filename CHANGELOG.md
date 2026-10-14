@@ -1,5 +1,66 @@
 # Development log
 
+## 2026-10-14 — Documentation audit and getting started
+
+- [x] Audited (@root) all maintained documentation for duplication,
+  misplaced contracts and navigation; add a getting-started page following the
+  Veros installation/setup/run/output/restart progression with current Veris APIs.
+- Roles: root owns edits, the only pytest session and verification;
+  documentation and contract reviewers perform independent read-only audits.
+  Stay on jax-only, preserve existing URLs where useful, and reuse generated
+  registry/API/CLI reference material rather than adding parallel descriptions.
+- Baseline: cdd2ec4; tracked worktree clean, existing test_logs/ are local
+  evidence. Previous goal work is verified completed work on named setups;
+  this documentation goal requires a new audit and concrete edits.
+- Required gates: strict Sphinx build, literal beginner workflow execution,
+  Ruff lint/format/annotations, ty, full correctness suite and a Git commit.
+- [x] Audit all 30 maintained RST/README sources plus test/benchmark guidance.
+  Keep historical plans, archived reference provenance and dated benchmark
+  measurements as historical evidence. Canonical owners: getting started for
+  installation/first CLI run; user guide for successive Python runs; experiment
+  API for schema/precedence/export; I/O reference for sampling; CLI for flags;
+  dynamics for shared scenario metadata; development for contribution checks.
+- [x] Remove repeated README/API-index tutorials, user-guide contracts,
+  parallel scenario tables and mutable test-result summaries. Move low-level
+  ocean guidance out of the setup gallery navigation, scheduled output details
+  into I/O, and module-driver flags into CLI. Preserve existing page URLs.
+- [x] Correct schema versions 1/2 (including two source docstrings), public
+  constants overrides, closed-boundary halo wording and obsolete wrapper names.
+  Model behavior and scientific tests/reference bytes remain unchanged.
+- [x] Initial strict Sphinx run catches one short heading underline; fix it and
+  rebuild successfully. Ruff lint/format/annotations and ty pass. Independent
+  reviews retain owned-rank validation in the parallel API and request compact
+  beginner-history error diagnostics; both are incorporated.
+- [x] Clean installed literal beginner CLI/readback/history and existing coupled
+  restart, observations, custom ocean, sharding, JIT/AD and README examples pass.
+- [x] Rendered review reveals four broken generated source links. Three registry
+  decorators trigger Sphinx 9.1's dictionary-unpacking parser bug; four new
+  source-discovery cases produce three failures and one control pass before
+  the fix, then pass 4/4. Equivalent dict unions preserve registry values,
+  order and precedence without a custom parser. Canonical DistributedExecution
+  documentation fixes the fourth backlink. Packaging checks now cover RST and
+  executable documentation assets as well as Markdown.
+- Initial full CPU run was deliberately interrupted after the rendered review
+  required these source adjustments. The tool reported a sandbox cleanup error
+  on interruption; this partial run is not correctness evidence. One fresh full
+  session now verifies the final source and all four new cases.
+- [x] Final read-only reviews approve content, source changes and verification
+  coverage. Fresh strict Sphinx builds 75 HTML pages with zero broken local
+  links across 1,273 fragments and 238 source links. Final installed lifecycle
+  and paired Python/file/named CLI probes pass, including all 70 output fields,
+  relative assets and authored/resolved exports. Development commands use a
+  literal include from tests/README.md, avoiding a second maintained command list.
+- [x] Final CPU correctness: 1,620 passes / four expected GPU skips across
+  1,624 cases, zero failures/errors, 1,170.74 s external wall. Native GPU gate
+  passes the exact four skipped cases in 28.13 s. Maintained coverage is
+  4,646/4,897 = 94.87%; whole-package coverage is 91.18%. All 216 maintained
+  code/stub hashes remain unchanged throughout final verification. Wheel's
+  76 modules match source; sdist's 62 documentation files match current files.
+- [x] All requested verification gates pass; commit this documentation audit
+  on jax-only. Evidence is under test_logs/documentation-audit/. Follow-up user
+  request: after this commit, inspect cdd2ec4's failed CI using GitHub CLI and
+  fix it separately.
+
 ## 2026-10-14 — Named external setups
 
 - [x] COMPLETE (@root): extend the existing external-template registry so custom

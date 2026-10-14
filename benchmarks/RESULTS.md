@@ -1,8 +1,9 @@
 # Local CPU/GPU profiling results — 2026-09-08
 
-The accepted implementation retains the Python `island.step` driver, adds
-the opt-in `island.compiled_step`, and materializes shared EVP drag and
-stress-divergence intermediates on CUDA only. CPU fusion is unchanged. Equations,
+These dated measurements used the then-current Python `island.step` driver
+and opt-in `island.compiled_step`, with shared EVP drag and stress-divergence
+intermediates materialized on CUDA only. Those driver names are historical;
+current commands in [README.md](README.md) use `advance` and `jax.jit(advance)`. CPU fusion is unchanged. Equations,
 precision and iteration counts are unchanged. Whole-step compilation is useful
 on the measured GPU; it is not a general CPU optimization.
 

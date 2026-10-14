@@ -28,8 +28,9 @@ Host timing and scheduled output
 
 These helpers compile and time integration and connect it to an
 :class:`~veris.io.OutputManager`. Keep them outside JAX transformations; use
-:func:`veris.step` directly for differentiation. The scheduling and timing
-contracts are described in :doc:`/reference/integration`.
+:func:`veris.step` directly for differentiation. See
+:doc:`/reference/integration` for timing and :ref:`scheduled-output-integration`
+for scheduling contracts.
 
 .. autofunction:: veris.execution.rollout_output.run_timed
 

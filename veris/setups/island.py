@@ -83,7 +83,7 @@ ISLAND_SETTINGS: dict[str, Parameter] = {
 
 
 @dataclass(frozen=True)
-@registry_defaults({"dtype": SETTINGS["dtype"], **ISLAND_SETTINGS})
+@registry_defaults({"dtype": SETTINGS["dtype"]} | ISLAND_SETTINGS)
 class IslandSettings:
     """Validated scenario defaults kept outside model configuration and AD State."""
 

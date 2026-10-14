@@ -55,7 +55,8 @@ as 80, 120 and 95 W m-2; growth retains its original recursive heat fields.
 
 `island_unequal_legacy_v1.npz` freezes another 75 arrays after one original
 island step with a 600 s dynamics timestep and 3,600 s thermodynamics timestep.
-It protects the three legacy island wrappers. New coupled definitions retain
+It protects canonical composition of the dynamics and thermodynamics kernels
+in `tests/physics/test_unequal_timesteps.py`. Public coupled definitions retain
 their equal-timestep requirement.
 
 The JSON manifests record the complete source commit, 49 source-file hashes,

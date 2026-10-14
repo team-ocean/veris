@@ -34,7 +34,7 @@ Run `pytest tests/ --fast` during development. `VERIS_TEST_SEED` varies the stab
 10% collection sample; the default is `root`. Run the full suite before commits:
 
 ```sh
-pytest tests/ -n 3 --dist=loadscope --partition-cpus --max-worker-restart=0 --cov=veris --cov-report=term:skip-covered
+JAX_PLATFORMS=cpu pytest tests/ -n 3 --dist=loadscope --partition-cpus --max-worker-restart=0 --cov=veris --cov-report=term:skip-covered
 coverage report --omit=veris/_version.py --fail-under=80
 ruff check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py
 ruff format --check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py
@@ -52,11 +52,9 @@ Use fewer workers if fewer CPUs are available. CPU CI uses one worker so the
 four-device sharding probes inherit all four permitted runner CPUs; splitting
 them among three workers can stall XLA collectives even on JAX 0.11.2.
 The full correctness step has no explicit 20-minute timeout.
-The canonical-only cleanup passed all 1,312 cases: 1,310 CPU passes and two
-expected GPU skips, both subsequently verified on native GPUs. The cold CPU run
-took 756.48 external seconds (12 minutes 36 seconds), with 94.57% maintained
-coverage and no losses on unchanged previously covered lines. Keep solver
-performance measurements in the separate
+Dated correctness counts, coverage and elapsed times live in
+[CHANGELOG.md](../CHANGELOG.md), alongside the corresponding source revisions.
+Keep solver performance measurements in the separate
 [benchmark harness](../benchmarks/README.md).
 
 Each worker starts with a fresh private JAX compilation-cache directory and
@@ -97,10 +95,10 @@ Whole-package reports include generated version metadata. With user approval,
 CI enforces at least 80% coverage of maintained code by excluding only
 `veris/_version.py` from the gate. XML/JSON artifacts retain whole-package data.
 The old geographic setup and its ocean-model dependencies were removed at the
-user’s request. CPU CI is enforced. Native local execution has two Tesla P100 GPUs
-with driver 580.173.02. Both GPU-only contracts pass on the canonical-only tree
-with JAX 0.11.2 / CUDA 12 (14.66 seconds external wall). These targeted contracts
-verify scheduled output and the finite-output CLI; the complete suite ran on CPU.
+user’s request. CPU CI is enforced. Local GPU requirements are recorded in
+`requirements-gpu.txt`; see [CHANGELOG.md](../CHANGELOG.md) for dated hardware
+and native GPU verification results. CPU correctness and targeted native GPU
+checks have distinct scopes.
 
 Current physical coverage includes periodic transport, rheology, wind and ocean
 stress, EVP momentum limits, and thermodynamic energy/water budgets. Serial
@@ -110,25 +108,9 @@ reverse-mode sensitivities on 2x2, 1x4 and 4x1 meshes. Separate reduction probes
 verify two-process CPU and GPU collectives. These local-machine checks do not
 certify multi-node networking or MPI launchers.
 
-Run the standalone island example in a fresh Python process after
-activating `.venv-latest`:
-
-```python
-from veris import Experiment, Simulation
-
-experiment = Experiment.builtin(
-    "island",
-    settings={"dtype": "float32"},
-    steps=3,
-)
-with Simulation.initialize(experiment) as simulation:
-    result = simulation.run()
-state = result.state
-```
-
-This uses prescribed atmospheric and ocean fields; it demonstrates coupled
-dynamics and growth with land masks, rather than an evolving ocean simulation.
-Five EVP substeps are for demonstration, not a convergence guarantee.
+The [Python lifecycle tutorial](../docs/quickstart/user-guide.rst) provides the
+standalone island run. Test harness usage lives here; beginner installation and
+first execution live in [Getting started](../docs/introduction/get-started.rst).
 
 Hardware validation uses `requirements-gpu.txt` for the local Tesla P100s.
 Require CUDA explicitly while retaining CPU devices for diagnostic callbacks:

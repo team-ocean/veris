@@ -61,42 +61,14 @@ Adding ``--netcdf`` enables scheduled output. Scan chunks end at requested
 instantaneous samples or averaging-window boundaries. Means use device running
 sums and sample counts, without storing timestep field histories; unfinished
 windows carry across chunks. Without scheduled output, the runner executes one
-full-length scan. See :doc:`../integration` for Python chunk caps, collector
-requirements and the exclusive reduced-writing OutputManager lifecycle.
+full-length scan. See :doc:`../integration` for Python chunk caps and
+:ref:`scheduled-output-integration` for collector requirements and the exclusive
+reduced-writing OutputManager lifecycle.
 
-Reference adaptations
----------------------
+Shared scenario and validation
+-------------------------------
 
-The runnable cases correct the old serial mask's five-cell neighbor offset,
-use the physical one-cell face stencil, and initialize periodic halos
-consistently. They replace generated initializer imports, fixed home paths and
-all-rank output writes. Prescribed fields retain their reference values;
-unprescribed fields start at zero as in ``initialize_dyn.py``.
-Experimental constants live in scenario registries, while universal physical
-constants stay in PhysicalConstants. No changes to the physics kernels are needed.
-
-Derivative validation
----------------------
-
-The exact dynamics initial state has zero strain and closed walls. Guarded
-norm operations now provide finite selected linearizations there; tests check
-the actual initial State, its full pullback, and evolving wind sensitivities.
-Smooth reference oracles and the growth column's longwave sensitivity remain
-finite-difference checked. See :doc:`../automatic-differentiation` for zero-norm
-conventions, physical branch thresholds and the genuine free-drift degeneracy.
-
-Scenario defaults are shared with :doc:`dynamics`; the run length defaults
-to 1000 steps, selected by ``--steps``.
-
-Scenario controls
------------------
-
-.. exec::
-
-   from veris.setups.run_dyn import DYNAMICS_SETTINGS
-   print(".. list-table:: Parallel dynamics scenario controls")
-   print("   :header-rows: 1\n")
-   print("   * - Setting\n     - Default\n     - Units\n     - Description")
-   for name, metadata in DYNAMICS_SETTINGS.items():
-       print(f"   * - ``{name}``\n     - ``{metadata.default!r}``")
-       print(f"     - {metadata.units}\n     - {metadata.description}")
+The physical scenario, reference adaptations, derivative checks and generated
+scenario controls are shared with :doc:`dynamics`. This parallel profile changes
+the default run length to 1000 steps and adds the launch and collection behavior
+above; ``--steps`` overrides the run length.

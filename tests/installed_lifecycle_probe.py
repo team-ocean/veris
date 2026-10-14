@@ -6,6 +6,9 @@ Python examples in the documentation, including exact all-field restart checks.
 
 import argparse
 import os
+import shlex
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -40,6 +43,76 @@ def main() -> None:
     )
     for name in veris.__all__:
         assert hasattr(veris, name), f"ERROR public import missing: {name}"
+    beginner = docs_root / "introduction/get-started.rst"
+    environment = dict(
+        os.environ,
+        PYTHONPATH=str(package_root),
+        PATH=str(package_root / "bin") + os.pathsep + os.environ["PATH"],
+    )
+    with tempfile.TemporaryDirectory(prefix="veris-installed-beginner-") as location:
+        working = Path(location)
+        blocks = (
+            _block(beginner, "veris show-setups", "Setting up a model"),
+            _block(
+                beginner,
+                "veris run setup.py --backend cpu --steps 2 --float-type float32 --output growth.nc",
+                "Running Veris",
+            ),
+            _block(
+                beginner,
+                "veris run setup.py --backend cpu --steps 2 --float-type float32 --output growth-final.nc --netcdf growth-history.nc --io-variables hIceMean,Area",
+                "Reading output",
+            ),
+        )
+        for block in blocks:
+            for command in block.splitlines():
+                arguments = shlex.split(command)
+                if not arguments:
+                    continue
+                if arguments[0] == "cd":
+                    working /= arguments[1]
+                    continue
+                completed = subprocess.run(
+                    arguments,
+                    cwd=working,
+                    env=environment,
+                    capture_output=True,
+                    text=True,
+                    timeout=180,
+                    check=False,
+                )
+                assert completed.returncode == 0, (
+                    f"ERROR getting-started {command}: {completed.stderr[-1800:]}"
+                )
+                if arguments[:2] == ["veris", "run"] and "--netcdf" not in arguments:
+                    assert "Saved 2 steps to growth.nc" in completed.stdout, (
+                        f"ERROR getting-started run message: {completed.stdout[-500:]}"
+                    )
+        code = _block(beginner, "from veris.io import read_record", "Reading output")
+        readback = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=working,
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        assert readback.returncode == 0, (
+            f"ERROR getting-started readback: {readback.stderr[-1800:]}"
+        )
+        assert readback.stdout.strip() == "172800.0 (2, 2)", (
+            f"ERROR getting-started time/shape: {readback.stdout.strip()}"
+        )
+        from veris.io import read_record
+
+        history = read_record(working / "growth-history.nc", stream="instantaneous")
+        assert history.time == 172800.0 and set(history.fields) == {
+            "hIceMean",
+            "Area",
+        }, (
+            f"ERROR getting-started history: time={history.time}, fields={sorted(history.fields)}"
+        )
     examples = (
         (
             docs_root / "quickstart/user-guide.rst",
@@ -95,7 +168,7 @@ def main() -> None:
         finally:
             os.chdir(previous)
     print(
-        "PASS clean installed coupled restart, observations, custom ocean, sharding, pure JIT/AD and public imports"
+        "PASS clean installed getting-started, coupled restart, observations, custom ocean, sharding, pure JIT/AD and public imports"
     )
 
 

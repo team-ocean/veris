@@ -1,15 +1,14 @@
 Command line tools
 ==================
 
-After installing Veris, the ``veris`` command is available from any directory::
+After :doc:`installation <introduction/get-started>`, the ``veris`` command is
+available from any directory::
 
-   python -m pip install -e .
    veris --help
    veris --version
 
-Reinstall an existing checkout to register the console command. You can also
-use ``python -m veris.cli`` with the same arguments. The central interface uses
-Click and follows the discovery, copy and run workflow of the
+You can also use ``python -m veris.cli`` with the same arguments. The central
+interface uses Click and follows the discovery, copy and run workflow of the
 `Vercor command line tools <https://vercor.readthedocs.io/en/latest/cli.html>`_.
 It executes Veris's existing :doc:`Experiment and Simulation lifecycle
 <quickstart/user-guide>`.
@@ -95,11 +94,6 @@ Run a copied Python setup, optionally overriding execution controls::
 
    veris run ./my-island/setup.py --backend cpu --steps 3 --output island.nc
 
-The following complete example copies and runs the thermodynamic column::
-
-   veris copy-setup growth --to ./my-growth
-   veris run ./my-growth/setup.py --steps 2 --float-type float32 --output growth.nc
-
 Output paths are relative to the current working directory. A final snapshot
 defaults to ``output.nc`` and contains all native State fields at the final
 absolute model time, with halos removed. Use fresh destinations for repeated
@@ -118,16 +112,8 @@ Python setup contract
 ~~~~~~~~~~~~~~~~~~~~~
 
 A Python setup defines a zero-argument ``build_experiment`` function returning
-a validated ``Experiment``. For example::
-
-   from veris import Execution, Experiment, Grid
-
-   def build_experiment():
-       return Experiment.builtin(
-           "island", grid=Grid(8, 12), steps=3,
-           settings={"dtype": "float32", "nEVPsteps": 5},
-           execution=Execution(backend="cpu"),
-       )
+a validated ``Experiment``. The :doc:`/quickstart/setup-blueprint` provides a
+complete factory and paired Python/CLI runs.
 
 Edit the definition to supply numerical settings, physical constants, initial
 conditions, forcing, geometry or output schedules. The factory constructs host
@@ -145,9 +131,9 @@ The same runner accepts :doc:`versioned JSON definitions <api/experiment>`::
 
    veris run experiment.json --backend cpu --output final.nc
 
-File values take precedence over registry/preset defaults. Explicit CLI flags
-then override steps, dtype, backend and mesh; omitted flags preserve the file's
-values. Float64 is the model default. ``--float-type`` updates both numerical
+Explicit CLI flags override steps, dtype, backend and mesh; omitted flags
+preserve the definition's values. Definition precedence is documented in
+:doc:`api/experiment`. Float64 is the model default. ``--float-type`` updates both numerical
 and physical-constant precision. The runner enables JAX x64 before allocation,
 including the float64 reductions used by sampled output with float32 physics.
 Help, version, discovery and copy commands do not change JAX configuration.
@@ -222,3 +208,39 @@ devices. Add ``--export PATH`` to create a new file, ``--authored`` to retain
 sparse authored controls, and the same ``--set SECTION.KEY=JSON`` overrides used
 by run. Existing export files are protected. See
 :doc:`/quickstart/setup-blueprint` for literal paired installed Python/CLI examples.
+
+Module driver output options
+-----------------------------
+
+The ``python -m veris.setups.run_dyn``, ``run_growth`` and ``run_parallel``
+drivers accept the output flags below in addition to grouped ``--set`` controls.
+Their default sample interval is the model timestep. The central ``veris run``
+command instead takes custom schedules from the experiment's ``OutputSettings``;
+see :doc:`reference/io` for stream defaults and calendar rules.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Meaning
+   * - ``--netcdf PATH``
+     - History output file.
+   * - ``--output PATH``
+     - Final State snapshot; each driver supplies a default netCDF path.
+   * - ``--io-variables hIceMean,Area``
+     - Comma-separated State variables for history streams.
+   * - ``--sample-seconds NUMBER``
+     - Positive sample interval, exactly reachable by model steps.
+   * - ``--average instantaneous,daily,monthly,annual``
+     - Comma-separated periods, producing independent stream groups.
+   * - ``--calendar gregorian|360_day|noleap``
+     - Model calendar.
+   * - ``--start-date YYYY-MM-DD``
+     - Model origin; supports February 30 with ``360_day``.
+
+For example::
+
+   python -m veris.setups.run_growth --steps 30 \
+       --netcdf growth_history.nc --output growth_final.nc \
+       --io-variables hIceMean,Area --average instantaneous,monthly \
+       --calendar 360_day --start-date 2000-02-01

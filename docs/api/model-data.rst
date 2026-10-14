@@ -4,8 +4,8 @@ Model data and metadata
 State and diagnostics
 ---------------------
 
-Allocate State through :func:`veris.execution.initialization.initialize` or a setup
-initializer. Every State field is a dynamic JAX array leaf. Output-only
+Allocate runnable State through :func:`veris.initialize_experiment`;
+:func:`veris.execution.initialization.initialize` supplies low-level allocation. Every State field is a dynamic JAX array leaf. Output-only
 coupling fields are returned in a separate Diagnostics PyTree and stay outside
 the time-stepping carry. Field dimensions, units, descriptions and allocation
 defaults are generated from the registries in :doc:`/reference/variables`.

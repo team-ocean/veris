@@ -1,17 +1,13 @@
 Define, run and resume a sea-ice experiment
 ===========================================
 
-Install Veris into an activated Python environment::
+Complete :doc:`/introduction/get-started` first to install Veris. This tutorial
+uses the Python lifecycle to run a coupled experiment, schedule output and
+resume a checkpoint. Run its blocks in order from a fresh working directory.
 
-   python -m pip install -e .
-
-For discovery, editable setup templates and execution from a shell, see
-:doc:`/cli`.
-
-Veris is standalone. Its public lifecycle uses an immutable ``Experiment`` and
-a host ``Simulation``; it requires no external ocean model. This complete CPU
-example couples momentum, ice/snow transport and thermodynamic growth with
-prescribed ocean and atmospheric fields::
+The immutable ``Experiment`` describes the model; the host ``Simulation`` owns
+execution and files. This CPU example couples momentum, ice/snow transport and
+thermodynamic growth with prescribed ocean and atmospheric fields::
 
    from datetime import timedelta
    import jax
@@ -53,15 +49,17 @@ prescribed ocean and atmospheric fields::
 Use new file destinations when running the example again. ``Grid(6, 8)`` counts
 global physical cells in ``(x, y)`` order, excluding halos. The example's two EVP
 subcycles demonstrate the lifecycle; they do not establish solver convergence.
-Heat fluxes are in W/m², positive upward. The island preset reapplies its
-prescribed heat before growth replaces those fields with ocean-coupling fluxes.
-Its central island and wet-cell geometry are prepared during initialization.
+Initialization prepares the island and wet-cell geometry. The builtin reapplies
+prescribed heat on every step; see :doc:`/reference/setups/island` for its physics.
 
-``run()`` advances the remaining configured steps; ``run(n)`` advances exactly n
-steps, and ``step()`` advances one. Forcing and time retain their absolute
-positions across calls. ``RunResult`` returns final ``state``, final
-``diagnostics``, per-call ``steps``, absolute ``completed_steps``/``elapsed`` and
-execution timings. Histories are optional. Request only values you need::
+The first run stops after two timesteps; the second finishes the four-step
+target. Restoring the intermediate checkpoint reproduces the same final State.
+For precise run-count, clock and failure behavior, see :doc:`/api/simulation`.
+
+Observing the trajectory
+------------------------
+
+Request a small pure JAX observation when you need a time series in memory::
 
    import jax.numpy as jnp
 
@@ -74,47 +72,17 @@ execution timings. Histories are optional. Request only values you need::
        })
    assert result.observations["ice"].shape == (3,)
 
-The growth preset preserves its recursive heat-flux policy unless heat is
-explicitly prescribed. Builtins are ``island``, ``dynamics`` and ``growth``;
-custom geometry and forcing use the same lifecycle. See :doc:`custom-ocean`
-for an experiment defined entirely through public interfaces.
+The history contains post-step samples. Default runs retain only their final
+State and Diagnostics; observation memory grows with the selected data and run
+length. For physical input names, units, JSON definitions and override rules,
+see :doc:`/api/experiment`. To supply your own masks and fields, continue with
+:doc:`custom-ocean`.
 
-Definition, precision and files
--------------------------------
+Loading selected fields
+-----------------------
 
-Keep numerical ``settings``, physical ``constants``, ``initial_conditions``,
-``forcing``, ``execution`` and host ``output`` separate inside the experiment.
-Their defaults come from the existing metadata registries. An example JSON
-definition is:
-
-.. code-block:: json
-
-   {
-     "schema_version": 1,
-     "preset": "island",
-     "grid": {"nx": 6, "ny": 8},
-     "settings": {"dtype": "float32", "nEVPsteps": 2},
-     "forcing": {"series": {"Qnet": [80, 100, 120]}},
-     "steps": 3
-   }
-
-Load it with ``Experiment.from_file("experiment.json", overrides=...)``.
-Registry/preset defaults precede file values, which precede Python overrides.
-Mappings merge by key; arrays replace whole values. ``experiment.to_dict()``
-returns a resolved JSON-compatible definition. Output files save this definition,
-numerical configuration and constants. Units, supported names, dimensions and
-duration encodings are described in :doc:`/api/experiment`.
-
-The examples explicitly request float32. For float64, enable
-``jax.config.update("jax_enable_x64", True)`` before allocating arrays, and
-request ``settings={"dtype": "float64"}``. Precision belongs to numerical
-configuration and is inherited by physical constants. Importing Veris does not
-choose a backend or change JAX settings.
-
-Snapshots contain selected physical fields at an absolute model time.
-``load_fields`` validates and applies supported selected initial/forcing fields
-to an existing serial simulation; it retains its time and forcing position.
-For example, reload the selected final fields into a new serial experiment::
+A snapshot can initialize selected fields without resuming a model clock.
+Reload the final thickness and concentration into a new serial experiment::
 
    from veris import Experiment, Grid, Simulation
    from veris.io import read_record
@@ -127,40 +95,14 @@ For example, reload the selected final fields into a new serial experiment::
        loaded = simulation.state
    assert read_record("final.nc").fields["hIceMean"].shape == (6, 8)
 
-For an exact continuation, use ``save_restart``/``from_restart``. Complete
-restart supports serial CPU or one GPU device and restores every numerical field,
-including halos, plus the definition, forcing cursor and exact model clock.
-Distributed restart is unsupported. Restored Diagnostics become available after
-the next physics timestep. Resumed output uses a new file, keeps the original
-calendar/cadence, skips the checkpoint instant and discards crossing unfinished
-mean windows. See :doc:`/api/simulation` for output and restart policies.
+``load_fields`` retains the new simulation's clock and forcing definition;
+``from_restart`` restores an exact continuation. Their validation and backend
+limits are documented in :doc:`/api/simulation`.
 
-Pure execution and parallel resources
--------------------------------------
+Next steps
+-----------
 
-Use ``advance(state, configuration, constants, forcing, physics=...)`` for one
-pure timestep and ``veris.step`` for a pure fixed-length rollout. State and JAX
-forcing arrays retain validated JIT, gradient, JVP and VJP support. Experiment
-construction, Simulation, clocks, files, meshes and static settings/constants
-remain outside differentiated computation. See :doc:`/reference/integration`
-and :doc:`/reference/automatic-differentiation` for examples and branch limits.
-
-CPU, GPU and supported sharded execution use the same workflow. Prepare
-distributed JAX explicitly before enumerating devices. Supply a mesh whose
-``x``/``y`` shape matches ``Execution.partitions``; global Grid extents must be
-divisible into local extents of at least two cells. Regional allocation creates
-addressable partitions with packed halos. Mesh and communicator ownership stay
-with the caller. See :doc:`/reference/setups/parallel-dynamics` and
-:doc:`/api/experiment` for explicit resource setup.
-
-Development checks
-------------------
-
-Run one pytest instance at a time from the repository root::
-
-   JAX_PLATFORMS=cpu pytest tests/ -q --fast
-   JAX_PLATFORMS=cpu pytest tests/ -q
-
-``--fast`` selects a deterministic approximately 10% sample before fixture
-setup; ``VERIS_TEST_SEED`` changes that sample. Run the full correctness suite
-before commits. Hardware availability limits GPU and multi-host verification.
+* :doc:`/reference/io` explains stream calendars and averaging windows.
+* :doc:`/reference/integration` demonstrates pure rollouts and differentiation.
+* :doc:`/api/experiment` describes explicit meshes and global input dimensions.
+* :doc:`/reference/setups/parallel-dynamics` covers local and multi-process launches.

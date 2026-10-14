@@ -12,7 +12,9 @@ For an interior of ``nx`` by ``ny`` cells, horizontal arrays have shape
 ``(nx + 4, ny + 4)``. The interior is ``field[2:-2, 2:-2]``. Axis zero is zonal;
 axis one is meridional. Dimensions describe Cartesian grid locations:
 ``x_center``, ``y_center``, ``x_face`` and ``y_face``. Face and center storage
-extents are equal, including two periodic halo cells at each boundary.
+extents are equal, including two halo cells at each boundary. For sharded
+storage, each partition retains its own halos; see :doc:`/api/experiment`.
+Boundary conditions are described in :doc:`settings`.
 
 Geometry fields and prescribed forcing used by calculations belong to State.
 Output-only diagnostics and configuration do not add numerical State leaves.
