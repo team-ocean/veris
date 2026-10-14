@@ -1,5 +1,50 @@
 # Development log
 
+## 2026-10-14 — Failed GitHub CI investigation
+
+- [x] Investigated (@root) cdd2ec4's failed Unit tests run 38543594796 using
+  GitHub CLI after completing documentation commit 648861d. Fix on jax-only.
+- GitHub CLI confirms 1,615 passes / four GPU skips / one failure: the native
+  distributed closed-wall derivative probe exceeds its 360-second subprocess
+  limit. The full CI CPU run takes 1,826.50 s. Local final documentation suite
+  passes the same case. Inspect runner resources, compilation stages and
+  reference checks before changing the timeout; preserve scientific assertions.
+- gh's default cache is read-only in the sandbox; use a task-local
+  XDG_CACHE_HOME under test_logs/ci-named-setups/ for log retrieval.
+- [x] RED: reproduce the exact failing test locally with four permitted CPUs,
+  one xdist worker and a cold owned cache: timeout at 360 s, 363.48 s wall.
+  CI's previous successful run used the same four CPUs/JAX; named-setup changes
+  did not alter this numerical probe. The test lacks sufficient timing margin.
+- Failed approach: hoist stable serial/sharded transition callables and reuse
+  the serial State for its scalar readout. This still times out at 360 s
+  (363.16 s wall). Partial phase logs show all four halo contexts pass before
+  noSlip=False runs out of time. These speculative numerical-probe edits are
+  removed entirely; do not repeat or claim that they resolve this failure.
+- [x] File-backed verbose diagnostic completes all unchanged scientific checks
+  in 288.08 s on four CPUs. Root process sampling and per-rank XLA logs prove
+  successive compilations progress; this alone does not establish the original
+  failure's cause. A real-child regression demonstrates the launcher's unread
+  peer pipe can block a barrier while the parent waits on rank zero: RED
+  times out in five seconds, GREEN passes with independent rank log files.
+- [x] Original scientific probe with ordinary file logs passes on four CPUs in
+  309.48 s, all contexts/fields/AD unchanged. Actual logs remain under 1 KB per
+  rank, so pipe backpressure is not established as this CI failure's cause.
+  It is an independently reproduced launcher bug and a useful diagnostic fix.
+- [x] The measured five-minute cold workload leaves insufficient margin under 360 s
+  on shared CI hardware. Calibrate the full closed-AD rank pair to a shared
+  600-second deadline (ordinary cases retain 150 s), preserving every scientific
+  check. The original numerical probe remains unchanged, including both slip
+  choices, mixed halo/AD history, all 70 fields, walls, JVP/VJP and finite
+  differences. No speculative cache optimization is shipped.
+- [x] Independent review finds no remaining issues with file-backed rank logs,
+  shared deadlines, cleanup or the real-child regression. Ruff lint/format/
+  annotations, ty and strict Sphinx pass. Full CPU correctness: 1,621 passes /
+  four expected GPU skips / zero failures or errors across 1,625 cases,
+  1,133.47 s wall; the formerly failing case passes in 241.215 s. Maintained
+  coverage remains 4,646/4,897 = 94.87%. Evidence: test_logs/ci-named-setups/.
+- [x] Native GPU verification passes all four skipped cases in 27.80 s.
+  Commit the verified fix, push jax-only and check the resulting Actions run.
+
 ## 2026-10-14 — Documentation audit and getting started
 
 - [x] Audited (@root) all maintained documentation for duplication,

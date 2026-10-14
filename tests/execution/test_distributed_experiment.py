@@ -6,6 +6,8 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
+from time import monotonic
+from typing import TextIO
 
 import h5netcdf
 import numpy as np
@@ -13,6 +15,62 @@ import pytest
 
 from veris import run_experiment
 from veris.io import read_record
+
+
+def test_distributed_launcher_does_not_block_on_peer_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A verbose peer must reach its barrier while the parent waits for rank zero."""
+    child = tmp_path / "peer.py"
+    marker = tmp_path / "ready"
+    child.write_text(
+        "import sys, time\n"
+        "from pathlib import Path\n"
+        "ready = Path(sys.argv[1])\n"
+        "if int(sys.argv[2]):\n"
+        "    sys.stderr.write('peer diagnostic\\n' * 32768)\n"
+        "    sys.stderr.flush()\n"
+        "    ready.write_text('ready')\n"
+        "else:\n"
+        "    while not ready.exists():\n"
+        "        time.sleep(0.01)\n"
+    )
+    popen = subprocess.Popen
+
+    def launch(
+        command: list[str],
+        *,
+        env: dict[str, str],
+        stdout: int | TextIO,
+        stderr: int | TextIO,
+        text: bool,
+    ) -> subprocess.Popen[str]:
+        # Test the host process protocol with real children; no numerical
+        # implementation is replaced. Bound an expected deadlock to five seconds.
+        process = popen(
+            [sys.executable, str(child), str(marker), env["JAX_PROCESS_ID"]],
+            env=env,
+            stdout=stdout,
+            stderr=stderr,
+            text=text,
+        )
+        communicate, wait = process.communicate, process.wait
+
+        def bounded_communicate(
+            input: str | None = None, timeout: float | None = None
+        ) -> tuple[str, str]:
+            return communicate(input=input, timeout=5)
+
+        def bounded_wait(timeout: float | None = None) -> int:
+            return wait(timeout=5)
+
+        monkeypatch.setattr(process, "communicate", bounded_communicate)
+        monkeypatch.setattr(process, "wait", bounded_wait)
+        return process
+
+    monkeypatch.setattr(subprocess, "Popen", launch)
+    _launch(tmp_path, "island", False)
+    assert marker.read_text() == "ready", "ERROR peer blocked before its barrier"
 
 
 def _launch(
@@ -28,6 +86,7 @@ def _launch(
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
     processes = []
+    logs = []
     try:
         for rank in range(2):
             environment = dict(
@@ -58,19 +117,35 @@ def _launch(
                     str(project / "tests/closed_y_sharding_probe.py"),
                     "--distributed",
                 ]
-            processes.append(
-                subprocess.Popen(
-                    command,
-                    env=environment,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
+            log = root / f"rank-{rank}.log"
+            logs.append(log)
+            # Drain every rank independently of the order in which we wait.
+            with log.open("w") as output:
+                processes.append(
+                    subprocess.Popen(
+                        command,
+                        env=environment,
+                        stdout=output,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                    )
                 )
-            )
+        # The complete cold AD probe takes over five minutes on four CPUs.
+        # Allow CI scheduling/compilation variability without dropping checks;
+        # one shared deadline bounds the whole pair, rather than each rank.
+        timeout = 600 if closed_ad else 150
+        deadline = monotonic() + timeout
         for rank, process in enumerate(processes):
-            _, stderr = process.communicate(timeout=360 if closed_ad else 150)
+            try:
+                process.wait(timeout=max(0, deadline - monotonic()))
+            except subprocess.TimeoutExpired:
+                raise AssertionError(
+                    f"ERROR distributed rank{rank} timed out after {timeout}s; "
+                    f"rank statuses={[peer.poll() for peer in processes]}\n"
+                    f"{logs[rank].read_text()[-2200:]}"
+                ) from None
             assert process.returncode == 0, (
-                f"ERROR distributed rank{rank}: {stderr[-2200:]}"
+                f"ERROR distributed rank{rank}: {logs[rank].read_text()[-2200:]}"
             )
     finally:
         for process in processes:
