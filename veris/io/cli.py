@@ -32,14 +32,16 @@ def output_options(
         """Attach common output options while preserving the callback type."""
         options = [
             click.option(
-                "--output",
+                "--output-snapshot",
+                "output",
                 type=click.Path(path_type=Path),
                 default=default_path,
                 show_default=True,
                 help="Final physical-field netCDF snapshot",
             ),
             click.option(
-                "--netcdf",
+                "--output-history",
+                "netcdf",
                 type=click.Path(path_type=Path),
                 help="Optional sampled netCDF history",
             ),

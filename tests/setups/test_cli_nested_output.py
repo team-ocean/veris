@@ -23,9 +23,9 @@ def test_growth_cli_creates_separate_nested_final_and_history_parents(
             [
                 "--steps",
                 "0",
-                "--output",
+                "--output-snapshot",
                 str(final),
-                "--netcdf",
+                "--output-history",
                 str(history),
                 "--calendar",
                 "360_day",

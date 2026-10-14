@@ -13,7 +13,7 @@ def test_disabled_history_retains_calendar_and_origin(tmp_path: Path) -> None:
     args = parse_options(
         cli,
         [
-            "--output",
+            "--output-snapshot",
             str(tmp_path / "final.nc"),
             "--calendar",
             "360_day",
@@ -43,6 +43,8 @@ def test_settings_parser_rejects_unreachable_sampling(interval: int) -> None:
 
 def test_settings_parser_rejects_history_final_collision(tmp_path: Path) -> None:
     destination = str(tmp_path / "same.nc")
-    args = parse_options(cli, ["--netcdf", destination, "--output", destination])
+    args = parse_options(
+        cli, ["--output-history", destination, "--output-snapshot", destination]
+    )
     with pytest.raises(ValueError, match="distinct paths"):
         driver_definition("dynamics", "parallel", args)

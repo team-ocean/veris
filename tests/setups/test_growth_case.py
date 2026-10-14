@@ -96,7 +96,9 @@ def test_growth_cli_records_physical_final_state(tmp_path: Path) -> None:
     from veris.setups import run_growth
 
     path = tmp_path / "growth.nc"
-    run_growth.main(["--steps", "2", "--backend", "cpu", "--output", str(path)])
+    run_growth.main(
+        ["--steps", "2", "--backend", "cpu", "--output-snapshot", str(path)]
+    )
     initial, conf, phys = initialize_experiment(Experiment.builtin("growth"))
     first = advance(initial, conf, phys, physics="thermodynamics")[0]
     final = advance(first, conf, phys, physics="thermodynamics")[0]
@@ -116,7 +118,9 @@ def test_growth_cli_rejects_negative_steps(tmp_path: Path) -> None:
     from veris.setups import run_growth
 
     with pytest.raises(SystemExit):
-        run_growth.main(["--steps", "-1", "--output", str(tmp_path / "bad.nc")])
+        run_growth.main(
+            ["--steps", "-1", "--output-snapshot", str(tmp_path / "bad.nc")]
+        )
 
 
 def test_growth_initialize_accepts_model_overrides() -> None:
@@ -136,7 +140,9 @@ def test_growth_cli_zero_steps_saves_initial_column(tmp_path: Path) -> None:
     from veris.setups import run_growth
 
     path = tmp_path / "nested" / "outputs" / "initial.nc"
-    run_growth.main(["--steps", "0", "--backend", "cpu", "--output", str(path)])
+    run_growth.main(
+        ["--steps", "0", "--backend", "cpu", "--output-snapshot", str(path)]
+    )
     saved = read_record(path)
     assert saved.time == 0
     assert saved.fields["hIceMean"].shape == (2, 2)
@@ -160,7 +166,7 @@ def test_growth_cli_rejects_nonfinite_output(
     )
     path = tmp_path / "invalid.nc"
     with pytest.raises(ValueError, match="nonfinite"):
-        run_growth.main(["--steps", "1", "--output", str(path)])
+        run_growth.main(["--steps", "1", "--output-snapshot", str(path)])
     assert not path.exists()
 
 

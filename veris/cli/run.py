@@ -86,7 +86,7 @@ def run_experiment(
         )
     except ValueError as error:
         if str(error) == "enabled output requires an output_path":
-            raise ValueError("enabled output requires --netcdf PATH") from error
+            raise ValueError("enabled output requires --output-history PATH") from error
         raise
     assert result.execution_metadata is not None
     if result.execution_metadata["process_index"] == 0:

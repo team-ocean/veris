@@ -82,7 +82,7 @@ def test_named_external_run_matches_python_with_assets_and_overrides(
             "cpu",
             "--float-type",
             "float32",
-            "--output",
+            "--output-snapshot",
             "final.nc",
         ],
     )
@@ -113,7 +113,7 @@ def test_builtin_name_is_runnable_and_inspectable(command: str, tmp_path: Path) 
     """Builtin names use the same registry and overrides as external names."""
     arguments = [command, "growth", "--set", "steps=0"]
     if command == "run":
-        arguments.extend(["--output", str(tmp_path / "final.nc")])
+        arguments.extend(["--output-snapshot", str(tmp_path / "final.nc")])
     result = CliRunner().invoke(cli, arguments)
     assert result.exit_code == 0, result.output
     if command == "run":
@@ -143,7 +143,7 @@ def test_invalid_named_setup_fails_before_factory_or_output(
     destination = tmp_path / "uncreated" / "output.nc"
     arguments = [command, name]
     if command == "run":
-        arguments.extend(["--output", str(destination)])
+        arguments.extend(["--output-snapshot", str(destination)])
     else:
         arguments.extend(["--export", str(destination)])
     result = CliRunner().invoke(cli, arguments)
@@ -168,7 +168,7 @@ def test_explicit_file_does_not_require_valid_template_roots(
     monkeypatch.setenv("VERIS_SETUP_DIR", str(tmp_path / "absent"))
     arguments = [command, str(source)]
     if command == "run":
-        arguments.extend(["--output", str(tmp_path / "final.nc")])
+        arguments.extend(["--output-snapshot", str(tmp_path / "final.nc")])
     result = CliRunner().invoke(cli, arguments)
     assert result.exit_code == 0, result.output
 

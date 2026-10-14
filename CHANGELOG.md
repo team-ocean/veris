@@ -1,5 +1,63 @@
 # Development log
 
+## 2026-10-14 — Explicit output flags and automatic CPU test scheduling
+
+- [x] Verified (@root) on jax-only, starting at 8770eff: rename --output to
+  --output-snapshot and --netcdf to --output-history in central/module CLIs,
+  documentation and installed examples. Reject obsolete spellings. Preserve
+  Python keyword arguments, output schedules, overwrite protection and fields.
+- [x] CLI TDD: six selected cases fail before implementation; the focused
+  CLI/output suite then passes 134 tests with two GPU-only skips. Four entry
+  points explicitly check help and rejection of the obsolete options.
+- [x] @test_quality_audit maps 17 redundant numerical comparison cases to
+  surviving assertion owners in tests/AUDIT.md. Remove the unused parallel
+  process probe and public-runner forwarding shim. Preserve all scientific
+  archives, derivative directions/tolerances, precision, boundary/layout,
+  process ownership and concurrency regressions. Both precision/gradient rows
+  use two EVP iterations instead of repeating the solver's 120-iteration work.
+- [x] CPU pytest defaults now use module-grouped xdist execution automatically:
+  up to three workers with four permitted CPUs each when available. Smaller or
+  unsupported allocations keep one worker. Affinity is partitioned only on
+  supported hosts, before backend initialization. GPU/unspecified platforms
+  keep one worker without early device discovery. Explicit xdist counts remain
+  authoritative; malformed environment overrides warn and fall back.
+- [x] Automatic policy TDD: eight initial cases fail before the hook exists.
+  Final placement/cache/policy checks pass 24/24, including small allocations,
+  absent affinity, explicit overrides and GPU/unspecified/unknown platforms.
+  A real-parser regression consumes INI arguments: forcing partitioning by
+  default fails on unsupported hosts; optional defaults and explicit rejection
+  both pass. Workers retain independent fresh caches and crash restart is off.
+- Failed approaches: broad text replacement broke two test decorators; cancel
+  job 66398803 at 39 seconds and repair exact lines before collection. A
+  four-CPU/one-worker baseline exceeds the budget; cancel 66398841 at 26:15
+  without a full correctness result. Rank logs contain passing halo contexts
+  but no coupled result. Do not claim a four-CPU runtime guarantee. Preliminary
+  job 66400058 is cancelled at 3:01 to include portability review corrections.
+- @performance_audit confirms costly scientific probes own distinct contracts.
+  An isolated local loss-JIT experiment passes identical assertions in 113.73 s
+  versus 121.53 s eager (6.4%); keep the existing execution path. Shared-affinity
+  scheduling on four CPUs remains untested. Avoid previously failed speculative
+  sharding callable hoisting and shared worker disk caches.
+- [x] Final ordinary CPU command passes all 1,625 cases: 1,621 passes and four
+  expected GPU-only skips, zero failures/errors. External wall time 967.71 s
+  (16m07.71s), meeting the 20–25 minute target with twelve permitted CPUs,
+  three workers and 32 GB on aegir/v3. Job 66400163 COMPLETED, exit 0:0.
+  Maintained coverage: 4,649/4,897 = 94.94%; whole package: 4,790/5,250 = 91.24%.
+  Four-CPU CI retains its explicit one-worker policy and can take longer.
+- [x] All four CPU-skipped GPU cases and both precision cases pass natively on
+  the two P100s: 6/6, zero skips/errors/failures in 62.92 s. XML identities prove
+  every skipped case executes. Installed central/module float32 snapshot and
+  history checks also pass; initial sandbox CUDA access fails, native retry passes.
+- [x] Ruff, formatting, annotations, ty, dependency checks and strict Sphinx
+  pass. Rendered examples contain the new flags. Clean installed lifecycle and
+  framework probes pass. The full suite's fresh source archive contains current
+  defaults/tests and excludes the unused probe. All 224 final source/reference
+  hashes remain stable through CPU/GPU verification; numerical sources and
+  archived reference bytes match 8770eff. Independent review has no blocker.
+- Evidence: test_logs/output-flags-auto/ and test_logs/output-flags-runtime/.
+  User requests separate verified commits and subsequent push to remote
+  jax-only using GitHub CLI authentication. Remote baseline confirmed at 8770eff.
+
 ## 2026-10-14 — Plain-English documentation rewrite
 
 - [x] COMPLETE (@root): rewrite maintained explanatory text on `jax-only` for

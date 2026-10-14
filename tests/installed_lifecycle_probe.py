@@ -55,12 +55,12 @@ def main() -> None:
             _block(beginner, "veris show-setups", "Setting up a model"),
             _block(
                 beginner,
-                "veris run setup.py --backend cpu --steps 2 --float-type float32 --output growth.nc",
+                "veris run setup.py --backend cpu --steps 2 --float-type float32 --output-snapshot growth.nc",
                 "Running Veris",
             ),
             _block(
                 beginner,
-                "veris run setup.py --backend cpu --steps 2 --float-type float32 --output growth-final.nc --netcdf growth-history.nc --io-variables hIceMean,Area",
+                "veris run setup.py --backend cpu --steps 2 --float-type float32 --output-snapshot growth-final.nc --output-history growth-history.nc --io-variables hIceMean,Area",
                 "Reading output",
             ),
         )
@@ -84,7 +84,10 @@ def main() -> None:
                 assert completed.returncode == 0, (
                     f"ERROR getting-started {command}: {completed.stderr[-1800:]}"
                 )
-                if arguments[:2] == ["veris", "run"] and "--netcdf" not in arguments:
+                if (
+                    arguments[:2] == ["veris", "run"]
+                    and "--output-history" not in arguments
+                ):
                     assert "Saved 2 steps to growth.nc" in completed.stdout, (
                         f"ERROR getting-started run message: {completed.stdout[-500:]}"
                     )

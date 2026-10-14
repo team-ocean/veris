@@ -30,16 +30,16 @@ Local CPU and local GPU examples::
 
    JAX_NUM_CPU_DEVICES=4 python -m veris.setups.run_parallel \
        --backend cpu --nx 32 --ny 48 --mesh 2 2 --steps 2 --evp-steps 4 \
-       --output output/parallel-cpu.nc
+       --output-snapshot output/parallel-cpu.nc
    python -m veris.setups.run_parallel --backend gpu --nx 32 --ny 48 \
-       --steps 2 --evp-steps 4 --output output/parallel-gpu.nc
+       --steps 2 --evp-steps 4 --output-snapshot output/parallel-gpu.nc
 
 The CPU scheduler script is ``veris/setups/run_parallel.slurm``. Submit from
 the project root::
 
    sbatch veris/setups/run_parallel.slurm
    sbatch veris/setups/run_parallel.slurm --nx 256 --steps 100 --evp-steps 120 \
-       --output output/parallel-production.nc
+       --output-snapshot output/parallel-production.nc
 
 It requests ``aegir``, ``--constraint=v3``, one node, two tasks and four CPU cores
 per task. GPUs are used directly on the local node; this script never requests
@@ -66,7 +66,7 @@ without running a model trajectory or collecting output. The reported
 integration time includes exactly the requested steps and any scheduled
 output. The final snapshot is written after timed integration.
 
-Adding ``--netcdf`` enables scheduled output. Chunks of the timestep loop end
+Adding ``--output-history`` enables scheduled output. Chunks of the timestep loop end
 at requested instantaneous samples or averaging-window boundaries. Means use
 running sums and sample counts on the device, without saving field histories
 for every timestep. Unfinished windows pass from one chunk to the next.

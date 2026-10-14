@@ -82,14 +82,16 @@ def copy_setup_command(setup: str, to: Path | None) -> None:
     help="Override the setup's total number of timesteps.",
 )
 @click.option(
-    "--output",
+    "--output-snapshot",
+    "output",
     type=click.Path(dir_okay=False, path_type=Path),
     default="output.nc",
     show_default=True,
     help="New final physical-field snapshot.",
 )
 @click.option(
-    "--netcdf",
+    "--output-history",
+    "netcdf",
     type=click.Path(dir_okay=False, path_type=Path),
     help="New sampled history using the setup's output schedule.",
 )

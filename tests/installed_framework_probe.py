@@ -46,7 +46,7 @@ def main() -> None:
             commands = (
                 (
                     "Run from the CLI",
-                    "veris run setup.py --steps 3 --backend cpu --output cli.nc",
+                    "veris run setup.py --steps 3 --backend cpu --output-snapshot cli.nc",
                 ),
                 ("Inspect and export", "veris inspect setup.py --export resolved.json"),
             )
@@ -114,7 +114,7 @@ def main() -> None:
                     "my-sea-ice",
                     "--backend",
                     "cpu",
-                    "--output",
+                    "--output-snapshot",
                     "named.nc",
                 ],
             )

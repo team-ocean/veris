@@ -147,7 +147,7 @@ def test_gpu_cli_writes_finite_output(tmp_path: Path) -> None:
             "2",
             "--evp-steps",
             "4",
-            "--output",
+            "--output-snapshot",
             str(destination),
         ],
         env=dict(os.environ, PYTHONPATH=str(root)),
@@ -193,7 +193,7 @@ def test_parallel_cli_rejects_nonfinite_trajectory_before_snapshot(
                 "1",
                 "--evp-steps",
                 "2",
-                "--output",
+                "--output-snapshot",
                 str(path),
             ]
         )

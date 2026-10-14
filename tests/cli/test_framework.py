@@ -51,7 +51,7 @@ def test_central_cli_grouped_overrides_match_python_all_fields(
             str(source),
             "--steps",
             "1",
-            "--output",
+            "--output-snapshot",
             str(output),
             "--set",
             f"settings.enable_cyclic_y={json.dumps(cyclic_y)}",
@@ -97,7 +97,7 @@ def test_bad_grouped_override_is_a_concise_error_without_effects(
 
     monkeypatch.setattr(jax, "devices", forbidden)
     result = CliRunner().invoke(
-        cli, ["run", str(source), "--output", str(output), "--set", override]
+        cli, ["run", str(source), "--output-snapshot", str(output), "--set", override]
     )
     assert result.exit_code != 0 and "Error:" in result.output
     assert "Traceback" not in result.output and not output.parent.exists()
@@ -120,7 +120,16 @@ def test_dedicated_and_generic_alias_conflicts_are_rejected(
     source = _file(tmp_path / "experiment.json", {"preset": "growth", "steps": 0})
     output = tmp_path / "new" / "final.nc"
     result = CliRunner().invoke(
-        cli, ["run", str(source), "--output", str(output), *dedicated, "--set", generic]
+        cli,
+        [
+            "run",
+            str(source),
+            "--output-snapshot",
+            str(output),
+            *dedicated,
+            "--set",
+            generic,
+        ],
     )
     assert result.exit_code != 0 and "conflict" in result.output.lower()
     assert not output.parent.exists()
@@ -143,7 +152,9 @@ def test_all_cli_entry_points_delegate_once_to_public_runner(
         from veris.cli import cli
 
         source = _file(tmp_path / "experiment.json", {"preset": "growth", "steps": 0})
-        result = CliRunner().invoke(cli, ["run", str(source), "--output", str(output)])
+        result = CliRunner().invoke(
+            cli, ["run", str(source), "--output-snapshot", str(output)]
+        )
         assert result.exit_code == 0, result.output
     else:
         module = importlib.import_module(f"veris.setups.{driver}")
@@ -152,7 +163,7 @@ def test_all_cli_entry_points_delegate_once_to_public_runner(
             if driver == "run_growth"
             else ["--nx", "4", "--ny", "6", "--evp-steps", "2"]
         )
-        module.main(["--steps", "0", "--output", str(output), *extra])
+        module.main(["--steps", "0", "--output-snapshot", str(output), *extra])
     assert len(calls) == 1, f"ERROR {driver} bypasses public runner"
     assert output.exists()
     assert calls[0][1]["snapshot_path"] == output
@@ -170,7 +181,7 @@ def test_module_generic_controls_override_only_authored_flags(tmp_path: Path) ->
             "4",
             "--ny",
             "6",
-            "--output",
+            "--output-snapshot",
             str(output),
             "--set",
             "settings.nEVPsteps=2",
@@ -196,7 +207,15 @@ def test_cli_dtype_promotion_re_resolves_unrounded_preset_defaults(
     )
     output = tmp_path / "final.nc"
     result = CliRunner().invoke(
-        cli, ["run", str(source), "--float-type", "float64", "--output", str(output)]
+        cli,
+        [
+            "run",
+            str(source),
+            "--float-type",
+            "float64",
+            "--output-snapshot",
+            str(output),
+        ],
     )
     assert result.exit_code == 0, result.output
     saved = read_record(output)
@@ -217,7 +236,9 @@ def test_custom_geometry_cli_matches_python_all_physical_fields(
     source = _file(tmp_path / "geometry.json", definition.to_dict())
     expected = veris.run_experiment(definition)
     output = tmp_path / "final.nc"
-    result = CliRunner().invoke(cli, ["run", str(source), "--output", str(output)])
+    result = CliRunner().invoke(
+        cli, ["run", str(source), "--output-snapshot", str(output)]
+    )
     assert result.exit_code == 0, result.output
     actual = read_record(output)
     for item in fields(State):
@@ -249,7 +270,7 @@ def test_module_cli_nonzero_run_matches_python_boundary_policy(
         [
             "--steps",
             "1",
-            "--output",
+            "--output-snapshot",
             str(output),
             "--set",
             f"settings.enable_cyclic_y={json.dumps(cyclic_y)}",
@@ -282,7 +303,7 @@ def test_module_console_reports_bad_grouped_controls_without_traceback_or_files(
             f"veris.setups.{module}",
             "--steps",
             "0",
-            "--output",
+            "--output-snapshot",
             str(output),
             "--set",
             "settings.typo=1",

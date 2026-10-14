@@ -7,8 +7,8 @@ by ice), 253 K air and 80 W/m2 downward longwave radiation (heat radiated from t
 atmosphere). It executes 150 daily Growth steps, calculating freezing and
 melting without ice motion or transport between cells::
 
-   python -m veris.setups.run_growth --backend cpu --output output/growth.nc
-   python -m veris.setups.run_growth --backend gpu --output output/growth-gpu.nc
+   python -m veris.setups.run_growth --backend cpu --output-snapshot output/growth.nc
+   python -m veris.setups.run_growth --backend gpu --output-snapshot output/growth-gpu.nc
 
 The CLI uses ``Experiment.builtin("growth", ...)`` and ``Simulation``. Python
 experiments use the same interface for initial conditions, forcing (prescribed
@@ -38,7 +38,7 @@ the initial value and values after completed steps (days 0--150).
 To record and plot the evolving ice thickness, request a history stream::
 
    python -m veris.setups.run_growth --backend cpu \
-       --output output/growth-history-final.nc --netcdf output/growth-history.nc \
+       --output-snapshot output/growth-history-final.nc --output-history output/growth-history.nc \
        --io-variables hIceMean
 
 Then read the netCDF time series without needing an interactive environment::

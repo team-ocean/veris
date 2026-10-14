@@ -68,7 +68,7 @@ On Linux/macOS, separate several roots with ``:``; Windows uses ``;``::
    veris show-setups
    veris copy-setup my-basin --to ./experiment
    veris inspect my-basin
-   veris run my-basin --backend cpu --steps 3 --output basin.nc
+   veris run my-basin --backend cpu --steps 3 --output-snapshot basin.nc
 
 Names are sorted and must be unique across builtin and external roots.
 Missing roots and duplicate names produce errors. Discovery inspects only
@@ -81,7 +81,7 @@ your chosen name into an external root, then edit its ``setup.py``::
    export VERIS_SETUP_DIR=/path/to/extra-setups
    veris show-setups
    veris inspect my-sea-ice
-   veris run my-sea-ice --backend cpu --steps 3 --output my-sea-ice.nc
+   veris run my-sea-ice --backend cpu --steps 3 --output-snapshot my-sea-ice.nc
 
 The folder name is the command line interface (CLI) setup name. Avoid names ending in ``.py`` or
 ``.json``, which identify files. Set ``VERIS_SETUP_DIR`` in each shell that
@@ -97,7 +97,7 @@ Run a setup
 
 Run a copied Python setup, optionally overriding execution controls::
 
-   veris run ./my-island/setup.py --backend cpu --steps 3 --output island.nc
+   veris run ./my-island/setup.py --backend cpu --steps 3 --output-snapshot island.nc
 
 Output paths are relative to the current working directory. A final snapshot
 defaults to ``output.nc`` and contains all native State fields at the final
@@ -139,7 +139,7 @@ JSON and overrides
 
 The same runner accepts :doc:`versioned JSON definitions <api/experiment>`::
 
-   veris run experiment.json --backend cpu --output final.nc
+   veris run experiment.json --backend cpu --output-snapshot final.nc
 
 Explicit CLI flags override steps, dtype, backend and mesh; omitted flags
 preserve the definition's values. See :doc:`api/experiment` for the order in
@@ -158,16 +158,18 @@ Sampled output
 
 Request a sampled netCDF history separately from the final snapshot::
 
-   veris run ./my-growth/setup.py --steps 2 --output final.nc --netcdf history.nc
+   veris run ./my-growth/setup.py --steps 2 --output-snapshot final.nc --output-history history.nc
 
 If the definition supplies ``OutputSettings``, the history keeps its output
 streams, calendar, starting date and sampling/averaging schedules. Each stream
-is a set of fields saved on a shared schedule. Supplying ``--netcdf`` enables a
+is a set of fields saved on a shared schedule. Supplying ``--output-history`` enables a
 disabled schedule. When no output settings are defined, the runner creates a
 stream that saves current values at every timestep, selecting all fields or
 ``--io-variables``. A timestep
 is one advance of the model clock.
-Definitions with enabled scheduled output require ``--netcdf``. The final
+The previous ``--output`` and ``--netcdf`` spellings have been removed.
+
+Definitions with enabled scheduled output require ``--output-history``. The final
 snapshot and history must have distinct new paths; their parent directories
 are created automatically. See :doc:`reference/io` for calendars and averaging.
 
@@ -183,8 +185,8 @@ The sizes must divide into the requested partitions, with at least two cells
 along each axis in each partition. A partition is the part of the grid assigned
 to a device. The mesh must contain all selected backend devices::
 
-   JAX_NUM_CPU_DEVICES=2 veris run ./my-island/setup.py --backend cpu --mesh 1 2 --output mesh.nc
-   JAX_PLATFORMS=cuda,cpu veris run ./my-island/setup.py --backend gpu --output gpu.nc
+   JAX_NUM_CPU_DEVICES=2 veris run ./my-island/setup.py --backend cpu --mesh 1 2 --output-snapshot mesh.nc
+   JAX_PLATFORMS=cuda,cpu veris run ./my-island/setup.py --backend gpu --output-snapshot gpu.nc
 
 Set logical CPU device counts before starting the process. A ``1 1`` layout
 uses serial execution on one device. Distributed runs, which use several Python
@@ -204,8 +206,8 @@ those values. The standalone parallel profile discovers all devices at launch, a
 
 Use ``--set SECTION.KEY=JSON`` for controls without dedicated flags::
 
-   veris run ./my-island/setup.py --steps 2 --set scenario.islandWindSpeed=0.0 --set settings.enable_cyclic_y=false --output calm.nc
-   python -m veris.setups.run_growth --steps 2 --set forcing.constant.LWdown=300.0 --output growth.nc
+   veris run ./my-island/setup.py --steps 2 --set scenario.islandWindSpeed=0.0 --set settings.enable_cyclic_y=false --output-snapshot calm.nc
+   python -m veris.setups.run_growth --steps 2 --set forcing.constant.LWdown=300.0 --output-snapshot growth.nc
 
 Mappings, which group values under keys, merge by key. Arrays and stream lists
 replace whole values. Values use
@@ -245,9 +247,9 @@ see :doc:`reference/io` for stream defaults and calendar rules.
 
    * - Option
      - Meaning
-   * - ``--netcdf PATH``
+   * - ``--output-history PATH``
      - History output file.
-   * - ``--output PATH``
+   * - ``--output-snapshot PATH``
      - Final State snapshot; each driver supplies a default netCDF path.
    * - ``--io-variables hIceMean,Area``
      - Comma-separated State variables for history streams.
@@ -263,6 +265,6 @@ see :doc:`reference/io` for stream defaults and calendar rules.
 For example::
 
    python -m veris.setups.run_growth --steps 30 \
-       --netcdf growth_history.nc --output growth_final.nc \
+       --output-history growth_history.nc --output-snapshot growth_final.nc \
        --io-variables hIceMean,Area --average instantaneous,monthly \
        --calendar 360_day --start-date 2000-02-01

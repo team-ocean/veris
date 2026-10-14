@@ -67,7 +67,7 @@ Running Veris
 
 From ``my-growth``, run two daily steps and save the final fields::
 
-   veris run setup.py --backend cpu --steps 2 --float-type float32 --output growth.nc
+   veris run setup.py --backend cpu --steps 2 --float-type float32 --output-snapshot growth.nc
 
 The command reports ``Saved 2 steps to growth.nc``. Output paths are relative to
 your working directory. Copied setup directories and output files must have new
@@ -100,7 +100,7 @@ storage halos, the extra cells around grid edges used for boundary calculations.
 To record the trajectory (results through time), add a separate history
 destination::
 
-   veris run setup.py --backend cpu --steps 2 --float-type float32 --output growth-final.nc --netcdf growth-history.nc --io-variables hIceMean,Area
+   veris run setup.py --backend cpu --steps 2 --float-type float32 --output-snapshot growth-final.nc --output-history growth-history.nc --io-variables hIceMean,Area
 
 With this setup, ``growth-history.nc`` contains an ``instantaneous`` stream,
 a sequence of values saved at specific times.

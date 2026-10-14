@@ -25,6 +25,24 @@ def write_definition(path: Path, **options: object) -> Path:
     return path
 
 
+@pytest.mark.parametrize("entry", ["central", "run_dyn", "run_growth", "run_parallel"])
+def test_output_flags_describe_snapshot_and_history(entry: str, tmp_path: Path) -> None:
+    """Expose the renamed options and reject ambiguous obsolete spellings."""
+    command = importlib.import_module(
+        "veris.cli" if entry == "central" else f"veris.setups.{entry}"
+    ).cli
+    prefix = ["run", "growth"] if entry == "central" else []
+    help_result = CliRunner().invoke(command, [*prefix, "--help"])
+    assert help_result.exit_code == 0, help_result.output
+    assert "--output-snapshot" in help_result.output
+    assert "--output-history" in help_result.output
+    destination = tmp_path / "unused.nc"
+    for obsolete in ("--output", "--netcdf"):
+        result = CliRunner().invoke(command, [*prefix, obsolete, str(destination)])
+        assert result.exit_code == 2 and "No such option" in result.output
+    assert not destination.exists()
+
+
 def test_python_factory_can_import_sibling_and_keeps_callers_path(
     tmp_path: Path,
 ) -> None:
@@ -60,7 +78,7 @@ def test_invalid_python_setup_is_a_concise_cli_error(
     setup.write_text(source)
     cli = importlib.import_module("veris.cli").cli
     result = CliRunner().invoke(
-        cli, ["run", str(setup), "--output", str(tmp_path / "final.nc")]
+        cli, ["run", str(setup), "--output-snapshot", str(tmp_path / "final.nc")]
     )
     assert result.exit_code != 0
     assert "Error:" in result.output and reason.lower() in result.output.lower()
@@ -80,7 +98,9 @@ def test_json_preserves_file_values_when_flags_are_omitted(tmp_path: Path) -> No
     assert definition.execution == Execution(backend="cpu")
     final = tmp_path / "preserved.nc"
     cli = importlib.import_module("veris.cli").cli
-    result = CliRunner().invoke(cli, ["run", str(source), "--output", str(final)])
+    result = CliRunner().invoke(
+        cli, ["run", str(source), "--output-snapshot", str(final)]
+    )
     assert result.exit_code == 0, result.output
     saved = read_record(final)
     assert saved.time == 172800 and saved.fields["Area"].dtype == np.dtype("float32")
@@ -110,7 +130,7 @@ def test_json_run_matches_direct_lifecycle_and_records_overrides(
             dtype,
             "--backend",
             "cpu",
-            "--output",
+            "--output-snapshot",
             str(final),
             "--io-variables",
             "hIceMean,Area",
@@ -155,7 +175,7 @@ def test_copied_builtin_factory_runs_with_its_preset(
             "1",
             "--set",
             "settings.nEVPsteps=2",
-            "--output",
+            "--output-snapshot",
             str(output),
         ],
     )
@@ -191,7 +211,7 @@ def test_invalid_run_does_not_create_output_directories(
     final = tmp_path / "missing" / "final.nc"
     cli = importlib.import_module("veris.cli").cli
     result = CliRunner().invoke(
-        cli, ["run", str(source), "--output", str(final), *extra]
+        cli, ["run", str(source), "--output-snapshot", str(final), *extra]
     )
     assert result.exit_code != 0 and reason in result.output
     assert not final.parent.exists()
@@ -216,7 +236,15 @@ def test_history_preserves_json_calendar_and_schedule(tmp_path: Path) -> None:
     final, history = tmp_path / "final.nc", tmp_path / "history.nc"
     cli = importlib.import_module("veris.cli").cli
     result = CliRunner().invoke(
-        cli, ["run", str(source), "--output", str(final), "--netcdf", str(history)]
+        cli,
+        [
+            "run",
+            str(source),
+            "--output-snapshot",
+            str(final),
+            "--output-history",
+            str(history),
+        ],
     )
     assert result.exit_code == 0, result.output
     record = read_record(history, stream="daily")
@@ -233,9 +261,9 @@ def test_default_history_samples_selected_fields_each_step(tmp_path: Path) -> No
         [
             "run",
             str(source),
-            "--output",
+            "--output-snapshot",
             str(final),
-            "--netcdf",
+            "--output-history",
             str(history),
             "--io-variables",
             "Area",
@@ -256,8 +284,10 @@ def test_enabled_output_requires_history_destination(tmp_path: Path) -> None:
     source = write_definition(tmp_path / "enabled.json", output={"enabled": True})
     final = tmp_path / "uncreated" / "final.nc"
     cli = importlib.import_module("veris.cli").cli
-    result = CliRunner().invoke(cli, ["run", str(source), "--output", str(final)])
-    assert result.exit_code != 0 and "--netcdf" in result.output
+    result = CliRunner().invoke(
+        cli, ["run", str(source), "--output-snapshot", str(final)]
+    )
+    assert result.exit_code != 0 and "--output-history" in result.output
     assert not final.parent.exists()
 
 
@@ -266,11 +296,21 @@ def test_output_destinations_cannot_alias_or_overwrite(tmp_path: Path) -> None:
     final = tmp_path / "final.nc"
     cli = importlib.import_module("veris.cli").cli
     same = CliRunner().invoke(
-        cli, ["run", str(source), "--output", str(final), "--netcdf", str(final)]
+        cli,
+        [
+            "run",
+            str(source),
+            "--output-snapshot",
+            str(final),
+            "--output-history",
+            str(final),
+        ],
     )
     assert same.exit_code != 0 and "distinct" in same.output and not final.exists()
     final.write_bytes(b"keep user data")
-    result = CliRunner().invoke(cli, ["run", str(source), "--output", str(final)])
+    result = CliRunner().invoke(
+        cli, ["run", str(source), "--output-snapshot", str(final)]
+    )
     assert result.exit_code != 0 and final.read_bytes() == b"keep user data"
 
 
@@ -304,7 +344,7 @@ def test_real_cpu_mesh_cli_matches_serial(tmp_path: Path) -> None:
             "2",
             "--backend",
             "cpu",
-            "--output",
+            "--output-snapshot",
             str(final),
             "--io-variables",
             "hIceMean,Area,uIce,vIce",
@@ -365,7 +405,7 @@ def test_gpu_central_cli_writes_float32_output(
             "gpu",
             "--float-type",
             "float32",
-            "--output",
+            "--output-snapshot",
             str(final),
             *([] if mesh is None else ["--mesh", *map(str, mesh)]),
         ],
@@ -380,7 +420,15 @@ def test_reference_trace_loglevel_is_accepted(tmp_path: Path) -> None:
     source = write_definition(tmp_path / "trace.json", steps=0)
     cli = importlib.import_module("veris.cli").cli
     result = CliRunner().invoke(
-        cli, ["run", str(source), "-v", "trace", "--output", str(tmp_path / "trace.nc")]
+        cli,
+        [
+            "run",
+            str(source),
+            "-v",
+            "trace",
+            "--output-snapshot",
+            str(tmp_path / "trace.nc"),
+        ],
     )
     assert result.exit_code == 0, result.output
 
@@ -406,7 +454,9 @@ def test_distributed_run_requires_backend_before_initialization(
     monkeypatch.setattr(jax.distributed, "initialize", forbid_initialize)
     cli = importlib.import_module("veris.cli").cli
     final = tmp_path / "uncreated" / "final.nc"
-    result = CliRunner().invoke(cli, ["run", str(source), "--output", str(final)])
+    result = CliRunner().invoke(
+        cli, ["run", str(source), "--output-snapshot", str(final)]
+    )
     assert (
         result.exit_code != 0
         and "explicit" in result.output

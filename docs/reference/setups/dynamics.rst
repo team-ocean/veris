@@ -11,7 +11,7 @@ velocity). This case has no thermodynamic growth, meaning freezing or melting.
 A small local CPU run is::
 
    python -m veris.setups.run_dyn --nx 32 --ny 48 --steps 2 --evp-steps 4 \
-       --backend cpu --output output/dynamics.nc
+       --backend cpu --output-snapshot output/dynamics.nc
 
 Use ``--backend gpu`` for a GPU directly on the current node. If the environment
 already sets ``JAX_PLATFORMS=cpu``, unset it or set ``JAX_PLATFORMS=cuda`` first.

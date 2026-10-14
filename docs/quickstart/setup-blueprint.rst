@@ -47,7 +47,7 @@ Run from the CLI
 The same experiment definition and overrides produce the same 70 physical
 fields, or arrays of model values::
 
-   veris run setup.py --steps 3 --backend cpu --output cli.nc
+   veris run setup.py --steps 3 --backend cpu --output-snapshot cli.nc
 
 Inspect and export
 -------------------
@@ -125,8 +125,8 @@ Python. The existing setup can run on a local CPU mesh, a group of computer
 processor devices on one machine, or on the available graphics processors
 (GPUs)::
 
-   JAX_NUM_CPU_DEVICES=2 veris run setup.py --backend cpu --mesh 1 2 --output cpu-mesh.nc
-   JAX_PLATFORMS=cuda,cpu veris run setup.py --backend gpu --mesh 1 2 --output gpu-mesh.nc
+   JAX_NUM_CPU_DEVICES=2 veris run setup.py --backend cpu --mesh 1 2 --output-snapshot cpu-mesh.nc
+   JAX_PLATFORMS=cuda,cpu veris run setup.py --backend gpu --mesh 1 2 --output-snapshot gpu-mesh.nc
 
 The requirements for meshes and runs across processes are defined in
 :doc:`/api/parallel`. Explicit ``DistributedExecution`` controls override the
@@ -154,7 +154,7 @@ The maintained smoke launcher, for a short verification run, uses the CPU
 ``aegir`` partition (a cluster resource group). It uses the parallel profile's
 discovery of all devices::
 
-   sbatch veris/setups/run_parallel.slurm --output aegir.nc
+   sbatch veris/setups/run_parallel.slurm --output-snapshot aegir.nc
 
 For two-node verification, use two tasks with one task per node (cluster
 computer). All ranks (processes) must participate in collectives, operations

@@ -157,7 +157,7 @@ def test_sdist_contains_test_helpers_references_and_documented_architecture(
             "1",
             "--float-type",
             "float32",
-            "--output",
+            "--output-snapshot",
             str(tmp_path / "final.nc"),
         ],
     ):

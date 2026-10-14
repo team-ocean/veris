@@ -55,9 +55,9 @@ def test_serial_cli_uses_real_lifecycle_and_preserves_reference_snapshots(
             str(steps),
             "--backend",
             "cpu",
-            "--netcdf",
+            "--output-history",
             str(history),
-            "--output",
+            "--output-snapshot",
             str(final),
             "--calendar",
             "360_day",
@@ -114,7 +114,7 @@ def test_final_only_cli_preserves_calendar_and_selected_fields(tmp_path: Path) -
         [
             "--steps",
             "0",
-            "--output",
+            "--output-snapshot",
             str(final),
             "--io-variables",
             "hIceMean,Area",
@@ -164,7 +164,7 @@ def test_real_local_parallel_cli_retains_nine_field_output_and_resolved_definiti
             "2",
             "--evp-steps",
             "2",
-            "--output",
+            "--output-snapshot",
             str(final),
         ],
         env=environment,
@@ -213,6 +213,6 @@ def test_module_driver_preserves_shared_runner_validation_error(
 
     monkeypatch.setattr(module, "run_driver", reject)
     with pytest.raises(ValueError, match="nonfinite output") as failure:
-        module.main(["--steps", "0", "--output", str(tmp_path / "invalid.nc")])
+        module.main(["--steps", "0", "--output-snapshot", str(tmp_path / "invalid.nc")])
     assert failure.value is error
     assert not (tmp_path / "invalid.nc").exists()
