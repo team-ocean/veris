@@ -21,14 +21,14 @@ def _file(path: Path, data: dict[str, Any]) -> Path:
     return path
 
 
-@pytest.mark.parametrize("kind", ["island", "dynamics", "growth"])
 @pytest.mark.parametrize("cyclic_y", [False, True])
 def test_central_cli_grouped_overrides_match_python_all_fields(
-    kind: str, cyclic_y: bool, tmp_path: Path
+    cyclic_y: bool, tmp_path: Path
 ) -> None:
     from veris.cli import cli
     from veris.model.experiment_file import experiment_from_dict
 
+    kind = "island"
     raw = {
         "preset": kind,
         "grid": {"nx": 4, "ny": 6},
@@ -222,10 +222,8 @@ def test_cli_dtype_promotion_re_resolves_unrounded_preset_defaults(
     np.testing.assert_array_equal(saved.fields["hIceMean"], 1.3)
 
 
-@pytest.mark.parametrize("cyclic_y", [False, True])
-def test_custom_geometry_cli_matches_python_all_physical_fields(
-    tmp_path: Path, cyclic_y: bool
-) -> None:
+def test_custom_geometry_cli_matches_python_all_physical_fields(tmp_path: Path) -> None:
+    cyclic_y = False
     from tests.lifecycle_sharding_probe import _custom
     from veris.cli import cli
     from veris.io import OutputSettings
@@ -250,10 +248,10 @@ def test_custom_geometry_cli_matches_python_all_physical_fields(
 
 
 @pytest.mark.parametrize("kind", ["dynamics", "growth"])
-@pytest.mark.parametrize("cyclic_y", [False, True])
 def test_module_cli_nonzero_run_matches_python_boundary_policy(
-    tmp_path: Path, kind: str, cyclic_y: bool
+    tmp_path: Path, kind: str
 ) -> None:
+    cyclic_y = False
     driver = importlib.import_module(
         "veris.setups.run_dyn" if kind == "dynamics" else "veris.setups.run_growth"
     )

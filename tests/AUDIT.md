@@ -1,5 +1,49 @@
 # Test suite redundancy audit
 
+## CLI forwarding deduplication — 2026-10-14
+
+The output flags are now `--output-snapshot` and `--output-history` in the
+central CLI and all three standalone drivers. The old spellings are rejected.
+Python runner arguments, numerical kernels and reference data are unchanged.
+
+Remove repeated numerical comparisons at host forwarding boundaries. Keep a
+representative all-field check for each path and let the tests that own the
+physics cover preset equations, boundaries and differentiation. The following
+17 cases repeat contracts retained by these surviving tests:
+
+| Removed case(s) | Surviving assertion owner |
+| --- | --- |
+| Public runner comparison for island, dynamics and growth (3) | Custom runner comparison retains all State/Diagnostics, clocks, snapshot and execution metadata. `execution/test_lifecycle_reference.py` retains each preset's independent archived trajectories. The runner has no preset-specific numerical branch. |
+| Central grouped overrides for dynamics/growth at both boundaries (4) | Island keeps both boolean boundary overrides and all-field comparisons. `cli/test_run.py::test_copied_builtin_factory_runs_with_its_preset` covers every preset factory; frozen trajectories own physics. |
+| Module CLI comparisons with periodic y (2) | Both closed-y comparisons remain. `setups/test_lifecycle_cli.py::test_serial_cli_uses_real_lifecycle_and_preserves_reference_snapshots` covers both periodic module trajectories against every field. |
+| Periodic custom-geometry CLI comparison (1) | Closed custom-geometry CLI comparison remains; codec roundtrip, initialization and lifecycle sharding retain both scientific boundaries. |
+| Float64 island explicit-step rollout comparison (1) | All four float32 setup rollouts retain all fields and observation comparisons with both checkpoint modes. Float64 frozen trajectories and `test_real_rollout_state_and_forcing_derivatives` retain checkpoint values/JVP/VJP/FD. |
+| Separate two-step and zero-step growth CLI snapshots (2) | Two-step lifecycle CLI owns all physical fields and time. `test_growth_cli_creates_separate_nested_final_and_history_parents` owns zero time, initial thickness/shape and parent creation. |
+| Zero-step module lifecycle rows (2) | `io/test_io_integration.py::test_serial_driver_writes_selected_stream_and_final_snapshot` retains both modules' zero-step snapshot/history checks. |
+| Snapshot reconstruction checkpoint at step 3 (1) | Step 1 retains the identical five-step forcing trajectory, exact reconstructed halos, resumed all-field equality and stale-halo negative control. The complete-restart matrix retains a checkpoint at step 3. |
+| Separate four-CPU dynamics/output probe (1) | Lifecycle parallel CLI uses the same 12x16 grid, 2x2 mesh, two steps and EVP iterations, comparing all nine physical fields and adding actual files and resolved metadata. Its unused standalone probe is deleted. |
+
+Both model precision/gradient rows remain. Their fixture uses two EVP iterations;
+120 iterations repeat solver work without improving dtype/finiteness assertions.
+The original numerical and solver-reference tests retain their own controls.
+Remove the test-only public-runner forwarding wrapper, which added a repeated
+attribute-existence assertion; tests call the typed public interface directly.
+
+Do not remove the costly closed-wall, rollout AD, repeated EVP race, lifecycle
+sharding, ambient-mesh or multiprocess ownership probes. They exercise distinct
+contracts. Validation matrices are already inexpensive and retain their edge
+cases. No scientific tolerances, archived bytes or derivative directions change.
+The ordinary CPU command now selects its existing module-grouped xdist setup
+automatically. It reserves four permitted CPUs per worker when available, capped
+at three workers; smaller/unsupported hosts keep one worker without narrowing
+unsupported affinity. On supported hosts, CPU groups are disjoint;
+GPU/unspecified backends retain one worker without device discovery. Explicit
+xdist worker counts remain authoritative. This addresses serial scheduling cost
+without removing independent numerical assertions. The runtime target uses
+twelve permitted CPUs and 32 GB allocated memory; smaller allocations retain
+full selection and can take longer. Runtime and final coverage evidence are
+recorded in CHANGELOG.md.
+
 ## Whole-source compatibility audit — 2026-10-13
 
 Preset callers now use `Experiment.builtin` and `initialize_experiment` directly.
@@ -58,7 +102,7 @@ Preset initialization factories remain real implementations. The lifecycle and
 setup tests call public `advance` and `step` with explicit physics modes instead
 of duplicate setup `step`, `step_with_diagnostics` or `compiled_step` functions.
 Distributed output uses `grid.halos.remove_halos` and
-`io.distributed.distributed_collector`; CLI snapshots use `--output`.
+`io.distributed.distributed_collector`; CLI snapshots use `--output-snapshot`.
 
 Original all-field archives remain independent scientific oracles. The unequal
 island-timestep archive verifies canonical composition of numerical kernels,

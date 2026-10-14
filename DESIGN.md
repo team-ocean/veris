@@ -155,6 +155,15 @@ physics with fake modules to obtain coverage. Test coverage measures how much
 code the tests run. Treat distributed initialization as a separate boundary
 between systems. Test CPU by default; support GPU through JAX configuration.
 
+CPU correctness defaults to module-grouped xdist execution with up to three
+workers, allowing four permitted CPUs per worker when available. Smaller or
+unsupported allocations keep one worker. On supported hosts, disjoint affinity is set
+before backend initialization; each worker retains its private cold cache.
+Twelve permitted CPUs select three workers; explicit worker counts remain
+caller policy. GPU/unspecified platforms keep one worker without early device
+discovery. Use `-n 0` for focused development checks. Full runtime is measured
+externally with the CPU/memory allocation recorded alongside correctness.
+
 Pytest `--fast` selects a stable approximately 10% sample when it collects tests.
 The sample depends on `VERIS_TEST_SEED` and each test's node ID. Run full
 correctness and coverage checks before any commit. Report whole-package coverage,

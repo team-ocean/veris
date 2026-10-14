@@ -19,26 +19,6 @@ from veris.io.storage import selected_fields, write_snapshot
 from veris.setups import run_parallel
 
 
-def test_four_cpu_dynamics_and_output_match_serial() -> None:
-    """Use a fresh backend to check every local halo is removed before gather."""
-    root = Path(__file__).resolve().parents[2]
-    environment = dict(
-        os.environ, JAX_PLATFORMS="cpu", JAX_NUM_CPU_DEVICES="4", PYTHONPATH=str(root)
-    )
-    result = subprocess.run(
-        [sys.executable, str(root / "tests/parallel_case_probe.py")],
-        env=environment,
-        capture_output=True,
-        text=True,
-        timeout=240,
-        check=False,
-    )
-    assert result.returncode == 0, (
-        f"ERROR parallel dynamics probe: {result.stderr[-2500:]}"
-    )
-    assert "four CPU devices match serial output" in result.stdout
-
-
 def test_explicit_bootstrap_and_incomplete_environment() -> None:
     """Explicit ranks bypass automatic cluster detection with CPU device zero."""
     environment = {

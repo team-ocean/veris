@@ -105,8 +105,8 @@ def assert_tree_close(actual: object, expected: object, dtype: str) -> None:
         )
 
 
-# Exercise each setup operationally in float32; one coupled case is the
-# cross-precision integration sample. Equations and FD references use float64.
+# Exercise each setup operationally in float32. Frozen trajectories and the
+# checkpoint/derivative comparisons below own float64 numerical behavior.
 @pytest.mark.parametrize(
     ("case", "dtype"),
     [
@@ -114,7 +114,6 @@ def assert_tree_close(actual: object, expected: object, dtype: str) -> None:
         ("dynamics", "float32"),
         ("growth", "float32"),
         ("ocean", "float32"),
-        ("island", "float64"),
     ],
 )
 def test_setup_rollout_matches_explicit_steps(case: str, dtype: str) -> None:

@@ -130,3 +130,89 @@ print(json.dumps(record))
     else:
         assert not affinities[0] & affinities[1]
     assert affinities[0] | affinities[1] == os.sched_getaffinity(0)
+
+
+@pytest.mark.parametrize("allowed,workers", [(2, 1), (4, 1), (8, 2), (12, 3), (48, 3)])
+def test_automatic_workers_reserve_four_permitted_cpus(
+    monkeypatch: pytest.MonkeyPatch,
+    pytestconfig: pytest.Config,
+    allowed: int,
+    workers: int,
+) -> None:
+    """Avoid undersized collective pools and cap concurrent compiler memory."""
+    monkeypatch.delenv("PYTEST_XDIST_AUTO_NUM_WORKERS", raising=False)
+    monkeypatch.setenv("JAX_PLATFORMS", "cpu")
+    monkeypatch.setattr(
+        os, "sched_getaffinity", lambda pid: set(range(allowed)), raising=False
+    )
+    monkeypatch.setattr(os, "sched_setaffinity", lambda pid, cpus: None, raising=False)
+    monkeypatch.setattr(os, "cpu_count", lambda: 128)
+    assert conftest.pytest_xdist_auto_num_workers(pytestconfig) == workers
+
+
+def test_automatic_workers_fall_back_without_cpu_affinity(
+    monkeypatch: pytest.MonkeyPatch, pytestconfig: pytest.Config
+) -> None:
+    """Non-Linux hosts still choose one worker when CPU availability is unknown."""
+    monkeypatch.delenv("PYTEST_XDIST_AUTO_NUM_WORKERS", raising=False)
+    monkeypatch.setenv("JAX_PLATFORMS", "cpu")
+    monkeypatch.delattr(os, "sched_getaffinity", raising=False)
+    monkeypatch.setattr(os, "cpu_count", lambda: None)
+    assert conftest.pytest_xdist_auto_num_workers(pytestconfig) == 1
+
+
+@pytest.mark.parametrize("platforms", [None, "cuda,cpu", "unknown"])
+def test_automatic_gpu_workers_share_one_device_process(
+    monkeypatch: pytest.MonkeyPatch, pytestconfig: pytest.Config, platforms: str | None
+) -> None:
+    """GPU probes own their meshes; automatic CPU scheduling must not multiply them."""
+    monkeypatch.delenv("PYTEST_XDIST_AUTO_NUM_WORKERS", raising=False)
+    if platforms is None:
+        monkeypatch.delenv("JAX_PLATFORMS", raising=False)
+    else:
+        monkeypatch.setenv("JAX_PLATFORMS", platforms)
+    monkeypatch.setattr(
+        os, "sched_getaffinity", lambda pid: set(range(48)), raising=False
+    )
+    assert conftest.pytest_xdist_auto_num_workers(pytestconfig) == 1
+
+
+@pytest.mark.parametrize("requested", [0, 5])
+def test_automatic_workers_honor_explicit_environment_count(
+    monkeypatch: pytest.MonkeyPatch, pytestconfig: pytest.Config, requested: int
+) -> None:
+    """Explicit xdist policy, including disabling workers, remains authoritative."""
+    monkeypatch.setenv("PYTEST_XDIST_AUTO_NUM_WORKERS", str(requested))
+    assert conftest.pytest_xdist_auto_num_workers(pytestconfig) == requested
+
+
+def test_automatic_workers_ignore_invalid_environment_count(
+    monkeypatch: pytest.MonkeyPatch, pytestconfig: pytest.Config
+) -> None:
+    """An invalid xdist override warns and retains safe automatic placement."""
+    monkeypatch.setenv("PYTEST_XDIST_AUTO_NUM_WORKERS", "not-a-count")
+    monkeypatch.setenv("JAX_PLATFORMS", "cpu")
+    monkeypatch.setattr(
+        os, "sched_getaffinity", lambda pid: set(range(4)), raising=False
+    )
+    with pytest.warns(UserWarning, match="PYTEST_XDIST_AUTO_NUM_WORKERS"):
+        assert conftest.pytest_xdist_auto_num_workers(pytestconfig) == 1
+
+
+def test_default_partitioning_is_optional_on_unsupported_platform(
+    monkeypatch: pytest.MonkeyPatch, pytestconfig: pytest.Config
+) -> None:
+    """The real registered options keep serial tests usable without affinity."""
+    monkeypatch.delattr(os, "sched_getaffinity", raising=False)
+    monkeypatch.delattr(os, "sched_setaffinity", raising=False)
+    parser = pytest.Parser(_ispytest=True)
+    conftest.pytest_addoption(parser)
+    options = parser.parse_known_args(pytestconfig.getini("addopts"))
+    config: Any = SimpleNamespace(
+        workerinput={"workerid": "gw0", "workercount": 1},
+        getoption=lambda name: options.partition_cpus,
+    )
+    conftest._partition_worker_cpus(config)
+    options = parser.parse(["--partition-cpus"])
+    with pytest.raises(pytest.UsageError, match="CPU affinity support"):
+        conftest._partition_worker_cpus(config)

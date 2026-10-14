@@ -39,12 +39,12 @@ the matching CUDA 12 plugin, which lets JAX use the local graphics processors
 (GPUs). Create the environment with
 `uv venv --python 3.14 .venv-latest` and activate it before installation.
 
-Run `pytest tests/ --fast` during development. `VERIS_TEST_SEED` varies the stable
+Run `JAX_PLATFORMS=cpu pytest tests/ --fast -n 0` during development. `VERIS_TEST_SEED` varies the stable
 10% sample chosen at collection, when pytest lists tests before running them.
 The default is `root`. Run the full suite before commits:
 
 ```sh
-JAX_PLATFORMS=cpu pytest tests/ -n 3 --dist=loadscope --partition-cpus --max-worker-restart=0 --cov=veris --cov-report=term:skip-covered
+JAX_PLATFORMS=cpu pytest tests/ --cov=veris --cov-report=term:skip-covered
 coverage report --omit=veris/_version.py --fail-under=80
 ruff check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py
 ruff format --check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude veris/_version.py
@@ -53,14 +53,26 @@ ty check veris tests benchmarks docs/conf.py setup.py versioneer.pyi --exclude v
 ```
 
 For focused gradients, use `pytest tests/numerics/test_gradients.py`.
-Run one coordinated pytest session at a time. The full command uses three xdist
-workers (separate test-running processes). Tests are grouped by module to share
+Run one coordinated pytest session at a time. CPU runs automatically select up
+to three xdist workers (separate test-running processes), with four permitted
+CPUs per worker when the allocation allows it. Smaller allocations keep one
+worker. Twelve permitted CPUs enable three workers; eight
+enable two, and four enable one. GPU and unspecified backends use one worker
+without discovering devices before placement. Explicit `-n N` or
+`PYTEST_XDIST_AUTO_NUM_WORKERS` overrides the automatic count; `-n 0` runs
+without workers. An invalid environment count warns and uses automatic policy.
+Tests are grouped by module to share
 fixtures (prepared test data and resources) and reuse compilation (translation
-into executable calculations). `--partition-cpus` gives each worker a separate
-group drawn at regular intervals from the process's permitted CPUs. It does this
+into executable calculations). On hosts with affinity APIs, partitioning gives
+each worker a separate
+group drawn at regular intervals from the process's permitted CPUs. Unsupported
+hosts keep one worker without partitioning; explicitly requesting
+`--partition-cpus` there raises an informative error. Placement happens
 before collection or JAX backend initialization, when JAX prepares to use a
 processor. Child probes inherit that placement. Disable worker restart so
-crashes fail the full run. Use fewer workers if fewer CPUs are available. CPU
+crashes fail the full run. Parallel full runs need enough memory for concurrent
+compilers; the allocated validation requests 32 GB. The 20–25 minute full-suite
+target is measured with twelve permitted CPUs and three workers. CPU
 CI uses one worker so the four-device sharding probes, which divide arrays
 across devices, inherit all four permitted runner CPUs. Splitting them among
 three workers can stall XLA collectives (cross-device operations produced by

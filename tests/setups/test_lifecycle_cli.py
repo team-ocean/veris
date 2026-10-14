@@ -26,16 +26,16 @@ from veris.setups import run_parallel
 
 
 @pytest.mark.parametrize(
-    "driver,steps",
-    [("run_dyn", 0), ("run_dyn", 2), ("run_growth", 0), ("run_growth", 2)],
+    "driver",
+    ["run_dyn", "run_growth"],
 )
 def test_serial_cli_uses_real_lifecycle_and_preserves_reference_snapshots(
     tmp_path: Path,
     driver: str,
-    steps: int,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    steps = 2
     module = import_module(f"veris.setups.{driver}")
     recorded = []
     original = veris.Simulation.initialize

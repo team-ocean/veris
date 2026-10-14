@@ -14,7 +14,6 @@ from pathlib import Path
 import jax
 import jax.numpy as jnp
 import numpy as np
-import pytest
 
 from veris import Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance as advance_model
@@ -47,11 +46,9 @@ def assert_same_state(actual: State, expected: State) -> None:
         )
 
 
-@pytest.mark.parametrize("checkpoint_step", [1, 3])
-def test_coupled_restart_matches_uninterrupted_run(
-    tmp_path: Path, checkpoint_step: int
-) -> None:
+def test_coupled_restart_matches_uninterrupted_run(tmp_path: Path) -> None:
     """Float32 snapshots and reconstructed halos resume the same trajectory."""
+    checkpoint_step = 1
     dtype = "float32"
     initial, conf, phys = initialize_experiment(
         Experiment.builtin(

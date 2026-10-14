@@ -55,8 +55,9 @@
   hashes remain stable through CPU/GPU verification; numerical sources and
   archived reference bytes match 8770eff. Independent review has no blocker.
 - Evidence: test_logs/output-flags-auto/ and test_logs/output-flags-runtime/.
-  User requests separate verified commits and subsequent push to remote
-  jax-only using GitHub CLI authentication. Remote baseline confirmed at 8770eff.
+  CLI rename is committed as f8f339e; test-runtime changes form a separate
+  verified commit on jax-only. User additionally requests publishing through
+  GitHub CLI authentication. Remote baseline confirmed at 8770eff.
 
 ## 2026-10-14 — Plain-English documentation rewrite
 

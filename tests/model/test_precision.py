@@ -39,7 +39,9 @@ def test_policy_types_every_array_and_static_coefficient(dtype: str) -> None:
 def test_coupled_step_and_gradients_preserve_precision(dtype: str) -> None:
     """Real dynamics, growth, diagnostics and AD must not promote field precision."""
     state, settings, constants = initialize_experiment(
-        Experiment.builtin("island", grid=Grid(4, 5), settings={"dtype": dtype})
+        Experiment.builtin(
+            "island", grid=Grid(4, 5), settings={"dtype": dtype, "nEVPsteps": 2}
+        )
     )
     result, diagnostics = advance_model(
         state, settings, constants, {"Qnet": 100.0, "Qsw": 0.0}, physics="coupled"

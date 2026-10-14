@@ -17,36 +17,16 @@ from veris.io import OutputSettings, read_record
 from veris.model.types import State
 
 
-def _run(*args: Any, **kwargs: Any) -> Any:
-    assert hasattr(veris, "run_experiment"), "missing public run_experiment"
-    return veris.run_experiment(*args, **kwargs)
-
-
-@pytest.mark.parametrize("kind", ["island", "dynamics", "growth", "custom"])
 def test_public_runner_matches_real_simulation_all_fields_and_diagnostics(
-    kind: str, tmp_path: Path
+    tmp_path: Path,
 ) -> None:
-    definition = (
-        _custom(veris.Grid(8, 12), True, OutputSettings(enabled=False)).with_overrides(
-            {"steps": 2}
-        )
-        if kind == "custom"
-        else veris.Experiment.builtin(
-            kind,
-            grid=veris.Grid(4, 6),
-            steps=2,
-            settings={
-                "nEVPsteps": 2,
-                "nITC": 1,
-                "deltatDyn": 60.0,
-                "deltatTherm": 60.0,
-            },
-        )
-    )
+    definition = _custom(
+        veris.Grid(8, 12), True, OutputSettings(enabled=False)
+    ).with_overrides({"steps": 2})
     with veris.Simulation.initialize(definition) as simulation:
         expected = simulation.run()
     destination = tmp_path / "nested" / "final.nc"
-    actual = _run(definition, snapshot_path=destination)
+    actual = veris.run_experiment(definition, snapshot_path=destination)
     assert isinstance(actual, veris.RunResult)
     assert actual.steps == actual.completed_steps == expected.completed_steps == 2
     assert actual.elapsed == expected.elapsed
@@ -54,18 +34,19 @@ def test_public_runner_matches_real_simulation_all_fields_and_diagnostics(
         np.testing.assert_array_equal(
             getattr(actual.state, item.name),
             getattr(expected.state, item.name),
-            err_msg=f"ERROR {kind} runner {item.name}",
+            err_msg=f"ERROR runner {item.name}",
         )
     assert actual.diagnostics is not None and expected.diagnostics is not None
     for item in fields(actual.diagnostics):
         np.testing.assert_array_equal(
             getattr(actual.diagnostics, item.name),
             getattr(expected.diagnostics, item.name),
-            err_msg=f"ERROR {kind} diagnostics {item.name}",
+            err_msg=f"ERROR diagnostics {item.name}",
         )
     saved = read_record(destination)
     assert set(saved.fields) == {item.name for item in fields(State)}
     assert saved.time == actual.elapsed.total_seconds()
+    assert actual.execution_metadata is not None
     assert actual.execution_metadata["backend"] == "cpu"
     assert tuple(actual.execution_metadata["partitions"]) == (1, 1)
 
@@ -73,7 +54,7 @@ def test_public_runner_matches_real_simulation_all_fields_and_diagnostics(
 def test_runner_zero_steps_and_override_precedence(tmp_path: Path) -> None:
     definition = veris.Experiment.builtin("growth", steps=3)
     path = tmp_path / "initial.nc"
-    result = _run(
+    result = veris.run_experiment(
         definition,
         overrides={"steps": 0, "initial_conditions": {"hIceMean": 0.4}},
         snapshot_path=path,
@@ -111,7 +92,7 @@ def test_runner_releases_resources_when_execution_or_snapshot_fails(
     monkeypatch.setattr(runner, "execution_resources", resources)
     monkeypatch.setattr(veris.Simulation, failure, failed)
     with pytest.raises(RuntimeError, match=f"{failure} failed"):
-        _run(
+        veris.run_experiment(
             veris.Experiment.builtin("growth", steps=0),
             snapshot_path=tmp_path / "failed.nc",
         )
@@ -149,7 +130,7 @@ def test_runner_invalid_preflight_has_no_device_or_directory_effect(
     monkeypatch.setattr(jax, "devices", forbidden)
     monkeypatch.setattr(jax.distributed, "initialize", forbidden)
     with pytest.raises((ValueError, FileExistsError)):
-        _run(definition, **options)
+        veris.run_experiment(definition, **options)
     if bad == "existing":
         assert snapshot.read_text() == "preserve"
     else:
@@ -161,7 +142,9 @@ def test_runner_requested_history_uses_shared_default_schedule(tmp_path: Path) -
         "growth", steps=2, settings={"deltatTherm": 60.0, "nITC": 1}
     )
     history = tmp_path / "history" / "run.nc"
-    result = _run(definition, output_path=history, variables=("hIceMean", "Area"))
+    result = veris.run_experiment(
+        definition, output_path=history, variables=("hIceMean", "Area")
+    )
     saved = read_record(history, stream="instantaneous")
     assert saved.time == result.elapsed.total_seconds() == 120.0
     assert set(saved.fields) == {"hIceMean", "Area"}
@@ -295,7 +278,9 @@ def test_runner_records_actual_execution_in_snapshot_and_history(
 
     definition = veris.Experiment.builtin("growth", steps=0)
     history, snapshot = tmp_path / "history.nc", tmp_path / "final.nc"
-    result = _run(definition, output_path=history, snapshot_path=snapshot)
+    result = veris.run_experiment(
+        definition, output_path=history, snapshot_path=snapshot
+    )
     assert result.execution_metadata is not None
     expected = dict(result.execution_metadata)
     expected["partitions"] = list(expected["partitions"])
@@ -320,7 +305,7 @@ def test_requested_history_preserves_an_authored_sampling_interval(
         ),
     )
     history = tmp_path / "history.nc"
-    result = _run(definition, output_path=history)
+    result = veris.run_experiment(definition, output_path=history)
     assert result.elapsed.total_seconds() == 1200.0
     assert read_record(history, stream="instantaneous").time == 0.0
     assert definition.output is not None and not definition.output.enabled

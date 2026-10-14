@@ -1,6 +1,6 @@
 """Reference column initialization and recursive growth-only driver checks."""
 
-from dataclasses import fields, replace
+from dataclasses import replace
 from pathlib import Path
 
 import jax
@@ -9,7 +9,6 @@ import pytest
 
 from veris import Experiment, initialize_experiment
 from veris.execution.advance import advance
-from veris.io import read_record
 from veris.model.diagnostics import Diagnostics
 from veris.model.types import State
 from veris.physics.thermodynamics.growth import Growth
@@ -91,28 +90,6 @@ def test_growth_driver_preserves_recursive_fluxes_and_separate_diagnostics() -> 
         state = actual
 
 
-def test_growth_cli_records_physical_final_state(tmp_path: Path) -> None:
-    """Save the completed State without storage halos in netCDF."""
-    from veris.setups import run_growth
-
-    path = tmp_path / "growth.nc"
-    run_growth.main(
-        ["--steps", "2", "--backend", "cpu", "--output-snapshot", str(path)]
-    )
-    initial, conf, phys = initialize_experiment(Experiment.builtin("growth"))
-    first = advance(initial, conf, phys, physics="thermodynamics")[0]
-    final = advance(first, conf, phys, physics="thermodynamics")[0]
-    saved = read_record(path)
-    assert saved.time == 2 * conf.deltatTherm
-    for field in fields(State):
-        np.testing.assert_allclose(
-            saved.fields[field.name],
-            getattr(final, field.name)[2:-2, 2:-2],
-            rtol=1e-12,
-            atol=1e-12,
-        )
-
-
 def test_growth_cli_rejects_negative_steps(tmp_path: Path) -> None:
     """Reject an invalid iteration count without producing output."""
     from veris.setups import run_growth
@@ -133,20 +110,6 @@ def test_growth_initialize_accepts_model_overrides() -> None:
     )
     assert conf.deltatTherm == 600.0
     np.testing.assert_allclose(state.SeaIceLoad, phys.rhoIce * 1.3 + phys.rhoSnow * 0.1)
-
-
-def test_growth_cli_zero_steps_saves_initial_column(tmp_path: Path) -> None:
-    """Permit initialization-only output and create missing parent directories."""
-    from veris.setups import run_growth
-
-    path = tmp_path / "nested" / "outputs" / "initial.nc"
-    run_growth.main(
-        ["--steps", "0", "--backend", "cpu", "--output-snapshot", str(path)]
-    )
-    saved = read_record(path)
-    assert saved.time == 0
-    assert saved.fields["hIceMean"].shape == (2, 2)
-    np.testing.assert_allclose(saved.fields["hIceMean"], 1.3)
 
 
 def test_growth_cli_rejects_nonfinite_output(

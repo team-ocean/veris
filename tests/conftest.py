@@ -4,6 +4,7 @@ import hashlib
 import importlib
 import math
 import os
+import warnings
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import make_dataclass
@@ -22,6 +23,30 @@ from veris.model.configuration import Configuration
 from veris.model.physical_constants import PhysicalConstants
 
 jax.config.update("jax_enable_x64", True)
+
+
+def pytest_xdist_auto_num_workers(config: pytest.Config) -> int:
+    """Reserve four permitted CPUs per worker, with at most three cold caches.
+
+    Only an explicit CPU run enables automatic parallelism. GPU/unspecified
+    backends keep one worker without enumerating devices before placement.
+    Explicit xdist counts, including its environment override, stay authoritative.
+    """
+    requested = os.environ.get("PYTEST_XDIST_AUTO_NUM_WORKERS")
+    if requested:
+        try:
+            return int(requested)
+        except ValueError:
+            warnings.warn(
+                "PYTEST_XDIST_AUTO_NUM_WORKERS must be an integer; ignoring it",
+                stacklevel=2,
+            )
+    if not hasattr(os, "sched_getaffinity") or not hasattr(os, "sched_setaffinity"):
+        return 1
+    if os.environ.get("JAX_PLATFORMS") != "cpu":
+        return 1
+    available = len(os.sched_getaffinity(0))
+    return max(1, min(3, available // 4))
 
 
 def _partition_worker_cpus(config: pytest.Config) -> None:
@@ -129,6 +154,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
         "--partition-cpus",
         action="store_true",
+        default=hasattr(os, "sched_getaffinity") and hasattr(os, "sched_setaffinity"),
         help="Give xdist workers disjoint groups from the permitted CPU affinity",
     )
 
