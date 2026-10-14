@@ -1,10 +1,12 @@
 Experiment definitions
 ======================
 
-``Grid``, ``Execution``, ``Forcing`` and ``Experiment`` are immutable host
-definitions exported directly from ``veris``. They validate inputs and resolve
-the existing registry-backed settings and physical constants, without allocating
-model arrays or selecting a JAX backend::
+``Grid``, ``Execution``, ``Forcing`` and ``Experiment`` are definitions you can
+import directly from ``veris``. They run in Python on the host, the computer
+that controls the calculation, and cannot change in place. They check inputs
+and combine supplied values with defaults from the model's named tables of
+settings and physical constants. They do not create model arrays or choose a
+JAX backend, the CPU or GPU system that will run the calculation::
 
    from veris import Execution, Experiment, Forcing, Grid
 
@@ -21,41 +23,44 @@ model arrays or selecting a JAX backend::
        steps=3,
    )
 
-Use :func:`veris.initialize_experiment` for allocation and the
-:doc:`simulation` facade for host execution. :doc:`initialization` documents
-preset providers and low-level allocation. These are host operations; enable
-JAX x64 before requesting float64 allocation (see :doc:`/reference/settings`).
+Use :func:`veris.initialize_experiment` to create model arrays and the
+:doc:`simulation` interface to control runs from Python. :doc:`initialization`
+describes preset providers, which supply starting fields, and lower-level array
+creation. These operations run on the host. Enable JAX x64 before requesting
+float64 arrays (see :doc:`/reference/settings`).
 
 Authored and resolved controls
 ------------------------------
 
-``settings``, ``constants``, ``scenario`` and ``forcing`` retain immutable authored
-inputs. ``configuration``, ``physical_constants``, ``resolved_settings``,
-``resolved_scenario`` and ``resolved_forcing`` expose validated effective values.
-Precedence is shared registry defaults < setup preset/profile < experiment
-configuration < explicit Python/CLI overrides. This preserves the distinction
-between an explicit value and an inherited preset default when an experiment
-changes::
+``settings``, ``constants``, ``scenario`` and ``forcing`` keep the inputs you
+wrote, without allowing changes in place. ``configuration``,
+``physical_constants``, ``resolved_settings``, ``resolved_scenario`` and
+``resolved_forcing`` expose the checked values that the model will use after
+applying defaults and overrides. Their priority is shared registry defaults <
+setup preset/profile < experiment configuration < explicit Python/CLI overrides.
+Values later in this order win. Veris keeps track of which values you supplied
+and which came from a preset, so it can update inherited defaults when the
+experiment changes::
 
    updated = Experiment.builtin("island").with_overrides({
        "scenario": {"islandTimeStep": 300, "islandCooling": 25},
        "settings": {"dtype": "float64"},
    })
 
-Mappings merge by key; arrays, lists, scalars and allowed ``None`` values replace
-whole values. Explicit numerical settings or forcing continue to take precedence
-over scenario defaults. Changing precision re-evaluates inherited raw defaults;
-an explicitly supplied rounded value remains that value.
+Mappings, or dictionaries, merge by key. Arrays, lists, single values and
+allowed ``None`` values replace whole values. Explicit numerical settings or
+forcing, the prescribed external inputs, continue to override scenario defaults.
+Changing numerical precision re-evaluates inherited defaults from their original
+values. A rounded value that you supplied explicitly keeps that value.
 
 Declarative files
 -----------------
 
-``Experiment.from_file(path, overrides=...)`` reads version 1 or 2 JSON. An
-omitted version means 1; unsupported versions and duplicate or unknown keys
-fail clearly.
-Preset defaults, then file values, then explicit Python overrides determine the
-resolved definition, using the merge rules above. A runnable definition can be
-written as:
+``Experiment.from_file(path, overrides=...)`` reads version 1 or 2 JSON data
+files. If the version is omitted, it means 1. Unsupported versions and duplicate
+or unknown keys produce clear errors. The definition starts with preset
+defaults, then applies file values and finally explicit Python overrides, using
+the merge rules above. You can write a runnable definition as:
 
 .. code-block:: json
 
@@ -69,46 +74,56 @@ written as:
      "steps": 3
    }
 
-Output durations use ``{"microseconds": integer}``; human-written files can
-also use ``{"seconds": number}`` when exactly representable in microseconds.
-Gregorian origins use timezone-free ISO dates. Fixed-calendar origins use
-objects with integer year, month, day and optional time components. See
-:ref:`experiment-export-modes` for authored and resolved exports.
+Output durations use ``{"microseconds": integer}``. Files you write by hand can
+also use ``{"seconds": number}`` if the duration is an exact number of
+microseconds. A calendar origin is its starting date and time. Gregorian origins
+use ISO-format dates without a timezone. Fixed-calendar origins use objects
+with integer year, month, day and optional time components. See
+:ref:`experiment-export-modes` for exports of supplied inputs and resolved values.
 
 Dimensions, units and precedence
 --------------------------------
 
-``Grid.nx`` and ``Grid.ny`` count **global physical cells**, excluding all
-halos. Constant and initial-condition arrays are scalars or ``(nx, ny)`` fields;
-forcing series have shape ``(time,)`` or ``(time, nx, ny)``. All staggered
-center, face and corner fields use these same extents with ``(x, y)`` ordering.
-The numerical State uses two halo cells at every partition boundary.
-For example, ``Grid(12, 8)`` on ``partitions=(3, 2)`` has local physical
-extents ``(4, 4)`` and packed storage shape ``(24, 16)``.
+``Grid.nx`` and ``Grid.ny`` count **global physical cells**, the cells in the
+full modeled area, excluding all halos. Halos are extra cells around each grid
+piece that hold boundary or neighboring values. Constant and initial-condition
+arrays are single values or ``(nx, ny)`` fields. Forcing series have shape
+``(time,)`` or ``(time, nx, ny)``. A staggered grid places different fields at
+cell centers, faces and corners. All these fields use the same extents with
+``(x, y)`` ordering. The numerical State uses two halo cells at every partition
+boundary, where a partition is a grid piece. For example, ``Grid(12, 8)`` on
+``partitions=(3, 2)`` has local physical extents ``(4, 4)`` and packed storage
+shape ``(24, 16)``. Packed storage includes every partition's halos.
 
-Settings and constants use their existing metadata defaults and units from
+Settings and constants use the defaults and units listed in
 :doc:`/reference/settings` and :doc:`/reference/physical-constants`. Supplied
-overrides take precedence over registry defaults. Constants inherit the model
-``dtype``; a conflicting constants dtype is rejected. Use ``Grid`` for dimensions
-and ``Execution`` for sharding; those controls cannot also appear in ``settings``.
-Resolved static objects are available as ``experiment.configuration`` and
-``experiment.physical_constants``. Their numerical grid extents remain local.
+overrides take precedence over table defaults. Constants inherit the model
+``dtype``, its numerical data type. A conflicting constants dtype is rejected.
+Use ``Grid`` for dimensions and ``Execution`` for sharding, which splits arrays
+across devices. Those controls cannot also appear in ``settings``. The resolved
+objects are available as ``experiment.configuration`` and
+``experiment.physical_constants`` and stay fixed during numerical execution.
+Their numerical grid extents remain local to each partition.
 
-Initial conditions and forcing use :doc:`/reference/variables` units:
-thickness in meters, temperatures in kelvin, concentration between zero and one,
-and heat fluxes in W/m² with ``Qnet`` and ``Qsw`` positive upward. Initial
-conditions accept evolved ice fields; derived loads, geometry and metrics are
-not independent initial conditions. Forcing accepts prescribed atmospheric and
-ocean fields, rather than evolved ice. Arrays and mappings are defensively copied
-and immutable in a definition.
+Initial conditions and forcing use the units in :doc:`/reference/variables`:
+thickness in meters, temperatures in kelvin, the absolute temperature scale,
+concentration between zero and one, and heat fluxes in W/m² with ``Qnet`` and
+``Qsw`` positive upward. Concentration is the fraction of a cell covered by ice.
+A heat flux is heat transferred per unit area per unit time. Initial conditions
+accept ice fields that evolve during a run. Loads computed from other fields,
+grid geometry, distances and areas are not independent initial conditions.
+Forcing accepts prescribed atmospheric and ocean fields rather than evolving
+ice fields. Definitions copy input arrays and mappings and prevent changes in
+place, so editing the original inputs does not change the definition.
 
-Accepted field names are generated from the authoritative input sets below.
-Inputs must contain finite real values. Ice/snow thickness, wind speed and
-salinity are nonnegative; temperatures in kelvin are positive; concentration
-``Area`` lies in [0, 1]. Initial conditions and constant forcing are scalar or
-physical 2D arrays; series use the leading time dimension described above.
-``load_fields`` accepts the union of these names from instantaneous serial
-records. Geometry, masks and independent metrics require initialization.
+The accepted field names below are generated from the input sets used by the
+code. Inputs must contain finite real values, with no infinities or undefined
+numerical values. Ice/snow thickness, wind speed and salinity are nonnegative.
+Temperatures in kelvin are positive, and concentration ``Area`` lies in [0, 1].
+Initial conditions and constant forcing are single values or physical 2D arrays.
+Series put time in the first dimension, as described above. ``load_fields``
+accepts any of these names from serial records sampled at a single instant.
+Geometry, masks and independent grid distances and areas require initialization.
 
 .. exec::
 
@@ -127,44 +142,49 @@ records. Geometry, masks and independent metrics require initialization.
        print("")
 
 User-supplied ``OceanGeometry`` uses physical arrays without halos. ``maskT``,
-``maskU`` and ``maskV`` have shape ``(nx, ny, z)`` with a nonempty last dimension
-and surface masks at the last level. Masks lie in [0, 1]; zero means dry.
-``dxt``/``dxu`` are positive x-spacing vectors of length nx;
-``dyt``/``dyu`` are positive y-spacing vectors of length ny, all in meters.
-``area_t``, ``area_u`` and ``area_v`` are positive ``(nx, ny)`` areas in m².
-``ht`` is the existing signed bottom elevation in meters; ``coriolis_t`` is
-frequency in s⁻¹. Initialization preserves the established ocean metric
-equations, closes blocked velocity faces and computes load and regularized
-inverse thickness. Fractional wet masks retain supplied cell-mean ice amounts.
-Explicit ``TSurf`` initial conditions override geometry's default temperature.
-Geometry is required for a custom runnable experiment: allocation defaults alone
-do not define one.
+``maskU`` and ``maskV`` have shape ``(nx, ny, z)``. The last dimension must be
+nonempty, and the last level holds the surface masks. Masks mark wet cells with
+values in [0, 1]; zero means dry. ``dxt``/``dxu`` are positive x-spacing vectors
+of length nx. ``dyt``/``dyu`` are positive y-spacing vectors of length ny.
+All spacings are in meters. ``area_t``, ``area_u`` and ``area_v`` are positive
+``(nx, ny)`` areas in m². ``ht`` is the existing signed bottom elevation in
+meters; ``coriolis_t`` is a frequency in s⁻¹. Initialization uses the established
+equations for ocean grid distances and areas, closes blocked velocity faces,
+and computes load and inverse thickness with regularization to handle thin ice.
+Fractional wet masks retain supplied ice amounts averaged over each cell.
+Explicit ``TSurf`` initial conditions override the grid's default temperature.
+A custom runnable experiment requires geometry. Creating arrays from defaults
+alone does not define one.
 
 Builtins are ``island``, ``dynamics`` and ``growth``. Their scenario controls use
-the maintained setup registries. ``Grid`` supplies dimensions; scenario does not
-also accept nx, ny, steps or dtype. Island initialization retains zero initial
-``Qnet``/``Qsw`` coupling outputs; prescribed heat is queued for each timestep.
-Growth retains its recursive flux policy unless heat is explicitly prescribed.
-Explicit winds derive ``wSpeed`` unless it is separately supplied.
+the maintained setup tables. ``Grid`` supplies dimensions; scenario does not
+also accept nx, ny, steps or dtype. Island initialization keeps initial
+``Qnet``/``Qsw`` coupling outputs at zero and queues prescribed heat for each
+timestep. Growth feeds computed heat fluxes into later steps unless heat is
+explicitly prescribed. Explicit winds determine ``wSpeed`` unless it is
+supplied separately.
 
-Series override constants of the same field name. ``forcing.at(0)`` selects the
-first step's prescribed inputs; it does not mutate a cursor. A missing field
-retains its current State value, allowing recursive heat-flux policies.
-Spatial shapes, series lengths and configured duration are validated before
-execution. A requested position beyond the series raises an exhaustion error.
+Series override constants with the same field name. ``forcing.at(0)`` selects
+the first step's prescribed inputs without advancing a position tracker through
+the series. A missing field keeps its current State value, allowing computed heat
+fluxes to feed into later steps. Veris checks spatial shapes, series lengths
+and configured duration before execution. Requesting a position beyond the
+series raises an exhaustion error.
 
-Physics modes are ``coupled``, ``dynamics`` and ``thermodynamics``. Coupled mode
-requires equal dynamics and thermodynamic timesteps. Model time uses the active
-timestep and microsecond host precision; unsupported sub-microsecond values and
-clock overflow fail clearly. ``backend=None`` honors the caller's JAX selection;
-``cpu`` and ``gpu`` are resource requests, with enumeration left to initialization.
+Physics modes are ``coupled``, ``dynamics`` and ``thermodynamics``. Dynamics
+computes ice motion and transport; thermodynamics computes freezing and melting.
+Coupled mode combines both and requires equal dynamics and thermodynamic
+timesteps. Model time uses the active timestep and microsecond precision on
+the host. Unsupported sub-microsecond values and clock overflow produce clear
+errors. ``backend=None`` honors the caller's JAX selection. ``cpu`` and ``gpu``
+request resources; initialization determines which devices are available.
 
 Explicit meshes
 ---------------
 
-All builtins and custom geometry/initial/forcing fields use the same public
-sharded initializer. For example, start a fresh Python process with
-``JAX_NUM_CPU_DEVICES=2`` before importing JAX, then run::
+All builtins and custom geometry, initial fields and forcing use the same public
+initializer for arrays split across devices. For example, start a fresh Python
+process with ``JAX_NUM_CPU_DEVICES=2`` before importing JAX, then run::
 
    import jax
    from veris import Execution, Experiment, Grid, Simulation
@@ -179,19 +199,22 @@ sharded initializer. For example, start a fresh Python process with
        result = simulation.run()
        simulation.snapshot("sharded-final.nc", variables=("hIceMean", "Area"))
 
-Input arrays retain global physical shapes; only addressable packed State
-regions are initialized on each process. Spatial series keep an unpartitioned
-time axis. The facade borrows the mesh. For multiple processes, initialize JAX
-distributed services before enumerating devices and retain caller ownership;
-see :doc:`/reference/setups/parallel-dynamics`. Complete distributed restart is
-unsupported. Local CPU sharding validation does not substitute for GPU or
-actual multihost verification.
+Input arrays keep their full-grid physical shapes. Each process initializes only
+the packed State regions it can access. Spatial series split only the spatial
+dimensions; their time axis stays whole. The caller keeps ownership of the mesh.
+For multiple processes, initialize JAX distributed services before listing
+devices and keep responsibility for closing those services. See
+:doc:`/reference/setups/parallel-dynamics`. Complete distributed restart is
+unsupported. Checks of local CPU sharding do not establish correctness on GPUs
+or across multiple computers; those need their own verification.
 
-Definition construction is host-only. The pure numerical API consists of
-``veris.advance`` for one timestep and :func:`veris.step` for a rollout;
-see :doc:`/reference/integration` for JIT and differentiation.
-Initial State and supplied JAX forcing arrays are differentiable; static
-definitions, settings, constants and host validation are outside that path.
+Definitions are constructed only on the host. The pure numerical API consists
+of ``veris.advance`` for one timestep and :func:`veris.step` to repeat timesteps
+without Python side effects. See :doc:`/reference/integration` for JIT, which
+compiles functions for execution, and differentiation, which measures how
+results change with inputs. JAX can compute derivatives with respect to initial
+State and supplied JAX forcing arrays. Fixed definitions, settings, constants
+and host input checks stay outside that path.
 
 .. autoclass:: veris.model.experiment.Grid
    :members:
@@ -210,12 +233,13 @@ definitions, settings, constants and host validation are outside that path.
 Export modes
 ------------
 
-``experiment.to_dict()`` defaults to ``mode="resolved"`` and pins all effective
-values, including profile identity. ``mode="authored"`` retains sparse caller
-inputs and grouped omissions. Reading authored data then changing dtype/scenario
-recomputes inherited defaults; resolved data retains deliberately pinned literals.
-Both return independent JSON-compatible data; derived scalars are reconstructed
-from the stored inputs. Returned arrays/containers do not alias the definition.
-Schema version 1 remains supported; profile/distributed/all-device declarations
-use version 2.
-Inspect/export from the CLI without selecting devices using ``veris inspect``.
+``experiment.to_dict()`` defaults to ``mode="resolved"`` and fixes all values
+that the model will use, including the profile identity. ``mode="authored"``
+keeps only the caller's supplied inputs, leaving omitted groups and values
+omitted. Reading authored data and then changing dtype/scenario recomputes
+inherited defaults. Resolved data keeps the deliberately fixed literal values.
+Both return independent data suitable for JSON. Derived single values are
+reconstructed from the stored inputs. Returned arrays and containers do not
+share storage with the definition. Schema version 1 remains supported;
+profile/distributed/all-device declarations use version 2. Use ``veris inspect``
+to inspect or export from the command line without selecting devices.

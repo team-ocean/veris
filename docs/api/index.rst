@@ -1,18 +1,19 @@
 Python API
 ==========
 
-This reference documents the Python interface on the ``jax-only`` branch.
-Signatures and docstrings are read from the implementation at documentation
-build time. Start with :doc:`/introduction/get-started` for installation and a first simulation,
-then use the pages below to look up individual objects and functions.
-The :doc:`/reference/package-hierarchy` describes the scientific packages and
-the owning modules for specialized imports.
+This reference describes the Python interface on the ``jax-only`` branch.
+The documentation build reads function signatures and docstrings from the code.
+Start with :doc:`/introduction/get-started` to install Veris and run a first
+simulation. Then use the pages below to look up individual objects and functions.
+The :doc:`/reference/package-hierarchy` explains how the scientific packages are
+organized and where to import specialized functions.
 
-Use :doc:`experiment` for immutable definitions and input validation,
-:doc:`simulation` for host execution, output and restart, and
-:doc:`integration` for pure JAX rollouts. :doc:`model-data` describes State,
-Diagnostics and static numerical objects. Import specialized functions from
-the owning modules shown in their entries.
+Use :doc:`experiment` for definitions that cannot change in place and for input
+checks. Use :doc:`simulation` to control runs, output and restart from Python,
+and :doc:`integration` to repeat model steps with JAX. :doc:`model-data` describes
+State, which holds model arrays, Diagnostics, which holds step results, and
+numerical objects that stay fixed during execution. Import specialized functions
+from the modules shown in their entries.
 
 .. toctree::
    :maxdepth: 1

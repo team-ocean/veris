@@ -4,29 +4,38 @@ Model data and metadata
 State and diagnostics
 ---------------------
 
-Allocate runnable State through :func:`veris.initialize_experiment`;
-:func:`veris.execution.initialization.initialize` supplies low-level allocation. Every State field is a dynamic JAX array leaf. Output-only
-coupling fields are returned in a separate Diagnostics PyTree and stay outside
-the time-stepping carry. Field dimensions, units, descriptions and allocation
-defaults are generated from the registries in :doc:`/reference/variables`.
+Create a State for a runnable experiment through
+:func:`veris.initialize_experiment`;
+:func:`veris.execution.initialization.initialize` creates arrays at a lower
+level. State holds the model's fields, or values across the grid. Each field is
+a JAX array that can change during a run. JAX treats each array as a leaf in a
+PyTree, a nested collection of data. Output-only fields for exchanging results
+with another model are returned in a separate Diagnostics PyTree. The statement
+that they stay outside the time-stepping carry needs review: DESIGN.md describes
+a rollout carry containing both State and Diagnostics. A carry is the data passed
+from one step to the next. Field dimensions, units, descriptions and starting
+defaults are generated from the named tables in :doc:`/reference/variables`.
 
 .. autoclass:: veris.model.types.State
 
 .. autoclass:: veris.model.diagnostics.Diagnostics
 
-``veris.model.arrays.ArrayInput`` describes numerical JAX and NumPy array inputs;
-``MaskInput`` also accepts NumPy boolean masks. The geometry input schema lives
-in ``veris.grid.geometry.OceanGeometry``; see :doc:`initialization` for its
-adapter and :doc:`experiment` for physical input dimensions.
+``veris.model.arrays.ArrayInput`` describes numerical JAX and NumPy array inputs.
+``MaskInput`` also accepts NumPy boolean masks, which mark cells with true or
+false values. ``veris.grid.geometry.OceanGeometry`` defines the expected grid
+inputs. See :doc:`initialization` for the adapter that reads these inputs and
+:doc:`experiment` for their physical dimensions.
 
 Settings and physical constants
 -------------------------------
 
-Constructors validate independent values and recompute derived quantities.
-Bind these objects as static arguments when calling numerical kernels.
-Changing static values can trigger JAX compilation. The registry tables in
-:doc:`/reference/settings` and :doc:`/reference/physical-constants` document
-every field and its default; derived fields are not constructor arguments.
+Constructors check the values you supply and recompute quantities that depend
+on them. Pass these objects as static arguments to numerical functions: their
+values stay fixed while JAX compiles and runs the function. Changing a static
+value can make JAX compile the function again. The tables in
+:doc:`/reference/settings` and :doc:`/reference/physical-constants` describe
+every field and its default. Fields computed from other inputs are not
+constructor arguments.
 
 .. autoclass:: veris.model.configuration.Configuration
 
@@ -65,9 +74,11 @@ Registry schemas
 Grid dimensions
 ---------------
 
-The C, U, V and Z locations are tracer centers, zonal velocity faces,
-meridional velocity faces and cell corners, respectively. All four dimension
-pairs have the same halo-inclusive storage lengths.
+The C, U, V and Z locations are cell centers for tracers, cell faces for velocity
+in the x direction, cell faces for velocity in the y direction, and cell corners,
+respectively. Tracers are values such as ice thickness carried across the grid.
+All four dimension pairs have the same storage lengths, including halos. Halos
+are extra cells around a grid piece that hold boundary or neighboring values.
 
 .. autodata:: veris.model.variables.C_GRID
 

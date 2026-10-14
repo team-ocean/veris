@@ -3,22 +3,27 @@
 State fields
 ============
 
-``veris.model.variables.VARIABLES`` describes the calculation fields allocated by
-``veris.execution.initialization.initialize``. Every entry has a default, units,
-long name, description and staggered dimensions. State is a frozen dataclass
-registered as a JAX PyTree. Update arrays with ``dataclasses.replace``.
+``veris.model.variables.VARIABLES`` describes the calculation fields created by
+``veris.execution.initialization.initialize``. Every entry has a default,
+units, long name, description and dimensions that identify its grid location.
+The grid is staggered: some values sit at cell centers and others at cell
+faces. State is a frozen dataclass, whose fields cannot be reassigned, and a
+JAX PyTree, a collection of arrays that JAX can process together. Update arrays
+by creating a new State with ``dataclasses.replace``.
 
 For an interior of ``nx`` by ``ny`` cells, horizontal arrays have shape
-``(nx + 4, ny + 4)``. The interior is ``field[2:-2, 2:-2]``. Axis zero is zonal;
-axis one is meridional. Dimensions describe Cartesian grid locations:
-``x_center``, ``y_center``, ``x_face`` and ``y_face``. Face and center storage
-extents are equal, including two halo cells at each boundary. For sharded
-storage, each partition retains its own halos; see :doc:`/api/experiment`.
-Boundary conditions are described in :doc:`settings`.
+``(nx + 4, ny + 4)``. The interior is ``field[2:-2, 2:-2]``. Axis zero is zonal
+(east-west); axis one is meridional (north-south). Dimensions identify Cartesian
+grid locations: ``x_center``, ``y_center``, ``x_face`` and ``y_face``. Face and
+center arrays have equal storage sizes. Both include two halo cells at each
+boundary, which hold boundary or neighboring data. When arrays are split
+across devices, each partition keeps its own halos; see
+:doc:`/api/experiment`. Boundary conditions are described in :doc:`settings`.
 
-Geometry fields and prescribed forcing used by calculations belong to State.
-Output-only diagnostics and configuration do not add numerical State leaves.
-Ice-thickness category arrays are local intermediates in thermodynamics.
+State holds the geometry fields and prescribed forcing used by calculations.
+Output-only diagnostics and configuration do not add arrays to numerical
+State. Arrays for ice-thickness categories exist only as intermediate values
+in the thermodynamics calculations, which describe freezing and melting.
 
 NetCDF metadata
 ---------------
@@ -34,8 +39,9 @@ The metadata can be used directly with h5netcdf::
    variable[:] = state.uIce
 
 Here ``output`` is an open ``h5netcdf.File`` with the horizontal dimensions
-already defined. The example writes halo-inclusive storage; trim arrays and
-adjust dimension lengths together when exporting only the interior.
+already defined. The example writes the halos along with the interior. When
+exporting only the interior, trim the arrays and adjust the dimension lengths
+together.
 
 Registry defaults
 -----------------
@@ -61,11 +67,12 @@ Registry defaults
 Coupling diagnostics
 --------------------
 
-``advance`` returns these fields in a separate frozen dataclass.
-They do not add leaves to the calculation State. The legacy combined salt
-forcing has differing freshwater normalizations in its two terms when ice
-salinity is nonzero; its units are recorded as ``unknown`` rather than assigning
-misleading units. This metadata migration preserves that existing equation.
+``advance`` returns these fields in a separate frozen dataclass. These
+diagnostics describe the exchange with an ocean model and do not add arrays to
+the calculation State. When ice salinity is nonzero, the two terms in the
+legacy combined salt forcing use different freshwater normalizations (scaling
+factors). Its units are recorded as ``unknown`` to avoid misleading units. The
+move to this metadata keeps the existing equation.
 
 .. exec::
 

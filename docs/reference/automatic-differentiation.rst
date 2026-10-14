@@ -1,112 +1,139 @@
 Automatic differentiation at model boundaries
 =============================================
 
-Veris supports JAX forward and reverse differentiation through its physics
-kernels, frozen State and compiled integration drivers. The AD boundary repairs
-preserve reference forward equations and their derivatives on smooth branches.
-Tests cover zero strain, calm winds, absent ice, dry cells, freshwater salinity,
-weak free-drift forcing, both model precisions and evolving sharded dynamics.
+Automatic differentiation (AD) calculates how model results change when inputs
+change. Veris supports JAX's forward and reverse methods through its physics
+calculations, frozen State (a collection of arrays whose fields cannot be
+reassigned) and compiled timestep drivers. Fixes at difficult mathematical
+points preserve the reference equations and their derivatives wherever those
+equations vary smoothly. Tests cover zero strain (no ice deformation), calm
+winds, absent ice, dry cells (land), freshwater salinity, weak free-drift forcing
+(forcing for ice motion without internal stress), both model precisions and
+evolving dynamics split across devices.
 
-The public pure path is ``advance`` for one physics timestep and ``step`` for
-fixed-length rollouts. Configuration, PhysicalConstants and physics mode are
-static; initial State and supplied JAX forcing arrays retain tested JIT, grad,
-JVP and VJP support. Experiment validation, initialization, Simulation, clocks,
-files and resource management stay outside transformations. Definition arrays
-are defensively copied host inputs: construct a loss from dynamic JAX arrays
+Use ``advance`` for one physics timestep and ``step`` to repeat a fixed number
+of timesteps. These functions are pure: their results depend on their inputs,
+and they do not change outside resources. Configuration, PhysicalConstants and
+physics mode are fixed during compilation and differentiation. The initial
+State and supplied JAX forcing arrays support tested JIT (compilation), grad
+(gradients), JVP (forward changes along an input direction) and VJP (reverse
+changes from an output). Keep Experiment validation, initialization, Simulation,
+clocks, files and resource management outside these JAX operations. Arrays in
+experiment definitions are copied on the host, the CPU running the Python
+program. Build the quantity you want to differentiate from dynamic JAX arrays
 instead of differentiating an Experiment constructor. See :doc:`integration`.
 
 Zero norms
 ----------
 
-Viscosity depends on the strain invariant ``sqrt(deltaSq)``. A zero velocity
-field gives zero strain; differentiating an unguarded square root can introduce
-an infinite intermediate derivative and a subsequent NaN, even with a finite
-forward solution. Adding ``deltaMin`` after the square root regularizes the
-viscosity denominator but leaves that derivative singular.
+Viscosity, the ice's resistance to deformation, depends on a measure of strain,
+``sqrt(deltaSq)``. A zero velocity field gives zero strain. Differentiating the
+square root without a safeguard can produce an infinite intermediate
+derivative and then NaN (not a number), even when the model result is finite.
+Adding ``deltaMin`` after the square root keeps the viscosity denominator away
+from zero but leaves the square-root derivative infinite.
 
-``veris.numerics.autodiff.norm_sqrt`` guards the square-root input before evaluating it. Its
-forward result is unchanged, including exactly zero at the origin. At positive
-squared norms it has the ordinary square-root derivative. At zero it selects a
-zero linearization. The same convention applies to speed norms and inactive
-adaptive-relaxation or stability auxiliaries. Negative squared norms still
-produce NaN so invalid inputs remain visible.
+``veris.numerics.autodiff.norm_sqrt`` safeguards the input before calculating
+its square root. A norm measures magnitude, such as speed. The function keeps
+the same model result, including exactly zero for a zero input. For positive
+squared norms, it uses the usual square-root derivative. At zero, it chooses
+zero as the local linear response. The same choice applies to speed norms and
+unused helper values for adaptive relaxation or stability calculations.
+Negative squared norms still produce NaN so invalid inputs remain visible.
 
-A norm has no unique classical derivative at its origin. The zero convention
-agrees with symmetric differences of the norm along any fixed direction;
-its forward one-sided directional derivative can differ. It preserves the
-linear response of products such as viscosity times shear strain, and tests
-check that response explicitly. No positive smoothing constant has been added
-to the forward equations.
+A norm has no unique ordinary derivative at zero. The chosen zero response
+agrees with differences taken equally on both sides along any fixed direction.
+A difference taken on only one side can give a different response. This choice
+preserves the linear response of products such as viscosity times shear strain
+(deformation that changes shape), and tests check that response directly. The
+model equations have no added positive smoothing constant.
 
 Inactive branches
 -----------------
 
-JAX evaluates array branches before selecting with ``where``. An inactive
-``1/0`` or ``sqrt(0)`` can contaminate reverse AD. The kernels now supply valid
-inputs to singular operations inside inactive branches. Covered cases include:
+JAX calculates the alternatives in an array condition before selecting one
+with ``where``. An unused ``1/0`` or ``sqrt(0)`` can therefore spoil reverse AD.
+The physics calculations supply safe inputs to these operations even in unused
+alternatives, also called inactive branches. Covered cases include:
 
-* Constant-field advection slope ratios and dry-corner averaging weights.
-* Absent-ice thermal conductivity and inactive Newton updates.
-* Freshwater salt-flux expressions and zero-area regularization.
-* Calm wind and capped atmospheric-stability expressions.
+* Slope ratios for advection (movement between cells) in a constant field, and
+  averaging weights at dry grid corners.
+* Heat conductivity when ice is absent, and unused Newton solver updates.
+  A Newton solver repeatedly adjusts an estimate to solve an equation.
+* Salt-flux expressions in freshwater, and safeguards for zero ice area.
+* Calm wind, and atmospheric-stability expressions limited by a cap.
 
-CESM atmospheric routines sanitize dry-cell inputs before arithmetic, supporting
-zero or NaN placeholders on land. Dry fluxes and diagnostics are zero. Existing
-wet-cell and fractional-mask weighting is retained, including its historical
-powers of the mask. Valid temperatures, pressures and heights are still
-required on wet cells.
+The CESM atmospheric heat-exchange routines replace dry-cell inputs with safe
+values before doing arithmetic. Land inputs can therefore use zero or NaN placeholders.
+Fluxes (transfers such as heat) and diagnostic outputs are zero on land.
+Wet cells and fractional masks keep their existing weights, including the
+historical powers of the mask. A mask identifies the ocean fraction of a cell.
+Wet cells still require valid temperatures, pressures and heights.
 
 Free drift
 ----------
 
-The solver now expresses the original momentum balance in Cartesian form.
-Rationalizing its quadratic solution avoids cancellation for weak forcing,
-and eliminates the undefined polar angle at zero forcing. With nonzero
-mass times Coriolis frequency, the zero-forcing response has a finite,
-nonzero derivative; analytic and finite-difference tests verify it.
+Free drift balances external forces without internal ice stress. The solver
+expresses the original momentum balance along the grid's perpendicular
+Cartesian axes, the x/y directions. It rewrites the quadratic solution to avoid subtracting
+nearly equal values under
+weak forcing and avoids an undefined direction angle at zero forcing. The
+Coriolis frequency describes the effect of Earth's rotation. When mass times
+this frequency is nonzero, the response at zero forcing has a finite, nonzero
+derivative. Tests verify it with an independent formula and finite differences
+(small input changes).
 
-When both net forcing and mass times Coriolis are zero, quadratic drag gives a
-speed proportional to the square root of forcing. Its classical forcing
-sensitivity is unbounded at that point. The implementation selects a finite
-zero tangent exactly there, and the tests explicitly demonstrate the divergent
-one-sided difference quotient. Sensitivity studies near this particular
-physical degeneracy must account for that behavior; the selected tangent
-does not approximate its unbounded one-sided response.
+When both net forcing and mass times Coriolis are zero, quadratic drag
+(resistance proportional to speed squared) gives a speed proportional to the
+square root of forcing. The ordinary sensitivity to forcing is unbounded at
+that point. The implementation chooses a finite zero
+tangent, or local linear response, exactly there. Tests show that the
+one-sided difference quotient (the response change divided by the forcing
+change) grows without bound. Sensitivity studies near this special physical
+case must account for this behavior. The chosen tangent
+does not approximate the unbounded one-sided response.
 
 Thresholds and validation
 -------------------------
 
-Clipping, ridging, limiter switches and thin-ice removal retain their existing
-physical thresholds. At continuous kinks, JAX follows selected branch
-linearizations; at a discontinuous transition, a local branch derivative
-does not describe a perturbation crossing that transition. Existing tests
-check these conventions and the distinct one-sided responses.
+Clipping values to bounds, ridging (ice piling up), transport limiter switches
+and thin-ice removal keep their existing physical thresholds. At a continuous
+kink, where the slope changes abruptly, JAX uses the local linear response of
+the selected branch. At a jump in the result, a branch derivative does not
+describe an input change that crosses the jump. Tests check these choices and
+the different responses on each side.
 
-Validate a sensitivity with finite differences on the same smooth branch,
-using the initialized precision for State, Configuration and PhysicalConstants.
-At an exact kink, compare against the stated convention and one-sided behavior
-separately. A finite gradient alone is insufficient evidence of correctness.
+Check a sensitivity with finite differences that stay on the same smooth
+branch. Use the initialized precision for State, Configuration and
+PhysicalConstants. At an exact kink, check the stated derivative choice and
+the one-sided behavior separately. A finite gradient alone does not prove
+that the derivative is correct.
 
 Float32 surface-temperature derivatives
 ---------------------------------------
 
-The Newton surface-temperature solver evaluates the humidity slope directly
-from saturation vapor pressure. The equivalent inverse-vapor-pressure form
-produced large intermediates whose forward-mode derivatives overflowed float32,
-even when the slope itself was finite. The reformulation retains the same
-humidity equation, masks and temperature limits. Solver tests compare forward
-and reverse derivatives with finite differences and an independent derivative
-of the conductive/atmospheric heat balance.
+The Newton solver repeatedly adjusts surface temperature to balance heat
+flows. It calculates the humidity slope directly from saturation vapor
+pressure, the vapor pressure at which air is saturated. The equivalent formula
+using inverse vapor pressure produced large intermediate values. Their
+forward-mode derivatives overflowed float32 even when the slope itself was
+finite. The rewritten formula keeps the same humidity equation, masks and
+temperature limits. Tests compare forward and reverse derivatives with finite
+differences and an independent derivative of the heat balance between
+conduction and the atmosphere.
 
 Differentiating complete rollouts
 ---------------------------------
 
-Use the public ``veris.step`` for a fixed-length scan through any setup kernel.
-Checkpointing is enabled by default; it recomputes step intermediates during
-reverse AD without changing the physics sequence. State and time-indexed forcing
-remain differentiable. See :doc:`integration` for a cooling-gradient example,
-auxiliary diagnostic histories, mesh contexts and checkpoint memory limits.
+Use the public ``veris.step`` to repeat any setup's physics calculation a fixed
+number of times. Checkpointing is enabled by default: it recalculates
+intermediate step values during reverse AD to save memory, while keeping the
+same physics sequence. State and forcing indexed by time remain
+differentiable. See :doc:`integration` for a cooling-gradient example,
+diagnostic histories, device-mesh contexts and checkpoint memory limits.
 
-The observer is part of the differentiated scan body. Select a small array
-PyTree when a loss needs intermediate states; omit it for a final-state loss.
-Keep OutputManager and the host timing runner outside JAX transformations.
+The observer runs inside the differentiated timestep loop. A PyTree is a nested
+collection of arrays. Select a small array PyTree when the quantity you want to
+differentiate needs intermediate states. Omit the observer when that quantity
+uses only the final state. Keep OutputManager and the host timing runner
+outside JAX transformations.

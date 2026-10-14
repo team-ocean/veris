@@ -4,13 +4,15 @@ Initialization and presets
 Common experiment initialization
 --------------------------------
 
-``initialize_experiment`` allocates both serial and addressable mesh regions
-through the registered provider contract. New providers supply regional field
-replacements; the framework validates inputs, applies overrides, computes
-derived quantities and handles global boundaries. The maintained presets declare
-their archived startup policy so all 70 initial fields remain reproducible.
-The island, dynamics and growth presets all use this initializer. Define grouped
-controls through ``Experiment`` before allocating arrays::
+``initialize_experiment`` creates model arrays for a serial run on a single
+device or for the parts of a device mesh that the current process can access.
+A mesh groups devices that share the grid. Registered providers supply starting
+field values for each grid
+region. Veris checks inputs, applies overrides, computes quantities from other
+inputs and handles the outer grid boundaries. The maintained presets specify
+their archived startup rules so all 70 initial fields remain reproducible.
+The island, dynamics and growth presets all use this initializer. Set the grouped
+controls through ``Experiment`` before creating arrays::
 
    import jax
    from veris import Experiment, Grid, initialize_experiment
@@ -33,23 +35,24 @@ controls through ``Experiment`` before allocating arrays::
 General allocation
 ------------------
 
-The general allocator initializes registry defaults. Supply consistent grid
-metrics, masks and forcing through ``state_overrides`` to construct a physical
-experiment. For an existing example, construct its builtin Experiment and use
-``initialize_experiment``.
+The general allocator creates arrays using defaults from the model's named
+parameter tables. To define a physical experiment, supply consistent grid
+distances and areas, masks that mark wet cells, and prescribed external inputs
+through ``state_overrides``. For an existing example, construct its builtin
+Experiment and use ``initialize_experiment``.
 
 .. autofunction:: veris.execution.initialization.initialize
 
 Ocean geometry adapter
 ----------------------
 
-The host adapter validates externally supplied ocean geometry and allocates a
-Veris State independently of an ocean-model container. See
-:doc:`/reference/setups/ocean` for shapes and a usage example.
-Masks must lie in [0, 1], spacing and area must be positive, and prescribed
-ice amounts, concentration and temperatures obey the Experiment physical bounds.
-Host validation also rejects values or reciprocals outside the selected
-precision before allocating device arrays.
+The adapter checks ocean grid information supplied from outside Veris. It runs
+in Python and creates a Veris State without requiring an ocean-model container.
+See :doc:`/reference/setups/ocean` for array shapes and a usage example.
+Masks must lie in [0, 1], grid spacing and area must be positive, and prescribed
+ice amounts, ice-covered fractions and temperatures must satisfy the Experiment
+physical bounds. Before creating device arrays, Python checks also reject numbers
+or their reciprocals that the selected numerical precision cannot represent.
 
 .. autoclass:: veris.grid.geometry.OceanGeometry
 
@@ -58,11 +61,13 @@ precision before allocating device arrays.
 Island experiment
 -----------------
 
-The serial island setup combines dynamics, transport and thermodynamics.
-Scenario controls are separate from model Configuration and PhysicalConstants;
-their defaults are generated from ``ISLAND_SETTINGS`` in
-:doc:`/reference/setups/island`. Use :func:`veris.advance` for the pure coupled
-transition and :func:`veris.step` for a fixed-length rollout.
+The serial island setup combines dynamics, which computes ice motion, transport,
+which carries ice and snow across the grid, and thermodynamics, which computes
+freezing and melting. Scenario controls are separate from model Configuration
+and PhysicalConstants. Their defaults are generated from ``ISLAND_SETTINGS`` in
+:doc:`/reference/setups/island`. Use :func:`veris.advance` for one combined update
+without Python side effects and :func:`veris.step` to repeat a fixed number of
+updates.
 
 .. autoclass:: veris.setups.island.IslandSettings
 
@@ -74,10 +79,11 @@ transition and :func:`veris.step` for a fixed-length rollout.
 Dynamics experiment
 -------------------
 
-This setup advances dynamics and transport with prescribed ocean and wind
-fields. Define global physical dimensions with ``Grid``; the Configuration
-returned by ``initialize_experiment`` records local interior extents. The general
-allocator instead accepts interior extents per partition when given a mesh. See
+This setup computes ice motion and transport using supplied ocean and wind
+fields. Set the full grid dimensions with ``Grid``. The Configuration returned
+by ``initialize_experiment`` records the interior size of each local grid piece.
+When given a mesh, the general allocator instead accepts interior sizes per
+partition, or grid piece. See
 :doc:`/reference/setups/dynamics` and
 :doc:`/reference/setups/parallel-dynamics` for the scenario registry and runs.
 
@@ -91,8 +97,9 @@ allocator instead accepts interior extents per partition when given a mesh. See
 Growth experiment
 -----------------
 
-The serial growth column advances thermodynamics with recursive heat-flux
-fields. Its ``GROWTH_SETTINGS`` defaults and command-line usage appear in
+The serial growth column computes freezing and melting. Its heat-flux fields
+describe heat exchanged with the ice and feed results from one step into the
+next. Its ``GROWTH_SETTINGS`` defaults and command-line usage appear in
 :doc:`/reference/setups/growth`.
 
 .. autoclass:: veris.setups.run_growth.GrowthSettings
@@ -102,5 +109,5 @@ fields. Its ``GROWTH_SETTINGS`` defaults and command-line usage appear in
 
    Growth scenario defaults and metadata; see :doc:`/reference/setups/growth`.
 
-Select ``physics="thermodynamics"`` with :func:`veris.advance` to evolve the
+Select ``physics="thermodynamics"`` with :func:`veris.advance` to update the
 initialized column, or use its builtin Experiment with Simulation.

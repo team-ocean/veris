@@ -1,38 +1,45 @@
 Physical constants
 ==================
 
-``veris.model.physical_constants.PHYSICALCONSTANTS`` defines physical and empirical
-coefficients, physical bounds, regularization scales and forcing reference
-heights for the frozen ``PhysicalConstants`` dataclass. Each model
-initialization constructs its own constants object. Physical constants stay
-outside the numerical State PyTree.
+``veris.model.physical_constants.PHYSICALCONSTANTS`` defines the values used by
+the frozen ``PhysicalConstants`` dataclass, a collection whose fields cannot be
+reassigned. These include physical coefficients (numbers used in equations), coefficients based on
+observations, physical limits, scales that keep equations well behaved, and
+reference heights for atmospheric forcing, the supplied air conditions. Each model initialization creates
+its own constants object. Physical constants stay outside the numerical State
+PyTree, the collection of arrays used by JAX.
 
-Override independent values with ``dataclasses.replace``. Exact dependencies,
-such as density ratios, follow the changed base values::
+Change independent values with ``dataclasses.replace``. Values calculated from
+exact relationships, such as density ratios, follow the changed base values::
 
    from dataclasses import replace
    from veris.model.physical_constants import PhysicalConstants
    constants = replace(PhysicalConstants(), rhoIce=920.0)
    assert constants.rhoIce2rhoSnow == 920.0 / constants.rhoSnow
 
-Independently rounded coefficients in established parameterizations retain
-their numerical defaults. Similar names do not imply interchangeable formulas.
-Ice-removal thresholds such as ``hIce_min``, basal-drag thresholds such as
-``basalDragMinArea``, and bulk-flux wind floors belong here because they define
-the physical parameterizations. Supply ``constants={...}`` in an
-:doc:`Experiment </api/experiment>`, or replace fields on ``PhysicalConstants``.
-The low-level :func:`veris.execution.initialization.initialize` instead uses
+Parameterizations are formulas that approximate physical processes. Their
+independently rounded coefficients keep their numerical defaults. Similar
+names do not mean that formulas are interchangeable. Ice-removal thresholds
+such as ``hIce_min``, thresholds for drag against the seabed such as
+``basalDragMinArea``, and minimum wind speeds in bulk-flux formulas (formulas for
+transfer between surface and air) belong here because they define these
+physical approximations. Supply ``constants={...}``
+in an :doc:`Experiment </api/experiment>`, or replace fields on
+``PhysicalConstants``. The low-level
+:func:`veris.execution.initialization.initialize` instead uses
 ``physical_overrides``.
 
-``pressReplFac`` weights the strain-dependent replacement pressure in the ice
-constitutive law. Its default remains 1.0; fractional values retain their
-continuous weighting behavior. Configure it through the same constants group
-or immutable replacement.
+``pressReplFac`` weights the replacement pressure that depends on strain (ice
+deformation) in the law relating ice stress to deformation. Its default remains
+1.0. Fractional values change that weight continuously. Set it through the same
+constants group or by creating an updated constants object.
 
-``evpStressRelaxation`` and ``evpShearRelaxation`` also belong here: the first
-scales the equilibrium stresses, while their ratio scales equilibrium
-deviatoric stresses. They retain independent defaults. The numerical EVP
-relaxation rates ``evpAlpha`` and ``evpBeta`` remain model settings.
+``evpStressRelaxation`` and ``evpShearRelaxation`` also belong here. The first
+scales the equilibrium stresses. Their ratio scales the equilibrium deviatoric
+stresses, the part of stress that changes shape rather than volume. The two
+values keep independent defaults. EVP means elastic-viscous-plastic, the method
+used to solve for ice velocity and stress. Its numerical relaxation rates
+``evpAlpha`` and ``evpBeta`` remain model settings.
 
 Registry defaults
 -----------------

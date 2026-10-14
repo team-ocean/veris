@@ -1,9 +1,12 @@
 Prescribed ocean geometry and custom fields
 ===========================================
 
-A custom experiment requires geometry, masks, initial conditions and prescribed
-fields. It can be defined without importing internal modules or editing Veris
-source. This small CPU example uses physical arrays in ``(x, y)`` order::
+To define a custom experiment, supply geometry (the grid's shape and sizes),
+masks (values marking ocean and land), starting model values and prescribed
+fields (inputs supplied to the model). A grid divides the modeled area into
+cells. You can do this without importing internal modules or editing Veris
+source. This small CPU (computer processor) example uses arrays (tables of
+numbers) for physical cells in ``(x, y)`` order, with the x direction first::
 
    import numpy as np
    from veris import Execution, Experiment, Forcing, Grid, OceanGeometry, Simulation
@@ -44,31 +47,44 @@ source. This small CPU example uses physical arrays in ``(x, y)`` order::
                            variables=("hIceMean", "Area", "iceMask"))
    assert result.completed_steps == 3
 
-``maskT``, ``maskU`` and ``maskV`` are center, west-face and south-face ocean
-masks with shape ``(nx, ny, z)``; their last level is the surface. Zero means
-dry; fractional masks retain the established numerical weighting. The model
-zeros initial ice amounts on dry cells and ice velocities on blocked faces.
-Spacing vectors are in meters, cell/face areas in m², bottom elevation ``ht``
-in meters and Coriolis frequency in s⁻¹. Supply positive spacings/areas and
-finite masks in [0, 1]. Initialization derives corner metrics, reciprocals,
-ice load, inverse thickness, wind magnitude and field-specific boundary halos.
+``maskT``, ``maskU`` and ``maskV`` mark ocean at cell centers, west faces (western
+edges) and south faces (southern edges). They have shape ``(nx, ny, z)``; their
+last level is the surface. Zero means dry. Fractional masks keep the model's
+existing weighting of calculations. The model sets initial ice amounts to zero
+on dry cells and ice velocities to zero on blocked faces. Spacing vectors list
+distances in meters; cell/face areas use m². Bottom elevation ``ht`` uses meters.
+Coriolis frequency, which describes the effect of Earth's rotation, uses s⁻¹.
+Supply positive spacings/areas and finite masks (no infinite or undefined values)
+in [0, 1]. Initialization
+calculates corner metrics (grid measurements at cell corners), reciprocals
+(one divided by a value), ice load (mass per area), inverse thickness and wind
+magnitude (speed). It also prepares field-specific boundary halos, extra cells
+at grid edges set according to each field's boundary rules.
 
-All ice and prescribed spatial fields are scalars or ``(nx, ny)`` arrays.
-Time-varying forcing is ``(time,)`` or ``(time, nx, ny)`` and is indexed by the
-absolute completed-step position. Series override constants with the same name.
-Thickness is grid-cell mean meters, ``Area`` is concentration in [0, 1],
-temperatures are kelvin, salinity is g kg⁻¹ and heat fluxes are W/m², positive
-upward. Coupled execution requires equal dynamics/thermodynamic timesteps.
-Supported names and additional validation are in :doc:`/api/experiment`.
+All ice and prescribed spatial fields are scalars (single values) or ``(nx, ny)``
+arrays. Time-varying forcing, or supplied inputs that change with time, has shape
+``(time,)`` or ``(time, nx, ny)``. The model selects values using the total number
+of steps already completed, including earlier runs. Series override constants
+with the same name. Thickness is averaged over the whole grid cell and measured
+in meters. ``Area`` is concentration, the fraction covered by ice, in [0, 1].
+Temperatures are kelvin and salinity is g kg⁻¹. Heat fluxes (heat transferred
+per area per time) are W/m², positive upward. Coupled execution, which combines
+ice motion and growth, requires equal dynamics/thermodynamic timesteps (intervals
+of simulated time). Supported names and more input checks are in
+:doc:`/api/experiment`.
 
-``enable_cyclic_y=False`` selects closed meridional boundaries. Initialization
-and execution honor staggered wall fields, including the physical north-wall
-shear traction stored in its first halo column. Internal partition boundaries
-remain exchanges when an explicit mesh is used.
+``enable_cyclic_y=False`` closes the north and south (meridional) boundaries.
+Initialization and execution apply wall rules to staggered fields, which store
+values at different grid locations. This includes the physical north-wall
+shear traction (force per area along the wall) stored in its first halo column.
+With an explicit mesh (a group of devices), internal boundaries between grid
+partitions exchange values between neighboring partitions.
 
-To save a portable definition, serialize ``experiment.to_dict()`` as JSON and
-load it with ``Experiment.from_file``. JSON stores arrays as lists; complete
-restart stores typed numerical inputs directly and preserves the evolved State.
-For very large inputs, construct the Python definition from your data loader
-using the physical shapes above. Selected netCDF input is available through
-``Simulation.load_fields``; geometry changes require a new initialization.
+To save a definition you can load later, write ``experiment.to_dict()`` as JSON,
+a text format, and load it with ``Experiment.from_file``. JSON stores arrays as
+lists. A complete restart file stores numerical inputs with their types intact
+and preserves the evolved State (the arrays holding the model's current values).
+For very large inputs, build the Python definition from your data loader using
+the physical shapes above. Use ``Simulation.load_fields`` to load selected fields
+from netCDF, a file format for arrays. Changing geometry requires a new
+initialization.

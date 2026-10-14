@@ -1,5 +1,79 @@
 # Development log
 
+## 2026-10-14 — Plain-English documentation rewrite
+
+- [x] COMPLETE (@root): rewrite maintained explanatory text on `jax-only` for
+  readers new to sea ice models and scientific computing. Starting commit:
+  fd9e57c; tracked files were clean and GitHub had the same branch head.
+- File ownership: beginner editor owns README and introductory/quickstart pages;
+  API editor owns `docs/api/` and `docs/reference/package-hierarchy.rst`;
+  scientific editor owns `docs/reference/` except package hierarchy. The beginner
+  editor also owns tests/README.md; the API editor owns the current reference-data
+  reproduction guide in tests/reference_data/README.md. Root owns DESIGN.md, CLI/development pages,
+  benchmark instructions and verification.
+- Keep headings, links, directives, examples, equations, names and values.
+  Leave model code, test code, configuration, generated reference text, dated plans,
+  archived scientific data/manifests and historical results unchanged. Report
+  uncertain claims rather than replace them with guesses.
+- [x] Rewrite all 34 maintained sources: 29 RST pages, README.md, DESIGN.md,
+  benchmarks/README.md, tests/README.md and tests/reference_data/README.md.
+  Explain technical terms in the existing paragraphs; keep original scientific
+  conditions, limitations, reference provenance and numerical details.
+- [x] Independent final review covers every maintained source. Correct review
+  findings about export flags, default history selection, kernel composition,
+  sample accumulation over time and averaging windows. Generated tables and
+  API docstrings remain unchanged because their source code is outside scope.
+- [x] Structural checks preserve all headings, emphasis, lists/tables, links,
+  cross-references, directive options, code/literal blocks, equations, existing
+  numeric values and inline API/parameter names. Every tracked file outside the
+  documentation scope matches fd9e57c byte for byte; historical log entries
+  remain unchanged. Git diff whitespace checks pass.
+- [x] Final strict Sphinx HTML build passes. All 75 HTML pages have valid local
+  links: 5,721 destinations and 2,333 fragments checked. Ruff lint, formatting,
+  annotations and ty pass. Final maintained coverage is 4,646/4,897 = 94.87%.
+- Unresolved documentation question: docs/api/model-data.rst says Diagnostics
+  stay outside the time-stepping carry, while DESIGN.md describes a carry with
+  both State and Diagnostics. Public step and Simulation use different carries;
+  flag the unspecified scope in the existing paragraph rather than guess it.
+- Full CPU run: 1,620 passes, four expected GPU skips and one failure across
+  1,625 cases. The unchanged distributed closed-wall derivative probe times out
+  after 600 s, following four passing halo contexts. No numerical code, test or
+  timeout changes are authorized by this prose-only task. The isolated retry
+  also times out with four permitted CPUs, one worker and the existing deadline.
+  This rules out simply reducing local CPU affinity as a sufficient workaround.
+- GitHub confirms the starting fd9e57c revision's Actions run 38556260281 passes.
+  It does not prove the cause of the local timeout. Run the full unchanged suite
+  on allocated cluster CPUs using the user's approved aegir queue: job 66377925,
+  one v3 node, one task, 12 CPUs and three partitioned pytest workers. Clear only
+  scheduler rank-discovery variables for this single-controller harness; its
+  subprocess tests retain their explicit rank controls and original assertions.
+  Do not commit until the full-suite requirement is met.
+- Failed cluster launch: job 66377925 exits 13 before Python starts because
+  srun resolves `env` to an inaccessible user PATH wrapper. No tests ran in
+  that job. Resubmit using /usr/bin/env and the explicit environment Python path.
+- Cluster retry: job 66377975 runs the same full suite with corrected executable
+  paths. Inspect squeue/sacct for its actual status before continuing or retrying.
+- Job 66377975 ends FAILED (137:0) at 11:30. Slurm kills the step after measured
+  memory reaches 13,116,408,832 bytes, above its default 12 GB limit. No full
+  correctness result exists from this interrupted session. Request 32 GB for
+  the next unchanged full run and keep each job's coverage/XML/temp outputs
+  separate. This changes only scheduler resources, not tests or model settings.
+- Full-suite job 66378240 uses the explicit 32 GB memory request. Check its
+  actual Slurm state and complete XML result before treating it as verification.
+- [x] Job 66378240 completes 0:0 in 16:36. Its full XML report records all 1,625
+  cases: 1,621 passes, four expected GPU-only skips, zero failures and zero
+  errors. The formerly timing-out distributed case passes in 251.300 s. Tests
+  and numerical code remain unchanged; the local timeout's cause is unresolved.
+  Final maintained coverage is 94.87%, whole-package coverage is 91.18%.
+- [x] Final prose-preservation and rendered-link audits pass for every maintained
+  source. All required checks pass before committing this documentation-only
+  stage to jax-only. Keep the Diagnostics carry question flagged for follow-up.
+- [x] Final terminology refinements clarify JVP/VJP, reciprocals and coefficients;
+  independent review approves them. Rebuild strict HTML and check local links
+  successfully after these refinements.
+- Verification evidence is in /tmp/veris-plain-english/ and
+  test_logs/plain-english/. Existing test_logs/ remains unstaged local evidence.
+
 ## 2026-10-14 — Failed GitHub CI investigation
 
 - [x] Investigated (@root) cdd2ec4's failed Unit tests run 38543594796 using

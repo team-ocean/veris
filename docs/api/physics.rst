@@ -1,26 +1,30 @@
 Physics kernels
 ===============
 
-These functions expose the equations and stencil operations composed by
-``advance``. Most accept ``(vs, conf, phys)``: a halo-inclusive State, static
-Configuration and static PhysicalConstants. They return arrays or tuples;
-the caller assigns results with ``dataclasses.replace`` and supplies the
-required halo exchange and stage ordering.
+These functions implement the equations and nearby-cell calculations used by
+``advance``. Most accept ``(vs, conf, phys)``: a State with halos, a fixed
+Configuration and fixed PhysicalConstants. State holds the model arrays. Halos
+are extra cells that hold boundary or neighboring values. The functions return
+arrays or tuples. The caller assigns results with ``dataclasses.replace``,
+exchanges halo values when required and calls the stages in the required order.
 
 Single physics timestep
 -----------------------
 
-``veris.advance`` performs one complete timestep and returns State and
-Diagnostics. Select coupled, dynamics or thermodynamics; bind configuration,
-constants and physics statically for JAX transformations. Supplied forcing is
-dynamic and refreshed before the kernels consume it. This differs from
-``veris.step``, which performs a multi-step rollout with a supplied transition.
-See :doc:`/reference/integration` for composition and differentiation examples.
+``veris.advance`` moves the model forward by one complete timestep and returns
+State and Diagnostics, which holds step results. Select coupled for ice motion,
+transport, freezing and melting; dynamics for motion and transport; or
+thermodynamics for freezing and melting. Keep configuration, constants and the
+physics choice fixed when applying JAX transformations. Supplied forcing, or
+external inputs, can change and is refreshed before the numerical functions
+use it. ``veris.step`` repeats a supplied step function over multiple timesteps.
+See :doc:`/reference/integration` for examples of combining these functions and
+computing derivatives, which describe how results change with inputs.
 
 .. autofunction:: veris.execution.advance.advance
 
-The focused :func:`~veris.physics.dynamics.driver.dynamics_transport` stage is available to
-callers composing specialized transitions.
+The :func:`~veris.physics.dynamics.driver.dynamics_transport` stage is available
+to callers building specialized step functions.
 
 Dynamics
 --------
