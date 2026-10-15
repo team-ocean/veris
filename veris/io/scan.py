@@ -18,6 +18,7 @@ from weakref import WeakKeyDictionary, ref
 import jax
 import jax.numpy as jnp
 
+from veris.execution.checkpoint import checkpoint_transition
 from veris.execution.rollout import step
 from veris.io.calendar import duration_us
 from veris.io.configuration import Stream
@@ -186,7 +187,7 @@ def _reduction_transition(
     binary: bool,
 ) -> Callable[..., Carry]:
     """Share pre-transition sampling and unchanged physics between executors."""
-    transition = jax.checkpoint(advance) if checkpoint else advance
+    transition = checkpoint_transition(advance) if checkpoint else advance
 
     def body(value: Carry, prescribed: Any = None) -> Carry:
         state, sums, counts, iteration = value

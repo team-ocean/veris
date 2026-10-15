@@ -259,6 +259,19 @@ def check_coupled(mesh: Mesh, no_slip: bool, dtype: str) -> None:
         gradient = pullback(jnp.ones_like(value))[0]
         compare(value, expected_value, "coupled scalar objective", tolerance)
         compare(gradient, expected_gradient, "coupled VJP serial/sharded", tolerance)
+        if distributed:
+            # Exercise another cold executable without adding synchronization
+            # between the primal and pullback. Replayed nested communication
+            # previously collided with independent adjoint halo exchanges.
+            jax.clear_caches()
+            repeated_value, repeated_pullback = jax.vjp(function, *arguments)
+            repeated_gradient = repeated_pullback(jnp.ones_like(repeated_value))[0]
+            compare(
+                repeated_value, expected_value, "fresh coupled objective", tolerance
+            )
+            compare(
+                repeated_gradient, expected_gradient, "fresh coupled VJP", tolerance
+            )
         for axis in range(2):
             direction = placed(jnp.eye(2, dtype=dtype)[axis], replicated)
             tangents = (direction, state_tangent) if distributed else (direction,)
@@ -298,6 +311,7 @@ def main(backend: str, dtype: str, halos_only: bool, distributed: bool) -> None:
     if distributed:
         import os
 
+        jax.config.update("jax_enable_compilation_cache", False)
         if backend == "cpu":
             jax.config.update("jax_num_cpu_devices", 1)
             jax.config.update("jax_cpu_collectives_implementation", "gloo")

@@ -58,6 +58,14 @@ processes. For a manual multi-process launch, set
 ``JAX_PROCESS_ID`` together for every rank. The CPU environment must be
 available on all participating nodes.
 
+For CUDA launches across several Python processes, export
+``CUDA_MODULE_LOADING=EAGER`` before starting Python. This avoids delayed kernel
+loading during communication; see NVIDIA's
+`lazy loading guidance <https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/lazy-loading.html>`_.
+When each rank sees one GPU through its own ``CUDA_VISIBLE_DEVICES`` setting,
+set ``JAX_LOCAL_DEVICE_IDS=0`` for every rank. The visible GPU must be a
+different assigned device for each rank.
+
 Output contains the nine reference fields: hIceMean, Area, hSnowMean, uIce,
 vIce, uWind, vWind, uOcean and vOcean. Each partition's halos are removed before
 gathering, so arrays have the global physical shape. All ranks help gather

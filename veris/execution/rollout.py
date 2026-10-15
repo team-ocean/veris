@@ -5,6 +5,8 @@ only time iteration. State stays the scan carry, while optional diagnostics and
 selected observations remain outputs. Rematerialization recomputes each step's
 intermediates in reverse AD, trading computation for residual storage. It does
 not remove scan's storage of carry values across time.
+Multi-process checkpoints also retain halo permutation results, avoiding replay
+of communication during reverse AD while arithmetic remains rematerialized.
 """
 
 from collections.abc import Callable
@@ -13,6 +15,8 @@ from numbers import Integral
 from typing import Any, TypeVar
 
 import jax
+
+from veris.execution.checkpoint import checkpoint_transition
 
 _Carry = TypeVar("_Carry")
 
@@ -44,6 +48,7 @@ def step(
     ``steps``, callables and switches are static; carry and forcing arrays stay
     differentiable. Carry leaf shapes/dtypes and PyTree structure must remain
     constant. The default checkpoint wraps the scan body with ``jax.checkpoint``.
+    Multi-process execution saves halo exchange results across recomputation.
     Zero steps preserve the initial State; JAX still traces the pure transition
     and observer to infer empty observation shapes. Host I/O and mutable callbacks
     belong outside this API. For sharded physics, retain the setup's active mesh.
@@ -94,6 +99,6 @@ def _scan(
             output = None if observe is None else observe(state)
         return state, output
 
-    transition = jax.checkpoint(body) if checkpoint else body
+    transition = checkpoint_transition(body) if checkpoint else body
     final, history = jax.lax.scan(transition, initial, inputs, length=steps)
     return final if observe is None else (final, history)

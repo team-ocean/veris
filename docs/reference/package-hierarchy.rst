@@ -99,6 +99,7 @@ package initializer files except for the public interface at the root::
        surface_temperature.py
      execution/
        advance.py
+       checkpoint.py
        experiment_initialization.py
        initialization.py
        rollout.py

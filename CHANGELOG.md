@@ -29,6 +29,81 @@
   test_logs/release-0.2.0/vjp-investigation/.
 - Publish only after a fresh hosted run succeeds on this corrected reference.
   GitHub release notes will link that final workflow and the verified commit.
+- Fresh GitHub run 38724977700 on 7270c6f fails the same gradient materialization
+  on both ranks: 1,622 passes, four skips and one Gloo 30-minute receive failure,
+  4,146.37 seconds total. Moving the oracle is scientifically appropriate but
+  does not resolve the communication failure; do not repeat that hypothesis.
+  Release remains gated. Prepare scratch rank/slip phase markers and a control
+  that waits for the VJP output and all pullback residuals before backward
+  dispatch. Preserve asynchronous coverage in the maintained probe until the
+  underlying cause is established. Evidence: vjp-investigation/ci-result.log.
+- Scratch original execution on four head-node CPUs and synchronized control
+  on four aegir CPUs both pass all fields/AD/FD and both slip choices. Control
+  job 66409635 completes 0:0 in 4:24; its forward/residual synchronization is
+  immediate. This does not justify a permanent host synchronization workaround.
+  Review of optimized backward HLO/buffer assignment identifies an outer
+  cotangent halo permute with no completion dependency on rematerialized EVP;
+  shared communicator ordering supplies only a scheduling edge. This is an
+  overlap hazard in a passing artifact, not proof of the hosted failure's cause.
+  Submit scratch fresh-compilation VJP repeats with narrow file-backed runtime
+  logging; keep maintained model/test behavior unchanged during investigation.
+- Native fresh-VJP repeat 0 stalls after compilation in scratch job 66409664.
+  Both ranks' debugger stacks show Gloo waitSend; CPU accounting is unchanged.
+  Preserve stacks/HLO and cancel that diagnosed blocked job, not on a deadline.
+  Logged repeat job 66409727 reproduces the same stall. Exact buffer-slice and
+  rendezvous-key mapping shows rank 0's outer adjoint receive 2185 consumes
+  rank 1's rematerialized EVP send 2023; subsequent nested receives 2023/2022
+  remain unmatched. This establishes the nested/outer message cross-match.
+- Add a shared checkpoint policy retaining primal ppermute results for
+  multi-process rollouts, used by pure and scheduled scans. Arithmetic stays
+  rematerialized; local policy, genuine adjoint exchanges and all equations
+  remain unchanged. Scratch backward HLO removes 20 replayed remote exchanges
+  while retaining all 42 true adjoint exchanges. Added stacked residual input
+  storage is 15,232 bytes per rank for this small two-step/two-EVP case.
+- TDD: new helper test first fails on missing module; legacy wrapper then
+  fails distributed communication counts [4,6,6]. Both selected policies now
+  pass real two-device derivatives/finite differences, exchange counts and
+  retained arithmetic recomputation. Direct and save-everything controls
+  explicitly lack that recomputation. Native probe now covers another fresh
+  asynchronous VJP and disables disk-cache reuse for this regression.
+- Focused pytest commands briefly overlap during this investigation; both use
+  isolated child processes and outputs. Keep all remaining pytest runs
+  sequential, including the final full correctness gate.
+- [x] Maintained ppermute-only policy native regression passes: job 66409747
+  COMPLETED 0:0, one case in 333.94 s (5:39 job wall), both slip choices,
+  full halo prelude, all fields/JVP/VJP/FD and fresh VJP. Ruff/format (225 files),
+  annotations, ty and final strict Sphinx build pass. Frozen 241 source/reference
+  hashes recorded before the final full run. Fresh whole-change review finds
+  no defect; arithmetic-recomputation negative controls and package-tree entry
+  address earlier review gaps.
+- Scratch control 66409714 passes initial plus eight fresh VJPs per slip and
+  all original JVP/FD assertions, completing 0:0 in 16:13. Its exploratory
+  policy saves five collective kinds; it is not by itself verification of the
+  exact ppermute-only implementation. Run fresh repeats through the maintained
+  wrapper, full CPU correctness and native two-controller GPU precision checks
+  before committing. Hosted success is still required before publication.
+- [x] Final full CPU job 66409789 COMPLETED 0:0: 1,625 passes, four expected
+  GPU skips, zero failures/errors across 1,629 XML cases; 992.08 s pytest,
+  995.55 s external wall. Maintained coverage 4,661/4,910 = 94.93%; 80% gate
+  passes. All 241 recorded source/reference hashes remain unchanged.
+- [x] Exact maintained ppermute-only wrapper also passes the separate native
+  repeat job 66409790, COMPLETED 0:0 in 16:46: initial plus eight fresh VJPs
+  per slip, all original field/JVP/FD checks and the entire halo prelude.
+- Two-controller GPU verification encounters a separate CUDA initialization
+  wait: rank 1 is inside cuModuleLoadData with GPU 1 at 100%; rank 0 waits on
+  the coordination service with GPU 0 idle. Preserve debugger stacks and test
+  NVIDIA's documented CUDA_MODULE_LOADING=EAGER control with the same maintained
+  probe. SIGTERM fails to reap the original diagnostic ranks; verified-command
+  SIGKILL completes cleanup. This is a diagnosed test-control change, not a
+  test deadline or a change to numerical assertions. Eager control is pending.
+- [x] Standard native GPU/precision pytest passes 6/6 in 95.23 s, zero skips,
+  failures/errors; XML identities confirm all four CPU-skipped cases execute.
+  CUDA eager-loading control passes both distributed float64 slip cases,
+  including fresh VJP/JVP/FD and all fields/halos. Distributed float32 continues
+  as an additional publication gate while the locally verified fix is committed
+  and sent to GitHub CI. Document the tested eager-loading/device-binding setup;
+  strict Sphinx rebuild passes. Final hosted/extended-GPU publication evidence
+  belongs in the GitHub release notes to avoid another log-only CI cycle.
 
 ## 2026-10-15 — v0.2.0 release preparation
 

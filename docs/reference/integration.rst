@@ -152,7 +152,9 @@ intermediate step values so it needs to save fewer values, at the cost of more
 computation. This does **not** guarantee constant memory as a rollout grows
 longer. Saved carry values and requested observation histories can still grow
 with the number of timesteps. Use ``checkpoint=False`` to compare the ordinary
-scan. See JAX's
+scan. Multi-process rollouts retain halo exchange results for reverse AD rather
+than exchanging those values again. Arithmetic is still recalculated; saved
+halo values add storage at each timestep and inner solver iteration. See JAX's
 `gradient checkpointing guide <https://docs.jax.dev/en/latest/gradient-checkpointing.html>`_
 and :doc:`automatic-differentiation` for physical derivative conventions.
 
