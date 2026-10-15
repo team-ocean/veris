@@ -1,5 +1,35 @@
 # Development log
 
+## 2026-10-15 — Release CI distributed derivative investigation
+
+- GitHub run 38714846084 on 59e1d16 finishes with 1,622
+  passes, four GPU skips and one failure in 3,351.61 seconds. The uncapped
+  closed-wall distributed VJP reaches Gloo's own 30-minute receive failure.
+  This exposes a communication failure previously hidden by test deadlines;
+  do not restore deadlines, skip assertions or publish the release yet.
+- Independent review finds the test rebinds its parameter vector to a global
+  replicated array, then uses that vector for a purported serial oracle while
+  the distributed pullback is pending. Prepare and materialize scalar/gradient
+  oracles with the original local vector before entering the global mesh.
+  Preserve the entire halo prelude, both slip choices, all-field comparisons,
+  VJP/JVP and both finite-difference directions. Runtime collision mechanism
+  remains a hypothesis until targeted and hosted verification establish it.
+- Evidence: test_logs/release-0.2.0/ci-failed.log. Work remains on jax-only.
+- [x] Corrected-reference focused test passes all assertions on four allocated
+  CPUs: 239.38 seconds, job 66408616 COMPLETED 0:0. Both slip choices and all
+  four halo contexts pass. Native two-P100 probes also pass float64/float32:
+  four coupled cases and eight halo contexts with unchanged AD/FD tolerances.
+  These local passes establish oracle fidelity; a fresh hosted run is still
+  required before claiming the observed Gloo failure is resolved.
+- [x] Full CPU suite passes 1,623 tests with four expected GPU skips, zero
+  failures/errors across 1,627 XML cases. Job 66408646 COMPLETED 0:0; external
+  wall time 963.77 seconds. Maintained coverage 4,646/4,897 = 94.87%, above 80%.
+  All executable-source hashes remain fixed; only this journal changes during
+  verification. Ruff/format/annotations/ty pass. Evidence is under
+  test_logs/release-0.2.0/vjp-investigation/.
+- Publish only after a fresh hosted run succeeds on this corrected reference.
+  GitHub release notes will link that final workflow and the verified commit.
+
 ## 2026-10-15 — v0.2.0 release preparation
 
 - [x] Prepared (@root) on jax-only, starting at edc8491: remove all explicit

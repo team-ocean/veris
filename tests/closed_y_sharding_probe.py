@@ -208,7 +208,11 @@ def check_coupled(mesh: Mesh, no_slip: bool, dtype: str) -> None:
         return jnp.mean(spatial_weights * physical)
 
     reference = evolve(point, False)
-    expected_gradient = jax.grad(lambda p: objective(p, False))(point)
+    # Keep the independent oracle process-local. Below, point becomes a global
+    # replicated array; using it for the serial oracle can enqueue collectives
+    # while the distributed pullback is still running.
+    expected_value = np.asarray(objective(point, False))
+    expected_gradient = np.asarray(jax.grad(lambda p: objective(p, False))(point))
     with jax.set_mesh(mesh):
         replicated = NamedSharding(mesh, P())
         point = placed(point, replicated)
@@ -253,7 +257,7 @@ def check_coupled(mesh: Mesh, no_slip: bool, dtype: str) -> None:
             state_tangent = None
         value, pullback = jax.vjp(function, *arguments)
         gradient = pullback(jnp.ones_like(value))[0]
-        compare(value, objective(point, False), "coupled scalar objective", tolerance)
+        compare(value, expected_value, "coupled scalar objective", tolerance)
         compare(gradient, expected_gradient, "coupled VJP serial/sharded", tolerance)
         for axis in range(2):
             direction = placed(jnp.eye(2, dtype=dtype)[axis], replicated)
