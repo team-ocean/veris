@@ -53,7 +53,7 @@ with _temporary_compilation_cache():
     for offset in range(2):
         result = subprocess.run(
             [sys.executable, "-c", compile_script, str(path), str(offset)],
-            capture_output=True, text=True, check=True, timeout=60,
+            capture_output=True, text=True, check=True,
         )
         runs.append(json.loads(result.stdout))
     assert runs[0]['sum'] != runs[1]['sum']
@@ -82,7 +82,6 @@ print("real cache reuse and cleanup passed")
         env=environment,
         capture_output=True,
         text=True,
-        timeout=180,
         check=False,
     )
     assert result.returncode == 0, f"ERROR cache lifecycle: {result.stderr[-2000:]}"
@@ -128,7 +127,6 @@ print("caller cache settings preserved")
         ),
         capture_output=True,
         text=True,
-        timeout=60,
         check=False,
     )
     assert result.returncode == 0, (
@@ -184,7 +182,6 @@ print("subsecond policy and caller settings preserved")
         ),
         capture_output=True,
         text=True,
-        timeout=60,
         check=False,
     )
     assert result.returncode == 0, (

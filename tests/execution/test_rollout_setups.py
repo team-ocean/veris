@@ -237,7 +237,6 @@ def test_four_cpu_device_rollout_and_derivatives(tmp_path: Path) -> None:
             env=environment,
             stdout=output,
             stderr=subprocess.STDOUT,
-            timeout=360,
             check=False,
         )
     assert result.returncode == 0, (

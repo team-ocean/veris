@@ -6,13 +6,13 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
-from time import monotonic
 from typing import TextIO
 
 import h5netcdf
 import numpy as np
 import pytest
 
+from tests.process_helpers import wait_for_processes
 from veris import run_experiment
 from veris.io import read_record
 
@@ -46,7 +46,7 @@ def test_distributed_launcher_does_not_block_on_peer_output(
         text: bool,
     ) -> subprocess.Popen[str]:
         # Test the host process protocol with real children; no numerical
-        # implementation is replaced. Bound an expected deadlock to five seconds.
+        # implementation is replaced.
         process = popen(
             [sys.executable, str(child), str(marker), env["JAX_PROCESS_ID"]],
             env=env,
@@ -54,18 +54,6 @@ def test_distributed_launcher_does_not_block_on_peer_output(
             stderr=stderr,
             text=text,
         )
-        communicate, wait = process.communicate, process.wait
-
-        def bounded_communicate(
-            input: str | None = None, timeout: float | None = None
-        ) -> tuple[str, str]:
-            return communicate(input=input, timeout=5)
-
-        def bounded_wait(timeout: float | None = None) -> int:
-            return wait(timeout=5)
-
-        monkeypatch.setattr(process, "communicate", bounded_communicate)
-        monkeypatch.setattr(process, "wait", bounded_wait)
         return process
 
     monkeypatch.setattr(subprocess, "Popen", launch)
@@ -130,20 +118,12 @@ def _launch(
                         text=True,
                     )
                 )
-        # The complete cold AD probe takes over five minutes on four CPUs.
-        # Allow CI scheduling/compilation variability without dropping checks;
-        # one shared deadline bounds the whole pair, rather than each rank.
-        timeout = 600 if closed_ad else 150
-        deadline = monotonic() + timeout
+        try:
+            wait_for_processes(processes)
+        except ChildProcessError as error:
+            details = "\n".join(log.read_text()[-2200:] for log in logs)
+            raise AssertionError(f"{error}\n{details}") from error
         for rank, process in enumerate(processes):
-            try:
-                process.wait(timeout=max(0, deadline - monotonic()))
-            except subprocess.TimeoutExpired:
-                raise AssertionError(
-                    f"ERROR distributed rank{rank} timed out after {timeout}s; "
-                    f"rank statuses={[peer.poll() for peer in processes]}\n"
-                    f"{logs[rank].read_text()[-2200:]}"
-                ) from None
             assert process.returncode == 0, (
                 f"ERROR distributed rank{rank}: {logs[rank].read_text()[-2200:]}"
             )
@@ -151,7 +131,7 @@ def _launch(
         for process in processes:
             if process.poll() is None:
                 process.kill()
-            process.wait(timeout=10)
+            process.wait()
 
 
 @pytest.mark.slow

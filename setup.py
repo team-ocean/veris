@@ -42,6 +42,8 @@ setup(
     license="MIT",
     author="Jan Gärtner (AWI Bremen)",
     author_email="jph.gaertner@gmail.com",
+    maintainer="Roman Nuterman, Niels Bohr Institute, University of Copenhagen",
+    maintainer_email="nuterman@nbi.ku.dk",
     keywords="geophysics oceanography ice-model python numpy jax CPU/GPU parallel computing",
     description="Differentiable sea-ice model in JAX",
     long_description=long_description,

@@ -1,5 +1,59 @@
 # Development log
 
+## 2026-10-15 — v0.2.0 release preparation
+
+- [x] Prepared (@root) on jax-only, starting at edc8491: remove all explicit
+  test execution deadlines, add the requested package maintainer metadata, run
+  local and GitHub verification, then merge jax-only into main and publish v0.2.0.
+  User authorizes the merge/release and local GPUs/aegir allocation.
+- [x] GitHub CLI confirms preceding run 38630735825 has 1,620 passes, four
+  GPU skips and one failure: the distributed closed-wall AD probe exceeds
+  its 600-second deadline. No numerical assertion fails in that probe.
+- [x] Remove subprocess run/communicate/wait limits throughout tests and
+  installed probes, distributed launcher deadlines and the reduction probe's
+  explicit JAX connection timeout. Preserve numerical assertions, frozen data,
+  rank diagnostics and child cleanup. Runtime measurement remains external;
+  JAX service policies and hosting-platform limits remain upstream behavior.
+- [x] Add setuptools maintainer and maintainer_email keywords. The existing
+  real wheel/sdist build test now checks both emitted metadata headers against
+  the requested literal values. RED: missing Maintainer in built artifacts;
+  GREEN: real build/install/CLI check passes.
+- [x] Independent review identifies sequential waits that could hide a failed
+  peer after removing deadlines. Cancel initial CPU job 66408052 at 10 seconds
+  to fix this before full verification. A shared test helper polls every rank
+  without a deadline; distributed runner logs use files instead of pipes.
+  Real-child regression fails against sequential waiting and passes with polling.
+  Helper and verbose-peer regressions pass 3/3; Ruff/format/annotations/ty pass.
+  Cancel preliminary job 66408082 to include review's partial-launch cleanup
+  correction in the new regression before recording final source hashes.
+- Verification and release evidence: test_logs/release-0.2.0/.
+- [x] Full local CPU suite: 1,623 passes and four expected GPU-only skips,
+  zero failures/errors, 970.23 seconds external wall time. Aegir job 66408084
+  COMPLETED with exit 0:0; XML accounts for all 1,627 cases. Maintained coverage
+  is 4,649/4,897 = 94.94%, passing the 80% gate. Numerical source and frozen
+  reference bytes remain identical to edc8491.
+- [x] Additional user request: documentation must reference the latest release.
+  Default installation now uses the published package; README links stable docs
+  and releases/latest. Keep editable jax-only installation in the development
+  guide. Remove stale claims about main and the API being branch-only. Sphinx
+  gets its displayed release from Versioneer; verify 0.2.0 again after tagging.
+  Failed approach: veris has no public __version__; use the same get_versions
+  API as the CLI instead. Independent documentation review has no blocker.
+- [x] Ruff lint/format/annotations, ty, dependency checks, strict Sphinx build
+  and clean installed lifecycle/framework probes pass. Rendered documentation
+  has 75 pages with all 3,928 local links valid. Source hashes during CPU
+  verification change only for the six explicitly requested release-doc files;
+  executable model/test sources remain fixed.
+- [x] Native GPU/precision checks pass 6/6 on both local P100 GPUs in 68.75 s,
+  zero skips/failures/errors. This executes all four CPU-skipped GPU cases.
+- Merge preview: main's five legacy fixes already have tested JAX counterparts
+  (a09964e, 54ea763, 94421fb, 0ddf91d, 0c133db). Record that ancestry while
+  preserving the verified standalone tree; do not restore obsolete Veros files.
+- Publication gate: commit/push jax-only and require successful GitHub checks
+  before merging it into main. Build/tag/release v0.2.0 from that verified tree;
+  tagged packages and rendered docs must report 0.2.0. GitHub release notes
+  record the final workflow and merge evidence.
+
 ## 2026-10-14 — Explicit output flags and automatic CPU test scheduling
 
 - [x] Verified (@root) on jax-only, starting at 8770eff: rename --output to

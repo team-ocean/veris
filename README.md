@@ -10,8 +10,17 @@ results. The same workflow covers dynamics (ice motion), thermodynamic growth
 together). It runs on computer processors (CPU), graphics processors (GPU) and
 explicitly configured JAX meshes (groups of devices).
 
-Start with [Getting started](docs/introduction/get-started.rst) for installation
-from `jax-only`, a first command-line simulation and reading its output.
+Install the [latest release](https://github.com/team-ocean/veris/releases/latest)
+with Python 3.12 or newer:
+
+```sh
+python -m pip install --upgrade veris
+```
+
+Start with [Getting started](https://veris.readthedocs.io/en/stable/introduction/get-started.html)
+for installation, a first command-line simulation and reading its output.
+The [stable documentation](https://veris.readthedocs.io/en/stable/) describes the
+latest published release.
 The [command line reference](docs/cli.rst) explains how to list and copy setups,
 run them and override their settings.
 

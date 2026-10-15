@@ -31,7 +31,6 @@ def test_serial_lifecycle_suspends_and_restores_ambient_mesh(devices: int) -> No
         env=environment,
         capture_output=True,
         text=True,
-        timeout=240,
         check=False,
     )
     assert result.returncode == 0, f"ERROR serial ambient mesh: {result.stderr[-2500:]}"

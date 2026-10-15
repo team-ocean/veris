@@ -10,7 +10,6 @@ import socket
 import subprocess
 import sys
 import tempfile
-import time
 from collections.abc import Callable
 from contextlib import ExitStack
 from pathlib import Path
@@ -18,12 +17,13 @@ from typing import Literal, TextIO, cast
 
 import click
 
+from tests.process_helpers import wait_for_processes
+
 
 def launch_processes(
     platform: Literal["cpu", "cuda"] = "cpu",
     count: int = 2,
     devices_per_process: int = 1,
-    timeout: float = 90,
 ) -> list[str]:
     """Launch local ranks, return concise output, and reap all ranks on failure."""
     root = Path(__file__).resolve().parents[1]
@@ -79,25 +79,13 @@ def launch_processes(
                         stderr=subprocess.STDOUT,
                     )
                 )
-            deadline = time.monotonic() + timeout
-            while any(process.poll() is None for process in processes):
-                if any(process.poll() not in (None, 0) for process in processes):
-                    raise RuntimeError("ERROR reduction worker failed")
-                if time.monotonic() >= deadline:
-                    raise TimeoutError("ERROR distributed reduction timeout")
-                time.sleep(0.1)
-            if any(process.returncode != 0 for process in processes):
-                raise RuntimeError("ERROR reduction worker failed")
+            wait_for_processes(processes)
         except Exception as error:
             for process in processes:
                 if process.poll() is None:
-                    process.terminate()
-            for process in processes:
-                try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
                     process.kill()
-                    process.wait(timeout=5)
+            for process in processes:
+                process.wait()
             details: list[str] = []
             for rank, log in enumerate(logs):
                 log.flush()
@@ -195,7 +183,6 @@ def main(rank: int, count: int, coordinator: str | None) -> None:
             coordinator_address=coordinator,
             num_processes=count,
             process_id=rank,
-            initialization_timeout=45,
             local_device_ids=[0]
             if os.environ.get("JAX_PLATFORMS") in ("cuda", "gpu")
             else None,

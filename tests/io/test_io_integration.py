@@ -135,7 +135,6 @@ def test_parallel_driver_gathers_each_partition_before_netcdf(tmp_path: Path) ->
         env=environment,
         capture_output=True,
         text=True,
-        timeout=240,
         check=False,
     )
     assert result.returncode == 0, (

@@ -13,6 +13,7 @@ import pytest
 
 import veris
 from tests.lifecycle_sharding_probe import _custom
+from tests.process_helpers import wait_for_processes
 from veris.io import OutputSettings, read_record
 from veris.model.types import State
 
@@ -172,7 +173,6 @@ def test_real_public_runner_on_four_local_cpu_devices() -> None:
         env=environment,
         capture_output=True,
         text=True,
-        timeout=240,
         check=False,
     )
     assert result.returncode == 0, f"ERROR public runner mesh: {result.stderr[-2500:]}"
@@ -208,6 +208,7 @@ assert not jax.distributed.is_initialized(), "ERROR owned service remains initia
 print(json.dumps(dict(result.execution_metadata)), flush=True)
 """
     processes = []
+    logs = []
     try:
         for rank in range(2):
             environment = dict(
@@ -221,8 +222,10 @@ print(json.dumps(dict(result.execution_metadata)), flush=True)
             )
             for name in ("SLURM_PROCID", "SLURM_LOCALID", "SLURM_NTASKS"):
                 environment.pop(name, None)
-            processes.append(
-                subprocess.Popen(
+            log = tmp_path / f"runner-rank-{rank}.log"
+            logs.append(log)
+            with log.open("w") as output:
+                process = subprocess.Popen(
                     [
                         sys.executable,
                         "-c",
@@ -232,13 +235,18 @@ print(json.dumps(dict(result.execution_metadata)), flush=True)
                         str(steps),
                     ],
                     env=environment,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    stdout=output,
+                    stderr=subprocess.STDOUT,
                     text=True,
                 )
-            )
+                processes.append(process)
+        try:
+            wait_for_processes(processes)
+        except ChildProcessError as error:
+            details = "\n".join(log.read_text()[-2500:] for log in logs)
+            raise AssertionError(f"{error}\n{details}") from error
         for rank, process in enumerate(processes):
-            stdout, stderr = process.communicate(timeout=120)
+            stdout = stderr = logs[rank].read_text()
             assert process.returncode == 0, f"ERROR runner rank{rank}: {stderr[-2500:]}"
             metadata = json.loads(stdout.strip().splitlines()[-1])
             assert metadata["process_count"] == 2 and metadata["process_index"] == rank
@@ -247,7 +255,7 @@ print(json.dumps(dict(result.execution_metadata)), flush=True)
         for process in processes:
             if process.poll() is None:
                 process.kill()
-            process.wait(timeout=10)
+            process.wait()
     actual = read_record(snapshot)
     with veris.Simulation.initialize(
         veris.Experiment.builtin(

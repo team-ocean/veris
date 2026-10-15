@@ -33,6 +33,11 @@ if TYPE_CHECKING:
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("_3rdparty"))
 
+from veris._version import get_versions
+
+# Versioneer resolves the checked-out release tag for both package and docs.
+release = str(get_versions()["version"])
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.

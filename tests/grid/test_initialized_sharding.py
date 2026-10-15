@@ -17,7 +17,6 @@ def test_initialized_four_cpu_state_step_and_forcing_gradients() -> None:
         env=environment,
         capture_output=True,
         text=True,
-        timeout=240,
         check=False,
     )
     assert result.returncode == 0, (

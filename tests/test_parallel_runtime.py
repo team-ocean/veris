@@ -116,7 +116,6 @@ print(json.dumps(record))
             ),
             capture_output=True,
             text=True,
-            timeout=60,
             check=False,
         )
         assert result.returncode == 0, f"ERROR worker runtime: {result.stderr[-1500:]}"

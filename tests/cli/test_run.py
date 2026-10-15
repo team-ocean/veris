@@ -352,7 +352,6 @@ def test_real_cpu_mesh_cli_matches_serial(tmp_path: Path) -> None:
         env=environment,
         capture_output=True,
         text=True,
-        timeout=240,
         check=False,
     )
     assert result.returncode == 0, result.stderr[-1800:]

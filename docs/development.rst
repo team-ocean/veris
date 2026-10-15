@@ -1,7 +1,16 @@
 Developing Veris
 ================
 
-Work from the ``jax-only`` branch with a Python 3.14 environment activated.
+Development takes place on ``jax-only``; published releases are tagged from
+``main``. For the latest published package, follow :doc:`/introduction/get-started`.
+To work on the source, use Git and Python 3.14::
+
+   git clone --branch jax-only https://github.com/team-ocean/veris.git
+   cd veris
+   python3 -m venv .venv
+   source .venv/bin/activate
+   python -m pip install -e .
+
 The test dependency lock lists the exact package versions for that Python
 version, so others can use the same environment. Install the development and
 documentation packages from the repository root::

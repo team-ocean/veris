@@ -57,7 +57,6 @@ def dispatch(state: State, constants: Configuration, phys: PhysicalConstants) ->
         capture_output=True,
         text=True,
         check=False,
-        timeout=30,
     )
     diagnostic = result.stdout + result.stderr
     if valid:

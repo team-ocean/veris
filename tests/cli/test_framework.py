@@ -309,7 +309,6 @@ def test_module_console_reports_bad_grouped_controls_without_traceback_or_files(
         env=dict(os.environ, JAX_PLATFORMS="cpu"),
         capture_output=True,
         text=True,
-        timeout=60,
         check=False,
     )
     assert result.returncode != 0

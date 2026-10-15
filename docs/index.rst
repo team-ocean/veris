@@ -6,6 +6,10 @@ for array operations. It supports forward and reverse modes of
 automatic differentiation and parallel execution on CPUs and GPUs.
 The package includes several setups to show how to use it.
 
+This documentation describes Veris |release|. The
+`stable documentation <https://veris.readthedocs.io/en/stable/>`_ follows the
+`latest published release <https://github.com/team-ocean/veris/releases/latest>`_.
+
 Veris was derived from the `MITgcm SEAICE package
 <https://mitgcm.readthedocs.io/en/latest/phys_pkgs/seaice.html>`_.
 `Jan Philipp Gärtner <https://github.com/jpgaertner>`_ created the original Veris

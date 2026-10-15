@@ -507,7 +507,6 @@ print('precision-preflight-ok')
         env=dict(os.environ, JAX_PLATFORMS="cpu", JAX_ENABLE_X64="false"),
         capture_output=True,
         text=True,
-        timeout=60,
         check=False,
     )
     assert result.returncode == 0, (

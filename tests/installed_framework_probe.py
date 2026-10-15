@@ -59,7 +59,6 @@ def main() -> None:
                         env=environment,
                         capture_output=True,
                         text=True,
-                        timeout=180,
                         check=False,
                     )
                     assert completed.returncode == 0, (
@@ -124,7 +123,6 @@ def main() -> None:
                     env=named_environment,
                     capture_output=True,
                     text=True,
-                    timeout=180,
                     check=False,
                 )
                 assert completed.returncode == 0, (

@@ -1,7 +1,7 @@
 Python API
 ==========
 
-This reference describes the Python interface on the ``jax-only`` branch.
+This reference describes the Python interface in Veris |release|.
 The documentation build reads function signatures and docstrings from the code.
 Start with :doc:`/introduction/get-started` to install Veris and run a first
 simulation. Then use the pages below to look up individual objects and functions.

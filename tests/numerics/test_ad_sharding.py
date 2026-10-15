@@ -17,7 +17,6 @@ def test_zero_strain_ad_on_four_cpu_devices() -> None:
         env=environment,
         capture_output=True,
         text=True,
-        timeout=240,
         check=False,
     )
     assert result.returncode == 0, f"ERROR sharded AD probe: {result.stderr[-2500:]}"

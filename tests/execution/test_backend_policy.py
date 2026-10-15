@@ -21,7 +21,6 @@ assert jax.config.jax_platforms == before, "ERROR CPU launch narrowed caller pla
         env=environment,
         capture_output=True,
         text=True,
-        timeout=60,
         check=False,
     )
     assert result.returncode == 0, result.stderr[-1800:]

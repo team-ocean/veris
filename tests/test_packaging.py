@@ -5,7 +5,9 @@ import shutil
 import subprocess
 import sys
 import tarfile
+from email.parser import BytesParser
 from pathlib import Path
+from zipfile import ZipFile
 
 import pytest
 
@@ -81,16 +83,41 @@ def test_sdist_contains_test_helpers_references_and_documented_architecture(
         cwd=source,
         capture_output=True,
         text=True,
-        timeout=120,
         check=False,
     )
     assert result.returncode == 0, (
         f"ERROR isolated sdist build: {result.stderr[-1800:]}"
     )
     with tarfile.open(next((tmp_path / "dist").glob("*.tar.gz"))) as archive:
+        metadata_file = archive.extractfile(
+            next(
+                member
+                for member in archive.getmembers()
+                if member.name.count("/") == 1 and member.name.endswith("/PKG-INFO")
+            )
+        )
+        assert metadata_file is not None
+        source_metadata = BytesParser().parsebytes(metadata_file.read())
         entries = {
             "/".join(Path(member.name).parts[1:]) for member in archive.getmembers()
         }
+    with ZipFile(next((tmp_path / "dist").glob("*.whl"))) as wheel:
+        wheel_metadata = BytesParser().parsebytes(
+            wheel.read(
+                next(
+                    name
+                    for name in wheel.namelist()
+                    if name.endswith(".dist-info/METADATA")
+                )
+            )
+        )
+    for metadata in (source_metadata, wheel_metadata):
+        assert metadata["Maintainer"] == (
+            "Roman Nuterman, Niels Bohr Institute, University of Copenhagen"
+        ), "ERROR package maintainer metadata"
+        assert metadata["Maintainer-email"] == "nuterman@nbi.ku.dk", (
+            "ERROR package maintainer email metadata"
+        )
     required = {
         "pytest.ini",
         "requirements-test.txt",
@@ -137,7 +164,6 @@ def test_sdist_contains_test_helpers_references_and_documented_architecture(
         ],
         capture_output=True,
         text=True,
-        timeout=120,
         check=False,
     )
     assert installation.returncode == 0, (
@@ -167,7 +193,6 @@ def test_sdist_contains_test_helpers_references_and_documented_architecture(
             env=environment,
             capture_output=True,
             text=True,
-            timeout=120,
             check=False,
         )
         assert execution.returncode == 0, (

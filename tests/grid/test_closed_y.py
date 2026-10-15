@@ -108,7 +108,6 @@ def test_four_cpu_closed_coupled_values_and_ad() -> None:
         ),
         capture_output=True,
         text=True,
-        timeout=2400,
         check=False,
     )
     assert result.returncode == 0, (

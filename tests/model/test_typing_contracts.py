@@ -29,7 +29,6 @@ def evaluate(ice: STATE_TYPE, constants: PhysicalConstants) -> tuple[Array, Arra
         capture_output=True,
         text=True,
         check=False,
-        timeout=30,
     )
     diagnostic = result.stdout + result.stderr
     if valid:
@@ -63,7 +62,6 @@ def invalid(state: State) -> None:
         capture_output=True,
         text=True,
         check=False,
-        timeout=30,
     )
     diagnostic = result.stdout + result.stderr
     assert result.returncode != 0, "ERROR mutable unhashable static settings accepted"

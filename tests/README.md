@@ -77,7 +77,11 @@ CI uses one worker so the four-device sharding probes, which divide arrays
 across devices, inherit all four permitted runner CPUs. Splitting them among
 three workers can stall XLA collectives (cross-device operations produced by
 JAX's compiler) even on JAX 0.11.2.
-The full correctness step has no explicit 20-minute timeout.
+Unit tests and installed-example probes impose no execution deadlines on child
+processes. Distributed launchers still report failed ranks and reap their children
+on failure. CI defines no test-step or job timeout; GitHub and the batch scheduler
+retain their own platform limits. JAX retains its distributed service connection
+and heartbeat policies.
 Dated correctness counts, coverage (how much code tests execute) and elapsed
 times live in [CHANGELOG.md](../CHANGELOG.md), alongside the corresponding source
 revisions.

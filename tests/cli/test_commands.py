@@ -51,7 +51,6 @@ def test_module_entry_point_from_source() -> None:
         [sys.executable, "-m", "veris.cli", "--help"],
         capture_output=True,
         text=True,
-        timeout=60,
         check=False,
     )
     assert result.returncode == 0, result.stderr[-1500:]

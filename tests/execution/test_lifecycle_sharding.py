@@ -27,7 +27,6 @@ def test_public_lifecycle_four_cpu_layouts_presets_and_custom_geometry() -> None
         env=environment,
         capture_output=True,
         text=True,
-        timeout=600,
         check=False,
     )
     assert result.returncode == 0, (

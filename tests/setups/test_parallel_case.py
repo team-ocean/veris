@@ -133,7 +133,6 @@ def test_gpu_cli_writes_finite_output(tmp_path: Path) -> None:
         env=dict(os.environ, PYTHONPATH=str(root)),
         capture_output=True,
         text=True,
-        timeout=240,
         check=False,
     )
     assert result.returncode == 0, f"ERROR parallel GPU CLI: {result.stderr[-2500:]}"

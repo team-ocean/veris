@@ -31,7 +31,6 @@ def test_pure_advance_two_cpu_orientations(tmp_path: Path) -> None:
             stdout=stream,
             stderr=subprocess.STDOUT,
             text=True,
-            timeout=240,
             check=False,
         )
     output = log.read_text(encoding="utf-8")

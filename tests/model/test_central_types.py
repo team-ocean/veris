@@ -60,7 +60,6 @@ assert OceanGeometry.__module__ == 'veris.grid.geometry'
         [sys.executable, "-c", source],
         capture_output=True,
         text=True,
-        timeout=30,
         check=False,
     )
     assert result.returncode == 0, result.stderr[-2000:]

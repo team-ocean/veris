@@ -28,7 +28,6 @@ def _check_contract(
         capture_output=True,
         text=True,
         check=False,
-        timeout=30,
     )
     diagnostic = result.stdout + result.stderr
     if expected is None:

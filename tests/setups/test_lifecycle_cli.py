@@ -170,7 +170,6 @@ def test_real_local_parallel_cli_retains_nine_field_output_and_resolved_definiti
         env=environment,
         capture_output=True,
         text=True,
-        timeout=240,
         check=False,
     )
     assert result.returncode == 0, (

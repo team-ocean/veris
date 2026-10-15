@@ -7,22 +7,19 @@ read its results.
 Installation
 ------------
 
-Use Python 3.12 or newer and Git. Install the current ``jax-only`` branch in a
-virtual environment, a separate place for this project's Python packages. The
-repository's ``main`` branch predates this interface. From a directory where
-you want to keep the source, run::
+Use Python 3.12 or newer. Install the latest published release in a virtual
+environment, a separate place for this project's Python packages::
 
-   git clone --branch jax-only https://github.com/team-ocean/veris.git
-   cd veris
    python3 -m venv .venv
    source .venv/bin/activate
-   python -m pip install -e .
+   python -m pip install --upgrade veris
 
-If you already have this checkout, start with environment creation in the
-repository root. The editable installation makes source changes available
-without reinstalling. The installation also adds the packages Veris needs to
-run, including JAX for computer processors (CPU) and support for netCDF files.
-Veris requires no external ocean model.
+This documentation describes Veris |release|. See the
+`latest release notes <https://github.com/team-ocean/veris/releases/latest>`_
+for changes and downloads. The installation also adds the packages Veris needs
+to run, including JAX for computer processors (CPU) and support for netCDF files.
+Veris requires no external ocean model. For an editable source installation,
+follow :doc:`/development`.
 
 Check that the command is available::
 

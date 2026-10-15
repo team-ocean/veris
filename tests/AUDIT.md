@@ -136,6 +136,8 @@ The four-CPU closed-wall scientific probe's subprocess timeout is doubled from
 assertions remain. There is no unit test asserting a full-suite time limit;
 runtime measurements are external. The later calendar verification removes
 the explicit 20-minute CI correctness-step timeout.
+The v0.2.0 preparation supersedes these subprocess limits: all explicit test
+execution deadlines and the reduction probe's connection-time override are removed.
 
 Ruff lint/format/annotation checks, ty, dependency validation, strict Sphinx,
 fresh wheel/sdist contents and clean installed literal public examples pass.

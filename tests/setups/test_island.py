@@ -120,7 +120,6 @@ print("standalone-ok")
         [sys.executable, "-c", code],
         capture_output=True,
         text=True,
-        timeout=60,
         check=False,
     )
     assert result.returncode == 0, (

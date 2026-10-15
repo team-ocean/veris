@@ -64,7 +64,6 @@ def test_four_cpu_halo_exchange_and_adjoint_in_fresh_process() -> None:
         env=env,
         capture_output=True,
         text=True,
-        timeout=60,
         check=False,
     )
     assert result.returncode == 0, (

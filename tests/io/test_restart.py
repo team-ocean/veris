@@ -670,7 +670,6 @@ assert not xla_bridge.backends_are_initialized(), "ERROR restart allocated befor
         [sys.executable, "-c", script, str(restart_path), reason],
         capture_output=True,
         text=True,
-        timeout=45,
         check=False,
     )
     assert result.returncode == 0, (result.stdout + result.stderr)[-4000:]
@@ -784,7 +783,6 @@ with veris.Simulation.initialize(definition, mesh=mesh) as simulation:
         env=environment,
         capture_output=True,
         text=True,
-        timeout=60,
         check=False,
     )
     assert result.returncode == 0, (result.stdout + result.stderr)[-4000:]

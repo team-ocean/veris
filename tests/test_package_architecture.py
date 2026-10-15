@@ -64,7 +64,6 @@ assert before == (jax.config.jax_enable_x64, jax.config.jax_default_matmul_preci
         [sys.executable, "-c", script],
         capture_output=True,
         text=True,
-        timeout=60,
         check=False,
     )
     assert result.returncode == 0, f"ERROR cold import {first}: {result.stderr[-2000:]}"

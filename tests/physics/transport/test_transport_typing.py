@@ -35,7 +35,6 @@ def evaluate_{direction}(state: {state_type}, constants: Configuration, field: N
         capture_output=True,
         text=True,
         check=False,
-        timeout=30,
     )
     diagnostic = result.stdout + result.stderr
     if valid:
@@ -68,6 +67,5 @@ def evaluate(conf: Configuration, phys: PhysicalConstants, mask: NDArray[bool_],
         capture_output=True,
         text=True,
         check=False,
-        timeout=30,
     )
     assert result.returncode == 0, (result.stdout + result.stderr)[-2000:]
