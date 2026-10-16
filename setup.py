@@ -48,7 +48,7 @@ setup(
     description="Differentiable sea-ice model in JAX",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://veris.readthedocs.io",
+    url="https://veris.readthedocs.io/en/stable/",
     python_requires=">=3.12",
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),

@@ -1,4 +1,5 @@
 include versioneer.py versioneer.pyi
+include .readthedocs.yml
 include README.md LICENSE DESIGN.md CHANGELOG.md pytest.ini requirements-test.txt requirements-profile.txt
 recursive-include veris *.pyi *.slurm py.typed
 recursive-include veris/cli/templates *.py

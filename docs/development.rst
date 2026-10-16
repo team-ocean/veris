@@ -56,6 +56,14 @@ there instead of copying the tables. Continuous integration (CI), the automated
 checks run by the repository, also runs the public examples exactly as written
 against a clean installation from a wheel, Python's installable package format.
 
+The `stable documentation`_ follows the latest release tag.
+Read the Docs' ``latest`` version follows ``main`` and can include unreleased
+changes. Versioneer derives the displayed version from Git rather than a fixed
+string. The Read the Docs checkout hook fetches tags and completes shallow
+history before installing the package, so both package metadata and Sphinx can
+resolve the release. After tagging a release, rebuild ``latest`` as well as
+``stable`` if ``latest`` was built before the tag existed.
+
 Before committing
 -----------------
 
@@ -71,3 +79,4 @@ in the `test-harness guide`_, update `CHANGELOG.md`_, and commit a focused chang
 .. _CHANGELOG.md: https://github.com/team-ocean/veris/blob/jax-only/CHANGELOG.md
 .. _test-harness guide: https://github.com/team-ocean/veris/blob/jax-only/tests/README.md
 .. _benchmark guide: https://github.com/team-ocean/veris/blob/jax-only/benchmarks/README.md
+.. _stable documentation: https://veris.readthedocs.io/en/stable/

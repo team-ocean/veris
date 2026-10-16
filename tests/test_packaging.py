@@ -64,6 +64,7 @@ def test_sdist_contains_test_helpers_references_and_documented_architecture(
         "requirements-profile.txt",
         "DESIGN.md",
         "CHANGELOG.md",
+        ".readthedocs.yml",
     ):
         shutil.copyfile(root / name, source / name)
     result = subprocess.run(
@@ -112,6 +113,9 @@ def test_sdist_contains_test_helpers_references_and_documented_architecture(
             )
         )
     for metadata in (source_metadata, wheel_metadata):
+        assert metadata["Home-page"] == "https://veris.readthedocs.io/en/stable/", (
+            "ERROR package homepage must point to the latest released documentation"
+        )
         assert metadata["Maintainer"] == (
             "Roman Nuterman, Niels Bohr Institute, University of Copenhagen"
         ), "ERROR package maintainer metadata"
@@ -119,6 +123,7 @@ def test_sdist_contains_test_helpers_references_and_documented_architecture(
             "ERROR package maintainer email metadata"
         )
     required = {
+        ".readthedocs.yml",
         "pytest.ini",
         "requirements-test.txt",
         "DESIGN.md",

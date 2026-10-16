@@ -1,5 +1,42 @@
 # Development log
 
+## 2026-10-16 — Documentation release version
+
+- [x] Completed (@root) on ``fix/docs-release-version``, branched from jax-only
+  at a9d6c0a. Keep changes on this separate branch as requested.
+- Confirmed live ``latest`` displays ``0+untagged.147.ga9d6c0a`` while
+  ``stable`` displays ``0.2.0``. Read the Docs build 35168834 checked out main
+  before v0.2.0 was tagged; stable build 35168891 resolves that tag correctly.
+  The project and package homepages still point to the root, which redirects
+  to latest. Changing an already-correct README link would not fix that path.
+- Regression first fails in four real tagless Git clones, covering shallow
+  and complete history at the release and two commits later. Built wheel/sdist
+  metadata also first fails the stable-homepage assertion.
+- Fetch tags and complete shallow history after checkout, before installation;
+  retain Versioneer as the shared version source. Point package metadata to
+  stable and document release/development versions and rebuilding after tagging.
+- Independent review catches a source-archive portability issue: Versioneer
+  freezes ``_version.py`` in sdists, so copying that file cannot test new Git
+  tags. All four cases fail from an extracted archive. Regenerate the fixture's
+  Git-aware module through the vendored Versioneer setup command instead.
+  Include the Read the Docs configuration in sdists for this regression.
+- Stop preliminary full CPU job 66424263 after 44 seconds to include that
+  correction before full verification. Keep subsequent pytest runs sequential.
+- Rebuild latest through the existing GitHub Read the Docs webhook using gh;
+  build 35198331 succeeds on the unchanged v0.2.0 commit. Live latest now
+  displays ``0.2.0`` without ``untagged``. GitHub's homepage now points to stable.
+- [x] All nine focused documentation/packaging cases pass. All four checkout
+  regressions also pass from a freshly built and extracted sdist. Ruff lint,
+  formatting (226 files), annotation checks, ty, dependency consistency and
+  strict Sphinx build pass. Independent review's source-archive finding is fixed.
+- [x] Final full CPU job 66424284 COMPLETED 0:0: 1,629 passes, four expected
+  GPU-only skips, zero failures/errors across 1,633 XML cases; 976.11 s pytest,
+  977.31 s external wall. Maintained coverage is 4,658/4,910 = 94.87%, above
+  the 80% gate. All 323 recorded source/reference hashes remain unchanged.
+- [x] All 75 live latest HTML pages display 0.2.0 without the untagged version;
+  stable still resolves the exact v0.2.0 tag. Evidence, including original
+  failures and source-archive checks, is under test_logs/docs-release-version/.
+
 ## 2026-10-15 — Release CI distributed derivative investigation
 
 - GitHub run 38714846084 on 59e1d16 finishes with 1,622
