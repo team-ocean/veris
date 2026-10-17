@@ -106,7 +106,7 @@ def test_open_water_freezing_conserves_latent_heat_and_freshwater(
         Qnet=cooling,
         fCori=-1e-4 if south else 1e-4,
     )
-    ice, snow, area, _, freshwater, salt, _, residual, load, _, _ = Growth(
+    ice, snow, area, _, freshwater, salt, _, residual, load, _, _, *_ = Growth(
         vs, conf, phys
     )
     frozen_mass = cooling * conf.deltatTherm / phys.lhFusion
@@ -149,9 +149,14 @@ def test_cold_snowfall_stores_water_on_ice_and_rain_reaches_leads(
     )
     result = Growth(vs, conf, phys)
     stored_mass = (snowfall + precip) * area * conf.deltatTherm * phys.rhoFresh
-    np.testing.assert_allclose(result[0], 1, atol=1e-12)
+    refrozen_snow_mass = snowfall * (1 - area) * conf.deltatTherm * phys.rhoFresh
+    np.testing.assert_allclose(
+        result[0], 1 + refrozen_snow_mass / phys.rhoIce, atol=1e-12
+    )
     np.testing.assert_allclose(result[1] * phys.rhoSnow, stored_mass, atol=1e-10)
-    np.testing.assert_allclose(result[8], phys.rhoIce + stored_mass, atol=1e-10)
+    np.testing.assert_allclose(
+        result[8], phys.rhoIce + stored_mass + refrozen_snow_mass, atol=1e-10
+    )
     np.testing.assert_allclose(
         result[4], -precip * (1 - area) * phys.rhoFresh, atol=1e-12
     )

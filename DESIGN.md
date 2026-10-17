@@ -301,3 +301,16 @@ distributed/mesh ownership outside numerical State. Authored exports and resolve
 exports with fixed values use the same codec; version-one definitions/checkpoints
 remain readable. The executable custom-ocean setup blueprint and Python/CLI
 probe against a clean installation check the documented interface.
+
+Ocean exchange uses actual downward bulk mass and salt mass in SI rates. Fixed
+bulk ice salinity is g/kg with an explicit factor1/1000 for salt mass. Uniform
+ice salinity is fixed per trajectory; new formation with ocean salinity below
+that value returns status2, while salty melt into fresh water remains valid.
+Independent external mass/enthalpy inputs are diagnosed from boundary events
+before phase change. Open-water snow melts with fusion cooling before growth;
+sublimation consumes available frozen stock, and signed cleanup is consumed
+once. Residual ocean heat closes zero-layer enthalpy, including snow-to-ice
+conversion and incoming snow. Native Qnet is upward and includes shortwave.
+See docs/reference/ocean-budgets.rst for equations, event ordering and limitations.
+Original reference archives are immutable; the independently generated v2
+correction archive records reviewed scientific changes against archived a9 source.

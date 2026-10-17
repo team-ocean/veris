@@ -155,7 +155,21 @@ LANLFluxes = tuple[Array, Array, Array, Array, Array, Array, Array, Array, Array
 
 type SurfaceFluxResult = tuple[Array, Array, Array, Array, Array]
 type GrowthResult = tuple[
-    Array, Array, Array, Array, Array, Array, Array, Array, Array, Array, Array
+    Array,
+    Array,
+    Array,
+    Array,
+    Array,
+    Array,
+    Array,
+    Array,
+    Array,
+    Array,
+    Array,
+    Array,
+    Array,
+    Array,
+    Array,
 ]
 
 

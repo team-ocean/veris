@@ -175,7 +175,9 @@ def check_orientation(partitions: tuple[int, int]) -> None:
             prescribed_serial(serial, inputs), conf, phys
         )
         zeros = jnp.zeros_like(state.Area)
-        diagnostic = Diagnostics(zeros, stress_u, stress_v, zeros, zeros, zeros)
+        diagnostic = Diagnostics(
+            zeros, stress_u, stress_v, zeros, zeros, zeros, zeros, zeros, zeros, zeros
+        )
         return fill_state_overlap(state, conf), fill_state_overlap(diagnostic, conf)
 
     def transition(

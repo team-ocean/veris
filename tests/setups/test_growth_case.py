@@ -66,6 +66,10 @@ def test_growth_driver_preserves_recursive_fluxes_and_separate_diagnostics() -> 
         "SeaIceLoad",
         "IcePenetSW",
         "recip_hIceMean",
+        "ocean_mass_flux",
+        "ocean_salt_mass_flux",
+        "external_mass_flux",
+        "external_heat_flux",
     ]
     compiled_advance = jax.jit(
         advance, static_argnames=("configuration", "constants", "physics")

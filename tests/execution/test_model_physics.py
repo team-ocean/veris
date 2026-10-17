@@ -36,6 +36,7 @@ def kernel_reference(
     if physics != "thermodynamics":
         state, stress_u, stress_v = dynamics_transport(state, conf, phys)
     freshwater = salt = penetrating = zeros
+    mass = salt_mass = external_mass = external_heat = zeros
     if physics != "dynamics":
         values = Growth(state, conf, phys)
         state = replace(
@@ -48,9 +49,23 @@ def kernel_reference(
             Qnet=values[7],
             SeaIceLoad=values[8],
             recip_hIceMean=values[10],
+            os_hIceMean=zeros,
+            os_hSnowMean=zeros,
         )
         freshwater, salt, penetrating = values[4], values[5], values[9]
-    diagnostics = Diagnostics(penetrating, stress_u, stress_v, freshwater, salt, zeros)
+        mass, salt_mass, external_mass, external_heat = values[11:]
+    diagnostics = Diagnostics(
+        penetrating,
+        stress_u,
+        stress_v,
+        freshwater,
+        salt,
+        zeros,
+        mass,
+        salt_mass,
+        external_mass,
+        external_heat,
+    )
     if physics != "thermodynamics" or not conf.enable_cyclic_y:
         state = fill_state_overlap(state, conf)
         diagnostics = fill_state_overlap(diagnostics, conf)

@@ -136,3 +136,24 @@ retained. Neither archive is regenerated during pytest.
 The unchanged generator sources use a `.py.txt` suffix to distinguish archived
 original capture code from maintained tests. Copy each to its original `.py`
 name before execution. The corresponding manifests record their byte hashes.
+
+## Ocean budget science corrections
+
+The original files above are unchanged. `ocean_budgets_v2.npz` contains explicit
+deltas for corrected science and absolute arrays for new diagnostics. Its
+manifest records the base archive hashes, all imported archived-source hashes,
+the generator hash and the output hash. `generate_budget_corrections.py.txt`
+requires an independent archive of a9d6c0ade52fbae4c0d1da694878943d6dbf7e6e.
+It first verifies every original lifecycle and unequal-clock field at the
+original tolerance. Three declared Growth hooks add actual vapor mass removal,
+open-water snow enthalpy and dry-cell surface exclusion. Independent NumPy
+event/stock bookkeeping corrects mass, salt and zero-layer heat; signed cleanup
+and one-time consumption are explicit. No corrected production solver is used.
+
+From an external directory, run the native test environment Python with
+`PYTHONPATH=ARCHIVED_A9_SOURCE python GENERATOR ARCHIVED_A9_SOURCE ORIGINAL_REFS FRESH_OUTPUT_DIR`.
+The generator refuses to overwrite any output. `tests/budget_reference.py`
+checks provenance and applies only the declared corrections, retaining every
+unchanged original per-field assertion and its established tolerance. Analytic
+freezing/melting, snow/rain/vapor, flooding and cleanup tests separately verify
+these equations; archived behavior alone is not a physics oracle.

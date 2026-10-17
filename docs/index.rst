@@ -37,6 +37,7 @@ implementation as part of his `Master's thesis <https://nbi.ku.dk/teamocean/docs
    reference/physical-constants
    reference/variables
    reference/io
+   reference/ocean-budgets
    reference/automatic-differentiation
 
 .. toctree::

@@ -17,6 +17,9 @@ defaults are generated from the named tables in :doc:`/reference/variables`.
 
 .. autoclass:: veris.model.types.State
 
+See :doc:`/reference/ocean-budgets` for ocean and independent external input
+units, signs and modeled conservation equations.
+
 .. autoclass:: veris.model.diagnostics.Diagnostics
 
 ``veris.model.arrays.ArrayInput`` describes numerical JAX and NumPy array inputs.

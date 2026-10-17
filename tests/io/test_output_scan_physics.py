@@ -36,7 +36,12 @@ def test_growth_scheduled_means_preserve_plain_physics(
             return transition(carry[0])
 
         zeros = jax.numpy.zeros_like(initial.Area)
-        carry = (initial, Diagnostics(zeros, zeros, zeros, zeros, zeros, zeros))
+        carry = (
+            initial,
+            Diagnostics(
+                zeros, zeros, zeros, zeros, zeros, zeros, zeros, zeros, zeros, zeros
+            ),
+        )
         interval = timedelta(seconds=float(conf.deltatTherm))
         settings = OutputSettings(
             streams=(Stream("mean", ("hIceMean", "TSurf"), interval, 2 * interval),)

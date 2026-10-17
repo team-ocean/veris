@@ -90,6 +90,8 @@ def _validate_host_constants(instance: PhysicalConstants) -> None:
         PHYSICALCONSTANTS,
         positive=_POSITIVE_PARAMETERS,
     )
+    if instance.saltIce_ref < 0:
+        raise ValueError("saltIce_ref must be nonnegative")
     if instance.Area_reg < 0:
         raise ValueError("Area_reg must be nonnegative")
     if instance.minTIce > instance.maxTIce:
@@ -188,7 +190,7 @@ def _physical_parameters_valid(instance: PhysicalConstants) -> jax.Array:
         if name in _POSITIVE_PARAMETERS:
             valid = valid & jnp.all(value > 0)
     valid = valid & (instance.Area_reg >= 0) & (instance.minTIce <= instance.maxTIce)
-    valid = valid & (instance.tensileStrFac > -1)
+    valid = valid & (instance.tensileStrFac > -1) & (instance.saltIce_ref >= 0)
     latitudes = instance.longwaveCloudLatitudes
     if len(latitudes) < 2 or len(latitudes) != len(instance.longwaveCloudCoefficients):
         return jnp.asarray(False)

@@ -14,8 +14,8 @@ Single physics timestep
 ``veris.advance`` moves the model forward by one complete timestep and returns
 State and Diagnostics, which holds step results. Select coupled for ice motion,
 transport, freezing and melting; dynamics for motion and transport; or
-thermodynamics for freezing and melting. Keep configuration, constants and the
-physics choice fixed when applying JAX transformations. Supplied forcing, or
+thermodynamics for freezing and melting. Keep configuration and the physics
+choice static when applying JAX transformations; physical constants are dynamic. Supplied forcing, or
 external inputs, can change and is refreshed before the numerical functions
 use it. ``veris.step`` repeats a supplied step function over multiple timesteps.
 See :doc:`/reference/integration` for examples of combining these functions and
@@ -104,6 +104,14 @@ Thermodynamics
 .. automodule:: veris.physics.thermodynamics.growth
 
 .. autofunction:: veris.physics.thermodynamics.growth.Growth
+
+See :doc:`/reference/ocean-budgets` for mass, salt, enthalpy and status conventions.
+
+.. automodule:: veris.physics.thermodynamics.budgets
+
+.. autoclass:: veris.physics.thermodynamics.budgets.OceanExchangeFluxes
+
+.. autofunction:: veris.physics.thermodynamics.budgets.ocean_exchange_fluxes
 
 .. automodule:: veris.numerics.surface_temperature
 

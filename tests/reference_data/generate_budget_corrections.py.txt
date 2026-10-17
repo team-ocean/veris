@@ -1,0 +1,213 @@
+"""Capture versioned corrections using archived a9d6c0a, never the new solver.
+
+Run from an external cwd with PYTHONPATH=ARCHIVED_A9_SOURCE and this environment's
+Python. The archived Growth body is retained verbatim except three declared hooks:
+remove independently diagnosed vapor mass before phase change, and add open-water
+snow fusion heat, and disable dry-cell surface physics. NumPy implements boundary events and mass/enthalpy accounting.
+All other stage equations come from the archived source. Before corrections,
+every original lifecycle/unequal reference field is verified at its original
+tolerance. Existing archives are read only; output is a fresh delta archive.
+"""
+
+import hashlib
+import importlib
+import json
+import sys
+from dataclasses import fields, replace
+from pathlib import Path
+
+import jax
+import jax.numpy as jnp
+import numpy as np
+
+SOURCE_COMMIT = "a9d6c0ade52fbae4c0d1da694878943d6dbf7e6e"
+GROWTH_SHA256 = "8972b924a047dc458a00bae8fa4bbf4913310bbc60a359103557cf051f53a247"
+
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def assert_reference(actual, expected, name):
+    actual = np.asarray(actual)
+    tolerance = 3e-5 if expected.dtype == np.dtype("float32") else 2e-11
+    assert actual.shape == expected.shape and actual.dtype == expected.dtype, name
+    error = np.abs(actual - expected)
+    assert np.all(error <= tolerance * (1 + np.abs(expected))), (name, float(error.max()))
+
+
+def capture(source, original, destination):
+    jax.config.update("jax_enable_x64", True)
+    import veris
+    from veris.execution.advance import _apply_forcing, _forcing_arrays
+    from veris.grid.halos import fill_overlap, fill_state_overlap
+    from veris.model.diagnostics import Diagnostics
+    from veris.physics.dynamics.driver import dynamics_transport
+    from veris.physics.thermodynamics.growth import Growth
+
+    assert Path(veris.__file__).resolve().is_relative_to(source)
+    from veris.model.physical_constants import PhysicalConstants
+    assert not hasattr(PhysicalConstants, "with_overrides")
+    growth_source = source / "veris/physics/thermodynamics/growth.py"
+    assert sha(growth_source) == GROWTH_SHA256
+    output = destination / "ocean_budgets_v2.npz"
+    assert not output.exists() and not output.with_suffix(".json").exists()
+    manifest = json.loads((original / "lifecycle_legacy_v1.json").read_text())
+    lifecycle = np.load(original / "lifecycle_legacy_v1.npz", allow_pickle=False)
+    unequal = np.load(original / "island_unequal_legacy_v1.npz", allow_pickle=False)
+    corrections, kinds = {}, {}
+    event_record = {}
+
+    def events(vs, conf, p, hi, hs, area, fio, fia, sw, vapor):
+        # Independent mass events, per grid-cell area, before phase changes.
+        hi, hs, area = map(np.asarray, (hi, hs, area))
+        rate = np.minimum(np.asarray(vapor).mean(axis=2) * area,
+                          (p.rhoIce * hi + p.rhoSnow * hs) / conf.deltatTherm)
+        lost = np.maximum(rate, 0) * conf.deltatTherm
+        snow_loss = np.minimum(lost, p.rhoSnow * hs)
+        next_snow = hs - snow_loss / p.rhoSnow - np.minimum(rate, 0) * conf.deltatTherm / p.rhoSnow
+        next_ice = np.maximum(hi - (lost - snow_loss) / p.rhoIce, 0)
+        mass = p.rhoFresh * (np.asarray(vs.precip) + np.asarray(vs.snowfall)
+                            + np.asarray(vs.runoff) + (1-area) * np.asarray(vs.evap)) - rate
+        thermal = -(np.asarray(fio) + np.asarray(fia) + np.asarray(sw)
+                    + (1-area) * np.asarray(vs.Qnet))
+        enthalpy = thermal - p.lhFusion * p.rhoFresh * np.asarray(vs.snowfall) + p.lhFusion * rate
+        event_record.update(mass=mass, heat=enthalpy)
+        return jnp.asarray(next_ice), jnp.asarray(next_snow)
+
+    text = growth_source.read_text()
+    decorator = '@partial(jit, static_argnames=["conf", "phys"])\n'
+    assert text.count(decorator) == 1
+    text = text.replace(decorator, "")
+    marker = '    # FWsublim = jnp.sum(FWsublim_mult, axis=2) * conf.recip_nITC * AreapreTH'
+    assert text.count(marker) == 1
+    text = text.replace(marker, '''    hIceMeanpreTH, hSnowMeanpreTH = _events(
+        vs, conf, phys, hIceMeanpreTH, hSnowMeanpreTH, AreapreTH,
+        F_io_net, F_ia_net, IcePenetSW, FWsublim_mult)
+''')
+    marker = '    IceGrowthRateOpenWater = qi * vs.Qnet'
+    assert text.count(marker) == 1
+    text = text.replace(marker, '    IceGrowthRateOpenWater = qi * (vs.Qnet + phys.lhFusion * phys.rhoFresh * vs.snowfall)')
+    marker = '    hIceActual = jnp.maximum(hIceActual, phys.minActualIceThickness)'
+    assert text.count(marker) == 1
+    text = text.replace(marker, '    hIceActual = jnp.where(vs.iceMask != 0, jnp.maximum(hIceActual, phys.minActualIceThickness), 0)')
+    namespace = {"_events": events}
+    exec(compile(text, "<archived-growth-with-declared-v2-hooks>", "exec"), namespace)
+    phase = namespace["Growth"]
+
+    def corrected_growth(vs, conf, p):
+        # Dry prescribed values have no physical role. Preserve finite pass-through
+        # surface temperature; neutralize other dry operands before arithmetic.
+        names = ("hIceMean", "hSnowMean", "Area", "TSurf", "LWdown", "SWdown", "ATemp", "aqh", "wSpeed", "fCori", "ocSalt", "theta", "snowfall", "precip", "runoff", "evap", "Qnet", "Qsw", "os_hIceMean", "os_hSnowMean")
+        vs = replace(vs, **{name: jnp.asarray(np.where(np.asarray(vs.iceMask) != 0, np.asarray(getattr(vs, name)),
+            np.where(np.isfinite(np.asarray(vs.TSurf)), np.asarray(vs.TSurf), p.celsius2K) if name == "TSurf" else 0)) for name in names})
+        result = list(phase(vs, conf, p))
+        # Compare the final stock to the original prepared column, not to an
+        # internally overwritten post-vapor temporary. Cleanup is prepared-raw.
+        di = np.asarray(result[0]) - np.asarray(vs.hIceMean) + np.asarray(vs.os_hIceMean)
+        ds = np.asarray(result[1]) - np.asarray(vs.hSnowMean) + np.asarray(vs.os_hSnowMean)
+        dm = p.rhoIce * di + p.rhoSnow * ds
+        mass = event_record["mass"] - dm / conf.deltatTherm
+        salt = -p.rhoIce * di * (p.saltIce_ref / 1000) / conf.deltatTherm
+        result[4] = -mass
+        result[5] = (-mass * np.asarray(vs.ocSalt) + 1000 * salt) / p.rhoFresh
+        result[7] = -(event_record["heat"] + p.lhFusion * dm / conf.deltatTherm)
+        result.extend((mass, salt, event_record["mass"], event_record["heat"]))
+        return tuple(jnp.asarray(value, dtype=vs.Area.dtype) for value in result)
+
+    cleanup_module = importlib.import_module("veris.physics.transport.cleanup")
+    original_cleanup = cleanup_module.clean_up_advection
+
+    def corrected_cleanup(vs, conf, p):
+        values = original_cleanup(vs, conf, p)
+        return (*values[:4], values[0] - vs.hIceMean, values[1] - vs.hSnowMean)
+
+    def compose(vs, conf, p, forcing, physics, corrected):
+        conf = replace(conf, use_sharding=False)
+        vs = _apply_forcing(vs, _forcing_arrays(forcing, (conf.nx, conf.ny), conf.dtype), conf)
+        z = jnp.zeros_like(vs.Area)
+        u = v = z
+        if physics != "thermodynamics":
+            vs, u, v = jax.jit(dynamics_transport, static_argnums=(1, 2))(vs, conf, p)
+        values = (z,) * 15
+        if physics != "dynamics":
+            values = corrected_growth(vs, conf, p) if corrected else (*Growth(vs, conf, p), z,z,z,z)
+            updates = dict(zip(("hIceMean", "hSnowMean", "Area", "TSurf"), values[:4]))
+            updates.update(Qsw=values[6], Qnet=values[7], SeaIceLoad=values[8], recip_hIceMean=values[10])
+            if corrected:
+                updates.update(os_hIceMean=z, os_hSnowMean=z)
+            vs = replace(vs, **updates)
+        diagnostic = Diagnostics(values[9], u, v, values[4], values[5])
+        extra = dict(zip(("physics_status", "ocean_mass_flux", "ocean_salt_mass_flux", "external_mass_flux", "external_heat_flux"), (z, *values[11:])))
+        if physics != "thermodynamics" or not conf.enable_cyclic_y:
+            vs, diagnostic = fill_state_overlap(vs, conf), fill_state_overlap(diagnostic, conf)
+            extra = {k: fill_overlap(v, conf) for k,v in extra.items()}
+        return vs, {**{f.name: getattr(diagnostic, f.name) for f in fields(diagnostic)}, **extra}
+
+    def baseline(name, group, step, key, archive):
+        label = f"{name}.{group}.{step}.{key}" if step is not None else f"{group}.{key}"
+        expected = archive[label]
+        restored = {"dxG", "dyG", "dxU", "dyU", "dxV", "dyV", "recip_dxC", "recip_dyC", "recip_dxU", "recip_dyU", "recip_dxV", "recip_dyV", "rAz", "recip_rA", "recip_rAu", "recip_rAv"}
+        if name.startswith("growth") and key in restored:
+            assert np.all(expected == 1)
+            expected = np.zeros_like(expected)
+        if name.startswith("dynamics") and key in ("theta", "ATemp"):
+            assert np.all(expected == 273.15)
+            expected = np.zeros_like(expected)
+        return label, expected
+
+    def record(name, step, vs, diag, archive, corrected):
+        for group, data in (("state", {f.name: getattr(vs, f.name) for f in fields(vs)}), ("diagnostics", diag or {})):
+            for key, value in data.items():
+                label = f"{name}.{group}.{step}.{key}" if step is not None else f"{group}.{key}"
+                value = np.asarray(value)
+                if label not in archive:
+                    assert group == "diagnostics"
+                    if corrected:
+                        corrections[label], kinds[label] = value, "new"
+                    continue
+                _, expected = baseline(name, group, step, key, archive)
+                if not corrected:
+                    assert_reference(value, expected, label)
+                elif not np.array_equal(value, expected):
+                    corrections[label], kinds[label] = value - expected, "delta"
+
+    for corrected in (False, True):
+        cleanup_module.clean_up_advection = corrected_cleanup if corrected else original_cleanup
+        # Clear the direct composition cache after changing the explicit cleanup hook.
+        jax.clear_caches()
+        for case in manifest["cases"]:
+            name, preset = case["name"], case["preset"]
+            forcing = (veris.Forcing(constant={"Qsw": 0}, series={"Qnet": np.array(case["forcing"]["Qnet"])})
+                       if preset == "island" else veris.Forcing())
+            definition = veris.Experiment.builtin(preset, grid=veris.Grid(*case["grid"]), settings=case["settings"], forcing=forcing, steps=3)
+            state, conf, p = veris.initialize_experiment(definition)
+            for step in range(4):
+                if step in (0,1,3):
+                    record(name, step, state, None, lifecycle, corrected)
+                if step == 3:
+                    break
+                state, diag = compose(state, conf, p, forcing.at(step), definition.physics, corrected)
+                if step+1 in (1,3):
+                    # Historical archives have no status or new boundary arrays.
+                    record(name, step+1, state, diag, lifecycle, corrected)
+        definition = veris.Experiment.builtin("island", grid=veris.Grid(4,6), settings={"dtype":"float64", "nEVPsteps":2,"deltatDyn":600,"deltatTherm":600})
+        state, conf, p = veris.initialize_experiment(definition)
+        conf = replace(conf, deltatTherm=3600)
+        state, diag = compose(state, conf, p, {"Qnet":80., "Qsw":0.}, "coupled", corrected)
+        record("unequal", None, state, diag, unequal, corrected)
+    np.savez_compressed(output, **corrections)
+    metadata = {"version":2, "source_commit":SOURCE_COMMIT, "growth_sha256":GROWTH_SHA256,
+        "generator_sha256":sha(Path(__file__)), "archive_sha256":sha(output),
+        "base_archives":{name:sha(original/name) for name in ("lifecycle_legacy_v1.npz", "island_unequal_legacy_v1.npz")},
+        "corrections":kinds, "jax":jax.__version__, "numpy":np.__version__,
+        "source_hashes":{str(Path(module.__file__).resolve().relative_to(source)):sha(Path(module.__file__))
+            for name,module in sorted(sys.modules.items()) if name.startswith("veris")
+            and getattr(module,"__file__",None) and Path(module.__file__).suffix == ".py"},
+        "method":"Original a9 source with three declared phase/dry hooks; independent NumPy boundary event and mass/salt/enthalpy corrections; every v1 field verified first; no changed production solver imported."}
+    output.with_suffix(".json").write_text(json.dumps(metadata, indent=2, sort_keys=True)+"\n")
+    print(f"PASS original fields and independent v2 corrections: {len(corrections)} arrays")
+
+
+if __name__ == "__main__":
+    capture(*(Path(arg).resolve() for arg in sys.argv[1:]))

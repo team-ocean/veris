@@ -107,5 +107,5 @@ def growth(state: State, conf: Configuration, phys: PhysicalConstants) -> {"tupl
         source += "\nsettings = Configuration(nITC=1.5)\n"
         expected = ("invalid-argument-type", "int")
     elif case == "wrong-arity":
-        expected = ("invalid-return-type", "tuple of length 11")
+        expected = ("invalid-return-type", "tuple of length 15")
     _check_contract(tmp_path, source, expected)

@@ -2,7 +2,7 @@
 
 ## 2026-10-17 — Scientific validation follow-up (in progress)
 
-- [x] N1/N2 complete (@root); NEXT N3: physical-parameter AD,
+- [x] N1/N2/N3 complete (@root); NEXT N4: physical-parameter AD,
   actual ocean mass/salt/heat budgets and long-run validation. Isolated branch
   feat/vercor-scientific-validation starts at a9d6c0a; user checkout preserved.
 - Definition and implementation plans are approved in the paired VerCOR branch.
@@ -24,6 +24,24 @@
   Final full gate passes1,672 tests with five GPU/platform skips in1,154.37s;
   coverage92% overall. Strict Sphinx, CI lint/format/annotations/Linux types pass.
   Original reference archive checksums remain unchanged.
+- N3 analytic events35/35 pass (4.19s), including actual mass/salt for
+  Si=0/2/5, densities, snow/rain/vapor/runoff, flooding, signed cleanup,
+  complete sublimation, fresh formation/saline melt and intermediate failure.
+  Two mutations prove traced negative salinity and repeated cleanup are rejected;
+  restored positive controls pass2/2. A real dry-surface RED exposed a zero-K
+  inactive Newton input; dry physics is now disabled before its arithmetic.
+  Real dry/coupled/metadata focus70/70 passes in48.91s.
+- Compatibility first run219 pass/51 fail: appended tuple/diagnostic interfaces,
+  corrected snowfall/cleanup expectations and old archive values. Preserve all
+  original archives/tolerances. Independent archived-a9 generator first verifies
+  every original field, then captures208 explicit v2 deltas/new diagnostics with
+  NumPy boundary accounting and declared phase hooks;63 source checksums tracked.
+  All10 lifecycle/unequal reference cases pass in16.17s. Full N3 matrix passes
+  1,707 cases with five GPU/platform skips:1,689 initial passes (852.74s) plus
+  exact18 loopback-blocked cases passing with access (354.95s), source hashes
+  unchanged. Combined coverage92%; all original archive checksums unchanged.
+  Strict Sphinx passes after correcting two heading lengths and allowing its
+  configured Python inventory fetch; CI lint/format/annotations/Linux types pass.
 - Native baseline: 1,624 passes and five platform/hardware skips, exit 0. VerCOR
   fast orientation passes in its separate Python 3.12 scipy environment.
 - N1 RED reproduces exactly doubled zonal spacing at 60 degrees and missing

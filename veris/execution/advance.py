@@ -27,7 +27,7 @@ from veris.model.physical_parameters import _physical_parameters_valid
 from veris.model.types import State, jit
 from veris.numerics.autodiff import norm_hypot
 from veris.physics.dynamics.driver import dynamics_transport
-from veris.physics.thermodynamics.growth import Growth
+from veris.physics.thermodynamics.growth import _growth_with_status
 
 
 def _forcing_arrays(
@@ -106,7 +106,9 @@ def _advance_valid(
     if physics != "thermodynamics":
         state, stress_u, stress_v = dynamics_transport(state, conf, phys)
     freshwater = salt = penetrating = zeros
+    mass = salt_mass = external_mass = external_heat = status = zeros
     if physics != "dynamics":
+        values, status = _growth_with_status(state, conf, phys)
         (
             ice,
             snow,
@@ -119,7 +121,11 @@ def _advance_valid(
             load,
             penetrating,
             inverse,
-        ) = Growth(state, conf, phys)
+            mass,
+            salt_mass,
+            external_mass,
+            external_heat,
+        ) = values
         state = replace(
             state,
             hIceMean=ice,
@@ -130,8 +136,21 @@ def _advance_valid(
             Qnet=heat,
             SeaIceLoad=load,
             recip_hIceMean=inverse,
+            os_hIceMean=zeros,
+            os_hSnowMean=zeros,
         )
-    diagnostics = Diagnostics(penetrating, stress_u, stress_v, freshwater, salt, zeros)
+    diagnostics = Diagnostics(
+        penetrating,
+        stress_u,
+        stress_v,
+        freshwater,
+        salt,
+        status,
+        mass,
+        salt_mass,
+        external_mass,
+        external_heat,
+    )
     # The column reference leaves periodic output halos as produced by Growth.
     # Dynamics/coupled always refresh; closed walls always need field policies.
     if physics != "thermodynamics" or not conf.enable_cyclic_y:

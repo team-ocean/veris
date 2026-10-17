@@ -2,26 +2,69 @@
 
 The original Veris Growth equations average surface fluxes over nITC thickness
 categories and combine ice/snow melt, mixed-layer exchange, precipitation, and
-salt/freshwater coupling. Inputs and all eleven outputs are horizontal arrays;
+salt/freshwater coupling. Inputs and all fifteen outputs are horizontal arrays;
 the internal category axis is last. Surface temperatures come from solve4temp.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
 from functools import partial
 
 import jax.numpy as jnp
+from jax import Array
 
 from veris.model.configuration import Configuration
 from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import GrowthResult, State, jit
 from veris.numerics.surface_temperature import solve4temp
+from veris.physics.thermodynamics.budgets import ocean_exchange_fluxes
 
 
 @partial(jit, static_argnames=["conf"])
-def Growth(vs: State, conf: Configuration, phys: PhysicalConstants) -> GrowthResult:
+def _growth_with_status(
+    vs: State, conf: Configuration, phys: PhysicalConstants
+) -> tuple[GrowthResult, Array]:
     """calculate thermodynamic change of ice and snow thickness and ice cover fraction
     due to atmospheric and ocean surface forcing"""
+
+    # Dry operands are neutral before arithmetic, including NaN prescribed data.
+    wet = vs.iceMask != 0
+    vs = replace(
+        vs,
+        **{
+            name: jnp.where(
+                wet,
+                getattr(vs, name),
+                jnp.where(jnp.isfinite(vs.TSurf), vs.TSurf, phys.celsius2K)
+                if name == "TSurf"
+                else 0,
+            )
+            for name in (
+                "hIceMean",
+                "hSnowMean",
+                "Area",
+                "TSurf",
+                "LWdown",
+                "SWdown",
+                "ATemp",
+                "aqh",
+                "wSpeed",
+                "fCori",
+                "ocSalt",
+                "theta",
+                "snowfall",
+                "precip",
+                "runoff",
+                "evap",
+                "Qnet",
+                "Qsw",
+                "os_hIceMean",
+                "os_hSnowMean",
+            )
+        },
+    )
+    initial_ice, initial_snow = vs.hIceMean, vs.hSnowMean
 
     ##### initializations #####
 
@@ -66,7 +109,7 @@ def Growth(vs: State, conf: Configuration, phys: PhysicalConstants) -> GrowthRes
     recip_hIceActual = AreapreTH / jnp.sqrt(hIceMeanpreTH**2 + phys.hIce_reg)
     hSnowActual = jnp.where(isIce, hSnowMeanpreTH * recip_regArea, 0)
 
-    hIceActual = jnp.maximum(hIceActual, phys.minActualIceThickness)
+    hIceActual = jnp.where(wet, jnp.maximum(hIceActual, phys.minActualIceThickness), 0)
 
     ##### calculate heat fluxes through the ice #####
 
@@ -113,7 +156,34 @@ def Growth(vs: State, conf: Configuration, phys: PhysicalConstants) -> GrowthRes
     F_io_net = jnp.sum(F_io_net_mult, axis=2) * conf.recip_nITC * AreapreTH
     F_ia_net = jnp.sum(F_ia_net_mult, axis=2) * conf.recip_nITC * AreapreTH
     IcePenetSW = jnp.sum(IcePenetSW_mult, axis=2) * conf.recip_nITC * AreapreTH
-    # FWsublim = jnp.sum(FWsublim_mult, axis=2) * conf.recip_nITC * AreapreTH
+    sublimation = jnp.sum(FWsublim_mult, axis=2) * conf.recip_nITC * AreapreTH
+    # Diagnose the actual boundary event before phase change. Sublimation first
+    # consumes existing snow, then ice; deposition is fresh frost. The fluxes
+    # and geometric coefficients use the original column for this split step.
+    available = phys.rhoIce * hIceMeanpreTH + phys.rhoSnow * hSnowMeanpreTH
+    sublimation = jnp.minimum(sublimation, available * conf.recip_deltatTherm)
+    removed = jnp.maximum(sublimation, 0) * conf.deltatTherm
+    snow_removed = jnp.minimum(removed, phys.rhoSnow * hSnowMeanpreTH)
+    hSnowMeanpreTH = (
+        hSnowMeanpreTH
+        + (-snow_removed - jnp.minimum(sublimation, 0) * conf.deltatTherm)
+        / phys.rhoSnow
+    )
+    hIceMeanpreTH = jnp.maximum(
+        hIceMeanpreTH - (removed - snow_removed) / phys.rhoIce, 0
+    )
+
+    # Independent atmospheric/land boundary inputs, before phase changes.
+    # Snow enters with enthalpy -L*m relative to liquid at freezing. The +L*m
+    # vapor term converts surface sublimation heat to that same reference.
+    external_mass = (
+        phys.rhoFresh
+        * (vs.precip + vs.snowfall + vs.runoff + (1 - AreapreTH) * vs.evap)
+        - sublimation
+    )
+    external_heat = -(
+        F_ia_net + F_io_net + IcePenetSW + (1 - AreapreTH) * vs.Qnet
+    ) + phys.lhFusion * (sublimation - phys.rhoFresh * vs.snowfall)
 
     ##### evaluate precipitation as snow or rain #####
 
@@ -128,15 +198,6 @@ def Growth(vs: State, conf: Configuration, phys: PhysicalConstants) -> GrowthRes
         jnp.where(tmp, SnowAccRateOverIce + vs.precip, SnowAccRateOverIce)
         * phys.rhoFresh2rhoSnow
     )
-
-    # the precipitation rate over the ice which goes immediately into the
-    # ocean (flowing through cracks in the ice). if the temperature is
-    # above the freezing point, the precipitation remains wet and runs
-    # into the ocean
-    PrecipRateOverIceSurfaceToSea = jnp.where(tmp, 0, vs.precip)
-
-    # total snow accumulation over ice [m]
-    SnowAccOverIce = SnowAccRateOverIce * AreapreTH * conf.deltatTherm
 
     ##### calculate growth rates of ice and snow #####
 
@@ -228,7 +289,11 @@ def Growth(vs: State, conf: Configuration, phys: PhysicalConstants) -> GrowthRes
     # using swFracPass = 0 yields the same result as just using
     # IceGrowthRateOpenWater = qi * vs.Qnet
 
-    IceGrowthRateOpenWater = qi * vs.Qnet
+    # Open-water snow melts immediately, consuming L*P before phase change.
+    # At freezing that loss reforms ice; warm mixed-layer heat may melt it.
+    IceGrowthRateOpenWater = qi * (
+        vs.Qnet + phys.lhFusion * phys.rhoFresh * vs.snowfall
+    )
 
     ##### calculate change in ice, snow thicknesses and area #####
 
@@ -312,103 +377,69 @@ def Growth(vs: State, conf: Configuration, phys: PhysicalConstants) -> GrowthRes
     # IcePenetSW was converted to a grid-cell mean after category averaging.
     Qsw = IcePenetSW + vs.Qsw * (1 - AreapreTH)
 
-    # the actual ice volume change over the time step [m3/m2]
-    hIceMeanChange = hIceMean - hIceMeanpreTH
-
-    # the net melted snow thickness [m3/m2] (positive if the snow
-    # thickness decreases/ melting occurs)
-    MeltedSnowMean = hSnowMeanpreTH + SnowAccOverIce - hSnowMean
-
-    # the energy required to melt or form the new ice volume [J/m2]
-    EnergyForIceChange = hIceMeanChange / qi
-
-    # the net energy flux out of the ocean [J/m2]
-    NetEnergyFluxOutOfOcean = (
-        F_ia_net + F_io_net + IcePenetSW + (1 - AreapreTH) * vs.Qnet
-    ) * conf.deltatTherm
-
-    # energy taken out of the ocean which is not used for sea ice growth [J].
-    # If the net energy flux out of the ocean is balanced by the latent
-    # heat of fusion, the temperature of the mixed layer will not change
-    ResidualEnergyOutOfOcean = NetEnergyFluxOutOfOcean - EnergyForIceChange
-
-    # total heat flux out of the ocean [W/m2]
-    Qnet = ResidualEnergyOutOfOcean * conf.recip_deltatTherm
-
-    # the freshwater contribution to (from) the ocean due to melting (growing)
-    # of ice [m3/m2] (positive for melting)
-    # in the case of non-zero ice salinity, the freshwater contribution
-    # is reduced by the salinity ratio of ice to water.
-    # if the liquid cell has a lower salinity than the specified salinity
-    # of sea ice, then assume the sea ice is completely fresh
-    # (if the water is fresh, no salty sea ice can form)
-    FreshwaterContribFromIce = (
-        -hIceMeanChange
-        * phys.rhoIce2rhoFresh
-        * jnp.where(
-            ((vs.ocSalt > 0) & (vs.ocSalt > phys.saltIce_ref)),
-            (1 - phys.saltIce_ref / jnp.where(vs.ocSalt > 0, vs.ocSalt, 1)),
-            1,
-        )
+    ice_change = hIceMean - initial_ice
+    snow_change = hSnowMean - initial_snow
+    fluxes = ocean_exchange_fluxes(
+        ice_change=ice_change,
+        snow_change=snow_change,
+        external_mass_input=external_mass,
+        cleanup_ice=-vs.os_hIceMean,
+        cleanup_snow=-vs.os_hSnowMean,
+        configuration=conf,
+        constants=phys,
     )
-
-    # the variables os_hIceMean and os_hSnowMean are negative ice and snow thicknesses
-    # that were calculated in the advection routine. the thicknesses were cut off at zero but
-    # to ensure mass conservation, the overshoots are treated as melted
-
-    # salt flux into the ocean due to ice formation [kg/s m2]
-    # this is an actual salt flux
-    tmpscal0 = jnp.minimum(phys.saltIce_ref, vs.ocSalt)
-    saltflux = (
-        (hIceMeanChange + vs.os_hIceMean)
-        * tmpscal0
-        * vs.iceMask
-        * phys.rhoIce
-        * conf.recip_deltatTherm
+    EmPmR = -fluxes.mass_input
+    forc_salt_surface = (
+        EmPmR * vs.ocSalt + 1000 * fluxes.salt_mass_input
+    ) / phys.rhoFresh
+    # The residual ocean heat follows the zero-layer first law. External heat
+    # above is diagnosed from boundary events, independently of final stock.
+    solid_mass_change = phys.rhoIce * (ice_change + vs.os_hIceMean) + phys.rhoSnow * (
+        snow_change + vs.os_hSnowMean
     )
-
-    # the freshwater contribution to the ocean from melting snow [m]
-    FreshwaterContribFromSnowMelt = MeltedSnowMean / phys.rhoFresh2rhoSnow
-
-    # evaporation minus precipitation minus runoff (salt flux into ocean) [kg/m2 s]
-    # this is a virtual salt flux (actually just a negative freshwater flux, it still needs to be
-    # weighted with the ocean surface salinity). if there is a flux of freshwater into the ocean,
-    # the salinity has to decrease. as the ocean model treats the water volume as constant, the
-    # adding of freshwater is therefore treated as salt flux out of the ocean.
-    # (the name EmPmR is convention and assumes a positive sign of evap for evaporation. in this
-    # configuration, evap is a freshwater flux, i.e. <0 increases salinity, therefore the additional
-    # minus in front of evap)
-    EmPmR = (
-        vs.iceMask
-        * (
-            (-vs.evap - vs.precip) * (1 - AreapreTH)
-            - PrecipRateOverIceSurfaceToSea * AreapreTH
-            - vs.runoff
-            - (FreshwaterContribFromIce + FreshwaterContribFromSnowMelt)
-            / conf.deltatTherm
-        )
-        * phys.rhoFresh
-        + vs.iceMask
-        * (vs.os_hIceMean * phys.rhoIce + vs.os_hSnowMean * phys.rhoSnow)
-        * conf.recip_deltatTherm
+    Qnet = -external_heat - phys.lhFusion * solid_mass_change * conf.recip_deltatTherm
+    gross_formation = (
+        jnp.maximum(IceGrowthRateUnderExistingIce, 0)
+        + jnp.maximum(IceGrowthRateFromSurface, 0)
+        + jnp.maximum(IceGrowthRateOpenWater, 0) * (1 - AreapreTH)
+        + d_hIceMeanByFlood * conf.recip_deltatTherm
     )
-
-    # convert freshwater flux to salt flux and combine virtual and actual salt flux
-    forc_salt_surface = EmPmR * vs.ocSalt / phys.rhoFresh + saltflux
+    status = jnp.where(
+        wet & (gross_formation > 0) & (vs.ocSalt < phys.saltIce_ref), 2, 0
+    ).astype(vs.Area.dtype)
 
     # sea ice + snow load on the sea surface
     SeaIceLoad = hIceMean * phys.rhoIce + hSnowMean * phys.rhoSnow
 
     return (
-        hIceMean,
-        hSnowMean,
-        Area,
-        TSurf,
-        EmPmR,
-        forc_salt_surface,
-        Qsw,
-        Qnet,
-        SeaIceLoad,
-        IcePenetSW,
-        recip_hIceMean,
+        (
+            hIceMean,
+            hSnowMean,
+            Area,
+            TSurf,
+            EmPmR,
+            forc_salt_surface,
+            Qsw,
+            Qnet,
+            SeaIceLoad,
+            IcePenetSW,
+            recip_hIceMean,
+            fluxes.mass_input,
+            fluxes.salt_mass_input,
+            external_mass,
+            external_heat,
+        ),
+        status,
     )
+
+
+@partial(jit, static_argnames=["conf"])
+def Growth(vs: State, conf: Configuration, phys: PhysicalConstants) -> GrowthResult:
+    """Return updated column and fifteen instantaneous ocean/boundary arrays.
+
+    The original eleven-value prefix is retained; actual ocean mass and salt,
+    external mass and external heat follow. Mass/salt/heat boundary inputs are
+    downward positive; native Qnet is upward positive. Bulk ice salinity is
+    fixed for a trajectory. Advance also returns compiled formation status.
+    """
+    return _growth_with_status(vs, conf, phys)[0]

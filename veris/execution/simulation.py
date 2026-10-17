@@ -379,7 +379,12 @@ class Simulation:
             jax.block_until_ready(history)
         status = int(jax.device_get(jnp.max(final[1].physics_status)))
         if status:
-            raise ValueError(f"invalid physical parameters (physics_status={status})")
+            reason = (
+                "invalid saline-ice formation"
+                if status == 2
+                else "invalid physical parameters"
+            )
+            raise ValueError(f"{reason} (physics_status={status})")
         return final, history, compilation, integration
 
     def snapshot(
