@@ -118,14 +118,25 @@ def test_uniform_isotropic_stress_has_zero_force(
 
 @pytest.mark.parametrize("southern", [False, True])
 @pytest.mark.parametrize("no_slip", [False, True])
+@pytest.mark.parametrize("coast_faces", [False, True])
 def test_area_weighted_strain_stress_work_identity(
-    southern: bool, no_slip: bool
+    southern: bool, no_slip: bool, coast_faces: bool
 ) -> None:
     lat = np.array([42.0, 45.0, 49.0, 54.0, 60.0, 65.0, 69.0, 72.0])
     if southern:
         lat = -lat[::-1]
+    geometry = spherical_geometry(lat)
+    if coast_faces:
+        mask = np.array(geometry.maskT)
+        mask[5, 6] = 0
+        geometry = replace(
+            geometry,
+            maskT=mask,
+            maskU=mask * np.roll(mask, 1, axis=0),
+            maskV=mask * np.roll(mask, 1, axis=1),
+        )
     state, conf, phys = initialize_from_ocean(
-        spherical_geometry(lat),
+        geometry,
         settings_overrides={
             "enable_cyclic_y": False,
             "use_sharding": False,
@@ -141,6 +152,11 @@ def test_area_weighted_strain_stress_work_identity(
     # Compact support removes boundary work; a dry island exercises masks.
     support = jnp.zeros_like(u).at[3:-3, 4:-4].set(1.0)
     u, v, s11, s22, s12 = [f * support for f in fields]
+    if coast_faces:
+        u, v = u * state.iceMaskU, v * state.iceMaskV
+        s11, s22 = s11 * state.iceMask, s22 * state.iceMask
+        assert np.all(np.asarray(state.iceMaskU[5:7, 6]) == 0)
+        assert np.all(np.asarray(state.iceMaskV[5, 6:8]) == 0)
     wet = state.iceMask.at[5, 6].set(0.0)
     state = replace(state, iceMask=wet, maskInC=wet)
     e11, e22, e12 = strainrates(state, conf, phys, u, v)

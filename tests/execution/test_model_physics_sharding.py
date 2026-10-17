@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 def test_pure_advance_two_cpu_orientations(tmp_path: Path) -> None:
-    """Check packed State, physical forcing, closed walls and real distributed AD."""
+    """Check packed state/diagnostics, forcing and air-drag/h0 AD in both orientations."""
     # Locate the project while this test is a draft and after moving into tests/.
     root = next(
         parent

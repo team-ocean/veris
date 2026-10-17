@@ -2,7 +2,7 @@
 
 ## 2026-10-17 — Scientific validation follow-up (in progress)
 
-- [x] N1/N2/N3 complete (@root); NEXT N4: physical-parameter AD,
+- [x] N1/N2/N3/N4 complete locally (@root): physical-parameter AD,
   actual ocean mass/salt/heat budgets and long-run validation. Isolated branch
   feat/vercor-scientific-validation starts at a9d6c0a; user checkout preserved.
 - Definition and implementation plans are approved in the paired VerCOR branch.
@@ -42,6 +42,21 @@
   unchanged. Combined coverage92%; all original archive checksums unchanged.
   Strict Sphinx passes after correcting two heading lengths and allowing its
   configured Python inventory fetch; CI lint/format/annotations/Linux types pass.
+- N4 first harness GREEN8/8 in4.44s; actual1,000step report gives stored-area
+  volume drift2.11e-15 and tensor refinement orders1.9997363/1.9999341.
+  The Cartesian metric negative control remains conservative but fails the
+  independent spherical tendency. Original four work-identity cases remain;
+  four additional consistent coast-mask cases use geometry-owned dual areas.
+  Initial coast/two-CPU focus9/9 passes28.89s. The two-CPU probe retains its
+  original forcing axes and adds air-drag plus h0 JVP/VJP/FD comparisons;
+  thermodynamic full-record and distributed new-diagnostic checks are added.
+  Final full gate passes1,719 tests with five GPU/platform skips in1,209.22s;
+  coverage92% overall/95.18% first-party. Strict docs/CI lint/format/annotations/
+  Linux types pass. Wheel/sdist build and outside-checkout lifecycle/framework
+  probes pass, including2CPU sharding and real parameter AD. Installed h0 grad
+  -0.0002698766879437447 matches FD-0.0002698767026521054. Precommit artifacts
+  are identified by0.2.0+3.g4af3f46.dirty plus SHA256 in the execution ledger;
+  the paired VerCOR plan consumes the committed source SHA. No push yet.
 - Native baseline: 1,624 passes and five platform/hardware skips, exit 0. VerCOR
   fast orientation passes in its separate Python 3.12 scipy environment.
 - N1 RED reproduces exactly doubled zonal spacing at 60 degrees and missing
