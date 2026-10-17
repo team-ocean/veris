@@ -25,6 +25,7 @@ class Diagnostics:
     OceanStressV: Array
     EmPmR: Array
     forc_salt_surface: Array
+    physics_status: Array
 
 
 DIAGNOSTICS: dict[str, Variable] = {
@@ -58,6 +59,12 @@ DIAGNOSTICS: dict[str, Variable] = {
         "unknown",
         "Combined virtual and actual ice salt forcing; the legacy terms have "
         "different freshwater normalizations when saltIce_ref is nonzero",
+    ),
+    "physics_status": Variable(
+        "Physics validity status",
+        C_GRID,
+        "1",
+        "Zero for valid physics; one for invalid physical parameters; two reserved for invalid saline-ice formation",
     ),
 }
 

@@ -2,11 +2,28 @@
 
 ## 2026-10-17 — Scientific validation follow-up (in progress)
 
-- [x] N1 complete (@root); NEXT N2: physical-parameter AD,
+- [x] N1/N2 complete (@root); NEXT N3: physical-parameter AD,
   actual ocean mass/salt/heat budgets and long-run validation. Isolated branch
   feat/vercor-scientific-validation starts at a9d6c0a; user checkout preserved.
 - Definition and implementation plans are approved in the paired VerCOR branch.
   Original independent reference archives remain unchanged (checksums recorded).
+- N2: frozen base-leaf PhysicalConstants PyTree, tracer-safe with_overrides,
+  refreshed dependent laws and dtype metadata. Host/JSON construction remains
+  device-free. All nested kernel phys-static arguments are removed; advance
+  takes replicated physical leaves explicitly across shard_map. Real status1
+  skips invalid physics; host Simulation preserves failure and state/time.
+- New N2 checks25/25 pass, covering representative nonzero parameter JVP/VJP,
+  stable finite-difference sweeps and hard cleanup transitions. Compatibility
+  focus122 pass; nine added-status archive lookup failures were corrected with
+  separate literal-zero expectations, retaining original archives/tolerances;
+  all10 affected reference/unequal-clock cases pass. First-party lint/types pass.
+  Precision/configuration focus106/106 and all three local/distributed AD
+  probes pass (243.70s). Silent x64 truncation and host-tree device allocation
+  were reproduced RED; host NumPy and runtime JAX now share the dependency
+  laws, with explicit runtime precision checks and unchanged base leaves.
+  Final full gate passes1,672 tests with five GPU/platform skips in1,154.37s;
+  coverage92% overall. Strict Sphinx, CI lint/format/annotations/Linux types pass.
+  Original reference archive checksums remain unchanged.
 - Native baseline: 1,624 passes and five platform/hardware skips, exit 0. VerCOR
   fast orientation passes in its separate Python 3.12 scipy environment.
 - N1 RED reproduces exactly doubled zonal spacing at 60 degrees and missing

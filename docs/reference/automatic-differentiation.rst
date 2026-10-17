@@ -13,15 +13,56 @@ evolving dynamics split across devices.
 
 Use ``advance`` for one physics timestep and ``step`` to repeat a fixed number
 of timesteps. These functions are pure: their results depend on their inputs,
-and they do not change outside resources. Configuration, PhysicalConstants and
-physics mode are fixed during compilation and differentiation. The initial
-State and supplied JAX forcing arrays support tested JIT (compilation), grad
+and they do not change outside resources. Numerical Configuration and
+physics mode are fixed during compilation. Independent PhysicalConstants
+values are dynamic PyTree leaves; dtype is static, and reciprocals, ratios and
+turning-angle factors are recomputed from base values. The initial State,
+physical parameters and supplied JAX forcing arrays support tested JIT (compilation), grad
 (gradients), JVP (forward changes along an input direction) and VJP (reverse
 changes from an output). Keep Experiment validation, initialization, Simulation,
 clocks, files and resource management outside these JAX operations. Arrays in
 experiment definitions are copied on the host, the CPU running the Python
 program. Build the quantity you want to differentiate from dynamic JAX arrays
 instead of differentiating an Experiment constructor. See :doc:`integration`.
+
+Physical parameter continuations
+--------------------------------
+
+Use ``PhysicalConstants.with_overrides`` inside differentiated functions. It
+accepts independent registry values, rejects derived/numerical/dtype keys and
+keeps scalar shapes and the selected precision. Concrete values receive host
+domain validation. Host Experiment/JSON construction remains device-free::
+
+   import jax
+   import jax.numpy as jnp
+   from veris.model.physical_constants import PhysicalConstants
+
+   jax.config.update("jax_enable_x64", True)
+   base = PhysicalConstants(h0=0.5)
+   reciprocal = lambda h0: base.with_overrides(h0=h0).recip_h0
+   sensitivity = jax.grad(reciprocal)(jnp.asarray(0.5))  # -4
+
+For model sensitivities, pass that candidate to ``advance`` and reduce the
+returned State to a scalar objective. JIT keeps only ``configuration`` and
+``physics`` static, not ``constants``. Same-schema parameter values reuse the
+compiled transition. ``base_parameter_names()`` identifies the independent
+values; dependent laws are not separate fitting parameters.
+
+A continuation holds the supplied initial State and geometry fixed. Rebuild
+parameter-dependent initial conditions explicitly when those should contribute
+to a derivative. Hard cleanup/membership switches retain their selected local
+rules and one-sided behavior; no membership smoothing or straight-through
+estimator is introduced. Nonzero h0, drag, conductivity and illuminated dry-ice
+albedo sensitivities are checked with JVP/VJP and central-difference sweeps.
+
+Compiled ``advance`` returns a real, same-dtype ``physics_status`` grid in
+Diagnostics: zero means valid, one identifies invalid physical parameters.
+Invalid parameters skip the physics transition. Pure callers must check this
+status. Simulation keeps failures sticky across its fixed-length rollout,
+skips subsequent physics and rejects a failed candidate before updating host
+State or model time. Initial status is zero. Geometry validation also rejects
+coordinates that collapse to a pole or lose ordering in the selected precision,
+before device selection.
 
 Zero norms
 ----------

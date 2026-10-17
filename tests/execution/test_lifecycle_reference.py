@@ -111,7 +111,13 @@ def test_pure_and_host_trajectories_match_immutable_reference(
             result = simulation.step()
             if step + 1 in (1, 3):
                 for item in fields(diagnostic):
-                    expected = reference[f"{name}.diagnostics.{step + 1}.{item.name}"]
+                    # The historical five diagnostics keep their independent
+                    # archive. The added status is exactly zero for valid inputs.
+                    expected = (
+                        np.zeros_like(reference[f"{name}.diagnostics.{step + 1}.EmPmR"])
+                        if item.name == "physics_status"
+                        else reference[f"{name}.diagnostics.{step + 1}.{item.name}"]
+                    )
                     for label, actual in (
                         ("pure", diagnostic),
                         ("host", result.diagnostics),

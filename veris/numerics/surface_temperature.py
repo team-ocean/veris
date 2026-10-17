@@ -19,7 +19,7 @@ from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import State, SurfaceFluxResult, jit
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def solve4temp(
     vs: State,
     conf: Configuration,

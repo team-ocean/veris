@@ -55,6 +55,18 @@ areas integrate wet quadrants, including half cells at closed walls. This is a
 midpoint discretization, not an exact spherical-area integral. The planar
 metric/operator arithmetic and original independent archives remain unchanged.
 
+PhysicalConstants is a separate frozen registered PyTree. Its independent
+registry values are leaves and dtype is metadata. Host construction uses NumPy
+scalar validation without device discovery. Traced with_overrides rebuilds
+reciprocals, density ratios and turning factors; these are not independent
+leaves. Compiled kernels take physical parameters dynamically, including explicit
+replicated inputs to manual sharding. Numerical Configuration remains static.
+advance returns same-precision physics_status arrays; invalid parameters skip
+physics. Simulation preserves the first failure through its rollout and checks
+status before committing State/time. Continuations fix the supplied State and
+geometry; parameter-dependent initialization is a separate operation. Geometry
+preflight checks its selected precision before choosing devices.
+
 `advance` in `veris.execution.advance` performs exactly one physical timestep,
 one advance of the model clock. It applies supplied forcing and calls unchanged
 dynamics_transport. The order remains momentum, ocean stress, transport, cleanup

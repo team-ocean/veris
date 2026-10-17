@@ -28,6 +28,7 @@ def test_diagnostics_are_frozen_registered_pytree_with_complete_metadata(
         "OceanStressV",
         "EmPmR",
         "forc_salt_surface",
+        "physics_status",
     }
     assert not DIAGNOSTICS.keys() & VARIABLES.keys()
     assert DIAGNOSTICS["OceanStressU"].dimensions == U_GRID
@@ -39,7 +40,7 @@ def test_diagnostics_are_frozen_registered_pytree_with_complete_metadata(
     }
     diagnostics = Diagnostics(**arrays)
     leaves, structure = jax.tree.flatten(diagnostics)
-    assert len(leaves) == 5
+    assert len(leaves) == 6
     rebuilt = jax.tree.unflatten(structure, leaves)
     assert isinstance(rebuilt, Diagnostics)
     with pytest.raises(FrozenInstanceError):

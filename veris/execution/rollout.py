@@ -36,8 +36,8 @@ def step(
     ``advance(state)`` returns the next State. When ``inputs`` is supplied, its
     array PyTree must have leading length ``steps`` on every leaf, and the
     transition receives ``advance(state, input_slice)`` instead. Bind settings
-    and constants using a closure or ``functools.partial``; dynamic forcing can
-    be captured by a closure or supplied through ``inputs``.
+    using a closure or ``functools.partial``. Physical parameter PyTrees and
+    forcing may be captured as traced closure values or supplied through inputs.
 
     By default return only the final State. With a pure ``observe(state)``
     callable, return ``(final_state, observations)``; observation leaves stack

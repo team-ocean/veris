@@ -52,7 +52,7 @@ def _validate_inputs(experiment: Experiment) -> None:
             )
         return
     _validate_geometry(
-        geometry, (experiment.grid.nx, experiment.grid.ny), physical=True
+        geometry, (experiment.grid.nx, experiment.grid.ny), physical=True, dtype=dtype
     )
     for item in fields(geometry):
         if getattr(geometry, item.name) is None:

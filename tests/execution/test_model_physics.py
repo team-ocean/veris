@@ -50,7 +50,7 @@ def kernel_reference(
             recip_hIceMean=values[10],
         )
         freshwater, salt, penetrating = values[4], values[5], values[9]
-    diagnostics = Diagnostics(penetrating, stress_u, stress_v, freshwater, salt)
+    diagnostics = Diagnostics(penetrating, stress_u, stress_v, freshwater, salt, zeros)
     if physics != "thermodynamics" or not conf.enable_cyclic_y:
         state = fill_state_overlap(state, conf)
         diagnostics = fill_state_overlap(diagnostics, conf)

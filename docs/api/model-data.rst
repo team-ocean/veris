@@ -10,9 +10,8 @@ Create a State for a runnable experiment through
 level. State holds the model's fields, or values across the grid. Each field is
 a JAX array that can change during a run. JAX treats each array as a leaf in a
 PyTree, a nested collection of data. Output-only fields for exchanging results
-with another model are returned in a separate Diagnostics PyTree. The statement
-that they stay outside the time-stepping carry needs review: DESIGN.md describes
-a rollout carry containing both State and Diagnostics. A carry is the data passed
+with another model are returned in a separate Diagnostics PyTree. A lifecycle rollout carries both State and Diagnostics, with physics status
+retained across steps. A carry is the data passed
 from one step to the next. Field dimensions, units, descriptions and starting
 defaults are generated from the named tables in :doc:`/reference/variables`.
 
@@ -29,10 +28,12 @@ inputs. See :doc:`initialization` for the adapter that reads these inputs and
 Settings and physical constants
 -------------------------------
 
-Constructors check the values you supply and recompute quantities that depend
-on them. Pass these objects as static arguments to numerical functions: their
-values stay fixed while JAX compiles and runs the function. Changing a static
-value can make JAX compile the function again. The tables in
+Constructors validate authored host inputs without device discovery. Configuration
+is static numerical policy. PhysicalConstants is a frozen PyTree of independent
+physical values with static dtype; dependent laws are reconstructed from its
+base leaves. Use ``with_overrides`` for traced updates and keep the initial
+State fixed for continuation sensitivities. Pure advance returns runtime
+physics status; Simulation checks it before committing State/time. The tables in
 :doc:`/reference/settings` and :doc:`/reference/physical-constants` describe
 every field and its default. Fields computed from other inputs are not
 constructor arguments.
@@ -40,6 +41,7 @@ constructor arguments.
 .. autoclass:: veris.model.configuration.Configuration
 
 .. autoclass:: veris.model.physical_constants.PhysicalConstants
+   :members: base_parameter_names, with_overrides
 
 Registry schemas
 ----------------

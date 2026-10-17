@@ -2,18 +2,31 @@
 
 Defaults preserve the legacy settings.py parameterizations, including independently
 rounded gas constants and latent heats. Exact dependencies are recomputed on
-construction and dataclasses.replace; instances are hashable static JAX arguments.
+host construction and replacement. Independent values form a frozen JAX PyTree;
+dtype is static and dependent laws are reconstructed from those values.
 """
 
-import math
-from dataclasses import dataclass, field
+from __future__ import annotations
+
+from dataclasses import dataclass, field, fields
+from numbers import Real
+from typing import Any
+
+import jax
+import jax.numpy as jnp
+import numpy as np
+from jax.core import Tracer
+from jax.typing import ArrayLike
 
 from veris.model.configuration import SETTINGS
 from veris.model.metadata import (
     FROM_REGISTRY,
     registry_defaults,
-    validate_derived,
-    validate_scalars,
+)
+from veris.model.physical_parameters import (
+    _require_runtime_precision,
+    _update_dependencies,
+    _validate_host_constants,
 )
 from veris.model.types import Parameter
 
@@ -509,10 +522,16 @@ PHYSICALCONSTANTS: dict[str, Parameter] = {
 __all__ = ["PHYSICALCONSTANTS", "PhysicalConstants"]
 
 
+@jax.tree_util.register_pytree_node_class
 @dataclass(frozen=True)
 @registry_defaults({"dtype": SETTINGS["dtype"]} | PHYSICALCONSTANTS)
 class PhysicalConstants:
-    """Validated immutable physical constants initialized from the registry."""
+    """Frozen physical-parameter PyTree initialized from the native registry.
+
+    Independent scalar/table values are leaves; dtype is static metadata.
+    Host constructors validate authored controls without device discovery.
+    Use with_overrides inside AD; dependent laws follow the base values.
+    """
 
     dtype: str = field(default=FROM_REGISTRY, kw_only=True)
 
@@ -665,122 +684,75 @@ class PhysicalConstants:
     hCut: float = FROM_REGISTRY
 
     def __post_init__(self) -> None:
-        """Validate host scalars and recompute exact dependent quantities."""
-        validate_scalars(
-            self,
-            PHYSICALCONSTANTS,
-            positive=frozenset(
-                [
-                    "evpStressRelaxation",
-                    "evpShearRelaxation",
-                    "Area_min",
-                    "basalDragMinArea",
-                    "basalDragSmoothing",
-                    "bulkStabilityLimit",
-                    "deltaMin",
-                    "hIce_min",
-                    "hIce_reg",
-                    "lanlMinWindSpeed",
-                    "minActualIceThickness",
-                    "umin_i",
-                    "umin_o",
-                    "wSpeedMin",
-                    "zref",
-                    "ztref",
-                    "hCut",
-                    "rhoIce",
-                    "rhoFresh",
-                    "rhoSea",
-                    "rhoAir",
-                    "rhoSnow",
-                    "lhFusion",
-                    "lhEvap",
-                    "cpAir",
-                    "cpWater",
-                    "stefBoltz",
-                    "iceConduct",
-                    "snowConduct",
-                    "h0",
-                    "h0_south",
-                    "gravity",
-                    "PlasDefCoeff",
-                    "basalDragU0",
-                    "basalDragK1",
-                    "sideDragU0",
-                    "bolzc",
-                    "avogad",
-                    "rgas",
-                    "mwdair",
-                    "mwwv",
-                    "rdair",
-                    "rwv",
-                    "zvir",
-                    "cpdair",
-                    "cpwv",
-                    "karman",
-                    "latvap",
-                    "p0",
-                    "zzsice",
-                    "radius",
-                    "iceSurfacePressure",
-                    "McPheeTaperArea",
-                    "lanlReferencePressure",
-                ]
-            ),
+        """Validate authored host values without creating device arrays."""
+        _validate_host_constants(self)
+
+    @classmethod
+    def base_parameter_names(cls) -> tuple[str, ...]:
+        """Return independent registry values, excluding dtype and derived laws."""
+        return tuple(
+            item.name for item in fields(cls) if item.init and item.name != "dtype"
         )
-        if self.Area_reg < 0:
-            raise ValueError("Area_reg must be nonnegative")
-        if self.minTIce > self.maxTIce:
-            raise ValueError("minTIce must not exceed maxTIce")
-        object.__setattr__(self, "recip_rhoFresh", 1.0 / float(self.rhoFresh))
-        object.__setattr__(self, "recip_rhoSea", 1.0 / float(self.rhoSea))
-        object.__setattr__(
-            self, "rhoIce2rhoSnow", float(self.rhoIce) / float(self.rhoSnow)
-        )
-        object.__setattr__(
-            self, "rhoIce2rhoFresh", float(self.rhoIce) / float(self.rhoFresh)
-        )
-        object.__setattr__(
-            self, "rhoFresh2rhoSnow", float(self.rhoFresh) / float(self.rhoSnow)
-        )
-        object.__setattr__(self, "lhSublim", float(self.lhFusion) + float(self.lhEvap))
-        object.__setattr__(self, "recip_h0", 1.0 / float(self.h0))
-        object.__setattr__(self, "recip_h0_south", 1.0 / float(self.h0_south))
-        object.__setattr__(
-            self, "sinWat", math.sin(math.radians(float(self.waterTurnAngle)))
-        )
-        object.__setattr__(
-            self, "cosWat", math.cos(math.radians(float(self.waterTurnAngle)))
-        )
-        if self.tensileStrFac <= -1:
-            raise ValueError("tensileStrFac must exceed -1")
-        validate_derived(
-            self,
-            (
-                "recip_rhoFresh",
-                "recip_rhoSea",
-                "rhoIce2rhoSnow",
-                "rhoIce2rhoFresh",
-                "rhoFresh2rhoSnow",
-                "lhSublim",
-                "recip_h0",
-                "recip_h0_south",
-                "sinWat",
-                "cosWat",
-            ),
-        )
-        if len(self.longwaveCloudLatitudes) < 2:
-            raise ValueError("longwaveCloudLatitudes must contain at least two knots")
-        if len(self.longwaveCloudLatitudes) != len(self.longwaveCloudCoefficients):
+
+    def tree_flatten(self) -> tuple[tuple[Any, ...], str]:
+        """Expose only independent physical values; precision remains static."""
+        return tuple(
+            getattr(self, name) for name in self.base_parameter_names()
+        ), self.dtype
+
+    @classmethod
+    def tree_unflatten(cls, dtype: str, values: tuple[Any, ...]) -> PhysicalConstants:
+        """Reconstruct traced values without applying authored-input validation.
+
+        JAX also builds placeholder/spec trees; those need no dependent algebra.
+        Real transformations reconstruct the dependencies from their base leaves.
+        """
+        result = object.__new__(cls)
+        object.__setattr__(result, "dtype", dtype)
+        for name, value in zip(cls.base_parameter_names(), values, strict=True):
+            object.__setattr__(result, name, value)
+        numeric = (Real, np.ndarray, np.generic, jax.Array, Tracer)
+        leaves = jax.tree.leaves(values, is_leaf=lambda value: value is None)
+        if leaves and all(isinstance(value, numeric) for value in leaves):
+            _update_dependencies(result)
+        return result
+
+    def with_overrides(self, **parameters: ArrayLike) -> PhysicalConstants:
+        """Return owned base parameters with refreshed dependent quantities.
+
+        Concrete overrides validate native domains on the host. Scalar tracers
+        retain their dtype/schema for AD; advance reports runtime domain failures
+        through physics_status. Tuples keep the registry's cloud-table contract.
+        """
+        names = self.base_parameter_names()
+        invalid = parameters.keys() - set(names)
+        if invalid:
             raise ValueError(
-                "longwaveCloudCoefficients must match longwaveCloudLatitudes length"
+                f"not independent physical parameters: {', '.join(sorted(invalid))}"
             )
-        if any(
-            right <= left
-            for left, right in zip(
-                self.longwaveCloudLatitudes[:-1],
-                self.longwaveCloudLatitudes[1:],
-                strict=True,
+        values = {name: getattr(self, name) for name in names} | parameters
+        traced = any(isinstance(value, Tracer) for value in jax.tree.leaves(values))
+        if traced:
+            _require_runtime_precision(self.dtype)
+        normalized: dict[str, Any] = {}
+        for name, value in values.items():
+            array = jnp.asarray(value) if traced else np.asarray(value)
+            if array.dtype.kind not in "fiu":
+                raise TypeError(f"{name} must contain real numeric values")
+            if PHYSICALCONSTANTS[name].type is tuple:
+                if array.ndim != 1:
+                    raise ValueError(f"{name} must be a one-dimensional tuple")
+                normalized[name] = (
+                    tuple(array.astype(self.dtype))
+                    if traced
+                    else tuple(float(v) for v in array)
+                )
+            else:
+                if array.shape != ():
+                    raise ValueError(f"{name} must be a scalar")
+                normalized[name] = array.astype(self.dtype) if traced else float(array)
+        if traced:
+            return self.tree_unflatten(
+                self.dtype, tuple(normalized[name] for name in names)
             )
-        ):
-            raise ValueError("longwaveCloudLatitudes must be strictly increasing")
+        return type(self)(dtype=self.dtype, **normalized)

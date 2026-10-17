@@ -16,7 +16,7 @@ from veris.model.types import State, jit
 from veris.numerics.autodiff import norm_sqrt
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def SeaIceStrength(vs: State, conf: Configuration, phys: PhysicalConstants) -> Array:
     """calculate ice strength (= maximum compressive stress)
     from ice thickness and ice cover fraction
@@ -29,7 +29,7 @@ def SeaIceStrength(vs: State, conf: Configuration, phys: PhysicalConstants) -> A
     return SeaIceStrength
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def ocean_drag_coeffs(
     vs: State,
     conf: Configuration,
@@ -66,7 +66,7 @@ def ocean_drag_coeffs(
     return cDrag
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def basal_drag_coeffs(
     vs: State,
     conf: Configuration,
@@ -109,7 +109,7 @@ def basal_drag_coeffs(
     return cBot
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def side_drag(
     vs: State,
     conf: Configuration,
@@ -156,7 +156,7 @@ def side_drag(
     return SideDragU, SideDragV
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def strainrates(
     vs: State,
     conf: Configuration,
@@ -252,7 +252,7 @@ def strainrates(
     return e11, e22, cast(Array, e12)
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def viscosities(
     vs: State,
     conf: Configuration,
@@ -307,7 +307,7 @@ def viscosities(
     return zeta, eta, press
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def stress(
     vs: State,
     conf: Configuration,
@@ -331,7 +331,7 @@ def stress(
     return cast(tuple[Array, Array, Array], (sig11, sig22, sig12))
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def stressdiv(
     vs: State,
     conf: Configuration,

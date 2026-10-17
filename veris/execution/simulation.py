@@ -127,7 +127,16 @@ class Simulation:
             carry: _Carry, prescribed: Mapping[str, jax.Array] | None = None
         ) -> _Carry:
             forcing = constant if prescribed is None else {**constant, **prescribed}
-            return advance(carry[0], configuration, constants, forcing, physics=physics)
+            # Keep the first failure visible, and never run more physics on an
+            # invalid carry while the compiled rollout finishes its fixed shape.
+            return jax.lax.cond(
+                jnp.any(carry[1].physics_status != 0),
+                lambda _: carry,
+                lambda _: advance(
+                    carry[0], configuration, constants, forcing, physics=physics
+                ),
+                operand=None,
+            )
 
         self._transition = transition
 
@@ -216,7 +225,7 @@ class Simulation:
 
     @property
     def physical_constants(self) -> PhysicalConstants:
-        """Static physical constants resolved in the experiment precision."""
+        """Immutable physical parameters bound for this host trajectory."""
         return self._physical_constants
 
     @property
@@ -368,6 +377,9 @@ class Simulation:
                 lambda *arrays: jnp.concatenate(arrays, axis=0), *chunks
             )
             jax.block_until_ready(history)
+        status = int(jax.device_get(jnp.max(final[1].physics_status)))
+        if status:
+            raise ValueError(f"invalid physical parameters (physics_status={status})")
         return final, history, compilation, integration
 
     def snapshot(

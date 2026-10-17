@@ -22,7 +22,7 @@ from veris.model.types import State, jit
 # thickness changes inbetween dynamics timesteps.
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def Advection(
     vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[Array, Array, Array]:
@@ -35,7 +35,7 @@ def Advection(
     return hIceMean, hSnowMean, Area
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def calc_Advection(
     vs: State,
     conf: Configuration,
@@ -83,7 +83,7 @@ def calc_Advection(
     return cast(Array, fieldLoc)
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def calc_ZonalFlux(
     vs: State,
     conf: Configuration,
@@ -96,7 +96,7 @@ def calc_ZonalFlux(
     return _calc_flux(vs, conf, field, uTrans, axis=0)
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def calc_MeridionalFlux(
     vs: State,
     conf: Configuration,

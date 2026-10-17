@@ -172,7 +172,7 @@ def check_coupled(mesh: Mesh, no_slip: bool, dtype: str) -> None:
             ),
             mesh=mesh,
         )
-    point = jnp.zeros(2, dtype=dtype)
+    point = jnp.zeros(3, dtype=dtype)
     spatial_weights = 1 + 0.2 * jnp.sin(
         jnp.arange(nx)[:, None] + 2 * jnp.arange(ny)[None, :]
     )
@@ -186,6 +186,9 @@ def check_coupled(mesh: Mesh, no_slip: bool, dtype: str) -> None:
         if initial is not None:
             state = initial
         state = replace(state, hIceMean=state.hIceMean * (1 + parameters[0]))
+        physical = physical.with_overrides(
+            airIceDrag=physical.airIceDrag * (1 + parameters[2])
+        )
 
         def transition(current: State, cooling: jax.Array) -> State:
             return advance(current, settings, physical, {"Qnet": cooling, "Qsw": 0.0})[
@@ -272,8 +275,8 @@ def check_coupled(mesh: Mesh, no_slip: bool, dtype: str) -> None:
             compare(
                 repeated_gradient, expected_gradient, "fresh coupled VJP", tolerance
             )
-        for axis in range(2):
-            direction = placed(jnp.eye(2, dtype=dtype)[axis], replicated)
+        for axis in range(3):
+            direction = placed(jnp.eye(3, dtype=dtype)[axis], replicated)
             tangents = (direction, state_tangent) if distributed else (direction,)
             _, tangent = jax.jvp(function, arguments, tangents)
             compare(tangent, gradient[axis], f"coupled JVP/VJP axis={axis}", tolerance)

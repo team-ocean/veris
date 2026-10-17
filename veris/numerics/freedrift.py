@@ -13,7 +13,7 @@ from veris.model.types import State, jit
 from veris.numerics.autodiff import norm_sqrt
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def freedrift_solver(
     vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[Array, Array]:

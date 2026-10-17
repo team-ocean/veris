@@ -24,14 +24,20 @@ from veris.model.variables import VARIABLES
 
 
 def _validate_geometry(
-    geometry: OceanGeometry, shape: tuple[int, ...], *, physical: bool = False
+    geometry: OceanGeometry,
+    shape: tuple[int, ...],
+    *,
+    physical: bool = False,
+    dtype: str | None = None,
 ) -> None:
     """Reject mismatched grids and invalid reciprocal inputs on the host."""
     if len(shape) != 2:
         raise ValueError("maskT must have a two-dimensional horizontal storage shape")
     from veris.grid.spherical import validate_spherical_geometry
 
-    validate_spherical_geometry(geometry, shape[1] if physical else shape[1] - 4)
+    validate_spherical_geometry(
+        geometry, shape[1] if physical else shape[1] - 4, dtype=dtype
+    )
     for field in fields(geometry):
         name = field.name
         if name in ("latitude", "latitude_edges", "radius"):
@@ -74,7 +80,7 @@ def initialize_from_ocean(
     physical_overrides: Mapping[str, Any] | None = None,
     state_overrides: Mapping[str, Any] | None = None,
 ) -> tuple[State, Configuration, PhysicalConstants]:
-    """Allocate a fresh Veris state and static objects from ocean geometry.
+    """Allocate Veris state, numerical policy and a physical-parameter PyTree.
 
     Geometry includes two halo cells at each boundary. Its horizontal shape
     determines nx and ny, taking precedence over settings overrides. Additional
@@ -99,6 +105,9 @@ def initialize_from_ocean(
     if conf.spherical_geometry and conf.enable_cyclic_y:
         raise ValueError("spherical latitude cannot be cyclic")
     dtype = conf.dtype
+    from veris.grid.spherical import validate_spherical_geometry
+
+    validate_spherical_geometry(geometry, conf.ny, dtype=dtype)
     overrides = dict(state_overrides or {})
     unknown = overrides.keys() - VARIABLES.keys()
     if unknown:

@@ -5,6 +5,7 @@ Latitude centers/edges exclude halos. Native areas remain authoritative: no
 spherical-integral correction is applied to a supplied midpoint quadrature.
 """
 
+from dataclasses import replace
 from typing import Any
 
 import numpy as np
@@ -14,7 +15,9 @@ from numpy.typing import NDArray
 from veris.grid.geometry import OceanGeometry
 
 
-def validate_spherical_geometry(geometry: OceanGeometry, ny: int) -> None:
+def validate_spherical_geometry(
+    geometry: OceanGeometry, ny: int, *, dtype: str | None = None
+) -> None:
     """Reject incomplete, nonmonotone or singular host geometry before allocation."""
     values = (geometry.latitude, geometry.latitude_edges, geometry.radius)
     if all(value is None for value in values):
@@ -23,6 +26,16 @@ def validate_spherical_geometry(geometry: OceanGeometry, ny: int) -> None:
         raise ValueError(
             "latitude, latitude_edges and radius must be supplied together"
         )
+    if dtype is not None:
+        validate_spherical_geometry(geometry, ny)
+        converted = replace(
+            geometry,
+            latitude=np.asarray(geometry.latitude, dtype=dtype),
+            latitude_edges=np.asarray(geometry.latitude_edges, dtype=dtype),
+            radius=np.asarray(geometry.radius, dtype=dtype),
+        )
+        validate_spherical_geometry(converted, ny)
+        return
     lat, edges, radius = (np.asarray(value) for value in values)
     if lat.shape != (ny,) or edges.shape != (ny + 1,):
         raise ValueError(

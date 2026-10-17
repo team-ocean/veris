@@ -12,7 +12,7 @@ from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import State, jit
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def clean_up_advection(
     vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[Array, Array, Array, Array, Array, Array]:
@@ -48,7 +48,7 @@ def clean_up_advection(
     return hIceMean, hSnowMean, Area, TSurf, os_hIceMean, os_hSnowMean
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def ridging(vs: State, conf: Configuration, phys: PhysicalConstants) -> Array:
     """cut off ice cover fraction at 1 after advection to account for ridging"""
     Area = jnp.minimum(vs.Area, 1)

@@ -6,10 +6,12 @@ the frozen ``PhysicalConstants`` dataclass, a collection whose fields cannot be
 reassigned. These include physical coefficients (numbers used in equations), coefficients based on
 observations, physical limits, scales that keep equations well behaved, and
 reference heights for atmospheric forcing, the supplied air conditions. Each model initialization creates
-its own constants object. Physical constants stay outside the numerical State
-PyTree, the collection of arrays used by JAX.
+its own constants object. Physical constants form a separate frozen PyTree:
+independent values are dynamic leaves, dtype is static, and derived laws are
+recomputed rather than fitted independently. They do not add fields to State.
 
-Change independent values with ``dataclasses.replace``. Values calculated from
+Use ``dataclasses.replace`` for authored host values, or ``with_overrides`` for
+tracer-safe physical continuations. Values calculated from
 exact relationships, such as density ratios, follow the changed base values::
 
    from dataclasses import replace

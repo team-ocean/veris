@@ -25,7 +25,7 @@ from veris.physics.dynamics.rheology import (
 )
 
 
-@partial(jit, static_argnames=["conf", "phys", "axis_names"])
+@partial(jit, static_argnames=["conf", "axis_names"])
 def evp_solver(
     vs: State,
     conf: Configuration,

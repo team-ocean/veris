@@ -3,7 +3,7 @@ Physics kernels
 
 These functions implement the equations and nearby-cell calculations used by
 ``advance``. Most accept ``(vs, conf, phys)``: a State with halos, a fixed
-Configuration and fixed PhysicalConstants. State holds the model arrays. Halos
+static Configuration and a dynamic PhysicalConstants PyTree. State holds the model arrays. Halos
 are extra cells that hold boundary or neighboring values. The functions return
 arrays or tuples. The caller assigns results with ``dataclasses.replace``,
 exchanges halo values when required and calls the stages in the required order.

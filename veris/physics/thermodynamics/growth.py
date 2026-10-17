@@ -18,7 +18,7 @@ from veris.model.types import GrowthResult, State, jit
 from veris.numerics.surface_temperature import solve4temp
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def Growth(vs: State, conf: Configuration, phys: PhysicalConstants) -> GrowthResult:
     """calculate thermodynamic change of ice and snow thickness and ice cover fraction
     due to atmospheric and ocean surface forcing"""

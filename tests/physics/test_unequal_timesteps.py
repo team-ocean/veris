@@ -62,7 +62,14 @@ def test_unequal_kernel_timesteps_match_frozen_original(compiled: bool) -> None:
             SeaIceLoad=values[8],
             recip_hIceMean=values[10],
         )
-        diagnostics = Diagnostics(values[9], stress_u, stress_v, values[4], values[5])
+        diagnostics = Diagnostics(
+            values[9],
+            stress_u,
+            stress_v,
+            values[4],
+            values[5],
+            jnp.zeros_like(values[9]),
+        )
         return fill_state_overlap(grown, conf), fill_state_overlap(diagnostics, conf)
 
     numerical, diagnostics = (jax.jit(compose) if compiled else compose)(state)
@@ -80,7 +87,11 @@ def test_unequal_kernel_timesteps_match_frozen_original(compiled: bool) -> None:
         for prefix, record in (("state", numerical), ("diagnostics", diagnostics)):
             for item in fields(record):
                 actual = np.asarray(getattr(record, item.name))
-                expected = original[f"{prefix}.{item.name}"]
+                expected = (
+                    np.zeros_like(original["diagnostics.EmPmR"])
+                    if prefix == "diagnostics" and item.name == "physics_status"
+                    else original[f"{prefix}.{item.name}"]
+                )
                 assert actual.shape == expected.shape and actual.dtype == expected.dtype
                 assert np.isfinite(actual).all()
                 error = np.abs(actual - expected)

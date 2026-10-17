@@ -3,13 +3,14 @@
 Compose the maintained Hibler/Kimmritz dynamics and category thermodynamics in
 the standalone reference order. No equations or numerical tolerances change.
 State and Diagnostics retain halo-inclusive (x, y) arrays; prescribed inputs use
-scalars or global physical arrays without halos. Settings, constants and physics
-are static, while State and forcing are dynamic JAX inputs. Host clocks, files
+scalars or global physical arrays without halos. Settings and physics mode are
+static; physical constants, State and forcing are dynamic JAX inputs. Host clocks, files
 and forcing cursors belong to Simulation, outside this module.
 """
 
 from collections.abc import Mapping
 from dataclasses import fields, replace
+from functools import partial
 
 import jax
 import jax.numpy as jnp
@@ -19,10 +20,11 @@ from jax.typing import ArrayLike
 
 from veris.grid.halos import fill_overlap, fill_state_overlap
 from veris.model.configuration import Configuration
-from veris.model.diagnostics import Diagnostics
+from veris.model.diagnostics import DIAGNOSTICS, Diagnostics
 from veris.model.forcing import FORCING_FIELDS
 from veris.model.physical_constants import PhysicalConstants
-from veris.model.types import State
+from veris.model.physical_parameters import _physical_parameters_valid
+from veris.model.types import State, jit
 from veris.numerics.autodiff import norm_hypot
 from veris.physics.dynamics.driver import dynamics_transport
 from veris.physics.thermodynamics.growth import Growth
@@ -90,7 +92,7 @@ def _validate_state(state: State, shape: tuple[int, int], dtype: str) -> None:
             raise ValueError(f"State field {item.name} must have dtype {dtype}")
 
 
-def _advance_local(
+def _advance_valid(
     state: State,
     conf: Configuration,
     phys: PhysicalConstants,
@@ -129,7 +131,7 @@ def _advance_local(
             SeaIceLoad=load,
             recip_hIceMean=inverse,
         )
-    diagnostics = Diagnostics(penetrating, stress_u, stress_v, freshwater, salt)
+    diagnostics = Diagnostics(penetrating, stress_u, stress_v, freshwater, salt, zeros)
     # The column reference leaves periodic output halos as produced by Growth.
     # Dynamics/coupled always refresh; closed walls always need field policies.
     if physics != "thermodynamics" or not conf.enable_cyclic_y:
@@ -141,6 +143,35 @@ def _advance_local(
         state = fill_state_overlap(state, conf)
         diagnostics = fill_state_overlap(diagnostics, conf)
     return state, diagnostics
+
+
+@partial(jit, static_argnames=("conf", "physics"))
+def _advance_local(
+    state: State,
+    conf: Configuration,
+    phys: PhysicalConstants,
+    forcing: Mapping[str, jax.Array],
+    physics: str,
+) -> tuple[State, Diagnostics]:
+    """Skip invalid physical inputs and return an explicit same-dtype status."""
+
+    def valid(
+        operands: tuple[State, PhysicalConstants, Mapping[str, jax.Array]],
+    ) -> tuple[State, Diagnostics]:
+        current, physical, inputs = operands
+        return _advance_valid(current, conf, physical, inputs, physics)
+
+    def invalid(
+        operands: tuple[State, PhysicalConstants, Mapping[str, jax.Array]],
+    ) -> tuple[State, Diagnostics]:
+        current = operands[0]
+        zeros = jnp.zeros_like(current.Area)
+        diagnostic = Diagnostics(**{name: zeros for name in DIAGNOSTICS})
+        return current, replace(diagnostic, physics_status=jnp.ones_like(zeros))
+
+    return jax.lax.cond(
+        _physical_parameters_valid(phys), valid, invalid, (state, phys, forcing)
+    )
 
 
 def advance(
@@ -161,8 +192,8 @@ def advance(
     Growth's recursive coupling fluxes. Explicit heat is reapplied on every call.
 
     This function is pure and supports JIT, grad, JVP and VJP with respect to
-    State and forcing arrays. Bind configuration, constants and physics as
-    static arguments. Dynamic value validation belongs to host Experiment and
+    State, independent physical parameters and forcing arrays. Bind configuration
+    and physics as static arguments; pass constants as a dynamic PyTree. Dynamic value validation belongs to host Experiment and
     initialization; this path checks names, shapes and real dtypes while tracing.
     For sharding retain the caller's active x/y mesh. ``veris.step`` remains the
     separate multi-step scan rollout and can consume this transition.
@@ -205,13 +236,13 @@ def advance(
                 {name: NamedSharding(mesh, spec) for name, spec in specs.items()},
             )
             return jax.shard_map(
-                lambda local, inputs: _advance_local(
-                    local, conf, phys, inputs, physics
+                lambda local, physical, inputs: _advance_local(
+                    local, conf, physical, inputs, physics
                 ),
                 mesh=mesh,
-                in_specs=(P("x", "y"), specs),
+                in_specs=(P("x", "y"), P(), specs),
                 out_specs=(P("x", "y"), P("x", "y")),
-            )(state, values)
+            )(state, jax.reshard(phys, NamedSharding(mesh, P())), values)
     _validate_state(state, (conf.nx + 4, conf.ny + 4), conf.dtype)
     values = _forcing_arrays(forcing, shape, conf.dtype)
     return _advance_local(state, conf, phys, values, physics)

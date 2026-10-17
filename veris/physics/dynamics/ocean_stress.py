@@ -14,7 +14,7 @@ from veris.model.types import State, jit
 from veris.physics.dynamics.rheology import ocean_drag_coeffs
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def OceanStressUV(
     vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[Array, Array]:

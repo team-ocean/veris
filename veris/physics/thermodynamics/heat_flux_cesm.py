@@ -21,7 +21,7 @@ from veris.model.types import CESMFluxes, HeatFluxes, jit
 from veris.numerics.autodiff import norm_sqrt
 
 
-@partial(jit, static_argnames=["phys"])
+@partial(jit)
 def qsat(phys: PhysicalConstants, tk: ArrayLike) -> Array:
     """The saturation humidity of air (kg/m^3)
 
@@ -33,7 +33,7 @@ def qsat(phys: PhysicalConstants, tk: ArrayLike) -> Array:
     )
 
 
-@partial(jit, static_argnames=["phys"])
+@partial(jit)
 def qsat_august_eqn(phys: PhysicalConstants, ps: ArrayLike, tk: ArrayLike) -> Array:
     """Saturated specific humidity (kg/kg)
 
@@ -129,7 +129,7 @@ def compute_z_level(
     return alt[:, :, -1]
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def dqnetdt(
     conf: Configuration,
     phys: PhysicalConstants,
@@ -199,7 +199,7 @@ def dqnetdt(
     return dqir_dt, dqh_dt, dqe_dt
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def net_lw_ocn(
     conf: Configuration,
     phys: PhysicalConstants,
@@ -274,7 +274,7 @@ def net_lw_ocn(
     )
 
 
-@partial(jit, static_argnames=["phys"])
+@partial(jit)
 def cdn(phys: PhysicalConstants, umps: ArrayLike) -> Array:
     """Neutral drag coeff at 10m
 
@@ -289,7 +289,7 @@ def cdn(phys: PhysicalConstants, umps: ArrayLike) -> Array:
     )
 
 
-@partial(jit, static_argnames=["phys"])
+@partial(jit)
 def psimhu(phys: PhysicalConstants, xd: ArrayLike) -> Array:
     """Unstable part of psimh
 
@@ -313,7 +313,7 @@ def psixhu(xd: ArrayLike) -> Array:
     return 2.0 * npx.log((1.0 + xd * xd) / 2.0)
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def flux_atmOcn(
     conf: Configuration,
     phys: PhysicalConstants,
@@ -555,7 +555,7 @@ def flux_atmOcn(
     )
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def flux_atmOcn_simple(
     conf: Configuration,
     phys: PhysicalConstants,
