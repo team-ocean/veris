@@ -42,6 +42,19 @@ type _Carry = tuple[State, Diagnostics]
 type _Observer = Callable[[State, Diagnostics], Any]
 
 
+def _validate_physics_status(carry: _Carry) -> None:
+    """Synchronize and reject sticky physics failure before any host output."""
+    jax.block_until_ready(carry)
+    status = int(jax.device_get(jnp.max(carry[1].physics_status)))
+    if status:
+        reason = (
+            "invalid saline-ice formation"
+            if status == 2
+            else "invalid physical parameters"
+        )
+        raise ValueError(f"{reason} (physics_status={status})")
+
+
 @dataclass(frozen=True)
 class RunResult:
     """Final numerical fields and host information from one successful run.
@@ -370,6 +383,7 @@ class Simulation:
             select=output_select,
             history_select=selector,
             history_sink=None if selector is None else chunks.append,
+            validate=_validate_physics_status,
         )
         history = None
         if selector is not None:
@@ -377,14 +391,6 @@ class Simulation:
                 lambda *arrays: jnp.concatenate(arrays, axis=0), *chunks
             )
             jax.block_until_ready(history)
-        status = int(jax.device_get(jnp.max(final[1].physics_status)))
-        if status:
-            reason = (
-                "invalid saline-ice formation"
-                if status == 2
-                else "invalid physical parameters"
-            )
-            raise ValueError(f"{reason} (physics_status={status})")
         return final, history, compilation, integration
 
     def snapshot(

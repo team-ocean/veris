@@ -35,6 +35,7 @@ def run_timed(
     inputs: Any = None,
     history_select: Callable[[_T], Any] | None = None,
     history_sink: Callable[[Any], None] | None = None,
+    validate: Callable[[_T], None] | None = None,
 ) -> tuple[_T, float, float]:
     """Compile scan shapes, then time evolution with optional host observations.
 
@@ -45,7 +46,8 @@ def run_timed(
     by default; with no selector they receive the whole carry. Every used chunk
     length is lowered and compiled
     without executing physics. Return final State, compilation time and actual
-    integration time (including host observation and output).
+    integration time (including host observation and output). Optional host
+    validation runs before selected histories or scheduled samples are committed.
     """
     require_host()
     if not callable(advance):
@@ -55,6 +57,7 @@ def run_timed(
         ("select", select),
         ("history_select", history_select),
         ("history_sink", history_sink),
+        ("validate", validate),
     ):
         if callback is not None and not callable(callback):
             raise TypeError(f"{name} must be callable or None")
@@ -91,6 +94,7 @@ def run_timed(
             inputs=inputs,
             history_select=history_select,
             history_sink=history_sink,
+            validate=validate,
         )
     chunk_size = 8 if chunk_size is None else int(chunk_size)
     host_select = (
@@ -136,6 +140,8 @@ def run_timed(
         empty_execute = execute.lower(state).compile()
     compilation_seconds = perf_counter() - started
     started = perf_counter()
+    if validate is not None:
+        validate(state)
     if observe is not None:
         assert host_select is not None
         observe(host_select(state), 0)
@@ -146,6 +152,8 @@ def run_timed(
         for start in range(0, steps, chunk_size):
             size = min(chunk_size, steps - start)
             state, history = executables[size](state, inputs=sliced(start, size))
+            if validate is not None:
+                validate(state)
             host_history, selected_history = history, history
             if host_select is not None and history_select is not None:
                 host_history, selected_history = history
@@ -162,6 +170,8 @@ def run_timed(
             assert history_sink is not None
             history_sink(empty_history)
     jax.block_until_ready(state)
+    if validate is not None:
+        validate(state)
     return state, compilation_seconds, perf_counter() - started
 
 
