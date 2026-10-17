@@ -21,6 +21,8 @@ from veris.model.types import State
 def test_public_runner_matches_real_simulation_all_fields_and_diagnostics(
     tmp_path: Path,
 ) -> None:
+    # An unspecified backend honors the caller's JAX choice, including GPUs.
+    expected_backend = jax.default_backend()
     definition = _custom(
         veris.Grid(8, 12), True, OutputSettings(enabled=False)
     ).with_overrides({"steps": 2})
@@ -48,7 +50,7 @@ def test_public_runner_matches_real_simulation_all_fields_and_diagnostics(
     assert set(saved.fields) == {item.name for item in fields(State)}
     assert saved.time == actual.elapsed.total_seconds()
     assert actual.execution_metadata is not None
-    assert actual.execution_metadata["backend"] == "cpu"
+    assert actual.execution_metadata["backend"] == expected_backend
     assert tuple(actual.execution_metadata["partitions"]) == (1, 1)
 
 

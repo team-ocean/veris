@@ -1,5 +1,63 @@
 # Development log
 
+## 2026-10-17 — Requested Vercor GPU and aegir repeat
+
+- [x] Pulled main a0a2a7d and feature 4551fc8 with Git CLI; retain the six
+  scientific feature commits without merging main's documentation changes.
+  User explicitly requests these branches and authorizes local GPUs and aegir.
+- [x] Plain-English explanation with examples saved outside the repository at
+  /groups/ocean/nutrik/dev/veris-vercor-integration-explained-2026-10-17.md.
+  Independent scientific review corrected the h0 example to measure ice area
+  during open-water freezing. State fixed geometry/initialization, nonsmooth
+  membership and no claim of an actual Vercor coupling run.
+- [x] Reuse .venv-latest: Python 3.14.7, JAX/jaxlib 0.11.2 and CUDA 12.
+  Both native Tesla P100s pass the 1,000-step spherical transport harness:
+  maximum relative volume drift 2.220446049250313e-16; tensor refinement orders
+  1.9997363160 and 1.9999340794. This isolates prescribed-velocity advection.
+- [x] Original GPU-default full suite: 1,733 passed, one failed, zero skips;
+  5,246.73 s pytest / 5,252.27 s external wall. The sole failure is the runner
+  test's hard-coded CPU metadata expectation, also present on main. Every
+  State/Diagnostics comparison and saved-output assertion passes before it.
+  Execution(backend=None) correctly honors the caller's JAX default.
+- [x] Correct only the backend expectation, capturing JAX's default before the
+  run. The real GPU regression passes in 17.68 s; a negative control rejects
+  false CPU metadata at the intended assertion. All scientific assertions and
+  tolerances remain intact. Preserve the original full GPU failure; no fresh
+  full GPU pass is claimed after the test correction. Ruff/format/types pass.
+- Failed scratch-control approach: the first driver reaches the intended
+  assertion, then fails its own one-call assumption. Reference Simulation and
+  runner each construct metadata. Preserve that diagnostic; check all selected
+  backends instead of the call count. The corrected driver passes without
+  source edits.
+- [x] Supplemental two-GPU spherical operators and physical-parameter advance
+  pass both (2,1)/(1,2) orientations: all fields, forcing halos, JIT, air-drag/h0
+  JVP/VJP and finite differences retain their original assertions/tolerances.
+  Scratch probes change only backend selections/labels and record source hashes.
+  Two-process GPU reduction/adjoint/halo-exclusion checks pass on both ranks.
+  Raw shutdown logs retain coordination cancellation/connection-refused messages
+  after success; launcher exits 0. These standalone probes share the GPU suite's
+  runtime, using separate CPU cores; only one pytest session runs at a time.
+- [x] Maintained Ruff/format (235 files), annotations, Linux-target types and
+  strict Sphinx pass. Freeze 251 source/test/benchmark/reference hashes before
+  each suite. Only tests/execution/test_runner.py changes; all model, benchmark
+  and reference bytes match 4551fc8.
+- [x] Aegir full CPU correctness: 1,730 passed/four GPU-only skips, no failures,
+  1,320.31 s pytest / 1,349.24 s external wall. Job 66459424 on node453 requests
+  12 CPUs/32 GiB and finishes COMPLETED 0:0 in 1,361 s, including follow-on checks.
+  Maintained statement coverage 95.07% (4,955/5,212), reported package 91.57%.
+  Standard discovery omits two unexecuted three-statement CLI template resources;
+  counting those as uncovered gives 94.96% maintained coverage. The 80% gate
+  passes. CPU 1,000-step spherical transport also passes,
+  maximum relative volume drift 2.114965734625469e-15 and the same tensor orders.
+- [x] Both full suites collect the same 1,734 case IDs. All four CPU GPU skips
+  pass in the original GPU-default run. CPU domains: CLI 105 passed/2 skipped,
+  execution 283/0, grid 83/0, I/O 342/1, model 269/0, numerics 168/0, physics
+  327/0, setups 82/1, shared 71/0. Every final source hash matches its manifest.
+- Results and reproducible launch scripts are recorded in
+  docs/validation/2026-10-17-vercor-repeat.md and its JSON evidence. Independent
+  scientific and validation reviews cover rationale, test correction and records.
+  Raw evidence stays in test_logs/vercor-repeat-2026-10-17/ (untracked).
+
 ## 2026-10-17 — Scientific validation follow-up (in progress)
 
 - Independent final review fixes: scheduled output now synchronizes and validates
