@@ -162,12 +162,12 @@ def evp_solver(
                 * phys.sinWat
                 * 0.5
                 * (
-                    cDrag * 0.5 * (vs.uOcean - uIce + jnp.roll(vs.uOcean - uIce, -1, 1))
+                    cDrag * 0.5 * (vs.vOcean - vIce + jnp.roll(vs.vOcean - vIce, -1, 1))
                     + jnp.roll(cDrag, 1, 0)
                     * 0.5
                     * (
-                        jnp.roll(vs.uOcean - uIce, 1, 0)
-                        + jnp.roll(jnp.roll(vs.uOcean - uIce, 1, 0), -1, 1)
+                        jnp.roll(vs.vOcean - vIce, 1, 0)
+                        + jnp.roll(jnp.roll(vs.vOcean - vIce, 1, 0), -1, 1)
                     )
                 )
                 * locMaskU
@@ -183,12 +183,12 @@ def evp_solver(
                 * phys.sinWat
                 * 0.5
                 * (
-                    cDrag * 0.5 * (vs.vOcean - vIce + jnp.roll(vs.vOcean - vIce, -1, 0))
+                    cDrag * 0.5 * (vs.uOcean - uIce + jnp.roll(vs.uOcean - uIce, -1, 0))
                     + jnp.roll(cDrag, 1, 1)
                     * 0.5
                     * (
-                        jnp.roll(vs.vOcean - vIce, 1, 1)
-                        + jnp.roll(jnp.roll(vs.vOcean - vIce, 1, 1), -1, 0)
+                        jnp.roll(vs.uOcean - uIce, 1, 1)
+                        + jnp.roll(jnp.roll(vs.uOcean - uIce, 1, 1), -1, 0)
                     )
                 )
                 * locMaskV

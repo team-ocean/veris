@@ -2,6 +2,22 @@
 
 ## 2026-10-17 — Scientific validation follow-up (in progress)
 
+- Independent final review fixes: scheduled output now synchronizes and validates
+  sticky physics status before instantaneous/mean/history commits; prior valid
+  records remain available when a later segment fails. Four real low-salinity
+  cases reproduced invalid future samples before the fix and now pass.
+- Nonzero water turning angle: correct orthogonal tracer-to-face interpolation
+  in ocean stresses and cross-velocity components in EVP forcing. Independent
+  linear-face and one-iteration momentum balances reproduce both defects;
+  hemisphere controls and angle JVP/VJP/finite differences pass. Free drift
+  explicitly requires zero angle at host construction and in traced status checks.
+  Zero-angle coupled equations and existing reference archives are unchanged.
+- Focused final review gate: 107/107 cases pass, including all 10 new regressions;
+  full CPU/distributed suite passes 1729 cases with five GPU/platform skips
+  (1586.53 s); first-party statement coverage is 95.20%.
+  Strict Ruff/format/annotations/Linux-target types and Sphinx pass.
+
+
 - [x] N1/N2/N3/N4 complete locally (@root): physical-parameter AD,
   actual ocean mass/salt/heat budgets and long-run validation. Isolated branch
   feat/vercor-scientific-validation starts at a9d6c0a; user checkout preserved.

@@ -366,6 +366,13 @@ class Experiment:
             raise ValueError("physical constants dtype must match numerical dtype")
         physical_options: dict[str, Any] = {**constants, "dtype": conf.dtype}
         phys = PhysicalConstants(**physical_options)
+        if (
+            self.physics != "thermodynamics"
+            and conf.useFreedrift
+            and not conf.useEVP
+            and phys.waterTurnAngle != 0
+        ):
+            raise ValueError("free-drift solver requires a zero water turning angle")
         if self.physics == "coupled" and conf.deltatDyn != conf.deltatTherm:
             raise ValueError(
                 "coupled physics requires equal dynamics/thermodynamic timesteps"

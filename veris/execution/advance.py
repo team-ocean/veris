@@ -188,9 +188,10 @@ def _advance_local(
         diagnostic = Diagnostics(**{name: zeros for name in DIAGNOSTICS})
         return current, replace(diagnostic, physics_status=jnp.ones_like(zeros))
 
-    return jax.lax.cond(
-        _physical_parameters_valid(phys), valid, invalid, (state, phys, forcing)
-    )
+    parameters_valid = _physical_parameters_valid(phys)
+    if physics != "thermodynamics" and conf.useFreedrift and not conf.useEVP:
+        parameters_valid = parameters_valid & (phys.waterTurnAngle == 0)
+    return jax.lax.cond(parameters_valid, valid, invalid, (state, phys, forcing))
 
 
 def advance(
