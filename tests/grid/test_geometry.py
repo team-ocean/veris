@@ -21,5 +21,8 @@ def test_ocean_geometry_is_the_original_frozen_schema() -> None:
         "area_t",
         "area_u",
         "area_v",
+        "latitude",
+        "latitude_edges",
+        "radius",
     ]
     assert cls.__module__ == "veris.grid.geometry"

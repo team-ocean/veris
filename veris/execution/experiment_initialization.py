@@ -51,8 +51,12 @@ def _validate_inputs(experiment: Experiment) -> None:
                 "runnable initialization requires geometry or a builtin preset"
             )
         return
-    _validate_geometry(geometry, (experiment.grid.nx, experiment.grid.ny))
+    _validate_geometry(
+        geometry, (experiment.grid.nx, experiment.grid.ny), physical=True
+    )
     for item in fields(geometry):
+        if getattr(geometry, item.name) is None:
+            continue
         value = np.asarray(getattr(geometry, item.name))
         _precision(item.name, value, dtype, reciprocal=item.name in _METRICS)
     # Preserve the original corner-area arithmetic, including its intermediate
@@ -205,11 +209,28 @@ def _build_region(
         "enable_cyclic_y": conf.enable_cyclic_y,
     }
     if experiment.geometry is not None:
+        geometry = regional_geometry(experiment.geometry, x, y)
+        if regional and experiment.geometry.latitude is not None:
+            # Local periodic halos are communication storage, not periodic
+            # latitude. The globally validated spherical metrics are sliced
+            # below; the allocation adapter must not close an internal wall.
+            geometry = replace(
+                geometry, latitude=None, latitude_edges=None, radius=None
+            )
         state, _, _ = initialize_from_ocean(
-            regional_geometry(experiment.geometry, x, y),
+            geometry,
             settings_overrides=numerical,
             physical_overrides=experiment.resolved_constants,
         )
+        if experiment.geometry.latitude is not None:
+            from veris.grid.spherical import regional_spherical_metrics
+
+            state = replace(
+                state,
+                **regional_spherical_metrics(
+                    experiment.geometry, x, y, dtype=conf.dtype
+                ),
+            )
         return state
     assert experiment.preset is not None
     provider = get_preset(experiment.preset)

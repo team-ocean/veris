@@ -173,6 +173,9 @@ def test_definition_copies_custom_geometry_without_mutating_ocean_input() -> Non
     horizontal[:] = 0
     assert definition.geometry is not None
     for item in fields(geometry):
+        if getattr(geometry, item.name) is None:
+            assert getattr(definition.geometry, item.name) is None
+            continue
         saved = np.asarray(getattr(definition.geometry, item.name))
         with pytest.raises(ValueError):
             saved.setflags(write=True)

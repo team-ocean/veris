@@ -51,6 +51,9 @@ def test_regional_geometry_preserves_vertical_masks_and_metric_vectors() -> None
     ix, iy = np.array([3, 0, 1, 2, 3, 0]), np.array([1, 2, 3, 4, 5, 5, 5])
     region = regional_geometry(geometry, ix, iy)
     for item in fields(geometry):
+        if item.name not in values:
+            assert getattr(region, item.name) is None
+            continue
         source = values[item.name]
         expected = (
             source[ix]

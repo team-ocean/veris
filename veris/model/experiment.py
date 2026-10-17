@@ -281,7 +281,11 @@ class Experiment:
         if self.geometry is not None:
             owned: dict[str, Any] = {}
             for item in fields(self.geometry):
-                array = np.asarray(getattr(self.geometry, item.name))
+                value = getattr(self.geometry, item.name)
+                if value is None:
+                    owned[item.name] = None
+                    continue
+                array = np.asarray(value)
                 if array.dtype.kind not in "bfiu" or not np.isfinite(array).all():
                     raise ValueError(
                         f"geometry {item.name} must contain finite real values"
@@ -345,12 +349,18 @@ class Experiment:
         elif self.scenario:
             raise ValueError("scenario controls require a builtin preset")
         local_x, local_y = self.grid.local_shape(self.execution.partitions)
+        if self.geometry is not None:
+            settings["spherical_geometry"] = self.geometry.latitude is not None
+            if self.geometry.latitude is not None:
+                settings.setdefault("enable_cyclic_y", False)
         conf = Configuration(
             **settings,
             nx=local_x,
             ny=local_y,
             use_sharding=self.execution.partitions != (1, 1),
         )
+        if conf.spherical_geometry and conf.enable_cyclic_y:
+            raise ValueError("spherical latitude cannot be cyclic")
         constants = {**launch.get("constants", {}), **self.constants}
         if "dtype" in constants and constants["dtype"] != conf.dtype:
             raise ValueError("physical constants dtype must match numerical dtype")

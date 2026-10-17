@@ -19,6 +19,10 @@ class OceanGeometry:
     ``ht`` is depth (m), ``coriolis_t`` is Coriolis frequency (s-1), and the
     three horizontal cell-area arrays are in m2. Shapes and finite positive
     metrics are checked by the host adapter before any reciprocal is computed.
+    Optional ``latitude``/``latitude_edges`` contain ny/ny+1 physical degrees,
+    excluding halos; ``radius`` is a positive scalar in metres. Supply all three
+    for spherical geometry. Zonal spacing vectors then specify equatorial
+    distances, while meridional spacing remains physical distance.
     """
 
     maskT: ArrayInput
@@ -33,3 +37,6 @@ class OceanGeometry:
     area_t: ArrayInput
     area_u: ArrayInput
     area_v: ArrayInput
+    latitude: ArrayInput | None = None
+    latitude_edges: ArrayInput | None = None
+    radius: ArrayInput | float | None = None

@@ -1,5 +1,44 @@
 # Development log
 
+## 2026-10-17 — Scientific validation follow-up (in progress)
+
+- [x] N1 complete (@root); NEXT N2: physical-parameter AD,
+  actual ocean mass/salt/heat budgets and long-run validation. Isolated branch
+  feat/vercor-scientific-validation starts at a9d6c0a; user checkout preserved.
+- Definition and implementation plans are approved in the paired VerCOR branch.
+  Original independent reference archives remain unchanged (checksums recorded).
+- Native baseline: 1,624 passes and five platform/hardware skips, exit 0. VerCOR
+  fast orientation passes in its separate Python 3.12 scipy environment.
+- N1 RED reproduces exactly doubled zonal spacing at 60 degrees and missing
+  latitude/definition/partition support. Added physical spherical metrics,
+  finite-volume normal strain and its area-weighted adjoint tensor divergence.
+  Supplied tracer/face areas retain their quadrature; corner dual volumes use
+  actual lengths and wet quadrants. A wall traction RED exposed a 1.9265-times
+  line-integral error with legacy full corner areas; half dual cells correct it.
+- Non-square real two-device tests cover southern/nonuniform metrics and
+  operators. Rigid rotation, isotropic stress, analytic north transport and
+  nonconstant work identities cover independent equations. Refinement compares
+  shared physical latitude positions; a moving maximum domain hid second order.
+- First N1 full suite: 1,644 passes, four GPU skips and one unavailable macOS
+  CPU-affinity skip in 843.62 s. Self-review then added independent scalar
+  gradient/default-boundary checks: RED shows inherited cyclic latitude and
+  no explicit-conflict rejection. Spherical host inputs now default to closed
+  latitude and reject explicit cyclic latitude; planar defaults stay intact.
+- Final expanded focus passes111/111 and spherical cases23/23. A reused
+  cross-run JAX cache causes two four-CPU collective-permute participant-count
+  aborts under coverage; isolated warm reproduction fails in3.97s with the
+  same persisted RunId1524182906. Archived original a9d6c0a source, with import
+  provenance asserted, reproduces the same abort. Both unchanged tests pass
+  with the maintained fresh per-run cache (68.91s). Do not reuse this diagnostic
+  cache for acceptance or weaken the distributed assertions. Fresh full gate
+  passes1,647 tests with five GPU/platform skips in908.05s; coverage92% overall.
+- Maintained CI Ruff/format/annotation checks and Linux-target ty pass. Broad
+  checks also report pre-existing vendored Sphinx/Versioneer code and Darwin
+  affinity annotation issues; no unrelated generated/vendor code was rewritten.
+- A short RED invocation overlapped baseline teardown by mistake. Subsequent
+  native pytest runs await confirmed completion. Local stencil assembly must
+  run inside shard_map on explicit partitions; global roll is rejected by JAX.
+
 ## 2026-10-15 — Release CI distributed derivative investigation
 
 - GitHub run 38714846084 on 59e1d16 finishes with 1,622

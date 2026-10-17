@@ -54,6 +54,23 @@ ice amounts, ice-covered fractions and temperatures must satisfy the Experiment
 physical bounds. Before creating device arrays, Python checks also reject numbers
 or their reciprocals that the selected numerical precision cannot represent.
 
+Supply ``latitude`` (ny centers in degrees), ``latitude_edges`` (ny+1 edges)
+and ``radius`` (positive metres) together to select spherical geometry. These
+coordinate vectors exclude halos in both direct and Experiment inputs. Omit all
+three for the existing planar contract. Zonal spacing vectors describe
+equatorial distances; supplied tracer and face areas retain their own quadrature.
+The adapter derives the geometry-owned static ``spherical_geometry`` setting.
+It must agree with the selected geometry. Spherical inputs default to closed
+latitude boundaries; explicitly cyclic latitude is rejected because strictly
+monotone, nonsingular latitude coordinates cannot form a periodic ring.
+
+Spherical normal strain has a finite-volume trace using those stored tracer
+areas. Tensor divergence is its negative area-weighted adjoint, including the
+maintained slip stencil. Corner dual areas use the actual corner lengths and
+wet quadrants, so a straight wall owns half a dual cell. Immutable face metrics
+retain the true northern face through closed-wall halo refresh. Singular polar
+edges, partial coordinates and invalid radius/coordinate shapes fail on the host.
+
 .. autoclass:: veris.grid.geometry.OceanGeometry
 
 .. autofunction:: veris.grid.ocean.initialize_from_ocean

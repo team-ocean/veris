@@ -42,6 +42,19 @@ Each partition has two halos per side. Global geometry/input arrays belong to
 the host definition. Each rank (distributed process) creates its local numerical
 State; it never creates the whole global State and then slices it.
 
+Spherical ocean geometry supplies physical center/edge latitudes and a radius
+alongside equatorial zonal spacing and authoritative ocean areas. Its static
+configuration flag is derived from geometry. The metric owner evaluates each
+C-grid distance at its actual latitude, with host regional slicing preserving
+nonuniform global coordinates. The spherical strain trace is exactly the stored
+area finite-volume velocity divergence. Stress divergence is the negative
+area-weighted transpose of that linear strain map; JAX transposition keeps the
+paired masks and slip corrections together. A constant isotropic tensor has
+zero interior force, and solid-body rotation has zero strain. Corner dual
+areas integrate wet quadrants, including half cells at closed walls. This is a
+midpoint discretization, not an exact spherical-area integral. The planar
+metric/operator arithmetic and original independent archives remain unchanged.
+
 `advance` in `veris.execution.advance` performs exactly one physical timestep,
 one advance of the model clock. It applies supplied forcing and calls unchanged
 dynamics_transport. The order remains momentum, ocean stress, transport, cleanup

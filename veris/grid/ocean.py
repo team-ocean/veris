@@ -23,12 +23,19 @@ from veris.model.types import State
 from veris.model.variables import VARIABLES
 
 
-def _validate_geometry(geometry: OceanGeometry, shape: tuple[int, ...]) -> None:
+def _validate_geometry(
+    geometry: OceanGeometry, shape: tuple[int, ...], *, physical: bool = False
+) -> None:
     """Reject mismatched grids and invalid reciprocal inputs on the host."""
     if len(shape) != 2:
         raise ValueError("maskT must have a two-dimensional horizontal storage shape")
+    from veris.grid.spherical import validate_spherical_geometry
+
+    validate_spherical_geometry(geometry, shape[1] if physical else shape[1] - 4)
     for field in fields(geometry):
         name = field.name
+        if name in ("latitude", "latitude_edges", "radius"):
+            continue
         array = np.asarray(getattr(geometry, name))
         if name.startswith("mask"):
             if array.ndim != 3 or array.shape[:2] != shape or array.shape[2] < 1:
@@ -79,10 +86,18 @@ def initialize_from_ocean(
     shape = np.shape(geometry.maskT)[:2]
     _validate_geometry(geometry, shape)
     options = dict(settings_overrides or {})
-    options.update(nx=shape[0] - 4, ny=shape[1] - 4)
+    options.update(
+        nx=shape[0] - 4,
+        ny=shape[1] - 4,
+        spherical_geometry=geometry.latitude is not None,
+    )
+    if geometry.latitude is not None:
+        options.setdefault("enable_cyclic_y", False)
     if dtype is not None:
         options["dtype"] = dtype
     conf = Configuration(**options)
+    if conf.spherical_geometry and conf.enable_cyclic_y:
+        raise ValueError("spherical latitude cannot be cyclic")
     dtype = conf.dtype
     overrides = dict(state_overrides or {})
     unknown = overrides.keys() - VARIABLES.keys()
@@ -94,6 +109,8 @@ def initialize_from_ocean(
         _precision(name, value, dtype)
     metrics = {"dxt", "dxu", "dyt", "dyu", "area_t", "area_u", "area_v"}
     for item in fields(geometry):
+        if getattr(geometry, item.name) is None:
+            continue
         _precision(
             item.name,
             getattr(geometry, item.name),
@@ -147,6 +164,10 @@ def initialize_from_ocean(
         recip_rAv=1 / npx.asarray(geometry.area_v, dtype=dtype),
         TSurf=ones * conf.geometrySurfaceTemperature,
     )
+    if geometry.latitude is not None:
+        from veris.grid.spherical import spherical_metric_overrides
+
+        overrides.update(spherical_metric_overrides(geometry, dtype=dtype))
     return initialize(
         settings_overrides=options,
         physical_overrides=physical_overrides,

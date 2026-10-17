@@ -24,6 +24,9 @@ SETTINGS: dict[str, Parameter] = {
     "enable_cyclic_y": Parameter(
         True, bool, "Wrap global y edges; otherwise use closed, impermeable walls", "-"
     ),
+    "spherical_geometry": Parameter(
+        False, bool, "Geometry-owned selection of spherical metrics and operators", "-"
+    ),
     "geometrySurfaceTemperature": Parameter(
         273.0,
         float,
@@ -142,6 +145,7 @@ class Configuration:
 
     dtype: str = field(default=FROM_REGISTRY, kw_only=True)
     enable_cyclic_y: bool = field(default=FROM_REGISTRY, kw_only=True)
+    spherical_geometry: bool = field(default=FROM_REGISTRY, kw_only=True)
 
     deltatTherm: float = FROM_REGISTRY
     recip_deltatTherm: float = field(init=False)
