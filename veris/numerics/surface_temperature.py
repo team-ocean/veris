@@ -17,9 +17,10 @@ from veris.model.arrays import ArrayInput
 from veris.model.configuration import Configuration
 from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import State, SurfaceFluxResult, jit
+from veris.numerics.surface_properties import _surface_albedo
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def solve4temp(
     vs: State,
     conf: Configuration,
@@ -48,9 +49,6 @@ def solve4temp(
     # melting temperature of ice
     Tmelt = phys.celsius2K
 
-    # temperature threshold for when to use wet albedo
-    SurfMeltTemp = Tmelt + phys.wetAlbTemp
-
     isIce = hIceActual > 0
     isSnow = hSnowActual > 0
 
@@ -75,33 +73,7 @@ def solve4temp(
 
     ##### determine albedo #####
 
-    # use albedo of dry surface (if ice is present)
-    albIce = jnp.where(isIce, phys.dryIceAlb, 0)
-    albSnow = jnp.where(isIce, phys.drySnowAlb, 0)
-
-    # use albedo of wet surface if surface is thawing
-    useWetAlb = (hIceActual > 0) & (TSurfLoc >= SurfMeltTemp)
-    albIce = jnp.where(useWetAlb, phys.wetIceAlb, albIce)
-    albSnow = jnp.where(useWetAlb, phys.wetSnowAlb, albSnow)
-
-    # same for southern hermisphere
-    south = (hIceActual > 0) & (vs.fCori < 0)
-    albIce = jnp.where(south, phys.dryIceAlb_south, albIce)
-    albSnow = jnp.where(south, phys.drySnowAlb_south, albSnow)
-    useWetAlb_south = (hIceActual > 0) & (vs.fCori < 0) & (TSurfLoc >= SurfMeltTemp)
-    albIce = jnp.where(useWetAlb_south, phys.wetIceAlb_south, albIce)
-    albSnow = jnp.where(useWetAlb_south, phys.wetSnowAlb_south, albSnow)
-
-    # if the snow thickness is smaller than hCut, use linear transition
-    # between ice and snow albedo
-    alb = jnp.where(isIce, albIce + hSnowActual / phys.hCut * (albSnow - albIce), 0)
-
-    # if the snow thickness is larger than hCut, the snow is opaque for
-    # shortwave radiation -> use snow albedo
-    alb = jnp.where(hSnowActual > phys.hCut, albSnow, alb)
-
-    # if no snow is present, use ice albedo
-    alb = jnp.where(hSnowActual == 0, albIce, alb)
+    alb = _surface_albedo(TSurfLoc, hIceActual, hSnowActual, vs.fCori, phys)
 
     ##### determine the shortwave radiative flux arriving at the     #####
     #####  ice-ocean interface after scattering through snow and ice #####

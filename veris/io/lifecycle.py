@@ -17,10 +17,7 @@ import jax.numpy as jnp
 import numpy as np
 from jax.sharding import Mesh
 
-from veris.execution.experiment_initialization import (
-    _precision,
-    _validate_derived_inputs,
-)
+from veris.execution.experiment_initialization import _validate_derived_inputs
 from veris.execution.rollout_output import output_callbacks
 from veris.grid.halos import fill_state_overlap
 from veris.io.configuration import OutputSettings
@@ -42,6 +39,7 @@ from veris.model.forcing import (
     FORCING_FIELDS,
     Forcing,
     _freeze_fields,
+    _precision,
     _validate_shapes,
 )
 from veris.model.physical_constants import PhysicalConstants

@@ -12,16 +12,13 @@ from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import State, jit
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def clean_up_advection(
     vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[Array, Array, Array, Array, Array, Array]:
     """clean up overshoots and other pathological cases after advection"""
 
     # case 1: negative values
-    # calculate overshoots of ice and snow thickness
-    os_hIceMean = jnp.maximum(-vs.hIceMean, 0)
-    os_hSnowMean = jnp.maximum(-vs.hSnowMean, 0)
 
     # cut off thicknesses and area at zero
     hIceMean = jnp.maximum(vs.hIceMean, 0)
@@ -45,10 +42,14 @@ def clean_up_advection(
         (hIceMean > 0) | (hSnowMean > 0), jnp.maximum(Area, phys.Area_min), Area
     )
 
+    # Signed prepared-minus-raw stock: positive clipping creates solid stock;
+    # negative thin-stock removal melts it. Growth consumes this exactly once.
+    os_hIceMean = hIceMean - vs.hIceMean
+    os_hSnowMean = hSnowMean - vs.hSnowMean
     return hIceMean, hSnowMean, Area, TSurf, os_hIceMean, os_hSnowMean
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def ridging(vs: State, conf: Configuration, phys: PhysicalConstants) -> Array:
     """cut off ice cover fraction at 1 after advection to account for ridging"""
     Area = jnp.minimum(vs.Area, 1)

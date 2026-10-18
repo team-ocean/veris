@@ -14,6 +14,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
+from budget_reference import load_budget_corrections
 
 import veris
 from veris import Experiment, Grid, initialize_experiment
@@ -50,7 +51,7 @@ def test_unequal_kernel_timesteps_match_frozen_original(compiled: bool) -> None:
             Qsw=jnp.full_like(initial.Qsw, 0.0),
         )
         transported, stress_u, stress_v = dynamics_transport(prescribed, conf, phys)
-        values = Growth(transported, conf, phys)
+        values = Growth(transported, conf, phys)[0]
         grown = replace(
             transported,
             hIceMean=values[0],
@@ -61,8 +62,18 @@ def test_unequal_kernel_timesteps_match_frozen_original(compiled: bool) -> None:
             Qnet=values[7],
             SeaIceLoad=values[8],
             recip_hIceMean=values[10],
+            os_hIceMean=jnp.zeros_like(values[0]),
+            os_hSnowMean=jnp.zeros_like(values[0]),
         )
-        diagnostics = Diagnostics(values[9], stress_u, stress_v, values[4], values[5])
+        diagnostics = Diagnostics(
+            values[9],
+            stress_u,
+            stress_v,
+            values[4],
+            values[5],
+            jnp.zeros_like(values[9]),
+            *values[11:],
+        )
         return fill_state_overlap(grown, conf), fill_state_overlap(diagnostics, conf)
 
     numerical, diagnostics = (jax.jit(compose) if compiled else compose)(state)
@@ -75,12 +86,18 @@ def test_unequal_kernel_timesteps_match_frozen_original(compiled: bool) -> None:
         hashlib.sha256(fixture.read_bytes()).hexdigest() == metadata["archive_sha256"]
     )
     assert metadata["source_commit"] == "fff4cd4e08613e8ec2359e316c94435e81682400"
+    corrections = load_budget_corrections(fixture.parent)
     with np.load(fixture, allow_pickle=False) as original:
         assert len(original.files) == 75
         for prefix, record in (("state", numerical), ("diagnostics", diagnostics)):
             for item in fields(record):
                 actual = np.asarray(getattr(record, item.name))
-                expected = original[f"{prefix}.{item.name}"]
+                expected = (
+                    np.zeros_like(original["diagnostics.EmPmR"])
+                    if prefix == "diagnostics" and item.name == "physics_status"
+                    else original.get(f"{prefix}.{item.name}", None)
+                )
+                expected = corrections.expected(f"{prefix}.{item.name}", expected)
                 assert actual.shape == expected.shape and actual.dtype == expected.dtype
                 assert np.isfinite(actual).all()
                 error = np.abs(actual - expected)

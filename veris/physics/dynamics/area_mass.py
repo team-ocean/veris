@@ -12,7 +12,7 @@ from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import State, jit
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def AreaWS(
     vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[Array, Array]:
@@ -24,7 +24,7 @@ def AreaWS(
     return AreaW, AreaS
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def SeaIceMass(
     vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[Array, Array, Array]:

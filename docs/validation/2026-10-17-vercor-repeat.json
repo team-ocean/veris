@@ -1,0 +1,720 @@
+{
+  "date": "2026-10-17",
+  "source": {
+    "feature": "4551fc86181c660ceb0010160ec7f569d97e52c6",
+    "main": "a0a2a7d0c032de42da26c5f09c12b794b2c006b5"
+  },
+  "gpu_environment": {
+    "host": "magni.cluster",
+    "python": "3.14.7",
+    "packages": {
+      "jax": "0.11.2",
+      "jaxlib": "0.11.2",
+      "numpy": "2.5.3",
+      "pytest": "9.1.1",
+      "jax-cuda12-plugin": "0.11.2",
+      "jax-cuda12-pjrt": "0.11.2"
+    },
+    "backend": "gpu",
+    "devices": [
+      "cuda:0",
+      "cuda:1"
+    ],
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47
+    ]
+  },
+  "cpu_affinity_scope": {
+    "gpu_environment_capture": "Host preflight before taskset; its 48-core affinity is not the pytest launch affinity",
+    "gpu_full_and_corrected_runner_cpu_ids": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "gpu_supplemental_cpu_ids": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "aegir": "12 allocated CPUs; srun --cpu-bind=cores; three pytest workers with disjoint four-CPU affinity"
+  },
+  "gpu_full": {
+    "exit_status": 1,
+    "counts": {
+      "passed": 1733,
+      "skipped": 0,
+      "failed": 1,
+      "errors": 0
+    },
+    "total_cases": 1734,
+    "case_ids_sha256": "09c9928f798d9715ee45f848c17c0e3de2aabfdd3cc24c2100355cab586b1419",
+    "junit_suite_seconds": 5246.689,
+    "wall_seconds": 5252.27,
+    "peak_process_rss_kib": 6126412,
+    "groups": {
+      "cli": {
+        "passed": 107
+      },
+      "execution": {
+        "passed": 282,
+        "failed": 1
+      },
+      "grid": {
+        "passed": 83
+      },
+      "io": {
+        "passed": 343
+      },
+      "model": {
+        "passed": 269
+      },
+      "numerics": {
+        "passed": 168
+      },
+      "physics": {
+        "passed": 327
+      },
+      "setups": {
+        "passed": 83
+      },
+      "shared": {
+        "passed": 71
+      }
+    },
+    "skips": [],
+    "failures": [
+      {
+        "test": "tests.execution.test_runner::test_public_runner_matches_real_simulation_all_fields_and_diagnostics",
+        "traceback": "tests/execution/test_runner.py:51: in test_public_runner_matches_real_simulation_all_fields_and_diagnostics\n    assert actual.execution_metadata[\"backend\"] == \"cpu\"\nE   AssertionError: assert 'gpu' == 'cpu'\nE     \nE     - cpu\nE     + gpu"
+      }
+    ]
+  },
+  "gpu_runner_test_correction": {
+    "counts": {
+      "passed": 1,
+      "failed": 0
+    },
+    "testcase_seconds": 17.51,
+    "suite_seconds": 17.669,
+    "negative_control": "PASS negative control: real GPU run with false CPU metadata rejected at backend assertion",
+    "source_changes": {
+      "tests/execution/test_runner.py": {
+        "before": "2f952b8d833931b2af4641c411cb953ed31ba5cd3f292266abb54377983800de",
+        "after": "7697de30ab44820fd663faf76f7d908a79bc7859b2c9be5c1f852ce81c6ff2aa"
+      }
+    },
+    "scope": "One corrected metadata regression; original full GPU run was not repeated in full"
+  },
+  "aegir_full": {
+    "exit_status": 0,
+    "counts": {
+      "passed": 1730,
+      "skipped": 4,
+      "failed": 0,
+      "errors": 0
+    },
+    "total_cases": 1734,
+    "case_ids_sha256": "09c9928f798d9715ee45f848c17c0e3de2aabfdd3cc24c2100355cab586b1419",
+    "junit_suite_seconds": 1320.277,
+    "wall_seconds": 1349.24,
+    "peak_process_rss_kib": 4957152,
+    "groups": {
+      "cli": {
+        "passed": 105,
+        "skipped": 2
+      },
+      "execution": {
+        "passed": 283
+      },
+      "grid": {
+        "passed": 83
+      },
+      "io": {
+        "passed": 342,
+        "skipped": 1
+      },
+      "model": {
+        "passed": 269
+      },
+      "numerics": {
+        "passed": 168
+      },
+      "physics": {
+        "passed": 327
+      },
+      "setups": {
+        "passed": 82,
+        "skipped": 1
+      },
+      "shared": {
+        "passed": 71
+      }
+    },
+    "skips": [
+      {
+        "test": "tests.cli.test_run::test_gpu_central_cli_writes_float32_output[None]",
+        "reason": "requires native GPU runtime"
+      },
+      {
+        "test": "tests.cli.test_run::test_gpu_central_cli_writes_float32_output[mesh1]",
+        "reason": "requires native GPU runtime"
+      },
+      {
+        "test": "tests.setups.test_parallel_case::test_gpu_cli_writes_finite_output",
+        "reason": "requires a GPU backend"
+      },
+      {
+        "test": "tests.io.test_output_scan_parallel::test_scheduled_output_two_gpu_devices",
+        "reason": "requires explicitly requested GPU backend and two devices"
+      }
+    ],
+    "failures": []
+  },
+  "aegir_job": {
+    "JobIDRaw": "66459424",
+    "Partition": "aegir",
+    "State": "COMPLETED",
+    "ExitCode": "0:0",
+    "ElapsedRaw": "1361",
+    "NodeList": "node453",
+    "AllocCPUS": "12",
+    "ReqMem": "32G"
+  },
+  "coverage": {
+    "scope": "Observed coverage.py discovery; excludes two unexecuted template resource scripts. Maintained metric also omits generated veris/_version.py.",
+    "undiscovered_resource_statements": {
+      "veris/cli/templates/dynamics/setup.py": 3,
+      "veris/cli/templates/island/setup.py": 3
+    },
+    "reported_package": {
+      "covered_lines": 5096,
+      "num_statements": 5565,
+      "percent_covered": 91.57232704402516,
+      "percent_covered_display": "92",
+      "missing_lines": 469,
+      "excluded_lines": 23,
+      "percent_statements_covered": 91.57232704402516,
+      "percent_statements_covered_display": "92"
+    },
+    "maintained_statements": 5212,
+    "maintained_covered": 4955,
+    "maintained_percent": 95.06907137375288,
+    "conservative_maintained_percent_including_resources": 94.95975469528555
+  },
+  "spherical": {
+    "gpu-0": {
+      "steps": 1000,
+      "dtype": "float64",
+      "geometry": {
+        "nx": 32,
+        "ny": 8,
+        "radius_m": 6370000.0,
+        "latitude_degrees": [
+          48.0,
+          52.0,
+          56.0,
+          60.0,
+          64.0,
+          68.0,
+          72.0,
+          76.0
+        ],
+        "area_convention": "supplied midpoint areas"
+      },
+      "maximum_relative_volume_drift": 2.220446049250313e-16,
+      "minimum": 0.9330869393641141,
+      "maximum": 1.0669130606358859,
+      "initial_minimum": 0.9330869393641141,
+      "initial_maximum": 1.0669130606358859,
+      "all_transport_steps_finite": true,
+      "spherical_tendency_relative_error": 5.025120546856513e-13,
+      "tensor_refinement_orders": [
+        1.9997363160158648,
+        1.9999340793950793
+      ],
+      "rigid_rotation_maximum_strain": 2.2499312661442353e-22,
+      "rms_rotation_error": 0.0011800617297052444,
+      "status": {
+        "first_invalid_status": 2,
+        "valid_control_status": 0,
+        "intermediate_failure_rejected": true,
+        "accepted_steps_after_failure": 0
+      },
+      "commit": "4551fc86181c660ceb0010160ec7f569d97e52c6",
+      "dirty": true,
+      "harness_sha256": "dd2155c50aac34cabb39316aea614f24a4b5ecf606e42e92ed382d9d22540f10",
+      "jax": "0.11.2",
+      "backend": "gpu",
+      "devices": [
+        "cuda:0"
+      ],
+      "platform": "Linux-5.14.0-687.53.1.el9_8.x86_64-x86_64-with-glibc2.34"
+    },
+    "gpu-1": {
+      "steps": 1000,
+      "dtype": "float64",
+      "geometry": {
+        "nx": 32,
+        "ny": 8,
+        "radius_m": 6370000.0,
+        "latitude_degrees": [
+          48.0,
+          52.0,
+          56.0,
+          60.0,
+          64.0,
+          68.0,
+          72.0,
+          76.0
+        ],
+        "area_convention": "supplied midpoint areas"
+      },
+      "maximum_relative_volume_drift": 2.220446049250313e-16,
+      "minimum": 0.9330869393641141,
+      "maximum": 1.0669130606358859,
+      "initial_minimum": 0.9330869393641141,
+      "initial_maximum": 1.0669130606358859,
+      "all_transport_steps_finite": true,
+      "spherical_tendency_relative_error": 5.025120546856513e-13,
+      "tensor_refinement_orders": [
+        1.9997363160158648,
+        1.9999340793950793
+      ],
+      "rigid_rotation_maximum_strain": 2.2499312661442353e-22,
+      "rms_rotation_error": 0.0011800617297052444,
+      "status": {
+        "first_invalid_status": 2,
+        "valid_control_status": 0,
+        "intermediate_failure_rejected": true,
+        "accepted_steps_after_failure": 0
+      },
+      "commit": "4551fc86181c660ceb0010160ec7f569d97e52c6",
+      "dirty": true,
+      "harness_sha256": "dd2155c50aac34cabb39316aea614f24a4b5ecf606e42e92ed382d9d22540f10",
+      "jax": "0.11.2",
+      "backend": "gpu",
+      "devices": [
+        "cuda:0"
+      ],
+      "platform": "Linux-5.14.0-687.53.1.el9_8.x86_64-x86_64-with-glibc2.34"
+    },
+    "aegir": {
+      "steps": 1000,
+      "dtype": "float64",
+      "geometry": {
+        "nx": 32,
+        "ny": 8,
+        "radius_m": 6370000.0,
+        "latitude_degrees": [
+          48.0,
+          52.0,
+          56.0,
+          60.0,
+          64.0,
+          68.0,
+          72.0,
+          76.0
+        ],
+        "area_convention": "supplied midpoint areas"
+      },
+      "maximum_relative_volume_drift": 2.114965734625469e-15,
+      "minimum": 0.9330869393641141,
+      "maximum": 1.0669130606358859,
+      "initial_minimum": 0.9330869393641141,
+      "initial_maximum": 1.0669130606358859,
+      "all_transport_steps_finite": true,
+      "spherical_tendency_relative_error": 5.025120546856513e-13,
+      "tensor_refinement_orders": [
+        1.9997363160158648,
+        1.9999340793950793
+      ],
+      "rigid_rotation_maximum_strain": 2.227299254817537e-22,
+      "rms_rotation_error": 0.0011800617297052565,
+      "status": {
+        "first_invalid_status": 2,
+        "valid_control_status": 0,
+        "intermediate_failure_rejected": true,
+        "accepted_steps_after_failure": 0
+      },
+      "commit": "4551fc86181c660ceb0010160ec7f569d97e52c6",
+      "dirty": true,
+      "harness_sha256": "dd2155c50aac34cabb39316aea614f24a4b5ecf606e42e92ed382d9d22540f10",
+      "jax": "0.11.2",
+      "backend": "cpu",
+      "devices": [
+        "cpu:0"
+      ],
+      "platform": "Linux-5.14.0-687.53.1.el9_8.x86_64-x86_64-with-glibc2.34"
+    }
+  },
+  "gpu_probe_provenance": {
+    "physical-parameters-two-gpu.py": {
+      "parent": "tests/model_physics_sharding_probe.py",
+      "parent_sha256": "3b5cc9a5ff946ebf8c165266ec27c3ad55d42ca12b7ab767b7543b37e1561635",
+      "changes": "Three literal cpu backend selections changed to gpu; success/error labels updated. All comparisons, AD and finite-difference assertions retained.",
+      "sha256": "c22657647fb48bd063536512d83f04f1f77c0a3639468b0d4dabe1e3252f45e2"
+    },
+    "spherical-two-gpu.py": {
+      "parent": "tests/grid/test_spherical_operators.py",
+      "parent_sha256": "289c2294530e2fa0d34039cd883961beec1fecdce8523a73e697d7966317a96b",
+      "changes": "Extract original embedded probe; change only two literal cpu backend selections to gpu. All metric/operator comparisons retained.",
+      "sha256": "5963f5b6fdc18f1e35697144d7bfb6ea81002e4da00b1f47ef67f19d0d4bb84f"
+    }
+  },
+  "launch_scripts": {
+    "run-gpu.sh": "#!/bin/bash\nset -euo pipefail\ncd /lustre/hpc/ocean/nutrik/dev/veris\nsource .venv-latest/bin/activate\nexport JAX_PLATFORMS=cuda,cpu\nexport XLA_PYTHON_CLIENT_PREALLOCATE=false\nexport OMP_NUM_THREADS=8\nexport PYTHONPATH=\"$PWD\"\nunset JAX_COMPILATION_CACHE_DIR\ntask_results=\"$PWD/test_logs/vercor-repeat-2026-10-17\"\ndate --iso-8601=seconds > \"$task_results/gpu-start.txt\"\nnvidia-smi --query-gpu=index,name,uuid,memory.total,driver_version --format=csv > \"$task_results/gpu-hardware.csv\"\nfor task_gpu in 0 1; do\n    CUDA_VISIBLE_DEVICES=\"$task_gpu\" /usr/bin/time -f 'wall_seconds=%e\\npeak_process_rss_kib=%M' -o \"$task_results/spherical-gpu-$task_gpu.time\" python -m benchmarks.validate_spherical --steps 1000 --output \"$task_results/spherical-gpu-$task_gpu.json\" > \"$task_results/spherical-gpu-$task_gpu.log\" 2>&1\ndone\nset +e\n/usr/bin/time -f 'wall_seconds=%e\\npeak_process_rss_kib=%M' -o \"$task_results/gpu-full.time\" python -m pytest tests/ -n 1 --dist=loadscope --max-worker-restart=0 -ra --junitxml=\"$task_results/gpu-full.xml\" --basetemp=\"$task_results/gpu-temp\" > \"$task_results/gpu-full.log\" 2>&1\ntask_status=$?\nset -e\nprintf '%s\\n' \"$task_status\" > \"$task_results/gpu-full.exit\"\ndate --iso-8601=seconds > \"$task_results/gpu-end.txt\"\ntail -10 \"$task_results/gpu-full.log\"\nexit \"$task_status\"\n",
+    "run-gpu-supplemental.sh": "#!/bin/bash\nset -euo pipefail\ncd /lustre/hpc/ocean/nutrik/dev/veris\nsource .venv-latest/bin/activate\nexport JAX_PLATFORMS=cuda,cpu\nexport XLA_PYTHON_CLIENT_PREALLOCATE=false\nexport OMP_NUM_THREADS=8\nexport PYTHONPATH=\"tests:$PWD\"\nunset JAX_COMPILATION_CACHE_DIR\ntask_results=\"$PWD/test_logs/vercor-repeat-2026-10-17\"\npython -c 'import jax; assert jax.default_backend() == \"gpu\"; assert len(jax.devices(\"gpu\")) == 2; print(\"Native GPUs:\", [d.device_kind for d in jax.devices(\"gpu\")])' > \"$task_results/gpu-supplemental-environment.log\" 2>&1\nfor task_probe in spherical-two-gpu physical-parameters-two-gpu; do\n    /usr/bin/time -f 'wall_seconds=%e\\npeak_process_rss_kib=%M' -o \"$task_results/$task_probe.time\" python \"$task_results/$task_probe.py\" > \"$task_results/$task_probe.log\" 2>&1\n    printf '0\\n' > \"$task_results/$task_probe.exit\"\ndone\n/usr/bin/time -f 'wall_seconds=%e\\npeak_process_rss_kib=%M' -o \"$task_results/reductions-two-gpu.time\" python -c 'from reduction_probe import launch_processes; print(launch_processes(platform=\"cuda\"))' > \"$task_results/reductions-two-gpu.log\" 2>&1\nprintf '0\\n' > \"$task_results/reductions-two-gpu.exit\"\ndate --iso-8601=seconds > \"$task_results/gpu-supplemental-end.txt\"\n",
+    "full-aegir.slurm": "#!/bin/bash\n#SBATCH --job-name=veris-vercor-repeat\n#SBATCH --partition=aegir\n#SBATCH --constraint=v3\n#SBATCH --nodes=1\n#SBATCH --ntasks=1\n#SBATCH --cpus-per-task=12\n#SBATCH --mem=32G\n#SBATCH --time=02:00:00\n#SBATCH --chdir=/lustre/hpc/ocean/nutrik/dev/veris\n#SBATCH --output=/lustre/hpc/ocean/nutrik/dev/veris/test_logs/vercor-repeat-2026-10-17/slurm-%j.log\nset -euo pipefail\nsource .venv-latest/bin/activate\nexport JAX_PLATFORMS=cpu\nexport OMP_NUM_THREADS=4\nexport PYTHONPATH=\"$PWD\"\nexport COVERAGE_FILE=\"$PWD/test_logs/vercor-repeat-2026-10-17/.coverage-aegir\"\nunset JAX_COMPILATION_CACHE_DIR\ntask_results=\"$PWD/test_logs/vercor-repeat-2026-10-17\"\ndate --iso-8601=seconds > \"$task_results/aegir-start.txt\"\nhostname > \"$task_results/aegir-host.txt\"\nscontrol show job \"$SLURM_JOB_ID\" > \"$task_results/aegir-job.txt\"\nset +e\nsrun --cpu-bind=cores /usr/bin/env -u SLURM_PROCID -u SLURM_LOCALID -u SLURM_NTASKS -u SLURM_STEP_NUM_TASKS -u SLURM_STEP_TASKS_PER_NODE -u SLURM_TASKS_PER_NODE /usr/bin/time -f 'wall_seconds=%e\\npeak_process_rss_kib=%M' -o \"$task_results/aegir-full.time\" python -m pytest tests/ -ra --cov=veris --cov-report=json:\"$task_results/aegir-coverage.json\" --cov-report=term:skip-covered --junitxml=\"$task_results/aegir-full.xml\" --basetemp=\"$task_results/aegir-temp\" > \"$task_results/aegir-full.log\" 2>&1\ntask_status=$?\nset -e\nprintf '%s\\n' \"$task_status\" > \"$task_results/aegir-full.exit\"\nif [ \"$task_status\" -ne 0 ]; then\n    tail -20 \"$task_results/aegir-full.log\"\n    exit \"$task_status\"\nfi\ncoverage report --omit=veris/_version.py --fail-under=80 > \"$task_results/aegir-coverage-gate.log\"\nsrun --cpu-bind=cores /usr/bin/env -u SLURM_PROCID -u SLURM_LOCALID -u SLURM_NTASKS -u SLURM_STEP_NUM_TASKS -u SLURM_STEP_TASKS_PER_NODE -u SLURM_TASKS_PER_NODE python -m benchmarks.validate_spherical --steps 1000 --output \"$task_results/spherical-aegir.json\" > \"$task_results/spherical-aegir.log\" 2>&1\ndate --iso-8601=seconds > \"$task_results/aegir-end.txt\"\ntail -8 \"$task_results/aegir-full.log\"\n",
+    "prepare_gpu_probes.py": "\"\"\"Keep existing scientific assertions, adapting only explicit CPU placement.\"\"\"\n\nimport ast\nimport hashlib\nimport json\nfrom pathlib import Path\n\nroot = Path.cwd()\noutput = root / \"test_logs/vercor-repeat-2026-10-17\"\nparent = root / \"tests/model_physics_sharding_probe.py\"\nsource = parent.read_text()\nassert source.count('\"cpu\"') == 3\nadapted = source.replace('\"cpu\"', '\"gpu\"')\nadapted = adapted.replace(\"two-CPU\", \"two-GPU\").replace(\"CPU devices\", \"GPU devices\")\ntarget = output / \"physical-parameters-two-gpu.py\"\ntarget.write_text(adapted)\nprovenance = {\n    target.name: {\n        \"parent\": str(parent.relative_to(root)),\n        \"parent_sha256\": hashlib.sha256(parent.read_bytes()).hexdigest(),\n        \"changes\": \"Three literal cpu backend selections changed to gpu; success/error labels updated. All comparisons, AD and finite-difference assertions retained.\",\n        \"sha256\": hashlib.sha256(target.read_bytes()).hexdigest(),\n    }\n}\nparent = root / \"tests/grid/test_spherical_operators.py\"\ntree = ast.parse(parent.read_text())\nfunction = next(\n    node for node in tree.body\n    if isinstance(node, ast.FunctionDef)\n    and node.name == \"test_spherical_coordinates_survive_non_square_partitioning\"\n)\nassignment = next(\n    node for node in function.body\n    if isinstance(node, ast.Assign)\n    and any(isinstance(name, ast.Name) and name.id == \"probe\" for name in node.targets)\n)\nsource = ast.literal_eval(assignment.value)\nassert source.count(\"'cpu'\") == 2\nadapted = source.replace(\"'cpu'\", \"'gpu'\")\ntarget = output / \"spherical-two-gpu.py\"\ntarget.write_text(adapted)\nprovenance[target.name] = {\n    \"parent\": str(parent.relative_to(root)),\n    \"parent_sha256\": hashlib.sha256(parent.read_bytes()).hexdigest(),\n    \"changes\": \"Extract original embedded probe; change only two literal cpu backend selections to gpu. All metric/operator comparisons retained.\",\n    \"sha256\": hashlib.sha256(target.read_bytes()).hexdigest(),\n}\n(output / \"gpu-probe-provenance.json\").write_text(json.dumps(provenance, indent=2) + \"\\n\")\nprint(\"Prepared two GPU probes with unchanged scientific assertions\")\n",
+    "runner_metadata_negative_control.py": "\"\"\"Prove the corrected GPU assertion rejects falsely reported CPU metadata.\"\"\"\n\nimport ast\nimport importlib\nimport tempfile\nimport traceback\nfrom pathlib import Path\n\nimport jax\nimport pytest\n\nfrom tests.execution.test_runner import (\n    test_public_runner_matches_real_simulation_all_fields_and_diagnostics,\n)\n\njax.config.update(\"jax_enable_x64\", True)\nassert jax.default_backend() == \"gpu\"\nruntime = importlib.import_module(\"veris.execution.runtime\")\noriginal = runtime._execution_metadata\nseen = []\n\n\ndef mislabel(backend, partitions):\n    seen.append(backend)\n    return original(\"cpu\", partitions)\n\n\nsource = Path(\"tests/execution/test_runner.py\")\nassertion = next(\n    node.lineno for node in ast.walk(ast.parse(source.read_text()))\n    if isinstance(node, ast.Assert)\n    and isinstance(node.test, ast.Compare)\n    and isinstance(node.test.left, ast.Subscript)\n    and isinstance(node.test.left.slice, ast.Constant)\n    and node.test.left.slice.value == \"backend\"\n)\nwith pytest.MonkeyPatch.context() as patch, tempfile.TemporaryDirectory() as directory:\n    patch.setattr(runtime, \"_execution_metadata\", mislabel)\n    try:\n        test_public_runner_matches_real_simulation_all_fields_and_diagnostics(Path(directory))\n    except AssertionError as error:\n        frame = traceback.extract_tb(error.__traceback__)[-1]\n        assert Path(frame.filename).resolve() == source.resolve()\n        assert frame.lineno == assertion\n        assert seen and all(backend == \"gpu\" for backend in seen), seen\n    else:\n        raise AssertionError(\"ERROR corrected test accepted falsely reported CPU backend\")\nprint(\"PASS negative control: real GPU run with false CPU metadata rejected at backend assertion\")\n"
+  },
+  "source_files_sha256": {
+    "benchmarks/README.md": "61255bfe7ea15f3c2d6cdf5d23dfb5af42497065442dbe03ab6fc803814b78ee",
+    "benchmarks/RESULTS.md": "a4cce5dca162478c233be31a7f9811055e8d9fa2c2c6ae823f64b8906ec77176",
+    "benchmarks/__init__.py": "6c8adbb44c49808311dc942ecbc9ba32ce8effb23f4e199844d84355f50a4030",
+    "benchmarks/profile_veris.py": "9603b3527527399da41f4dc2eba502a4eaee4cfa1820debb354ea73ca878c29c",
+    "benchmarks/validate_spherical.py": "dd2155c50aac34cabb39316aea614f24a4b5ecf606e42e92ed382d9d22540f10",
+    "tests/AUDIT.md": "b4a39685e9a05873e039f73c3aece47f451be1103e6406ff64b79b244348ff2d",
+    "tests/README.md": "d16b031fe0aef3bacee1077803d29210864757f8a5d3f6a5847436521971ff29",
+    "tests/ad_sharding_probe.py": "64302dfac1a3c73a833c21d2257bf7a1053736f895250cd60fe62f5b5d8dcb5c",
+    "tests/budget_reference.py": "91fee78ee10f9b51e1bd79dfb1a74420c6878de88e25a617664b754f5cbd1ebe",
+    "tests/cli/test_commands.py": "92cab35abc60a12fc99dae57debd623a5bbe8a0358b3384dc9e131370c64b870",
+    "tests/cli/test_framework.py": "23bedf6795d9f6284f894a214e6b687773dad85cb50779a687c504acec9910f6",
+    "tests/cli/test_inspection.py": "ae5964391ab7976a4ef2c8316b14659a5f5c846158aa684eb08ae802044b3ea0",
+    "tests/cli/test_named_setups.py": "77d1a5d130dfff0696b014768a53e67477d7f899f2f95ff4930a984db4017b80",
+    "tests/cli/test_overrides.py": "5678e22572d2d2b34e48e378484be003f026e5b6e0aa64f5eec9fae264a7de0f",
+    "tests/cli/test_run.py": "7a8b73edac4702a6afedd6852473717b7127faaf1b3ade60d9bca138cd54b223",
+    "tests/cli/test_setups.py": "c4c25d466c4d8f315342b687b12bb34318ce792ccf9a23025f7a656f89f13d85",
+    "tests/closed_y_sharding_probe.py": "e8cee03b378250904486b5d78a1d6e0b96768e4f2669eb59ed1057fe3985fe52",
+    "tests/conftest.py": "922654102c56c5f5357114035f772509cf50dcce06fe22158e803a2ddf7f9e8d",
+    "tests/distributed_framework_probe.py": "d693d54ef1a883fd71003be40223a157917a83cd44a32fa3e79f8515720710d4",
+    "tests/execution/test_backend_policy.py": "efd3cc4faebb278d456324a31e6ce8e54799d67c4d3fd12393844f70c698b570",
+    "tests/execution/test_checkpoint.py": "43a383482cd2c32a118e8a0d61a1d9be6f6ec590c97406af73607cb8d6cd86f4",
+    "tests/execution/test_compiled_advance.py": "4a4f698b13c03afe16cfb307bcd4f9f3305231ab75c66c8e5e30e22fec4ce7fb",
+    "tests/execution/test_distributed_experiment.py": "4fd4b83c30176b5b98ee2ca6e1809f9b8fef534d9bfb5f537830202266ecfa1e",
+    "tests/execution/test_initialization.py": "71fe657e093f90168153f498cf68222ea6b75e804283103b66d7034d863e6708",
+    "tests/execution/test_integration.py": "6f432d86ad07262eac9340f05d8bbf2f4c4555d9ba220eba582ad5e8813d2078",
+    "tests/execution/test_lifecycle_reference.py": "6e8fcbc9385a94b244bbfaa75c675ecba2fff40ce12a37eafd78bbb7d47bcc68",
+    "tests/execution/test_lifecycle_sharding.py": "a4e8d205727df629dd4588f3f82e5ae424633552f9163fe5ac0f16cc1ecd7a7c",
+    "tests/execution/test_model_initialization.py": "18b962433dbd2aaef842b0d1ebe2b5dd97b8f5ff8b387e5034859498449af825",
+    "tests/execution/test_model_physics.py": "bc200747d6a9549e20732f99402cbf36c29c9b47a993688d8c202912be26604d",
+    "tests/execution/test_model_physics_sharding.py": "93e432f7643594602ea221c562190f1f8d3899479ac74059301cc8af5fb813fc",
+    "tests/execution/test_observations_output.py": "f1f5edb62a293ddf3da6e450e9bf5dd9550e3b2adf2d038e30b16fbd98b11732",
+    "tests/execution/test_provider_initialization.py": "9de0b62ced0b4eb27eb3c1fe642fe60e255339fda8bef8eea18d6d0a9f687a70",
+    "tests/execution/test_review_contracts.py": "d196e8d6c79966d6e47b4de5853836040a850eb24dff714b391a4005bbeeab33",
+    "tests/execution/test_rollout_output.py": "8562830bfc70c2c8f2b6fafb37127f5afb7b70b7f82af1be1600ed0094f9fccd",
+    "tests/execution/test_rollout_setups.py": "d86361aff0c8cbab09174b5aca473b466b81396c3a12fbe49d86f6532de74170",
+    "tests/execution/test_runner.py": "7697de30ab44820fd663faf76f7d908a79bc7859b2c9be5c1f852ce81c6ff2aa",
+    "tests/execution/test_runtime.py": "9307e86c087dcf4c9b95a64a26b1d694d84ab9f2f2da71d354bad19e5590e16a",
+    "tests/execution/test_serial_mesh_context.py": "df1935bd84364fed0184b12044081327433720bd3ed23b501cd85cb6579f68ee",
+    "tests/execution/test_simulation.py": "a18e3fefb20c5ad2c2feca471cac4b6cf4c15f9b1ea4ff586e7cd741f5e44f3e",
+    "tests/grid/test_averaging.py": "4495bb3b86d9113dbdee97921ae9f5159c288e33e7a812a62bfabd7d9294826b",
+    "tests/grid/test_closed_y.py": "328a1e20cf2dae239a0525dea1d31b5824d74e6e76691be0c4f4051e80ca9a75",
+    "tests/grid/test_closed_y_stress.py": "bdab94e150497c2f65a5606706f05fa665cce8631152760171b4ed4cdeb3a2b7",
+    "tests/grid/test_fill_overlap.py": "d316414c5b0e74f9dc8676f747c58549e8cab25bdb44ec6dabbaf917a515b843",
+    "tests/grid/test_geometry.py": "439f6edc0dd6a59a36a800919b241cdde1e287f61286eab5842280a8641c955a",
+    "tests/grid/test_global_sum.py": "6500a5aa50dd623acc63220084690aa5f12941118f13df970cda66bf463e5789",
+    "tests/grid/test_halo_compilation.py": "8477b03208d035b93403986142885e04baff528165e2ed3e2b81fcee560a6f33",
+    "tests/grid/test_initialized_sharding.py": "a7c026e86a72c979127cef15d1e0b2c6587d0a14f6764758e6a6d64114bad9db",
+    "tests/grid/test_model_regions.py": "09ea547fce2f5d63316aa8fbe979fba74ac6d12281ba5e944f72246f962e67c5",
+    "tests/grid/test_ocean_setup.py": "fbaede3dc07a6b27288b27563a7e7857414e303c8842d303d92511b1f88b684f",
+    "tests/grid/test_packed_halos.py": "833d96a92a652e7c2cdc98d4f9324ed63eae2d8f94240b3f1c731fdc9d3dab4f",
+    "tests/grid/test_spherical_operators.py": "289c2294530e2fa0d34039cd883961beec1fecdce8523a73e697d7966317a96b",
+    "tests/initialized_sharding_probe.py": "b06287f1d92216aba4b77ba2ec02ddd3ff7316b4b2ac5ffca6487002518a35a8",
+    "tests/installed_framework_probe.py": "125e3544f7d07510568254b9664afffd7d474b42ae96aef872f48f66adc8c87c",
+    "tests/installed_lifecycle_probe.py": "d3ee7075487c8e61ec5e7bc674e497d36c6498bd7eb281b8c8b7a11956ed61f2",
+    "tests/io/test_calendar_averaging.py": "8c38a30300a9652835b6da31ec870f7064252b1f3345e2a4869cc6e33754d3c4",
+    "tests/io/test_callback_lifetime.py": "cc6ffac1c25d222409691822babaf0f321e0355c2f484aea1f69235d4a301479",
+    "tests/io/test_compilation_reuse.py": "2022aacd310071a8a7acc21501ab6e84a6fa6f29a2bcac3637a19b71c33b84dc",
+    "tests/io/test_io_calendar.py": "82a6284f3510801d729734fe0411e4ddf88d6bf8f4e28f6ecf75cc4273678d0b",
+    "tests/io/test_io_distributed.py": "a7863aefd334cca69d78d0f7cba6bbd6170c54ba0461ac3dfdedd6c32cfc03da",
+    "tests/io/test_io_integration.py": "d1670323d3d1848d9fe38f06565b385f088ea2ae132c81854feffdd033067edb",
+    "tests/io/test_io_output.py": "61b9c0a8db82bc567f1016a0813dde4bc911c6d2480b7331062d7cf9624d4a95",
+    "tests/io/test_io_restart.py": "e63cd60509e07f33a7f4a1cdee8e0ad62352b63f98b40785231ba8f8f4597c23",
+    "tests/io/test_io_storage.py": "a05e83ddaf010dc3aff1e5157a0ea5d97b782e28a401e7e800e68984251732ea",
+    "tests/io/test_lifecycle_snapshot_finite.py": "1456020888116585737eb57cfda0729882434e8f0b7b563d7a663e58128c4af6",
+    "tests/io/test_output_continuation.py": "3c9e5e0fa477437ba4d009ff90bf66a1eff1973bd9726be59f2fffc537102e88",
+    "tests/io/test_output_reduced.py": "c1f6ca1e303459e41c430b208cefc75d638f13bee23277fa4682e15b3ae006a9",
+    "tests/io/test_output_scan.py": "a81f9e6c9ca42216c8581ddc82f375827e8b991a93e15c88dbc358f60ba8b341",
+    "tests/io/test_output_scan_memory.py": "a1cd5b1f9651d7fe40c3c642dd6384276afbe5a3648a448cc40ca50ca329181c",
+    "tests/io/test_output_scan_parallel.py": "8527a1f6f0a522006f2c1c49779fca4e3b3ab7c14ed11c36b56bb3943fb3cc82",
+    "tests/io/test_output_scan_physics.py": "e025cffe9ce91747d22232512c9f1e086f75675c2cef0bc56b95d014c11ee0aa",
+    "tests/io/test_output_scan_validation.py": "49a71aea573b30ef513fd7c387159ed883a65b9fbe1f92d5eac97cb7b35e3222",
+    "tests/io/test_output_schedule.py": "1acb2f8567b7b2992832a4d180c43e743bdd92a98422f42aba409e30268f1111",
+    "tests/io/test_restart.py": "1f3454dab95b08997e03291af6f9f3570e5de2642c863507a703e2abdf1cd7b6",
+    "tests/io/test_restart_arrays.py": "c5f55131d3c1db0e2eaf481b9dc3b72b75159e8ca7fdfa4866d7a9aba2e6a5c5",
+    "tests/io/test_restart_contract.py": "9a7898f9536b4046967759c08b833326ccd39883c2ede81a16d6d1501b041218",
+    "tests/io/test_scheduled_inputs.py": "79bd2cac7bfef6082ae5a1670ab42b924a0f29c8e190243da6369c59472e3844",
+    "tests/io/test_simulation_io.py": "aab77655e1fa4cec9031bc8ea5cc7dcda9b54d083ad4c829bb42275a9ea9abd3",
+    "tests/io/test_simulation_output.py": "40a889e3db3b1d7ed3ed3e038bea11302b5166db6d310edc8eda3173318d93c8",
+    "tests/io/test_snapshot_collective_failure.py": "f8d43533477c4aa5ad5e7660b0f1f75ee320b9055e31c18b50485ab57bfae6f5",
+    "tests/lifecycle_sharding_probe.py": "c1aa5afc223d4d1d70d7aec74a27410c6a992678c37fbecdea7500538e22c515",
+    "tests/model/test_central_types.py": "aa16a8893e45ddb92f2aae720e4d96a83235695c7ea9139d80843aceb3c7fc42",
+    "tests/model/test_coefficient_registry.py": "0ffaeb57f8fbe9340b5c7d6dba6dc45301e6e0c7d5125ce7525fd07f75619e3f",
+    "tests/model/test_configuration.py": "0ba47caf882fa31f352232cafd83ccdc0be7e72b5d44f661e44307f2c703850c",
+    "tests/model/test_diagnostics.py": "bc932f1b18a08b461749ed4704800470581ad675ac939a865af9347d07a0d729",
+    "tests/model/test_experiment.py": "26762dd8b231b623ec38cc5283a1229a9a739e64630e4fbc915eaa04a87cac87",
+    "tests/model/test_experiment_configuration.py": "de1f78b00abfcee0435141491190cc072e341780204f37bba45e5922acfe76c3",
+    "tests/model/test_experiment_exports.py": "f91668fc0af960f7203d895862218eafbe767680f48f8daf766c3c72c04a881a",
+    "tests/model/test_experiment_file.py": "5aaf707e17a3b47380827a6a9637e4fc86153317e9ba3bfef978b04c02795acf",
+    "tests/model/test_experiment_resolution.py": "b9c9c1946ed335505007def2cd58b5552f3c33233576c1f0b45ab6770e7d10be",
+    "tests/model/test_forcing.py": "dcd026fdb9d956d0a09c99dcfd0b35a7e9b64c63ad19f4e97ab3087ee3bb7ed8",
+    "tests/model/test_physical_parameter_pytree.py": "05450db72e07462e309e2304f4de86119d9c61fa40534ee0f9c9712f18c94a43",
+    "tests/model/test_precision.py": "7fbbab0b77e807002087adc271659a6ae323250149d26d37ee33e709b971c7e4",
+    "tests/model/test_precision_paths.py": "4a494d38aa105f3c52a816335b1d124aa3280e05db13ee724401c7afa01d925b",
+    "tests/model/test_setup_blueprint.py": "05fd77bffc92c941dd1f68aa8e68bb5105a50586672ed38f40ba153d80b3a4c6",
+    "tests/model/test_typing_contracts.py": "9bd44e1762d24a319e7070f8e2ae3e82d30c0563ecad3617fa769ce00d80a7a9",
+    "tests/model/test_variables.py": "a73462f144cc979577dbb2046ed4c952971676490cd9799331fa2746255e8f0a",
+    "tests/model_physics_sharding_probe.py": "3b5cc9a5ff946ebf8c165266ec27c3ad55d42ca12b7ab767b7543b37e1561635",
+    "tests/numerics/test_ad_freedrift.py": "96109934f4c0cfa0c309e9d1d72ff29a5bd100006a5928bb6f1358a2ac0e1ea4",
+    "tests/numerics/test_ad_primitives.py": "b8a8d61663bd98ddd069aa1bb31a2997e7f3eb0c1b17beb85f6d0540b06387ae",
+    "tests/numerics/test_ad_sharding.py": "430cd98888ab52d02e2642214a8b2a9e257809e57d20749e4b05a434f8860092",
+    "tests/numerics/test_ad_zero_states.py": "3a0ce92ff9a880551f457387a41428e3aedac8ac71fd25e14d1e6bd4f2fbc7b5",
+    "tests/numerics/test_dynsolver.py": "2b2cef4ca084ce21c426cf04aebd345133f8d73e79fdb56169078948b7ddbba7",
+    "tests/numerics/test_evp_optimization.py": "8c1c4ec9cd5d4b5b8f1c2ad59f59a8bb9a2ddeabc6fa90e3363c5139d2357e9b",
+    "tests/numerics/test_evp_solver.py": "6e84a368287045e1d1cd64b95592cb1c5396362f010b45c1f055d272d7b53278",
+    "tests/numerics/test_freedrift_solver.py": "a567fa6284d07dcb0d03bc457834e9de3b075bc9b68d6060d6b27a4e3f270f8f",
+    "tests/numerics/test_gradients.py": "a4ad1b9de63019da0e758619ec07873c39185bcef9c67b1a1f97cf7d21ff3daa",
+    "tests/numerics/test_nonsmooth_gradients.py": "3c1eac10426d8e8c824d055feb80677c178d779aeecd9bb9ef93c6f9a11fb176",
+    "tests/numerics/test_physical_parameter_gradients.py": "92fe403f4d2a1872f43e1e8d609953b983a1db105d79f941e38c7c8e203115df",
+    "tests/numerics/test_solve4temp.py": "a21f449965d6fb3658010b00cdb49a0a1fec63c5ad59d03c45c1d21b960f4a62",
+    "tests/numerics/test_solver_typing.py": "1487136f62ea623d95da6d29f6c2a34c428f624edac55a4c8b9140a5c0cc12b0",
+    "tests/numerics/test_surface_temperature_precision.py": "32b71443b517cfd29fb2ca776fb8681561dc15f07c34799000ccd0244c743ab8",
+    "tests/output_scan_probe.py": "5049c07f9a50d7624213fcc34b4d088dd5ebf5945a0f990085d82f243a1ff0b5",
+    "tests/physics/dynamics/test_area_mass.py": "d7c1e4052e36cfb308844ea03745bb83424c7e70c68c38f6f19895bd151daa03",
+    "tests/physics/dynamics/test_basal_drag_stability.py": "9f81422a06eefb4947447fabd12eabc66fa278cfd124905df7b2cea64530f95d",
+    "tests/physics/dynamics/test_dynamics.py": "fde11c257e63445c5556473dfbe7c1226757aa594e5491db7ffa526587cca3c4",
+    "tests/physics/dynamics/test_dynamics_routines.py": "798674a7b7c15b74573b75d2c73e308db73608ab7e96299f4cedc8d10aa24a69",
+    "tests/physics/dynamics/test_dynamics_typing.py": "8945fd5839ac88552958132f507d0daa304ac26b6b09cc40edaa7f4c1bb37c69",
+    "tests/physics/dynamics/test_ocean_stress.py": "0fd4ad895b1f2ef09ca07845c1ef2a6d07b93d3f10e1facf3c04fcfd19e0eeff",
+    "tests/physics/test_unequal_timesteps.py": "3628da701f84ca782da164e31a0520c2e9f0c3b0cb34498e855e11f7af0e365a",
+    "tests/physics/thermodynamics/test_ad_thermodynamics.py": "0e4a81c066bdedbb288fd662a7daaaf021fe85e0861bad7056d333d7a5ac88e7",
+    "tests/physics/thermodynamics/test_growth.py": "e3527ba2b62f7a5f084cec0141b70ffd9c0c1fd680c3317f1b73a690031f26f1",
+    "tests/physics/thermodynamics/test_heat_flux_CESM.py": "779d048a02f1ae22b5609e7ce7ebb69f2bd0bb647602512f5ff5edbdb22a0ad2",
+    "tests/physics/thermodynamics/test_heat_flux_MITgcm.py": "9041ec1e21b62a9beb6bed06747a90d47b7a5873d4dc0949f5b05ec149676501",
+    "tests/physics/thermodynamics/test_heat_flux_typing.py": "50076e53f394058d807d1bd89b78e385af0508aa7abb1be8ca8f6f7c0fc2094e",
+    "tests/physics/thermodynamics/test_ocean_budgets.py": "4cf17f7aab43812df60f17eb0f8866107c56fab2744bd3daf01d8207bca3b97b",
+    "tests/physics/transport/test_advection.py": "f449f005b95cad222a4847a049f451c1e115b5e290c106f17a287c316f7d8d0b",
+    "tests/physics/transport/test_clean_up.py": "a5e13592a9942640cbd2ca7cb3ccb5cb6eed233e6554d28084459a42d60843f9",
+    "tests/physics/transport/test_spherical_longrun.py": "6494243f748d2467c5f6a445b89e55b5c609d9e5f21171371f59656f767527c0",
+    "tests/physics/transport/test_transport_typing.py": "af9dc2db72b142735282faf1f58ba55a1c886f53ed9f27c0080f1966c5831cee",
+    "tests/process_helpers.py": "cc4b288cea4e9bde6dd790d56c63da1addd04a60bd7e54895d491c41e9efe2ca",
+    "tests/reduction_probe.py": "a294e7cf8b444507c4653a4836f52e8a9d4b1f6d3395fdc6b8d36ad68dd7b413",
+    "tests/reference_data/README.md": "b86472b85c6b0659a238474a96243e2496acb2b72e4116a50ea3baf3ce741b61",
+    "tests/reference_data/configuration_pre_dataclass.json": "0d88b6716d4e19ae0cb0e7315425902e9be16dfa363e2b34424f06d667b0c4a5",
+    "tests/reference_data/evp_pre_barrier.json": "734cd724b241da65a0813b4583cfe3c2908110bd7cecc93dfacb1466708295a2",
+    "tests/reference_data/evp_pre_barrier.npz": "bfebf7034b804ee0082ca31e3c64bf2a0828a6caf2ddbd392234fc9f237543e1",
+    "tests/reference_data/generate_budget_corrections.py.txt": "3c5343aabe4b41f91363af676b4efd9051d474849262949f3fa8d891bb1b7fe0",
+    "tests/reference_data/generate_legacy_unequal_reference.py.txt": "222c85ddb7a9ef8f8b880bb5c20ea10733d1ceca205b53ebd69b5a391dfb5d17",
+    "tests/reference_data/generate_lifecycle_reference.py.txt": "05f0a18d141c3ab299be18455271117405b50fd04993f3cead787034ed479fcb",
+    "tests/reference_data/generate_standalone_notebooks_reference.py.txt": "4c14af7e3b0217a1095cda116eae4a5d15b4c94da5548435f175171c2e8729d2",
+    "tests/reference_data/island_unequal_legacy_v1.json": "59e305430dc620bc7eca5918160d308064bd2be5db0bc3e8553f57b05294af1e",
+    "tests/reference_data/island_unequal_legacy_v1.npz": "fcd21b244f251b25edb464e86fdb0f4d81a0cc62d38841620b2c48eefe14ca01",
+    "tests/reference_data/lifecycle_legacy_v1.json": "b36d03734aebec8f721c204289d02a8590abb059c8be00162de9e33daab0d01b",
+    "tests/reference_data/lifecycle_legacy_v1.npz": "a84fe73968b143ad9db776d8e795aa784b9961ef7a29be590d2039b0d4e8bcb6",
+    "tests/reference_data/ocean_budgets_v2.json": "5eff151ab72ed10cea6a7e8c67de9aa775defaa49b2b2764d8f033b2b2f583d4",
+    "tests/reference_data/ocean_budgets_v2.npz": "040c4428b6369593ab78fde936e4a1da3a6bf631ea9b4df510cf41405fcab1e0",
+    "tests/reference_data/standalone_notebooks_v1.json": "907471836669fe9f6955248b9ddc0afaa07651acf82026eb3ff8f4e899ee8fb8",
+    "tests/reference_data/standalone_notebooks_v1.npz": "1c9ae45ef50096151770c62e82f36ee34fcaadafe580808aeb774f78f786a016",
+    "tests/rollout_parallel_probe.py": "7ecac0d4c2803213080dbfc277d98704bbcca300169698e7aa7ceda4cc46938b",
+    "tests/runner_mesh_probe.py": "932ea31a326a60a124d948215e67cb3359452a09ef27369aaf5d48fed53a04cf",
+    "tests/serial_mesh_context_probe.py": "0f443b9c4f7262ac453e2f3c22058f77e37d0e64f7a44fa3b81f829b52458673",
+    "tests/setups/test_cli_nested_output.py": "2eb07afadf85e41fec48ca09a085ba4fc98cb8f045b10a1c99f8153a9830222d",
+    "tests/setups/test_cli_output_settings.py": "22d03473be3486a8b8eebd6548d154f9f811730a81b9e41582fe7ba883793da2",
+    "tests/setups/test_dynamics_case.py": "3363f472ad6a1ba6438d61a745e2344a437e1bd17072db8e983fcf26c7f4343c",
+    "tests/setups/test_growth_case.py": "89555a618f56696aa7c124d3c24a200abba0865950b85492597d288c5c094074",
+    "tests/setups/test_island.py": "41d0a7838b90268e509532620c96ff5137032bfa0a44a1e71a6877360fb56662",
+    "tests/setups/test_lifecycle_cli.py": "045d356a6b0f9dce6de7f882791a60171dd4b8eb660b5e4253c4e42b6491eced",
+    "tests/setups/test_notebook_equivalence.py": "6700a376a861944fe151aa31ba4f2cc601b397995bdee6eb9008ebf26a87eb5f",
+    "tests/setups/test_parallel_case.py": "98e1367c7c07eb4972892f0549118d78c2ed93fae5893a8fe87f30e82c742b80",
+    "tests/setups/test_preset_registry.py": "565b9fd11e332514da665af21c3f5a5826d2f20032ffdc1040099947cb3879b7",
+    "tests/setups/test_presets.py": "291cf43fa4bc149551903fc204ae6733fc24f0d897cb75dbca66b3cc4504b60b",
+    "tests/sharding_probe.py": "c553390d6c5d8812c406226a439f5dd27950636f738fff2b2828b4290daaf7f8",
+    "tests/slurm_framework_probe.slurm": "8a79a525ec00b7d460f33b2a9b535f97a87f19f7b7f24485751b5301234b4cf9",
+    "tests/test_benchmark_profile.py": "64c6bbdd4ed216c87037f40a3f19e20e8d220e139505f92bf1d6bcef3b8eb8d6",
+    "tests/test_package_architecture.py": "3bef96a0bc3aa828b084e3cf48bf06765d9a6b2fde46767264c03c1ae11cdee3",
+    "tests/test_packaging.py": "8ca65a01a37bb6518be7a192327aa92034c593a5a2471e52d1f6865e249eddb5",
+    "tests/test_parallel_runtime.py": "7aee4408eac0636c36f7d3a74af439b5249d50f0bebc1ed5631b987dead2d0ab",
+    "tests/test_process_helpers.py": "a96d05d72d8f8df75f372a5ce776bb6e1e61b5546aebd9d2f61bbc2d78624fff",
+    "tests/test_pytest_runtime.py": "382a16007fd84a915a4f4d388053da7927451540e5506baffed2a83970d8e3e7",
+    "veris/__init__.py": "19cff02d28bd49fb24aaf28dc5bf1cc589f138adc0cf881b8ad7a3cb03fef81f",
+    "veris/_version.py": "e840fb5ee99d2e5ea448eb225582603c4669ff06936ff34e4420a7d54930f21a",
+    "veris/_version.pyi": "b5aece4f37a3d139e362fe127bd62c458141b7009a256bf139a72666e9da5098",
+    "veris/cli/__init__.py": "ee5e52f5a379153134880bfe57376962a761299cf513bc0352a9cdfd63c4b4d4",
+    "veris/cli/__main__.py": "944d2c6a0a251c50d563e43a68ee7a4be795dab4109291f4c79a7b4c1faa969b",
+    "veris/cli/overrides.py": "ef09d168847852fa9bfd250778cfd15ddba5a4bed0ff6b3213400b6907774849",
+    "veris/cli/run.py": "ae952d85281824fb33cb47b841a579174f1ebb8a22cc7dfc11b2979246bbe806",
+    "veris/cli/setups.py": "3ecbe0b8fab82261e66f8c44ddd97efa5c50e0e107cca52d9dd85ce7bc790b7a",
+    "veris/cli/templates/dynamics/setup.py": "dfe447a0b1ff314445d9a4b44efdc5dc687bcb88b9d422d5f7205d4acd48b501",
+    "veris/cli/templates/growth/setup.py": "fa3a112c62d63016e6a7c735944560814873f60e5d492e95f495121c51409b16",
+    "veris/cli/templates/island/setup.py": "d1a9cbddd49d420b8e7bb1a8a7619b269214667c1553210edb0d57e17346af48",
+    "veris/execution/__init__.py": "0c285efa7de51567e201321880f17980de181aa75c7f407ca9804a4072baa64d",
+    "veris/execution/advance.py": "b4f34bc465112ac09ef2ccf69d4948759e2905d51d6da3cc72351a0f61c8bc91",
+    "veris/execution/checkpoint.py": "47d31711c3ce1cb84f04450b34e8928bae46fadbc5c435db9e5a4db33339d09b",
+    "veris/execution/experiment_initialization.py": "16c66b2e5e50d9d7961065b73e75d16946a2c0211e56bd9642d0cff239a67aec",
+    "veris/execution/initialization.py": "fc569deacfe1ed9cc7be34e36cae497f9a3d01527f573e3409ecf7891c90d61b",
+    "veris/execution/rollout.py": "165bde9e3dda1be3ff18fc41065f31f89015130e268dfb68a4cd782c3a4f14c8",
+    "veris/execution/rollout_output.py": "00245192054fcb7cc72c17cae3023d9c91dec0a718c9541dba89df171960a7e3",
+    "veris/execution/runner.py": "40916660b0bac86842dec7a8f24bba6140e3b84b1f12715a411ed66cacaca412",
+    "veris/execution/runtime.py": "f9b5c8e26b0209e95fd149823e7646f0667a6a30f49389d69adf29435f178315",
+    "veris/execution/simulation.py": "49c38f59530235b78538106e9af099adad94ee8a7dc755b754334b832b53e898",
+    "veris/grid/__init__.py": "a687fc711dc7219d52640eb99cd5ef07837e6fd8372fc0cf20cce5e5a7bb1709",
+    "veris/grid/averaging.py": "f855757c2f88899f81a1827aa7865e37ad52071051cdff6d822c21ad308747b1",
+    "veris/grid/geometry.py": "ddd1b99ffdf389c5c93e7a1441ba54ad826fb389757950b3f734b087013f3b46",
+    "veris/grid/halos.py": "9681870ce8cab6cab2e5c8869bc15cdb9fa18c6bdc8b6496ee6674d4d4bd7e3a",
+    "veris/grid/ocean.py": "10eef95b076f7ec1642f8c446437311b0406db85da4a621866f5fe7ee9a8e728",
+    "veris/grid/reductions.py": "d8e36ffa94defa8c8983027c1e8d4eabf7d39c8fa13dabe69a449eb962b460e4",
+    "veris/grid/regions.py": "b114023cf130cefc6169d95f6a5e2ecdaed18859d907c588aab1277b98e81181",
+    "veris/grid/spherical.py": "6ceda888728c23d8054dc346072a703fc30419f0b6c1f48f1959f75bef894f30",
+    "veris/io/__init__.py": "e71949d0aa176ff032c16f4f42b0d2ac1ca6a2bfb8d93438b6287c1d9ab48e51",
+    "veris/io/calendar.py": "bd980cfe28b66ee63a1b893e17ffb4cda61d8026c0118d4b479cb2bf6e50f862",
+    "veris/io/cli.py": "056bbad4eba75c822224a907cad7e56f9c18f92ef8d9fcb47969d4cc87fcdd4e",
+    "veris/io/configuration.py": "bfa755d8619e75b87e4877143c6dcdeb74f7441bce8b63df0abad75f14634903",
+    "veris/io/distributed.py": "08b4f15592081c04c9fbf5090734758b7367144b0716369661cba6952dd8eece",
+    "veris/io/guard.py": "b4b530c10288f7239efca099b6e8b2e10a87778f5755896cd58294ca0958ddbe",
+    "veris/io/lifecycle.py": "0d044faa54873dd6c0dc35f5fb7feca9a1e599a28d12243d39ecef2ec54a3c9d",
+    "veris/io/output.py": "f3803d79da8adad35977e3aa9bda76fc1c6b3dca1b264e094b10ad392450c3cf",
+    "veris/io/restart.py": "c5a11e9f1982a2e8b5962d2a33a2f18af83c442e638d0a8894f17725e6fe6148",
+    "veris/io/restart_arrays.py": "cc71bc22ed3ef18199967c68ea64ced8c9b34e90c607c32c1fd184ab03167863",
+    "veris/io/scan.py": "a8d4d06fd9fc9867d050934d60dad4400d6666a2f453377956790436243a171a",
+    "veris/io/schedule.py": "f02bfae40bbfbfd0a2e55117d3ca808cc37d410ad9982f78e432ef1058cabb59",
+    "veris/io/storage.py": "c0c70426bc656e0a25f616ad89978c6da16856262f7810e83df8b4891294337d",
+    "veris/model/__init__.py": "b2846e5585cfc69c23d396372d3c633ec2ba421fbe2d9b1c9be250166c838659",
+    "veris/model/arrays.py": "89359cc3e2edf164247555ab25ec853dc706e25f9da3c1afcb8773c35e4d59f0",
+    "veris/model/configuration.py": "0e070de42dff384cb36b446767cd3fecde38801b0a88c31e047ba3c4a2e4c249",
+    "veris/model/diagnostics.py": "cf0a7fa4906e793d5b5184871fdbb0d5a553b4a168291e3aa94184f299efa28a",
+    "veris/model/experiment.py": "ce7a8821881d41aed58289415eb12367064ec3f6bc87f638fc469c428691f14a",
+    "veris/model/experiment_file.py": "4749166a0ab987241d769d1632e372ad250444880201371a5fbe8a1756b1c1d8",
+    "veris/model/experiment_resolution.py": "44dd053f7dcaefea5f7d85b7fd452c615812179e0e120bc4b45bdf7f20e2b48f",
+    "veris/model/forcing.py": "567120f7b0ec386014cbd8af1da45751c6d98a792528762cd279b325fd080950",
+    "veris/model/metadata.py": "c490c9e9cc174a7a72d694afcdf49fff9936a90068a13c980248f2944bff5aae",
+    "veris/model/physical_constants.py": "3bbb28ca94935f9b0bbc77af73df696a795327d0fce3ad035853e9ff3c79bd1c",
+    "veris/model/physical_parameters.py": "91fffeff7f252b3cc3c1b8ec9cfccaee44bebfd0e79915af8f7d85498e29c931",
+    "veris/model/types.py": "ea8b3e426aa9b743d9b6d89718762cb400ca2fe949c169f6ca77db5adeae6a3c",
+    "veris/model/variables.py": "de66715d9735f76e1764f015e47028922f4775de4eafe504c0f1882b2a9d97c9",
+    "veris/numerics/__init__.py": "44de8bfc6d09fd3de31a208342573d5194c153e24e48cc81abf0714813bbdd41",
+    "veris/numerics/autodiff.py": "0e3686f75aea8d673d9c1814bc9c869fcd73f7860ec314a78f4428ffaf540675",
+    "veris/numerics/evp.py": "b49b7086a5f5f1128702394bc28fefe2c51725c8526045cee6c9b9dde840de05",
+    "veris/numerics/freedrift.py": "2d80948d7a1a4b570f9f3226f9567f00f86c1ee5e9d7979c191d4fb4eebbcb6e",
+    "veris/numerics/momentum.py": "791d235f0f10497c3db8f14919b4a55f64b5369ed50ac6e0829b38b96f000921",
+    "veris/numerics/surface_temperature.py": "e0392c1219fc5a03e62c7f340cb6b9fcc5ef8918a344f3de7d12417e6419eff0",
+    "veris/physics/__init__.py": "b883bde8ea232430c438165cfdfe3893f9c21361697bc2305126d3255a9bc88f",
+    "veris/physics/dynamics/__init__.py": "ead340d5a894410d21dc1e32491067e6fb49c7ac88b6d856a354fc5bf4e8aecd",
+    "veris/physics/dynamics/area_mass.py": "8ce169371512284fe37f3d6c76d913839011a095e69f4731b683e20c35609d6c",
+    "veris/physics/dynamics/driver.py": "9025b55aaa185c1c34e514260073a0b88909944b19375edbf400d1cdb8610470",
+    "veris/physics/dynamics/ocean_stress.py": "c225a69575a7af274dcd45031c30bfa4395068fdeeaae3b47c4dd1a56b12eea1",
+    "veris/physics/dynamics/rheology.py": "023062ab3c2f5f391281e1b939b607b3d4603ef51ecea6ca541f56863c26e62a",
+    "veris/physics/thermodynamics/__init__.py": "373fabec4d709d31cbe5ce23d37123eb8f1b6be16ba8fff9f2cc9c6510d559d0",
+    "veris/physics/thermodynamics/budgets.py": "bd9a468f67cefbc873b8005fb9c48aead49df42f45d187bce7ecc5dbd6a2d87e",
+    "veris/physics/thermodynamics/growth.py": "29d526c3a42d223e047e47745e1f8ad7310ebd8620c24483aa7de000d697778c",
+    "veris/physics/thermodynamics/heat_flux_cesm.py": "282fd4f0dca0f94972343c83c89f7c7d500897fde1198ba3ef2a3fc5900492a5",
+    "veris/physics/thermodynamics/heat_flux_mitgcm.py": "55ca67017c7b73888bce8c189cc73d0d19e62b4f0f963f937e38b20bab669fae",
+    "veris/physics/transport/__init__.py": "7566136296d62204d4baaef55823d58bfaeac5051be2ebb838b0e50b37a1548f",
+    "veris/physics/transport/advection.py": "8dcd2156bb6a1abea856d57229f269e11dbdd8cfc1c9984ecc0fdd4cb3908262",
+    "veris/physics/transport/cleanup.py": "6a58b2278be933973eb8d4d0e5d89b15385f46f6fa29585021bb8bb9d2b2da70",
+    "veris/py.typed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "veris/setups/__init__.py": "ccffb69f1ade06f9b234f448a549588bc0d3d7776460c90b199e98010cb3e3cb",
+    "veris/setups/island.py": "e1b2c7ac3e9baa0a05901dc5914d4ece6c710f83f5d0e37e801c8a6cc2a380bf",
+    "veris/setups/presets.py": "ba79397d0c52419ecf1cbf5c8ecebd5022cd2f97a11bcc8a0e67a9766e0e9375",
+    "veris/setups/run_dyn.py": "83321fb7f79a760d0deecae095cfd73163ad4fcc0f23498c3215e89d550d02f3",
+    "veris/setups/run_growth.py": "6758e3cb652017f59d5991398659645e8f56c27b528e29ac4c9ba3ef7a71c4f1",
+    "veris/setups/run_parallel.py": "d4d6379e3ed79b78b8f27b94713c6c82bc46ebd9eb348bcce9e460703a3ea921",
+    "veris/setups/run_parallel.slurm": "9347cab52761bd6389cdf4ef0ee7789d4e08d1bbfe144d2401059eb53e18d5fa"
+  },
+  "raw_artifacts_sha256": {
+    "run-gpu.sh": "88345b9fa40f1b5a747ecf0ac64e6c7974168dae60d1451746661463247a4e1e",
+    "run-gpu-supplemental.sh": "f8abf99c6cde107ee6d56cbe3dbde106746e62a8e8b91b71c3b8eff89e9d5c07",
+    "full-aegir.slurm": "fc9cb89045aaa030eec04ce3e71f52042e44bb5982023f68cf34f7f982e66e1f",
+    "gpu-full.log": "4ca55a621ac0234d138ad668ea814d915e6befafc3e2bf7e876f7ed28c2a9157",
+    "gpu-full.xml": "9d2b49a44caa9c144877d2cdf8a504215feeabd9d067b9eb517db9761fb6db97",
+    "gpu-full.time": "e967e5082f693244df1cbefbf4a5645f0f8b5504fdd08122c191cfbf216d3523",
+    "gpu-environment.json": "45fad652dbb127217d4f01766b48b3aaac12545c595911a9baa5cbd7a1807b44",
+    "gpu-hardware.csv": "25c160a25e84fb230f5d0c8c2d471af300669586e8e6667936980a30e51be316",
+    "aegir-full.log": "690ea800f2e6732519a72ebb0b5507f26d66d2a53a644ce2bd23dfc382709e87",
+    "aegir-full.xml": "da93a38d99c061b02baa3f9c6120df52eeb2bfa217e161cae2d9e6f15cf94338",
+    "aegir-full.time": "36d76853e4b7ae4fe8064ec1f3788bb3e0e1b9afda4a9aca293cbfb33fbe6b5e",
+    "aegir-coverage.json": "9751fc1ea3c059dc345ff3e6f57d024d666d9f4a98b6ff66af54906cb9793b76",
+    "aegir-coverage-gate.log": "3239de21c356c11e8fb1f15eb4c0bc1a9d0619809cbac6d6655d01c868ded7a2",
+    "aegir-accounting.psv": "13c2b1e28d2b1881e38e9513d5f086209b34ce4e7af46ebe7ad2f8847da81257",
+    "verified-source-hashes.json": "45b57a84f31dfcd6aa1cc8991e729617b3320589a2d5a90ecc41cfe17ecdc2ad",
+    "gpu-probe-provenance.json": "8c2d05433dcd6ed4da5e4086c5985c6dc5473334a6ec21d502a579d8ed314e34",
+    "original-source-hashes.json": "4ed0b60cccee192e10e72d252c8252e37910bcd900ead2316460ea7edb18584e",
+    "gpu-runner-corrected.xml": "13b0904f01b4adde2eea0080e8ddcbe9387736e24db65b31b0b0cfb486d1f4a0",
+    "gpu-runner-corrected.log": "dbff5a84bf375adb08302b67792cd1dc3c2984d2277e5fefe0a65b391d347010",
+    "gpu-runner-corrected.time": "3d3c1dec416e764aec0a3716683431eda7fbffd6e16d6b8c13949bfa94a07a0c",
+    "runner_metadata_negative_control.py": "9783c1329c7dcdf1e72965d46e814654cba606656b18c47ae15daa94c49cb08a",
+    "runner-metadata-negative-control.log": "89a0362eee9ab15ddfc2ae51de91de72203706ac1a9a4edf4b7375f9e2aac316",
+    "runner-metadata-negative-control-setup-assumption.log": "0be79d4a718f1f6751f03c0271edf6e038d710029c6ad5fe27bec7d8fef59317",
+    "spherical-gpu-0.json": "f8c4014b077b76cb37568ddef266245a2764e3bcd04a93d97ed6dc25014f240a",
+    "spherical-gpu-1.json": "f8c4014b077b76cb37568ddef266245a2764e3bcd04a93d97ed6dc25014f240a",
+    "spherical-aegir.json": "5e49f918c5139734a32c853638edc7de12862eba607fe08a8a63bb82c59f007f",
+    "spherical-two-gpu.log": "cab7c5cb97d59bfbef2877f7cba19f4ed708b45224b581e17eb0ccb8f8e70bd3",
+    "physical-parameters-two-gpu.log": "01e119b3dfca3101df860cbe91a84653d91f0146192f08a243e4908375d1575e",
+    "reductions-two-gpu.log": "539dea588e2f3aff095c9dddf2bdaa9a64c2ee432ef4d6f1bb4d060e6d8deeb3",
+    "prepare_gpu_probes.py": "46db5fa6b3d3a085a906fe1c6c5f1aee8c37dc54b48d6c26ff7c311de35f65bb",
+    "spherical-two-gpu.py": "5963f5b6fdc18f1e35697144d7bfb6ea81002e4da00b1f47ef67f19d0d4bb84f",
+    "physical-parameters-two-gpu.py": "c22657647fb48bd063536512d83f04f1f77c0a3639468b0d4dabe1e3252f45e2",
+    "ruff-check.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "ruff-format.log": "28a62275631bd1465b8dbc1506809b573ce8ade5a6ad02cd73da816bab1230a4",
+    "annotations.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "types.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "docs-build.log": "d87ba29294b89da07966774cdf2c795e82a5766b9516079e578db72480ed9e2d"
+  }
+}

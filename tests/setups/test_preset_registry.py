@@ -2,7 +2,6 @@
 
 import json
 from collections.abc import Mapping
-from dataclasses import fields
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -11,8 +10,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from veris import Experiment, Grid, initialize_experiment
-from veris.execution.initialization import initialize
+from veris import Experiment, Grid
 from veris.io import OutputSettings, Stream
 from veris.model.configuration import SETTINGS, Configuration
 from veris.model.physical_constants import PhysicalConstants
@@ -111,41 +109,6 @@ def test_additional_registered_setup_needs_no_core_name_dispatch(
 def test_unknown_profile_is_rejected(name: str) -> None:
     with pytest.raises(ValueError, match="profile"):
         Experiment.builtin(name, profile="unknown")
-
-
-@pytest.mark.parametrize("name", ["island", "dynamics", "growth"])
-@pytest.mark.parametrize("dtype", ["float32", "float64"])
-def test_registered_field_factory_preserves_legacy_startup(
-    name: str, dtype: str
-) -> None:
-    shape = (8, 12) if name == "island" else (6, 8) if name == "dynamics" else (2, 2)
-    definition = Experiment.builtin(name, grid=Grid(*shape), settings={"dtype": dtype})
-    conf, phys = definition.configuration, definition.physical_constants
-    baseline, _, _ = initialize(
-        settings_overrides={
-            **definition.resolved_settings,
-            "nx": shape[0],
-            "ny": shape[1],
-            "use_sharding": False,
-        }
-    )
-    values = presets.get_preset(name).field_factory(
-        baseline,
-        conf,
-        phys,
-        definition.resolved_scenario,
-        shape,
-        (np.arange(shape[0] + 4) - 2) % shape[0],
-        (np.arange(shape[1] + 4) - 2) % shape[1],
-        regional=False,
-    )
-    reference, _, _ = initialize_experiment(definition)
-    for item in fields(State):
-        np.testing.assert_array_equal(
-            values.get(item.name, getattr(baseline, item.name)),
-            getattr(reference, item.name),
-            err_msg=f"ERROR {name} startup {item.name}",
-        )
 
 
 def test_growth_numerical_choices_reference_the_shared_owner() -> None:

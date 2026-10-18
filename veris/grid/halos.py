@@ -206,10 +206,30 @@ def fill_state_overlap[T: (State, Diagnostics)](state: T, conf: Configuration) -
         "OceanStressU",
     }
     normal = {"iceMaskV", "maskInV", "vIce", "vOcean", "OceanStressV"}
-    return replace(
+    geometry = {
+        "dxG",
+        "dyG",
+        "dxU",
+        "dyU",
+        "dxV",
+        "dyV",
+        "recip_dxC",
+        "recip_dyC",
+        "recip_dxU",
+        "recip_dyU",
+        "recip_dxV",
+        "recip_dyV",
+        "k1AtC",
+        "k2AtC",
+        "k1AtZ",
+        "k2AtZ",
+    }
+    result = replace(
         state,
         **{
-            field.name: fill_overlap(
+            field.name: getattr(state, field.name)
+            if conf.spherical_geometry and field.name in geometry
+            else fill_overlap(
                 getattr(state, field.name),
                 conf,
                 boundary=("shear" if conf.noSlip else "normal")
@@ -223,6 +243,30 @@ def fill_state_overlap[T: (State, Diagnostics)](state: T, conf: Configuration) -
             for field in fields(state)
         },
     )
+
+    if conf.spherical_geometry and isinstance(result, State):
+        # A corner dual control volume includes only its wet quadrants. At a
+        # straight wall it is a half cell, giving traction times wall length.
+        mesh = jax.sharding.get_abstract_mesh()
+        area = (
+            jax.shard_map(
+                _spherical_corner_area,
+                mesh=mesh,
+                in_specs=(P("x", "y"), P("x", "y"), P("x", "y")),
+                out_specs=P("x", "y"),
+            )(result.iceMask, result.dxV, result.dyU)
+            if conf.use_sharding and not {"x", "y"} <= set(mesh.manual_axes)
+            else _spherical_corner_area(result.iceMask, result.dxV, result.dyU)
+        )
+        result = replace(result, rAz=area)
+    return result
+
+
+@partial(jit)
+def _spherical_corner_area(mask: Array, dx: Array, dy: Array) -> Array:
+    """Integrate wet quadrants of each local corner dual control volume."""
+    wet = mask + jnp.roll(mask, 1, 0)
+    return dx * dy * (0.25 * (wet + jnp.roll(wet, 1, 1)))
 
 
 @partial(jit, static_argnames=["mesh"])

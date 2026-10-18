@@ -190,6 +190,23 @@ def main() -> None:
                 output_path=args.output_root / "history.nc",
                 snapshot_path=args.output_root / "final.nc",
             )
+            assert result.diagnostics is not None
+            assert len(jax.tree.leaves(model.physical_constants)) > 1
+            for name in (
+                "physics_status",
+                "ocean_mass_flux",
+                "ocean_salt_mass_flux",
+                "external_mass_flux",
+                "external_heat_flux",
+            ):
+                for shard in getattr(result.diagnostics, name).addressable_shards:
+                    assert np.isfinite(np.asarray(shard.data)).all(), (
+                        f"ERROR nonfinite distributed {name}"
+                    )
+                    if name == "physics_status":
+                        assert np.all(np.asarray(shard.data) == 0), (
+                            "ERROR distributed physics status"
+                        )
             assert (
                 result.completed_steps == 2 and result.elapsed.total_seconds() == 1200.0
             )

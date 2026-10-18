@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import pytest
+from budget_reference import load_budget_corrections
 
 import veris
 
@@ -36,6 +37,7 @@ def test_pure_and_host_trajectories_match_immutable_reference(
     assert (
         hashlib.sha256(archive.read_bytes()).hexdigest() == manifest["archive_sha256"]
     )
+    corrections = load_budget_corrections(_ROOT)
     case = manifest["cases"][case_index]
     preset, name = case["preset"], case["name"]
     # These archives predate restoration of the standalone notebook setup.
@@ -93,6 +95,9 @@ def test_pure_and_host_trajectories_match_immutable_reference(
                     if item.name in restored_defaults:
                         assert np.all(expected == restored_defaults[item.name])
                         expected = np.zeros_like(expected)
+                    expected = corrections.expected(
+                        f"{name}.state.{step}.{item.name}", expected
+                    )
                     for label, actual in (
                         ("pure", state),
                         ("host", simulation.state),
@@ -111,7 +116,13 @@ def test_pure_and_host_trajectories_match_immutable_reference(
             result = simulation.step()
             if step + 1 in (1, 3):
                 for item in fields(diagnostic):
-                    expected = reference[f"{name}.diagnostics.{step + 1}.{item.name}"]
+                    key = f"{name}.diagnostics.{step + 1}.{item.name}"
+                    original = (
+                        np.zeros_like(reference[f"{name}.diagnostics.{step + 1}.EmPmR"])
+                        if item.name == "physics_status"
+                        else reference.get(key, None)
+                    )
+                    expected = corrections.expected(key, original)
                     for label, actual in (
                         ("pure", diagnostic),
                         ("host", result.diagnostics),

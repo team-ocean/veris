@@ -42,7 +42,7 @@ def dynamics_transport(
         ),
     )
     stress_u, stress_v = OceanStressUV(vs, conf, phys)
-    vs = assign(vs, "hIceMean hSnowMean Area", Advection(vs, conf, phys))
+    vs = assign(vs, "hIceMean hSnowMean Area", Advection(vs, conf))
     vs = assign(
         vs,
         "hIceMean hSnowMean Area TSurf os_hIceMean os_hSnowMean",

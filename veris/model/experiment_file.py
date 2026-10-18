@@ -435,7 +435,9 @@ def experiment_to_dict(
         "geometry": None
         if experiment.geometry is None
         else {
-            item.name: input_value(
+            item.name: None
+            if getattr(experiment.geometry, item.name) is None
+            else input_value(
                 f"geometry/{item.name}", getattr(experiment.geometry, item.name)
             )
             for item in fields(experiment.geometry)

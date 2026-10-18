@@ -5,6 +5,7 @@ from __future__ import annotations
 from functools import partial
 from typing import cast
 
+import jax
 import jax.numpy as jnp
 from jax import Array
 
@@ -15,7 +16,7 @@ from veris.model.types import State, jit
 from veris.numerics.autodiff import norm_sqrt
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def SeaIceStrength(vs: State, conf: Configuration, phys: PhysicalConstants) -> Array:
     """calculate ice strength (= maximum compressive stress)
     from ice thickness and ice cover fraction
@@ -28,7 +29,7 @@ def SeaIceStrength(vs: State, conf: Configuration, phys: PhysicalConstants) -> A
     return SeaIceStrength
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def ocean_drag_coeffs(
     vs: State,
     conf: Configuration,
@@ -65,7 +66,7 @@ def ocean_drag_coeffs(
     return cDrag
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def basal_drag_coeffs(
     vs: State,
     conf: Configuration,
@@ -108,7 +109,7 @@ def basal_drag_coeffs(
     return cBot
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def side_drag(
     vs: State,
     conf: Configuration,
@@ -155,7 +156,7 @@ def side_drag(
     return SideDragU, SideDragV
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def strainrates(
     vs: State,
     conf: Configuration,
@@ -163,7 +164,12 @@ def strainrates(
     uIce: ArrayInput,
     vIce: ArrayInput,
 ) -> tuple[Array, Array, Array]:
-    """calculate strain rate tensor components from ice velocities"""
+    """Return center normal and corner shear strain rates in inverse seconds.
+
+    Velocities use west/south faces of halo-inclusive (x, y) arrays. Spherical
+    normal strain has an exactly conservative trace in the supplied cell areas;
+    its corner shear annihilates solid-body rotation. Planar stencils are kept.
+    """
 
     # some abbreviations at c-points
     dudx = (jnp.roll(uIce, -1, axis=0) - uIce) * vs.recip_dxU
@@ -174,6 +180,16 @@ def strainrates(
     # calculate strain rates at c-points
     e11 = (dudx + vave * vs.k2AtC) * vs.maskInC
     e22 = (dvdy + uave * vs.k1AtC) * vs.maskInC
+    if conf.spherical_geometry:
+        # The trace is the stored-area finite-volume divergence exactly.
+        # This also makes a constant isotropic tensor force-free under the
+        # negative adjoint, including nonuniform latitude/longitude spacing.
+        north = jnp.roll(vIce, -1, 1)
+        e11 = (
+            (jnp.roll(uIce, -1, 0) - uIce) * vs.dyG * vs.recip_rA
+            + north * (jnp.roll(vs.dxG, -1, 1) * vs.recip_rA - vs.recip_dyV)
+            - vIce * (vs.dxG * vs.recip_rA - vs.recip_dyV)
+        ) * vs.maskInC
 
     # some abbreviations at z-points
     dudy = (uIce - jnp.roll(uIce, 1, axis=1)) * vs.recip_dyU
@@ -236,7 +252,7 @@ def strainrates(
     return e11, e22, cast(Array, e12)
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def viscosities(
     vs: State,
     conf: Configuration,
@@ -270,9 +286,6 @@ def viscosities(
 
     # use regularization to avoid singularies of zeta
     deltaCreg = deltaC + phys.deltaMin
-    # TODO implement smooth regularization after comparing with the MITgcm
-    # smooth regularization of delta for better differentiability
-    # deltaCreg = jnp.sqrt( deltaSq + deltaMin**2 )
 
     # calculate viscosities
     zeta = 0.5 * (vs.SeaIceStrength * (1 + phys.tensileStrFac)) / deltaCreg
@@ -291,7 +304,7 @@ def viscosities(
     return zeta, eta, press
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def stress(
     vs: State,
     conf: Configuration,
@@ -315,7 +328,7 @@ def stress(
     return cast(tuple[Array, Array, Array], (sig11, sig22, sig12))
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def stressdiv(
     vs: State,
     conf: Configuration,
@@ -324,7 +337,24 @@ def stressdiv(
     sig22: ArrayInput,
     sig12: ArrayInput,
 ) -> tuple[Array, Array]:
-    """calculate divergence of stress tensor"""
+    """Return west/south face forces (N/m2) from integrated stresses (N/m).
+
+    Normal stresses are centered and shear stress is at corners. The spherical
+    operator is the negative area-weighted transpose of strainrates, with a
+    factor two for tensor shear work. The original planar arithmetic is kept.
+    """
+
+    if conf.spherical_geometry:
+        # Transpose the maintained linear strain stencil, including masks and
+        # slip corrections, rather than maintain a second tensor discretization.
+        zeros = jnp.zeros_like(vs.Area)
+        transpose = jax.linear_transpose(
+            lambda u, v: strainrates(vs, conf, phys, u, v), zeros, zeros
+        )
+        force_u, force_v = transpose(
+            (sig11 / vs.recip_rA, sig22 / vs.recip_rA, 2 * sig12 * vs.rAz)
+        )
+        return -force_u * vs.recip_rAu, -force_v * vs.recip_rAv
 
     stressDivX = (
         sig11 * vs.dyV

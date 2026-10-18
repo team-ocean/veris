@@ -1,5 +1,272 @@
 # Development log
 
+## 2026-10-18 — Source/test cleanup, main integration and 0.2.1 release
+
+- Scope (@root): audit every maintained source/test module on
+  `feat/vercor-scientific-validation`, remove obsolete interfaces and redundant
+  tests, validate and commit, then integrate both documentation commits from
+  current `main`. User also requests version 0.2.1 and a release after the
+  original cleanup/integration goals succeed.
+- Specialized source, test-quality and documentation audits are recorded in
+  `test_logs/cleanup-2026-10-18/`. Root schedules the sole pytest process.
+  Initial tracked tree is clean at `35bdbc0`; origin feature `4daaef1` has a
+  successful hosted CI run. Current main is `a0a2a7d`, with documentation fix
+  `74d4af7`; preserve both original commits and their release-version behavior.
+- RED: public Growth discards formation status (three literal-status cases fail
+  unpacking); the canonical axis-based flux entry point is absent (one failure).
+  Consolidate Growth on the existing full-result kernel and transport on one
+  axis-based stencil, preserving equations and every archived numerical result.
+- Keep live JAX tracing/checkpoint safeguards, CF calendar names, regional ocean
+  input validation, shared CLI translation and current strict restart schemas.
+  Their responsibilities remain exercised by distinct numerical/resource tests.
+- [x] Complete all-module inventories: 81 source modules and 145 Python
+  test/support files. Consolidate 15 obsolete/redundant test rows into their
+  canonical owners, add minimum-ny and invalid-axis cases: net 13 fewer cases.
+  `tests/AUDIT.md` maps each removal to retained assertions. Remove unsupported
+  writer partial flag, incidental precision re-export, abandoned implementations
+  and Flake8 metadata. Refresh current API/hierarchy/contributor documentation.
+- [x] Independent final review finds no Critical, Important or remaining Minor
+  findings. Normalized ASTs preserve growth/transport arithmetic; all 17
+  scientific reference artifacts are unchanged. Ruff/format/annotations/ty pass.
+  Focused CPU 73/73, full-tree fast sample 174/174, GPU science plus all four
+  GPU-only contracts 120/120 pass on the local Tesla P100s.
+- [x] Aegir job `66552001` on node441 completes `0:0` with 12 CPUs/32 GiB:
+  full CPU correctness 1,734 passed/four expected GPU-only skips, zero failures
+  or errors; 1,948.99 s pytest / 1,958.38 s external wall. Exactly 1,738 cases
+  execute, 13 fewer than the preceding 1,751-case baseline, matching the audit.
+- [x] Maintained coverage is 4,991/5,245 = 95.16%; counting the two unexecuted
+  three-statement CLI template resources gives 4,991/5,251 = 95.05%. The 80%
+  gate passes. Whole-package coverage including generated version metadata and
+  those resources is 5,132/5,604 = 91.58%. All 4,965 unchanged previously covered
+  maintained lines retain coverage; no scientific reference artifact changes.
+- [x] Final Ruff/format/annotations/ty, strict Sphinx, wheel/sdist builds and
+  both clean-installed lifecycle/framework probes pass. All 259 frozen
+  source/config/reference hashes still match before integration.
+- Reviewed a three-way integration preview: preserve both changelog histories,
+  main-based contribution guidance and main's stable-documentation footer. The
+  release version remains owned by Versioneer's annotated tag, avoiding a second
+  hard-coded version source. Correct the citation's software repository URL to
+  the maintained repository without changing the preferred scientific article.
+- [x] Commit cleanup as `4075b1c` and integrate with main `a0a2a7d`, retaining
+  original documentation commits `74d4af7` and `a0a2a7d`. All five main
+  documentation implementation/test files are preserved byte for byte; all 89
+  source/benchmark and 17 reference files match the verified cleanup commit.
+  Independent merge review finds no defect. The actual integrated tree passes
+  all nine documentation/packaging regressions, maintained static checks,
+  strict Sphinx, fresh distributions and both installed-example suites.
+- Release target: `v0.2.1`, using the same annotated-tag version for package,
+  CLI and documentation. Post-tag validation and publication evidence belong
+  in the [release record](https://github.com/team-ocean/veris/releases/tag/v0.2.1).
+
+## 2026-10-18 — Portable surface regression CI repair
+
+- [x] Pull feature tip `225aa34` and reproduce the sole failure in GitHub run
+  `39135261460`: six solver JVP entries differ from the frozen archive by at
+  most `5.551115123125783e-17` absolute / `2.7276964075998446e-16` relative.
+- [x] Load the original solver/growth kernels from `6c205a3` independently.
+  Original and extracted outputs/JVPs are bitwise identical on both local CPU
+  and NVIDIA P100; both exhibit the same differences from the saved archive.
+  Maximum GPU relative archive difference is `2.918144061402626e-15`.
+- [x] Replace the archive's bitwise comparison with a float64 relative budget
+  of 32 machine epsilons (`7.105427357601002e-15`), zero absolute tolerance
+  and explicit NaN rejection. Separate solver/growth cases so both are checked
+  when either fails. All reference archives and model equations are unchanged.
+- [x] All 17 focused surface cases pass on CPU and NVIDIA P100. Real-kernel
+  negative controls reject changed physical inputs and stopped derivatives for
+  both solver and growth. Independent test-quality review approves the change
+  and verifies rejection of 20 archive perturbations, including lost small
+  derivatives, changed zeros, NaNs, infinities and `1e-12` relative changes.
+- [x] Aegir job `66533869` on node441: full CPU correctness 1,747 passed /
+  four hardware skips in 1,932.16 s. Maintained coverage 95.11% (80% gate
+  passes); whole-package coverage 91.64%. Ruff, format and annotations pass.
+- Launch-script correction: the job exported `PYTHONPATH` for pytest, which
+  overrode ty's test-helper search paths and stopped the follow-on checks.
+  Rerunning ty with `PYTHONPATH` unset, as in GitHub CI, passes. Strict Sphinx
+  and wheel/source builds also pass. No repository configuration change needed.
+- [x] Both clean-installed lifecycle/framework probes pass, covering public
+  exports, documented CLI examples, restart, sharding and pure JIT/AD.
+  All 254 tested source/reference hashes still match before committing.
+- Validation evidence and scripts: `test_logs/ci-surface-2026-10-18/` (local).
+  The existing GitHub workflow repeats these gates on the pushed commit.
+
+## 2026-10-18 — Native instantaneous surface albedo for VerCOR
+
+- [x] Start from fetched `feat/vercor-scientific-validation` tip
+  `6c205a356dd1b25c26430f899cb8998523ab3447` in an isolated checkout.
+- [x] Share the existing hemispheric dry/wet snow/ice albedo law, regularized
+  thickness geometry and category factors between growth and the new public
+  `diagnose_surface_albedo`. Preserve wet-cell ice initiation and solver order.
+- [x] RED: 15 missing-diagnostic cases; the pre-extraction baseline already
+  passed. GREEN: 76 surface/growth cases, including bitwise float64 solver and
+  growth outputs/JVPs, current-state category means and inactive-NaN AD.
+- [x] Full CPU correctness: 1,745 passed / five hardware-platform skips;
+  maintained Ruff/format/Linux-target ty and strict Sphinx pass. Broad dot
+  checks retain existing vendor/generated findings; no such files changed.
+  Sandbox-only loopback/DNS failures were rerun with the required access.
+
+## 2026-10-17 — Requested Vercor GPU and aegir repeat
+
+- [x] Pulled main a0a2a7d and feature 4551fc8 with Git CLI; retain the six
+  scientific feature commits without merging main's documentation changes.
+  User explicitly requests these branches and authorizes local GPUs and aegir.
+- [x] Plain-English explanation with examples saved outside the repository at
+  /groups/ocean/nutrik/dev/veris-vercor-integration-explained-2026-10-17.md.
+  Independent scientific review corrected the h0 example to measure ice area
+  during open-water freezing. State fixed geometry/initialization, nonsmooth
+  membership and no claim of an actual Vercor coupling run.
+- [x] Reuse .venv-latest: Python 3.14.7, JAX/jaxlib 0.11.2 and CUDA 12.
+  Both native Tesla P100s pass the 1,000-step spherical transport harness:
+  maximum relative volume drift 2.220446049250313e-16; tensor refinement orders
+  1.9997363160 and 1.9999340794. This isolates prescribed-velocity advection.
+- [x] Original GPU-default full suite: 1,733 passed, one failed, zero skips;
+  5,246.73 s pytest / 5,252.27 s external wall. The sole failure is the runner
+  test's hard-coded CPU metadata expectation, also present on main. Every
+  State/Diagnostics comparison and saved-output assertion passes before it.
+  Execution(backend=None) correctly honors the caller's JAX default.
+- [x] Correct only the backend expectation, capturing JAX's default before the
+  run. The real GPU regression passes in 17.68 s; a negative control rejects
+  false CPU metadata at the intended assertion. All scientific assertions and
+  tolerances remain intact. Preserve the original full GPU failure; no fresh
+  full GPU pass is claimed after the test correction. Ruff/format/types pass.
+- Failed scratch-control approach: the first driver reaches the intended
+  assertion, then fails its own one-call assumption. Reference Simulation and
+  runner each construct metadata. Preserve that diagnostic; check all selected
+  backends instead of the call count. The corrected driver passes without
+  source edits.
+- [x] Supplemental two-GPU spherical operators and physical-parameter advance
+  pass both (2,1)/(1,2) orientations: all fields, forcing halos, JIT, air-drag/h0
+  JVP/VJP and finite differences retain their original assertions/tolerances.
+  Scratch probes change only backend selections/labels and record source hashes.
+  Two-process GPU reduction/adjoint/halo-exclusion checks pass on both ranks.
+  Raw shutdown logs retain coordination cancellation/connection-refused messages
+  after success; launcher exits 0. These standalone probes share the GPU suite's
+  runtime, using separate CPU cores; only one pytest session runs at a time.
+- [x] Maintained Ruff/format (235 files), annotations, Linux-target types and
+  strict Sphinx pass. Freeze 251 source/test/benchmark/reference hashes before
+  each suite. Only tests/execution/test_runner.py changes; all model, benchmark
+  and reference bytes match 4551fc8.
+- [x] Aegir full CPU correctness: 1,730 passed/four GPU-only skips, no failures,
+  1,320.31 s pytest / 1,349.24 s external wall. Job 66459424 on node453 requests
+  12 CPUs/32 GiB and finishes COMPLETED 0:0 in 1,361 s, including follow-on checks.
+  Maintained statement coverage 95.07% (4,955/5,212), reported package 91.57%.
+  Standard discovery omits two unexecuted three-statement CLI template resources;
+  counting those as uncovered gives 94.96% maintained coverage. The 80% gate
+  passes. CPU 1,000-step spherical transport also passes,
+  maximum relative volume drift 2.114965734625469e-15 and the same tensor orders.
+- [x] Both full suites collect the same 1,734 case IDs. All four CPU GPU skips
+  pass in the original GPU-default run. CPU domains: CLI 105 passed/2 skipped,
+  execution 283/0, grid 83/0, I/O 342/1, model 269/0, numerics 168/0, physics
+  327/0, setups 82/1, shared 71/0. Every final source hash matches its manifest.
+- Results and reproducible launch scripts are recorded in
+  docs/validation/2026-10-17-vercor-repeat.md and its JSON evidence. Independent
+  scientific and validation reviews cover rationale, test correction and records.
+  Raw evidence stays in test_logs/vercor-repeat-2026-10-17/ (untracked).
+
+## 2026-10-17 — Scientific validation follow-up (in progress)
+
+- Independent final review fixes: scheduled output now synchronizes and validates
+  sticky physics status before instantaneous/mean/history commits; prior valid
+  records remain available when a later segment fails. Four real low-salinity
+  cases reproduced invalid future samples before the fix and now pass.
+- Nonzero water turning angle: correct orthogonal tracer-to-face interpolation
+  in ocean stresses and cross-velocity components in EVP forcing. Independent
+  linear-face and one-iteration momentum balances reproduce both defects;
+  hemisphere controls and angle JVP/VJP/finite differences pass. Free drift
+  explicitly requires zero angle at host construction and in traced status checks.
+  Zero-angle coupled equations and existing reference archives are unchanged.
+- Focused final review gate: 107/107 cases pass, including all 10 new regressions;
+  full CPU/distributed suite passes 1729 cases with five GPU/platform skips
+  (1586.53 s); first-party statement coverage is 95.20%.
+  Strict Ruff/format/annotations/Linux-target types and Sphinx pass.
+
+
+- [x] N1/N2/N3/N4 complete locally (@root): physical-parameter AD,
+  actual ocean mass/salt/heat budgets and long-run validation. Isolated branch
+  feat/vercor-scientific-validation starts at a9d6c0a; user checkout preserved.
+- Definition and implementation plans are approved in the paired VerCOR branch.
+  Original independent reference archives remain unchanged (checksums recorded).
+- N2: frozen base-leaf PhysicalConstants PyTree, tracer-safe with_overrides,
+  refreshed dependent laws and dtype metadata. Host/JSON construction remains
+  device-free. All nested kernel phys-static arguments are removed; advance
+  takes replicated physical leaves explicitly across shard_map. Real status1
+  skips invalid physics; host Simulation preserves failure and state/time.
+- New N2 checks25/25 pass, covering representative nonzero parameter JVP/VJP,
+  stable finite-difference sweeps and hard cleanup transitions. Compatibility
+  focus122 pass; nine added-status archive lookup failures were corrected with
+  separate literal-zero expectations, retaining original archives/tolerances;
+  all10 affected reference/unequal-clock cases pass. First-party lint/types pass.
+  Precision/configuration focus106/106 and all three local/distributed AD
+  probes pass (243.70s). Silent x64 truncation and host-tree device allocation
+  were reproduced RED; host NumPy and runtime JAX now share the dependency
+  laws, with explicit runtime precision checks and unchanged base leaves.
+  Final full gate passes1,672 tests with five GPU/platform skips in1,154.37s;
+  coverage92% overall. Strict Sphinx, CI lint/format/annotations/Linux types pass.
+  Original reference archive checksums remain unchanged.
+- N3 analytic events35/35 pass (4.19s), including actual mass/salt for
+  Si=0/2/5, densities, snow/rain/vapor/runoff, flooding, signed cleanup,
+  complete sublimation, fresh formation/saline melt and intermediate failure.
+  Two mutations prove traced negative salinity and repeated cleanup are rejected;
+  restored positive controls pass2/2. A real dry-surface RED exposed a zero-K
+  inactive Newton input; dry physics is now disabled before its arithmetic.
+  Real dry/coupled/metadata focus70/70 passes in48.91s.
+- Compatibility first run219 pass/51 fail: appended tuple/diagnostic interfaces,
+  corrected snowfall/cleanup expectations and old archive values. Preserve all
+  original archives/tolerances. Independent archived-a9 generator first verifies
+  every original field, then captures208 explicit v2 deltas/new diagnostics with
+  NumPy boundary accounting and declared phase hooks;63 source checksums tracked.
+  All10 lifecycle/unequal reference cases pass in16.17s. Full N3 matrix passes
+  1,707 cases with five GPU/platform skips:1,689 initial passes (852.74s) plus
+  exact18 loopback-blocked cases passing with access (354.95s), source hashes
+  unchanged. Combined coverage92%; all original archive checksums unchanged.
+  Strict Sphinx passes after correcting two heading lengths and allowing its
+  configured Python inventory fetch; CI lint/format/annotations/Linux types pass.
+- N4 first harness GREEN8/8 in4.44s; actual1,000step report gives stored-area
+  volume drift2.11e-15 and tensor refinement orders1.9997363/1.9999341.
+  The Cartesian metric negative control remains conservative but fails the
+  independent spherical tendency. Original four work-identity cases remain;
+  four additional consistent coast-mask cases use geometry-owned dual areas.
+  Initial coast/two-CPU focus9/9 passes28.89s. The two-CPU probe retains its
+  original forcing axes and adds air-drag plus h0 JVP/VJP/FD comparisons;
+  thermodynamic full-record and distributed new-diagnostic checks are added.
+  Final full gate passes1,719 tests with five GPU/platform skips in1,209.22s;
+  coverage92% overall/95.18% first-party. Strict docs/CI lint/format/annotations/
+  Linux types pass. Wheel/sdist build and outside-checkout lifecycle/framework
+  probes pass, including2CPU sharding and real parameter AD. Installed h0 grad
+  -0.0002698766879437447 matches FD-0.0002698767026521054. Precommit artifacts
+  are identified by0.2.0+3.g4af3f46.dirty plus SHA256 in the execution ledger;
+  the paired VerCOR plan consumes the committed source SHA. No push yet.
+- Native baseline: 1,624 passes and five platform/hardware skips, exit 0. VerCOR
+  fast orientation passes in its separate Python 3.12 scipy environment.
+- N1 RED reproduces exactly doubled zonal spacing at 60 degrees and missing
+  latitude/definition/partition support. Added physical spherical metrics,
+  finite-volume normal strain and its area-weighted adjoint tensor divergence.
+  Supplied tracer/face areas retain their quadrature; corner dual volumes use
+  actual lengths and wet quadrants. A wall traction RED exposed a 1.9265-times
+  line-integral error with legacy full corner areas; half dual cells correct it.
+- Non-square real two-device tests cover southern/nonuniform metrics and
+  operators. Rigid rotation, isotropic stress, analytic north transport and
+  nonconstant work identities cover independent equations. Refinement compares
+  shared physical latitude positions; a moving maximum domain hid second order.
+- First N1 full suite: 1,644 passes, four GPU skips and one unavailable macOS
+  CPU-affinity skip in 843.62 s. Self-review then added independent scalar
+  gradient/default-boundary checks: RED shows inherited cyclic latitude and
+  no explicit-conflict rejection. Spherical host inputs now default to closed
+  latitude and reject explicit cyclic latitude; planar defaults stay intact.
+- Final expanded focus passes111/111 and spherical cases23/23. A reused
+  cross-run JAX cache causes two four-CPU collective-permute participant-count
+  aborts under coverage; isolated warm reproduction fails in3.97s with the
+  same persisted RunId1524182906. Archived original a9d6c0a source, with import
+  provenance asserted, reproduces the same abort. Both unchanged tests pass
+  with the maintained fresh per-run cache (68.91s). Do not reuse this diagnostic
+  cache for acceptance or weaken the distributed assertions. Fresh full gate
+  passes1,647 tests with five GPU/platform skips in908.05s; coverage92% overall.
+- Maintained CI Ruff/format/annotation checks and Linux-target ty pass. Broad
+  checks also report pre-existing vendored Sphinx/Versioneer code and Darwin
+  affinity annotation issues; no unrelated generated/vendor code was rewritten.
+- A short RED invocation overlapped baseline teardown by mistake. Subsequent
+  native pytest runs await confirmed completion. Local stencil assembly must
+  run inside shard_map on explicit partitions; global roll is rejected by JAX.
+
 ## 2026-10-16 — Documentation release version
 
 - [x] Completed (@root) on ``fix/docs-release-version``, branched from jax-only

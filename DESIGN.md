@@ -42,6 +42,31 @@ Each partition has two halos per side. Global geometry/input arrays belong to
 the host definition. Each rank (distributed process) creates its local numerical
 State; it never creates the whole global State and then slices it.
 
+Spherical ocean geometry supplies physical center/edge latitudes and a radius
+alongside equatorial zonal spacing and authoritative ocean areas. Its static
+configuration flag is derived from geometry. The metric owner evaluates each
+C-grid distance at its actual latitude, with host regional slicing preserving
+nonuniform global coordinates. The spherical strain trace is exactly the stored
+area finite-volume velocity divergence. Stress divergence is the negative
+area-weighted transpose of that linear strain map; JAX transposition keeps the
+paired masks and slip corrections together. A constant isotropic tensor has
+zero interior force, and solid-body rotation has zero strain. Corner dual
+areas integrate wet quadrants, including half cells at closed walls. This is a
+midpoint discretization, not an exact spherical-area integral. The planar
+metric/operator arithmetic and original independent archives remain unchanged.
+
+PhysicalConstants is a separate frozen registered PyTree. Its independent
+registry values are leaves and dtype is metadata. Host construction uses NumPy
+scalar validation without device discovery. Traced with_overrides rebuilds
+reciprocals, density ratios and turning factors; these are not independent
+leaves. Compiled kernels take physical parameters dynamically, including explicit
+replicated inputs to manual sharding. Numerical Configuration remains static.
+advance returns same-precision physics_status arrays; invalid parameters skip
+physics. Simulation preserves the first failure through its rollout and checks
+status before committing State/time. Continuations fix the supplied State and
+geometry; parameter-dependent initialization is a separate operation. Geometry
+preflight checks its selected precision before choosing devices.
+
 `advance` in `veris.execution.advance` performs exactly one physical timestep,
 one advance of the model clock. It applies supplied forcing and calls unchanged
 dynamics_transport. The order remains momentum, ocean stress, transport, cleanup
@@ -205,6 +230,13 @@ Simulation manages host execution contexts, time and I/O (input and output).
 Tests check the expected stage sequence separately from host management and
 independent numerical kernels.
 
+`Growth` returns its fifteen physical arrays and grid-shaped formation status
+together. All callers use this same compiled implementation; no public wrapper
+discards status. Transport accepts only State, Configuration and the transported
+field. Its single `calc_flux` kernel selects the zonal or meridional stencil with
+an explicit static axis. The netCDF writer accepts complete records only, while
+the stored completeness marker remains part of the current restart schema.
+
 ## Scientific package hierarchy
 
 The implementations are grouped by their scientific role and function:
@@ -221,7 +253,11 @@ The implementations are grouped by their scientific role and function:
 - `veris.numerics`: basic differentiation operations that handle branches
   safely, momentum solver selection, EVP (elastic-viscous-plastic ice motion),
   free drift (motion without internal ice stress) and repeated calculations
-  to find surface temperature.
+  to find surface temperature. `surface_properties` owns the shared native
+  albedo law and category thickness geometry. Public `diagnose_surface_albedo`
+  evaluates current stored temperature and snow in each category, returning
+  halo-inclusive per-ice-area albedo, zero outside present ice. Couplers weight
+  it by concentration before remapping; it is not a preceding-interval mean.
 - `veris.execution`: array allocation, preparation of runnable experiments,
   the pure timestep and rollout, timed output rollouts and the host Simulation lifecycle.
 - `veris.io`: calendars, scheduling, storage, collection, run I/O and
@@ -276,3 +312,16 @@ distributed/mesh ownership outside numerical State. Authored exports and resolve
 exports with fixed values use the same codec; version-one definitions/checkpoints
 remain readable. The executable custom-ocean setup blueprint and Python/CLI
 probe against a clean installation check the documented interface.
+
+Ocean exchange uses actual downward bulk mass and salt mass in SI rates. Fixed
+bulk ice salinity is g/kg with an explicit factor1/1000 for salt mass. Uniform
+ice salinity is fixed per trajectory; new formation with ocean salinity below
+that value returns status2, while salty melt into fresh water remains valid.
+Independent external mass/enthalpy inputs are diagnosed from boundary events
+before phase change. Open-water snow melts with fusion cooling before growth;
+sublimation consumes available frozen stock, and signed cleanup is consumed
+once. Residual ocean heat closes zero-layer enthalpy, including snow-to-ice
+conversion and incoming snow. Native Qnet is upward and includes shortwave.
+See docs/reference/ocean-budgets.rst for equations, event ordering and limitations.
+Original reference archives are immutable; the independently generated v2
+correction archive records reviewed scientific changes against archived a9 source.

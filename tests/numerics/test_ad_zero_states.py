@@ -96,7 +96,7 @@ def test_uniform_advection_thickness_sensitivity_is_finite() -> None:
     """Zero slope ratios in inactive limiter branches preserve mass sensitivity."""
     from veris.physics.transport.advection import Advection
 
-    state, conf, phys = initialize_experiment(
+    state, conf, _ = initialize_experiment(
         Experiment.builtin("dynamics", grid=Grid(6, 8))
     )
     state = replace(state, uIce=0.01 * state.iceMaskU, vIce=0.02 * state.iceMaskV)
@@ -105,7 +105,6 @@ def test_uniform_advection_thickness_sensitivity_is_finite() -> None:
         ice, _, _ = Advection(
             replace(state, hIceMean=jnp.full_like(state.hIceMean, thickness)),
             conf,
-            phys,
         )
         return jnp.sum(ice[2:-2, 2:-2])
 

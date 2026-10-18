@@ -102,7 +102,8 @@ overrides take precedence over table defaults. Constants inherit the model
 Use ``Grid`` for dimensions and ``Execution`` for sharding, which splits arrays
 across devices. Those controls cannot also appear in ``settings``. The resolved
 objects are available as ``experiment.configuration`` and
-``experiment.physical_constants`` and stay fixed during numerical execution.
+``experiment.physical_constants``. Simulation binds them for its trajectory;
+pure advance also accepts dynamic physical-parameter continuations.
 Their numerical grid extents remain local to each partition.
 
 Initial conditions and forcing use the units in :doc:`/reference/variables`:

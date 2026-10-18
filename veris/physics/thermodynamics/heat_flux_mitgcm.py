@@ -15,7 +15,7 @@ from veris.model.types import LANLFluxes, jit
 from veris.numerics.autodiff import norm_sqrt
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def bulkf_formula_lanl(
     conf: Configuration,
     phys: PhysicalConstants,
@@ -147,8 +147,6 @@ def bulkf_formula_lanl(
         qstar = re[...] * delq[...]
         tstar = rh[...] * deltap[...]
 
-    # tau = phys.rhoAir * ustar[...]**2
-    # tau = tau * us[...] / usm[...]
     csha = phys.rhoAir * phys.cpdair * us[...] * rh[...] * rd[...]
     clha = phys.rhoAir * lath[...] * us[...] * re[...] * rd[...]
 

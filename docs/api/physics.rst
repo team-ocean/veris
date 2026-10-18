@@ -3,7 +3,7 @@ Physics kernels
 
 These functions implement the equations and nearby-cell calculations used by
 ``advance``. Most accept ``(vs, conf, phys)``: a State with halos, a fixed
-Configuration and fixed PhysicalConstants. State holds the model arrays. Halos
+static Configuration and a dynamic PhysicalConstants PyTree. State holds the model arrays. Halos
 are extra cells that hold boundary or neighboring values. The functions return
 arrays or tuples. The caller assigns results with ``dataclasses.replace``,
 exchanges halo values when required and calls the stages in the required order.
@@ -14,8 +14,8 @@ Single physics timestep
 ``veris.advance`` moves the model forward by one complete timestep and returns
 State and Diagnostics, which holds step results. Select coupled for ice motion,
 transport, freezing and melting; dynamics for motion and transport; or
-thermodynamics for freezing and melting. Keep configuration, constants and the
-physics choice fixed when applying JAX transformations. Supplied forcing, or
+thermodynamics for freezing and melting. Keep configuration and the physics
+choice static when applying JAX transformations; physical constants are dynamic. Supplied forcing, or
 external inputs, can change and is refreshed before the numerical functions
 use it. ``veris.step`` repeats a supplied step function over multiple timesteps.
 See :doc:`/reference/integration` for examples of combining these functions and
@@ -82,9 +82,11 @@ Transport
 
 .. autofunction:: veris.physics.transport.advection.calc_Advection
 
-.. autofunction:: veris.physics.transport.advection.calc_ZonalFlux
+.. autofunction:: veris.physics.transport.advection.calc_flux
 
-.. autofunction:: veris.physics.transport.advection.calc_MeridionalFlux
+Transport takes State and Configuration; it uses no physical-constant inputs.
+``calc_flux`` selects the zonal stencil with ``axis=0`` and the meridional
+stencil with ``axis=1``.
 
 .. autofunction:: veris.physics.transport.advection.limiter
 
@@ -104,6 +106,19 @@ Thermodynamics
 .. automodule:: veris.physics.thermodynamics.growth
 
 .. autofunction:: veris.physics.thermodynamics.growth.Growth
+
+``values, status = Growth(state, configuration, constants)`` returns the
+fifteen physical arrays and the formation status separately. Check that status
+is zero before accepting the updated column. ``advance`` carries this status
+in Diagnostics and Simulation checks it before committing a timestep.
+
+See :doc:`/reference/ocean-budgets` for mass, salt, enthalpy and status conventions.
+
+.. automodule:: veris.physics.thermodynamics.budgets
+
+.. autoclass:: veris.physics.thermodynamics.budgets.OceanExchangeFluxes
+
+.. autofunction:: veris.physics.thermodynamics.budgets.ocean_exchange_fluxes
 
 .. automodule:: veris.numerics.surface_temperature
 

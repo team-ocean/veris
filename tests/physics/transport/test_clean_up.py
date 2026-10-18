@@ -28,7 +28,7 @@ def test_cleanup_thresholds_and_overshoots(
     expected = [np.empty_like(ice) for _ in range(6)]
     for index in np.ndindex(ice.shape):
         height, snowfall = ice[index], snow[index]
-        reference = (0, 0, 0, phys.celsius2K, max(-height, 0), max(-snowfall, 0))
+        reference = (0, 0, 0, phys.celsius2K, -height, -snowfall)
         if height > phys.hIce_min:
             reference = (
                 height,

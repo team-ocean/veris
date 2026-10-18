@@ -19,6 +19,7 @@ import veris
 from veris.execution.runtime import create_mesh
 from veris.grid.halos import fill_state_overlap, remove_halos
 from veris.model.diagnostics import Diagnostics
+from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import State
 from veris.physics.dynamics.driver import dynamics_transport
 
@@ -170,22 +171,26 @@ def check_orientation(partitions: tuple[int, int]) -> None:
         )
         parallel = fill_state_overlap(prepare(parallel), local_conf)
 
-    def reference(inputs: dict[str, jax.Array]) -> tuple[State, Diagnostics]:
+    def reference(
+        inputs: dict[str, jax.Array], physical: PhysicalConstants = phys
+    ) -> tuple[State, Diagnostics]:
         state, stress_u, stress_v = dynamics_transport(
-            prescribed_serial(serial, inputs), conf, phys
+            prescribed_serial(serial, inputs), conf, physical
         )
         zeros = jnp.zeros_like(state.Area)
-        diagnostic = Diagnostics(zeros, stress_u, stress_v, zeros, zeros)
+        diagnostic = Diagnostics(
+            zeros, stress_u, stress_v, zeros, zeros, zeros, zeros, zeros, zeros, zeros
+        )
         return fill_state_overlap(state, conf), fill_state_overlap(diagnostic, conf)
 
     def transition(
-        current: State, inputs: dict[str, jax.Array]
+        current: State,
+        inputs: dict[str, jax.Array],
+        physical: PhysicalConstants = local_phys,
     ) -> tuple[State, Diagnostics]:
-        return veris.advance(
-            current, local_conf, local_phys, inputs, physics="dynamics"
-        )
+        return veris.advance(current, local_conf, physical, inputs, physics="dynamics")
 
-    point = jnp.zeros(2, dtype=DTYPE)
+    point = jnp.zeros(3, dtype=DTYPE)
     inputs = forcing(point)
     expected = reference(inputs)
     explicit_speed = {**inputs, "wSpeed": jnp.asarray(7.0, dtype=DTYPE)}
@@ -194,9 +199,18 @@ def check_orientation(partitions: tuple[int, int]) -> None:
 
     def objective(parameters: jax.Array, sharded: bool) -> jax.Array:
         result, diagnostics = (
-            transition(parallel, forcing(parameters))
+            transition(
+                parallel,
+                forcing(parameters),
+                local_phys.with_overrides(
+                    airIceDrag=phys.airIceDrag * (1 + parameters[2])
+                ),
+            )
             if sharded
-            else reference(forcing(parameters))
+            else reference(
+                forcing(parameters),
+                phys.with_overrides(airIceDrag=phys.airIceDrag * (1 + parameters[2])),
+            )
         )
         value = (
             result.hIceMean
@@ -246,8 +260,8 @@ def check_orientation(partitions: tuple[int, int]) -> None:
         compare(value, expected_value, f"{partitions} scalar objective")
         compare(gradient, expected_gradient, f"{partitions} grad serial/sharded")
         compare(pullback(jnp.ones_like(value))[0], gradient, f"{partitions} VJP/grad")
-        for axis, name in enumerate(("uWind", "vOcean")):
-            tangent = jax.device_put(jnp.eye(2, dtype=DTYPE)[axis], replicated)
+        for axis, name in enumerate(("uWind", "vOcean", "airIceDrag")):
+            tangent = jax.device_put(jnp.eye(3, dtype=DTYPE)[axis], replicated)
             _, derivative = jax.jvp(function, (point,), (tangent,))
             compare(derivative, gradient[axis], f"{partitions} {name} JVP/grad")
             assert abs(float(derivative)) > 1e-9, f"ERROR zero {name} sensitivity"
@@ -262,6 +276,62 @@ def check_orientation(partitions: tuple[int, int]) -> None:
             ), (
                 f"ERROR {partitions} {name} finite difference: AD={left:.6g}, FD={right:.6g}"
             )
+    thermal_forcing = {
+        "Qnet": 100.0,
+        "Qsw": 0.0,
+        "theta": 271.19,
+        "ocSalt": 35.0,
+        "snowfall": 1e-7,
+        "precip": 0.0,
+        "evap": 0.0,
+        "runoff": 0.0,
+        "ATemp": 260.0,
+        "LWdown": 180.0,
+        "SWdown": 30.0,
+        "aqh": 0.001,
+    }
+
+    def thermal_step(value: jax.Array, sharded: bool) -> tuple[State, Diagnostics]:
+        current, settings, constants = (
+            (parallel, local_conf, local_phys) if sharded else (serial, conf, phys)
+        )
+        return veris.advance(
+            current,
+            settings,
+            constants.with_overrides(h0=value, saltIce_ref=5.0),
+            thermal_forcing,
+            physics="thermodynamics",
+        )
+
+    def thermal(value: jax.Array, sharded: bool) -> jax.Array:
+        result, diagnostics = thermal_step(value, sharded)
+        values = result.Area + 1e-3 * diagnostics.ocean_mass_flux
+        values = remove_halos(values, mesh) if sharded else values[2:-2, 2:-2]
+        return jnp.mean(weights * values)
+
+    h0 = jnp.asarray(0.5, dtype=DTYPE)
+    expected_thermal = thermal_step(h0, False)
+    expected_h0 = jax.grad(lambda v: thermal(v, False))(h0)
+    with jax.set_mesh(mesh):
+        h0 = jax.device_put(h0, replicated)
+        compare_records(
+            thermal_step(h0, True),
+            expected_thermal,
+            mesh,
+            f"{partitions} thermal physical leaves",
+        )
+        function = jax.jit(lambda v: thermal(v, True))
+        gradient = jax.grad(function)(h0)
+        value, tangent = jax.jvp(function, (h0,), (jnp.ones_like(h0),))
+        _, pullback = jax.vjp(function, h0)
+        compare(gradient, expected_h0, f"{partitions} h0 serial/sharded")
+        compare(tangent, gradient, f"{partitions} h0 JVP/grad")
+        compare(
+            pullback(jnp.ones_like(value))[0], gradient, f"{partitions} h0 VJP/grad"
+        )
+        assert abs(float(gradient)) > 1e-9, "ERROR zero h0 sensitivity"
+        difference = (function(h0 + 1e-4) - function(h0 - 1e-4)) / (2e-4)
+        np.testing.assert_allclose(gradient, difference, rtol=2e-4, atol=1e-10)
     print(
         f"pure advance {partitions}: all fields, local forcing halos, JIT and AD pass"
     )

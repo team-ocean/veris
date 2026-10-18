@@ -11,7 +11,6 @@ from jax import Array
 from veris.grid.halos import fill_overlap
 from veris.model.arrays import ArrayInput
 from veris.model.configuration import Configuration
-from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import State, jit
 
 # in this routine, the thermodynamic time step is used instead of the dynamic one.
@@ -22,24 +21,21 @@ from veris.model.types import State, jit
 # thickness changes inbetween dynamics timesteps.
 
 
-@partial(jit, static_argnames=["conf", "phys"])
-def Advection(
-    vs: State, conf: Configuration, phys: PhysicalConstants
-) -> tuple[Array, Array, Array]:
+@partial(jit, static_argnames=["conf"])
+def Advection(vs: State, conf: Configuration) -> tuple[Array, Array, Array]:
     """retrieve changes in sea ice fields"""
 
-    hIceMean = calc_Advection(vs, conf, phys, vs.hIceMean)
-    hSnowMean = calc_Advection(vs, conf, phys, vs.hSnowMean)
-    Area = calc_Advection(vs, conf, phys, vs.Area)
+    hIceMean = calc_Advection(vs, conf, vs.hIceMean)
+    hSnowMean = calc_Advection(vs, conf, vs.hSnowMean)
+    Area = calc_Advection(vs, conf, vs.Area)
 
     return hIceMean, hSnowMean, Area
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def calc_Advection(
     vs: State,
     conf: Configuration,
-    phys: PhysicalConstants,
     field: ArrayInput,
 ) -> Array:
     """calculate change in sea ice field due to advection"""
@@ -55,11 +51,8 @@ def calc_Advection(
         vTrans = fill_overlap(vTrans, conf, boundary="normal")
 
     fieldLoc = field
-    for axis, transport, flux_kernel in (
-        (0, uTrans, calc_ZonalFlux),
-        (1, vTrans, calc_MeridionalFlux),
-    ):
-        flux = flux_kernel(vs, conf, phys, fieldLoc, transport)
+    for axis, transport in ((0, uTrans), (1, vTrans)):
+        flux = calc_flux(vs, conf, fieldLoc, transport, axis=axis)
         divergence = jnp.roll(flux, -1, axis) - flux
         if conf.extensiveFld:
             fieldLoc = (
@@ -83,33 +76,8 @@ def calc_Advection(
     return cast(Array, fieldLoc)
 
 
-@partial(jit, static_argnames=["conf", "phys"])
-def calc_ZonalFlux(
-    vs: State,
-    conf: Configuration,
-    phys: PhysicalConstants,
-    field: ArrayInput,
-    uTrans: ArrayInput,
-) -> Array:
-    """calculate the zonal advective flux using the second order flux limiter method"""
-
-    return _calc_flux(vs, conf, field, uTrans, axis=0)
-
-
-@partial(jit, static_argnames=["conf", "phys"])
-def calc_MeridionalFlux(
-    vs: State,
-    conf: Configuration,
-    phys: PhysicalConstants,
-    field: ArrayInput,
-    vTrans: ArrayInput,
-) -> Array:
-    """calculate the meridional advective flux using the second order flux limiter method"""
-
-    return _calc_flux(vs, conf, field, vTrans, axis=1)
-
-
-def _calc_flux(
+@partial(jit, static_argnames=["conf", "axis"])
+def calc_flux(
     vs: State,
     conf: Configuration,
     field: ArrayInput,
@@ -119,9 +87,12 @@ def _calc_flux(
 ) -> Array:
     """Apply the shared second-order limiter stencil along one C-grid axis.
 
-    Keep storage orientation unchanged for rectangular and sharded grids. The
+    Axis zero is zonal and axis one meridional. Keep storage orientation
+    unchanged for rectangular and sharded grids. The
     meridional normal-face policy closes global walls; zonal flux extends edges.
     """
+    if axis not in (0, 1):
+        raise ValueError("axis must be 0 (zonal) or 1 (meridional)")
     if axis == 0:
         mask = vs.iceMaskU * vs.maskInU
         cfl = jnp.abs(vs.uIce * conf.deltatTherm * vs.recip_dxC)
@@ -160,7 +131,4 @@ def _calc_flux(
 @partial(jit)
 def limiter(Cr: ArrayInput | float) -> Array:
     """Apply the Superbee slope limiter to a scalar or horizontal slope ratio."""
-    # return 0       (upwind)
-    # return 1       (Lax-Wendroff)
-    # return np.max((0, np.min((1, Cr))))    (Min-Mod)
     return jnp.maximum(0, jnp.maximum(jnp.minimum(1, 2 * Cr), jnp.minimum(2, Cr)))

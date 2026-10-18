@@ -158,3 +158,20 @@ when calls are launched without waiting between them.
   numerical algorithms. Use the recorded device timeline and separate kernel
   experiments to identify costs. Do not add nested host durations to calculate
   total elapsed time: they overlap.
+
+## Spherical transport acceptance
+
+Run `.venv/bin/python -m benchmarks.validate_spherical --steps 1000 --output test_logs/spherical.json`.
+The harness advances a smooth positive tracer with the native extensive
+advection operator under known zonal rotation. It checks stored-area volume,
+finite values and bounds at every iteration, independently checks northward
+face integrals, and measures tensor refinement at4/2/1degree spacing. A
+Cartesian-face negative control conserves volume but fails the spherical
+tendency test. Separate real thermodynamic probes verify retained intermediate
+physics status. Transport does not invoke cleanup, ridging or thermodynamics.
+
+Local float64 CPU evidence on the N3 science plus the recorded harness SHA:
+1,000steps, maximum relative volume drift2.11e-15, tensor orders1.9997363 and
+1.9999341. The JSON includes exact source commit, dirty flag, harness checksum,
+geometry, dtype and actual runtime/device metadata. This is modeled numerical
+acceptance, not an observational climate-skill assessment or a GPU result.

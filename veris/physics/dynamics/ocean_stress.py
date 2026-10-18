@@ -14,7 +14,7 @@ from veris.model.types import State, jit
 from veris.physics.dynamics.rheology import ocean_drag_coeffs
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def OceanStressUV(
     vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[Array, Array]:
@@ -38,10 +38,10 @@ def OceanStressUV(
     # calculate forcing on ocean surface in u- and v-direction
     OceanStressU = 0.5 * (cDrag + jnp.roll(cDrag, 1, 0)) * cosWat * du - jnp.sign(
         vs.fCori
-    ) * sinWat * 0.5 * (cDrag * dvAtC + jnp.roll(cDrag * dvAtC, 1, 1))
+    ) * sinWat * 0.5 * (cDrag * dvAtC + jnp.roll(cDrag * dvAtC, 1, 0))
     OceanStressV = 0.5 * (cDrag + jnp.roll(cDrag, 1, 1)) * cosWat * dv + jnp.sign(
         vs.fCori
-    ) * sinWat * 0.5 * (cDrag * duAtC + jnp.roll(cDrag * duAtC, 1, 0))
+    ) * sinWat * 0.5 * (cDrag * duAtC + jnp.roll(cDrag * duAtC, 1, 1))
 
     # fill overlaps
     OceanStressU, OceanStressV = fill_overlap_uv(OceanStressU, OceanStressV, conf)

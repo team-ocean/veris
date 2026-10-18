@@ -25,7 +25,7 @@ from veris.physics.dynamics.rheology import (
 )
 
 
-@partial(jit, static_argnames=["conf", "phys", "axis_names"])
+@partial(jit, static_argnames=["conf", "axis_names"])
 def evp_solver(
     vs: State,
     conf: Configuration,
@@ -77,7 +77,6 @@ def evp_solver(
 
         e11, e22, e12 = strainrates(vs, conf, phys, uIce, vIce)
         zeta, _eta, press = viscosities(vs, conf, phys, e11, e22, e12)
-        # sig11, sig22, sig12 = stress(vs, conf, phys, e11, e22, e12, zeta, eta, press)
 
         # calculate adaptive relaxation parameters
         if conf.useAdaptiveEVP:
@@ -162,12 +161,12 @@ def evp_solver(
                 * phys.sinWat
                 * 0.5
                 * (
-                    cDrag * 0.5 * (vs.uOcean - uIce + jnp.roll(vs.uOcean - uIce, -1, 1))
+                    cDrag * 0.5 * (vs.vOcean - vIce + jnp.roll(vs.vOcean - vIce, -1, 1))
                     + jnp.roll(cDrag, 1, 0)
                     * 0.5
                     * (
-                        jnp.roll(vs.uOcean - uIce, 1, 0)
-                        + jnp.roll(jnp.roll(vs.uOcean - uIce, 1, 0), -1, 1)
+                        jnp.roll(vs.vOcean - vIce, 1, 0)
+                        + jnp.roll(jnp.roll(vs.vOcean - vIce, 1, 0), -1, 1)
                     )
                 )
                 * locMaskU
@@ -183,12 +182,12 @@ def evp_solver(
                 * phys.sinWat
                 * 0.5
                 * (
-                    cDrag * 0.5 * (vs.vOcean - vIce + jnp.roll(vs.vOcean - vIce, -1, 0))
+                    cDrag * 0.5 * (vs.uOcean - uIce + jnp.roll(vs.uOcean - uIce, -1, 0))
                     + jnp.roll(cDrag, 1, 1)
                     * 0.5
                     * (
-                        jnp.roll(vs.vOcean - vIce, 1, 1)
-                        + jnp.roll(jnp.roll(vs.vOcean - vIce, 1, 1), -1, 0)
+                        jnp.roll(vs.uOcean - uIce, 1, 1)
+                        + jnp.roll(jnp.roll(vs.uOcean - uIce, 1, 1), -1, 0)
                     )
                 )
                 * locMaskV
@@ -265,17 +264,6 @@ def evp_solver(
 
             uIcePm1 = vs.iceMaskU * (uIce - uIcePm1) * evpBetaU
             vIcePm1 = vs.iceMaskV * (vIce - vIcePm1) * evpBetaV
-
-            # if not explicitDrag:
-            #     ForcingX = ForcingX - uIce * dragU
-            #     ForcingY = ForcingY - vIce * dragV
-
-            # uIcePm1 = ( SeaIceMassU * (uIce - uIceNm1)*recip_deltatDyn
-            #             - (ForcingX + stressDivX)
-            #            ) * iceMaskU
-            # vIcePm1 = ( SeaIceMassV * (vIce - vIceNm1)*recip_deltatDyn
-            #             - (ForcingY + stressDivY)
-            #            ) * iceMaskV
 
             # Halo exchange uses two cells on each side. Residual norms count
             # each interior cell once, excluding periodic halo duplicates.
@@ -364,5 +352,4 @@ def evp_solver(
     # calculate u^n, sigma^n and residuals
     arg_body = jax.lax.fori_loop(0, conf.nEVPsteps, evp_solver_body, arg_body)
 
-    # return uIce, vIce, sigma1, sigma2, sigma12
     return arg_body[1], arg_body[2], arg_body[5], arg_body[6], arg_body[7]

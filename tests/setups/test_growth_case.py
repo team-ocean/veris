@@ -66,12 +66,16 @@ def test_growth_driver_preserves_recursive_fluxes_and_separate_diagnostics() -> 
         "SeaIceLoad",
         "IcePenetSW",
         "recip_hIceMean",
+        "ocean_mass_flux",
+        "ocean_salt_mass_flux",
+        "external_mass_flux",
+        "external_heat_flux",
     ]
     compiled_advance = jax.jit(
         advance, static_argnames=("configuration", "constants", "physics")
     )
     for _ in range(2):
-        expected = dict(zip(names, Growth(state, conf, phys), strict=True))
+        expected = dict(zip(names, Growth(state, conf, phys)[0], strict=True))
         actual, diagnostics = advance(state, conf, phys, physics="thermodynamics")
         assert isinstance(diagnostics, Diagnostics)
         for name, value in expected.items():

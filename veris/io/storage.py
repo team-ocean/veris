@@ -163,7 +163,6 @@ class NetCDFWriter:
         time: float,
         bounds: tuple[float, float],
         count: int = 1,
-        partial: bool = False,
         mean: bool = False,
     ) -> None:
         """Append one validated record with equal-weight sample count and bounds."""
@@ -172,8 +171,6 @@ class NetCDFWriter:
             raise RuntimeError("writer is closed")
         if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", stream):
             raise ValueError("stream name must be a simple netCDF identifier")
-        if partial:
-            raise ValueError("partial records cannot be written")
         arrays = selected_fields(fields)
         if (
             not np.isfinite((time, *bounds)).all()
@@ -227,7 +224,7 @@ class NetCDFWriter:
             "time": time,
             "time_bounds": bounds,
             "sample_count": count,
-            "partial": int(partial),
+            "partial": 0,
         }.items():
             group.variables[name][index] = value
         file.flush()

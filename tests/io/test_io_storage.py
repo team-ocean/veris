@@ -46,7 +46,7 @@ def test_stream_records_have_staggered_dimensions_and_metadata(tmp_path: Path) -
     assert tuple(record.fields) == ("uIce",)
     np.testing.assert_array_equal(record.fields["uIce"], np.full((3, 4), 12.0))
     assert record.bounds == (86400, 172800)
-    assert record.mean and record.count == 2
+    assert record.mean and record.count == 2 and not record.partial
     with (
         pytest.raises(FileExistsError),
         NetCDFWriter(
@@ -220,27 +220,6 @@ def test_snapshot_update_rejects_incompatible_initialized_shape(tmp_path: Path) 
     write_snapshot(tmp_path / "shape.nc", source, variables=("Area",))
     with pytest.raises(ValueError, match="shape"):
         update_state(target, read_record(tmp_path / "shape.nc"))
-
-
-def test_writer_rejects_partial_mean_before_creating_file(tmp_path: Path) -> None:
-    from veris.io.storage import NetCDFWriter
-
-    path = tmp_path / "partial.nc"
-    with (
-        NetCDFWriter(
-            path, calendar="noleap", units="seconds since 2001-01-01"
-        ) as writer,
-        pytest.raises(ValueError, match="partial"),
-    ):
-        writer.append(
-            "mean",
-            {"Area": np.ones((3, 4))},
-            time=1,
-            bounds=(0, 2),
-            mean=True,
-            partial=True,
-        )
-    assert not path.exists()
 
 
 def test_float32_snapshot_preserves_settings_and_constants_metadata(

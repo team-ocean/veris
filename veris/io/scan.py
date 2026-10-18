@@ -347,6 +347,7 @@ def run_scheduled(
     inputs: Any = None,
     history_select: Callable[[Any], Any] | None = None,
     history_sink: Callable[[Any], None] | None = None,
+    validate: Callable[[Any], None] | None = None,
 ) -> tuple[Any, float, float]:
     """Compile event shapes, run once and retain only unfinished continuation."""
     owner = getattr(select, "__self__", None)
@@ -389,6 +390,8 @@ def run_scheduled(
         and signature != observer._signature
     ):
         raise ValueError("continuation output variable shape or dtype changed")
+    if validate is not None:
+        validate(state)
     manager.begin_reduced(resume=observer.continue_runs and observer.initialized)
 
     def chunk_inputs(segment: Any) -> Any:
@@ -492,12 +495,12 @@ def run_scheduled(
         result = executables[segment.stop - segment.start](
             carry, inputs=chunk_inputs(segment)
         )
-        if history_select is None:
-            carry = result
-        else:
-            carry, history = result
+        carry = result if history_select is None else result[0]
+        if validate is not None:
+            validate(carry[0])
+        if history_select is not None:
             assert history_sink is not None
-            history_sink(history)
+            history_sink(result[1])
         state, sums, counts, iteration = carry
         sums, counts = list(sums), list(counts)
         with jax.enable_x64():

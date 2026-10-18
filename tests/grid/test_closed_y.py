@@ -40,7 +40,7 @@ def test_closed_transport_conserves_mass_and_its_derivative(speed: float) -> Non
     """Outward forcing cannot remove mass or couple opposite global y edges."""
     shape = (9, 11)
     ones = jnp.ones(shape)
-    state, conf, phys = initialize(
+    state, conf, _ = initialize(
         5,
         7,
         settings_overrides={
@@ -65,9 +65,7 @@ def test_closed_transport_conserves_mass_and_its_derivative(speed: float) -> Non
 
     def evolve(values: jax.Array) -> jax.Array:
         padded = fill_overlap(jnp.pad(values, 2), conf)
-        return calc_Advection(replace(state, hIceMean=padded), conf, phys, padded)[
-            2:-2, 2:-2
-        ]
+        return calc_Advection(replace(state, hIceMean=padded), conf, padded)[2:-2, 2:-2]
 
     np.testing.assert_allclose(evolve(field).sum(), field.sum(), atol=1e-12)
     direction = jnp.cos(field)
@@ -141,7 +139,7 @@ def test_growth_setup_keeps_closed_exterior_dry() -> None:
 @pytest.mark.parametrize("speed", [-0.2, 0.2])
 def test_closed_intensive_transport_preserves_constant(speed: float) -> None:
     """The transport-divergence correction must use the same closed wall flux."""
-    state, conf, phys = initialize(
+    state, conf, _ = initialize(
         5,
         7,
         settings_overrides={
@@ -158,7 +156,7 @@ def test_closed_intensive_transport_preserves_constant(speed: float) -> None:
         },
     )
     field = jnp.full((9, 11), 1.7)
-    result = calc_Advection(state, conf, phys, field)
+    result = calc_Advection(state, conf, field)
     np.testing.assert_allclose(result[2:-2, 2:-2], 1.7, atol=1e-14)
 
 

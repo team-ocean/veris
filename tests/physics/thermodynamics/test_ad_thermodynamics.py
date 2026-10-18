@@ -72,7 +72,7 @@ def test_growth_freshwater_salinity_has_finite_one_sided_sensitivity(
 
     def freshwater(salt: Array) -> Array:
         return jnp.sum(
-            Growth(replace(vs, ocSalt=jnp.full_like(vs.ocSalt, salt)), conf, phys)[4]
+            Growth(replace(vs, ocSalt=jnp.full_like(vs.ocSalt, salt)), conf, phys)[0][4]
         )
 
     salt = jnp.asarray(0.0, dtype=dtype)
@@ -237,7 +237,9 @@ def test_growth_zero_area_regularization_keeps_open_water_growth_finite(
     vs = equilibrium_state(state, conf, phys, Area=0, hIceMean=0, Qnet=100)
 
     def ice(cooling: Array) -> Array:
-        return Growth(replace(vs, Qnet=jnp.full_like(vs.Qnet, cooling)), conf, phys)[0]
+        return Growth(replace(vs, Qnet=jnp.full_like(vs.Qnet, cooling)), conf, phys)[0][
+            0
+        ]
 
     cooling = jnp.asarray(100.0)
     expected_slope = conf.deltatTherm / (phys.rhoIce * phys.lhFusion)

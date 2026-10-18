@@ -22,6 +22,7 @@ def test_public_facade_exports_keep_canonical_identity() -> None:
         "RunResult": "veris.execution.simulation",
         "Simulation": "veris.execution.simulation",
         "advance": "veris.execution.advance",
+        "diagnose_surface_albedo": "veris.numerics.surface_properties",
         "initialize_experiment": "veris.execution.experiment_initialization",
         "step": "veris.execution.rollout",
         "run_experiment": "veris.execution.runner",

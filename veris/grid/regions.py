@@ -50,7 +50,18 @@ def regional_geometry(
     """Slice horizontal geometry, spacing vectors and all ocean mask levels."""
     result = {}
     for item in fields(geometry):
-        value = np.asarray(getattr(geometry, item.name))
+        original = getattr(geometry, item.name)
+        if original is None or item.name == "radius":
+            result[item.name] = original
+            continue
+        if item.name == "latitude":
+            result[item.name] = np.asarray(original)[y[2:-2]]
+            continue
+        if item.name == "latitude_edges":
+            indices = np.r_[y[2:-2], y[-3] + 1]
+            result[item.name] = np.asarray(original)[indices]
+            continue
+        value = np.asarray(original)
         result[item.name] = (
             value[x]
             if item.name in ("dxt", "dxu")

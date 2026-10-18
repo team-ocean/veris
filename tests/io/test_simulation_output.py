@@ -327,3 +327,51 @@ def test_context_failure_closes_writer_and_final_partial_mean_is_discarded(
     simulation.close()
     with pytest.raises(RuntimeError, match="closed"):
         simulation.run(1)
+
+
+@pytest.mark.parametrize("mean", [False, True])
+@pytest.mark.parametrize("successful_prefix", [False, True])
+def test_invalid_physics_never_commits_scheduled_samples(
+    tmp_path: Path, mean: bool, successful_prefix: bool
+) -> None:
+    """Reject bad native status before instant/mean output, retaining prior records."""
+    salts = [35.0, 0.0, 35.0] if successful_prefix else [0.0, 35.0]
+    definition = veris.Experiment.builtin(
+        "growth",
+        grid=veris.Grid(2, 2),
+        settings={"deltatDyn": 300.0, "deltatTherm": 300.0},
+        constants={"saltIce_ref": 5.0},
+        initial_conditions={"hIceMean": 0.0, "hSnowMean": 0.0, "Area": 0.0},
+        forcing=veris.Forcing(
+            constant={"Qnet": 100.0, "Qsw": 0.0, "theta": 271.19},
+            series={"ocSalt": salts},
+        ),
+        steps=len(salts),
+        output=OutputSettings(
+            streams=(
+                Stream(
+                    "science",
+                    ("hIceMean", "Area"),
+                    timedelta(seconds=300),
+                    timedelta(seconds=300) if mean else "instantaneous",
+                ),
+            )
+        ),
+    )
+    path = tmp_path / "rejected.nc"
+    simulation = veris.Simulation.initialize(definition, output_path=path)
+    if successful_prefix:
+        simulation.run(1)
+    prior = simulation.state
+    elapsed = simulation.elapsed
+    with pytest.raises(ValueError, match="physics_status=2"):
+        simulation.run(2)
+    assert simulation.closed
+    assert simulation.state is prior
+    assert simulation.elapsed == elapsed
+    assert simulation.completed_steps == int(successful_prefix)
+    if path.exists():
+        with h5netcdf.File(path, "r") as file:
+            assert np.all(
+                file.groups["science"].variables["time"][:] <= elapsed.total_seconds()
+            )

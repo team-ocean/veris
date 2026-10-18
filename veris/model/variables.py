@@ -67,16 +67,16 @@ VARIABLES: dict[str, Variable] = {
     ),
     "SeaIceStrength": Variable("Ice strength", C_GRID, "N m-1", "Ice strength"),
     "os_hIceMean": Variable(
-        "Overshoot of ice thickness from advection",
+        "Prepared minus raw ice thickness from advection cleanup",
         C_GRID,
         "m",
-        "Overshoot of ice thickness from advection",
+        "Prepared minus raw ice thickness from advection cleanup",
     ),
     "os_hSnowMean": Variable(
-        "Overshoot of snow thickness from advection",
+        "Prepared minus raw snow thickness from advection cleanup",
         C_GRID,
         "m",
-        "Overshoot of snow thickness from advection",
+        "Prepared minus raw snow thickness from advection cleanup",
     ),
     "AreaW": Variable(
         "Sea ice cover fraction centered around u point",

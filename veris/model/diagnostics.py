@@ -3,8 +3,9 @@
 These halo-inclusive C-grid arrays are returned separately from State so they
 add no permanent calculation or differentiation leaves. Metadata follows the
 same Variable schema as state output and can be passed directly to h5netcdf.
-The legacy salt-forcing formula combines differently normalized terms when
-saltIce_ref is nonzero; its units remain unknown pending a physics correction.
+Actual ocean mass/salt fluxes and independent external boundary inputs use SI
+rates, downward positive. The legacy-named salt forcing is now the consistent
+local-salinity virtual flux in (g/kg)*m/s.
 """
 
 from dataclasses import dataclass
@@ -25,6 +26,11 @@ class Diagnostics:
     OceanStressV: Array
     EmPmR: Array
     forc_salt_surface: Array
+    physics_status: Array
+    ocean_mass_flux: Array
+    ocean_salt_mass_flux: Array
+    external_mass_flux: Array
+    external_heat_flux: Array
 
 
 DIAGNOSTICS: dict[str, Variable] = {
@@ -50,14 +56,43 @@ DIAGNOSTICS: dict[str, Variable] = {
         "Evaporation minus precipitation minus runoff",
         C_GRID,
         "kg m-2 s-1",
-        "Net freshwater mass loss from the ocean, including ice and snow exchange",
+        "Total ocean mass loss, including ice/snow and external freshwater exchange",
     ),
     "forc_salt_surface": Variable(
-        "Legacy surface salt forcing",
+        "Surface virtual salt forcing",
         C_GRID,
-        "unknown",
-        "Combined virtual and actual ice salt forcing; the legacy terms have "
-        "different freshwater normalizations when saltIce_ref is nonzero",
+        "g kg-1 m s-1",
+        "Local-salinity virtual forcing: (EmPmR*ocSalt + 1000*ocean_salt_mass_flux)/rhoFresh",
+    ),
+    "physics_status": Variable(
+        "Physics validity status",
+        C_GRID,
+        "1",
+        "Zero for valid physics; one for invalid physical parameters; two for invalid saline-ice formation",
+    ),
+    "ocean_mass_flux": Variable(
+        "Actual mass input to ocean",
+        C_GRID,
+        "kg m-2 s-1",
+        "Downward total bulk mass input, including retained ice salt mass",
+    ),
+    "ocean_salt_mass_flux": Variable(
+        "Actual salt input to ocean",
+        C_GRID,
+        "kg m-2 s-1",
+        "Downward salt mass input for fixed bulk ice salinity in g/kg",
+    ),
+    "external_mass_flux": Variable(
+        "External column mass input",
+        C_GRID,
+        "kg m-2 s-1",
+        "Downward atmospheric/land mass from rain, snow, evaporation, sublimation and runoff",
+    ),
+    "external_heat_flux": Variable(
+        "External column enthalpy input",
+        C_GRID,
+        "W m-2",
+        "Downward zero-layer enthalpy input from surface thermal fluxes and boundary mass events",
     ),
 }
 

@@ -15,7 +15,7 @@ from veris.numerics.evp import evp_solver
 from veris.numerics.freedrift import freedrift_solver
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def tauXY(
     vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[Array, Array]:
@@ -57,7 +57,7 @@ def tauXY(
     return tauX, tauY
 
 
-@partial(jit, static_argnames=["conf", "phys"])
+@partial(jit, static_argnames=["conf"])
 def WindForcingXY(
     vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[Array, Array]:
@@ -93,7 +93,7 @@ def WindForcingXY(
     return WindForcingX, WindForcingY
 
 
-@partial(jit, static_argnames=["conf", "phys", "axis_names"])
+@partial(jit, static_argnames=["conf", "axis_names"])
 def IceVelocities(
     vs: State,
     conf: Configuration,

@@ -14,7 +14,6 @@ from conftest import StateFactory
 from jax.typing import ArrayLike
 
 from veris.model.configuration import Configuration
-from veris.model.physical_constants import PhysicalConstants
 
 
 @pytest.fixture
@@ -62,14 +61,13 @@ def test_cfl_one_is_exact_periodic_translation(
     transport: ModuleType,
     transport_state: Callable[[ArrayLike, ArrayLike], Any],
     conf: Configuration,
-    phys: PhysicalConstants,
     axis: int,
     velocity: int,
 ) -> None:
     interior = np.random.default_rng(42).uniform(0.2, 2, (5, 7))
     field = jnp.asarray(np.pad(interior, 2, mode="wrap"))
     vs = transport_state(velocity if axis == 0 else 0, velocity if axis == 1 else 0)
-    actual = transport.calc_Advection(vs, replace(conf, deltatTherm=1), phys, field)
+    actual = transport.calc_Advection(vs, replace(conf, deltatTherm=1), field)
     expected = np.roll(interior, velocity, axis=axis)
     np.testing.assert_allclose(actual[2:-2, 2:-2], expected, atol=1e-14)
     assert float(jnp.sum(actual[2:-2, 2:-2])) == pytest.approx(interior.sum())
@@ -81,7 +79,6 @@ def test_subcfl_transport_conserves_mass_and_bounds(
     transport: ModuleType,
     transport_state: Callable[[ArrayLike, ArrayLike], Any],
     conf: Configuration,
-    phys: PhysicalConstants,
     axis: int,
     velocity: float,
 ) -> None:
@@ -89,7 +86,7 @@ def test_subcfl_transport_conserves_mass_and_bounds(
     field = jnp.asarray(np.pad(interior, 2, mode="wrap"))
     vs = transport_state(velocity if axis == 0 else 0, velocity if axis == 1 else 0)
     actual = np.asarray(
-        transport.calc_Advection(vs, replace(conf, deltatTherm=1), phys, field)
+        transport.calc_Advection(vs, replace(conf, deltatTherm=1), field)
     )[2:-2, 2:-2]
     assert actual.sum() == pytest.approx(interior.sum(), abs=1e-12)
     assert actual.min() >= interior.min() - 1e-14
@@ -102,7 +99,6 @@ def test_intensive_field_translates_at_unit_cfl(
     transport: ModuleType,
     transport_state: Callable[[ArrayLike, ArrayLike], Any],
     conf: Configuration,
-    phys: PhysicalConstants,
     axis: int,
     velocity: int,
 ) -> None:
@@ -111,7 +107,7 @@ def test_intensive_field_translates_at_unit_cfl(
     field = jnp.asarray(np.pad(interior, 2, mode="wrap"))
     vs = transport_state(velocity if axis == 0 else 0, velocity if axis == 1 else 0)
     result = transport.calc_Advection(
-        vs, replace(conf, deltatTherm=1, extensiveFld=False), phys, field
+        vs, replace(conf, deltatTherm=1, extensiveFld=False), field
     )
     np.testing.assert_allclose(
         result[2:-2, 2:-2], np.roll(interior, velocity, axis), atol=1e-14
@@ -123,7 +119,6 @@ def test_intensive_constant_survives_divergent_velocity(
     transport: ModuleType,
     transport_state: Callable[[ArrayLike, ArrayLike], Any],
     conf: Configuration,
-    phys: PhysicalConstants,
     axis: int,
 ) -> None:
     """The advective derivative of a spatially constant tracer is zero."""
@@ -134,7 +129,7 @@ def test_intensive_constant_survives_divergent_velocity(
     vs = replace(vs, **{"uIce" if axis == 0 else "vIce": jnp.asarray(velocity)})
     field = jnp.full((9, 11), 2.3)
     result = transport.calc_Advection(
-        vs, replace(conf, deltatTherm=1, extensiveFld=False), phys, field
+        vs, replace(conf, deltatTherm=1, extensiveFld=False), field
     )
     np.testing.assert_allclose(result, field, atol=1e-14)
 
@@ -143,7 +138,6 @@ def test_intensive_meridional_sweep_uses_updated_zonal_field(
     transport: ModuleType,
     transport_state: Callable[[ArrayLike, ArrayLike], Any],
     conf: Configuration,
-    phys: PhysicalConstants,
 ) -> None:
     """Cross-flow cannot change a tracer constant in the cross-flow direction."""
     interior = np.broadcast_to(np.arange(5.0)[:, None], (5, 7))
@@ -151,7 +145,7 @@ def test_intensive_meridional_sweep_uses_updated_zonal_field(
     v = np.broadcast_to(np.linspace(-0.2, 0.2, 7), (5, 7))
     vs = replace(transport_state(1, 0), vIce=jnp.asarray(np.pad(v, 2, mode="wrap")))
     result = transport.calc_Advection(
-        vs, replace(conf, deltatTherm=1, extensiveFld=False), phys, field
+        vs, replace(conf, deltatTherm=1, extensiveFld=False), field
     )
     np.testing.assert_allclose(
         result[2:-2, 2:-2], np.roll(interior, 1, axis=0), atol=1e-14
@@ -164,7 +158,6 @@ def test_directional_flux_matches_scalar_stencil(
     transport: ModuleType,
     transport_state: Callable[[ArrayLike, ArrayLike], Any],
     conf: Configuration,
-    phys: PhysicalConstants,
     axis: int,
     cyclic_y: bool,
 ) -> None:
@@ -238,9 +231,8 @@ def test_directional_flux_matches_scalar_stencil(
         else:
             source_j = min(max(j, 2), shape[1] - 3)
         expected[i, j] = raw[source_i, source_j]
-    function = transport.calc_ZonalFlux if axis == 0 else transport.calc_MeridionalFlux
-    actual = function(
-        vs, settings, phys, jnp.asarray(field), jnp.asarray(transport_values)
+    actual = transport.calc_flux(
+        vs, settings, jnp.asarray(field), jnp.asarray(transport_values), axis=axis
     )
     np.testing.assert_allclose(actual, expected, rtol=1e-13, atol=1e-14)
 
@@ -250,7 +242,6 @@ def test_directional_flux_weighted_gradient(
     transport: ModuleType,
     transport_state: Callable[[ArrayLike, ArrayLike], Any],
     conf: Configuration,
-    phys: PhysicalConstants,
     axis: int,
 ) -> None:
     """A spatially weighted objective checks local transport sensitivities."""
@@ -260,11 +251,12 @@ def test_directional_flux_weighted_gradient(
     weights = jnp.asarray(rng.normal(size=(5, 7)))
     vs = transport_state(0.3, -0.2)
     settings = replace(conf, deltatTherm=0.7)
-    function = transport.calc_ZonalFlux if axis == 0 else transport.calc_MeridionalFlux
     velocity = vs.uIce if axis == 0 else vs.vIce
 
     def objective(amount: jax.Array) -> jax.Array:
-        flux = function(vs, settings, phys, field + amount * perturbation, velocity)
+        flux = transport.calc_flux(
+            vs, settings, field + amount * perturbation, velocity, axis=axis
+        )
         return jnp.sum(weights * flux[2:-2, 2:-2])
 
     point = jnp.asarray(0.0)
@@ -277,3 +269,14 @@ def test_directional_flux_weighted_gradient(
     assert abs(float(finite_difference)) > 1e-4
     np.testing.assert_allclose(reverse, forward, rtol=1e-12, atol=1e-12)
     np.testing.assert_allclose(reverse, finite_difference, rtol=1e-7, atol=1e-9)
+
+
+def test_flux_rejects_invalid_axis(
+    transport: ModuleType,
+    transport_state: Callable[[ArrayLike, ArrayLike], Any],
+    conf: Configuration,
+) -> None:
+    """An invalid direction must fail before selecting a different stencil."""
+    vs = transport_state(0.3, -0.2)
+    with pytest.raises(ValueError, match="axis"):
+        transport.calc_flux(vs, conf, vs.iceMask, vs.uIce, axis=2)
