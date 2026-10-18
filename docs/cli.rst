@@ -167,7 +167,6 @@ disabled schedule. When no output settings are defined, the runner creates a
 stream that saves current values at every timestep, selecting all fields or
 ``--io-variables``. A timestep
 is one advance of the model clock.
-The previous ``--output`` and ``--netcdf`` spellings have been removed.
 
 Definitions with enabled scheduled output require ``--output-history``. The final
 snapshot and history must have distinct new paths; their parent directories

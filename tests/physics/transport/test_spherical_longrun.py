@@ -50,7 +50,7 @@ def test_wrong_cartesian_metric_fails_spherical_tendency() -> None:
         vIce=fill_overlap(jnp.full_like(state.vIce, 0.1), conf, boundary="normal"),
     )
     field = jnp.ones_like(state.hIceMean)
-    after = calc_Advection(wrong, conf, p, field)
+    after = calc_Advection(wrong, conf, field)
     area = np.asarray(1 / wrong.recip_rA[2:-2, 2:-2])
     relative = abs(np.sum((np.asarray(after[2:-2, 2:-2]) - 1) * area)) / np.sum(area)
     assert relative <= 1e-10

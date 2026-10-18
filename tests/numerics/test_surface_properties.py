@@ -71,7 +71,7 @@ def growth_reference(
         hIceMean=state.hIceMean.at[2, 2].set(0.0),
         hSnowMean=state.hSnowMean.at[2, 2].set(0.0),
     )
-    return jnp.stack(Growth(state, conf, phys.with_overrides(drySnowAlb=albedo)))
+    return jnp.stack(Growth(state, conf, phys.with_overrides(drySnowAlb=albedo))[0])
 
 
 def diagnose(state: State, conf: Configuration, phys: PhysicalConstants) -> jax.Array:

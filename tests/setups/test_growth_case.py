@@ -75,7 +75,7 @@ def test_growth_driver_preserves_recursive_fluxes_and_separate_diagnostics() -> 
         advance, static_argnames=("configuration", "constants", "physics")
     )
     for _ in range(2):
-        expected = dict(zip(names, Growth(state, conf, phys), strict=True))
+        expected = dict(zip(names, Growth(state, conf, phys)[0], strict=True))
         actual, diagnostics = advance(state, conf, phys, physics="thermodynamics")
         assert isinstance(diagnostics, Diagnostics)
         for name, value in expected.items():

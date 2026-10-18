@@ -69,6 +69,7 @@ package initializer files except for the public interface at the root::
        forcing.py
        metadata.py
        physical_constants.py
+       physical_parameters.py
        types.py
        variables.py
      grid/
@@ -78,6 +79,7 @@ package initializer files except for the public interface at the root::
        ocean.py
        reductions.py
        regions.py
+       spherical.py
      physics/
        dynamics/
          area_mass.py
@@ -88,6 +90,7 @@ package initializer files except for the public interface at the root::
          advection.py
          cleanup.py
        thermodynamics/
+         budgets.py
          growth.py
          heat_flux_cesm.py
          heat_flux_mitgcm.py
@@ -96,6 +99,7 @@ package initializer files except for the public interface at the root::
        evp.py
        freedrift.py
        momentum.py
+       surface_properties.py
        surface_temperature.py
      execution/
        advance.py

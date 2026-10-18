@@ -56,7 +56,7 @@ def test_dynamics_transport_preserves_intermediate_state(cyclic_y: bool) -> None
         sigma12=velocity[4],
     )
     stress = OceanStressUV(expected, conf, phys)
-    ice, snow, area = Advection(expected, conf, phys)
+    ice, snow, area = Advection(expected, conf)
     expected = replace(expected, hIceMean=ice, hSnowMean=snow, Area=area)
     ice, snow, area, temperature, ice_overshoot, snow_overshoot = clean_up_advection(
         expected, conf, phys

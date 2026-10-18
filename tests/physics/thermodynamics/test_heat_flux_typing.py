@@ -97,7 +97,7 @@ def surface_fluxes(state: {"str" if case == "wrong-atmosphere" else "State"}, co
     field = np.ones((2, 3))
     return solve4temp(state, conf, phys, field, field, field, field)
 
-def growth(state: State, conf: Configuration, phys: PhysicalConstants) -> {"tuple[Array, Array]" if case == "wrong-arity" else "GrowthResult"}:
+def growth(state: State, conf: Configuration, phys: PhysicalConstants) -> {"GrowthResult" if case == "wrong-arity" else "tuple[GrowthResult, Array]"}:
     return Growth(state, conf, phys)
 """
     expected = None
@@ -107,5 +107,5 @@ def growth(state: State, conf: Configuration, phys: PhysicalConstants) -> {"tupl
         source += "\nsettings = Configuration(nITC=1.5)\n"
         expected = ("invalid-argument-type", "int")
     elif case == "wrong-arity":
-        expected = ("invalid-return-type", "tuple of length 15")
+        expected = ("invalid-return-type", "tuple of length 2")
     _check_contract(tmp_path, source, expected)

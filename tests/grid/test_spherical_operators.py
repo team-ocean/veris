@@ -98,9 +98,9 @@ def test_spherical_zonal_spacing_at_sixty_degrees(
 def test_uniform_northward_transport_matches_face_integral(
     spherical_state: tuple[State, Configuration, PhysicalConstants],
 ) -> None:
-    state, conf, phys = spherical_state
+    state, conf, _ = spherical_state
     state = replace(state, vIce=jnp.full_like(state.vIce, 0.1))
-    result = calc_Advection(state, conf, phys, state.hIceMean)
+    result = calc_Advection(state, conf, state.hIceMean)
     np.testing.assert_allclose(result[3, 5] - 1.0, 9.786682438863892e-5, rtol=1e-11)
 
 

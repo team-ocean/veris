@@ -230,6 +230,13 @@ Simulation manages host execution contexts, time and I/O (input and output).
 Tests check the expected stage sequence separately from host management and
 independent numerical kernels.
 
+`Growth` returns its fifteen physical arrays and grid-shaped formation status
+together. All callers use this same compiled implementation; no public wrapper
+discards status. Transport accepts only State, Configuration and the transported
+field. Its single `calc_flux` kernel selects the zonal or meridional stencil with
+an explicit static axis. The netCDF writer accepts complete records only, while
+the stored completeness marker remains part of the current restart schema.
+
 ## Scientific package hierarchy
 
 The implementations are grouped by their scientific role and function:

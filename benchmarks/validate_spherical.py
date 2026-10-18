@@ -129,7 +129,7 @@ def _check_spherical_tendency(
         uIce=jnp.zeros_like(state.uIce),
         vIce=fill_overlap(jnp.full_like(state.vIce, speed), conf, boundary="normal"),
     )
-    after = calc_Advection(current, conf, p, jnp.ones_like(state.hIceMean))
+    after = calc_Advection(current, conf, jnp.ones_like(state.hIceMean))
     lat = np.asarray(geometry.latitude)
     edges = np.asarray(geometry.latitude_edges)
     radius = _radius(geometry)
@@ -244,7 +244,7 @@ def validate_spherical_transport(
             _: int, carry: tuple[Array, Array, Array, Array, Array]
         ) -> tuple[Array, Array, Array, Array, Array]:
             field, drift, low, high, finite = carry
-            field = fill_overlap(calc_Advection(state, conf, p, field), conf)
+            field = fill_overlap(calc_Advection(state, conf, field), conf)
             physical = field[2:-2, 2:-2]
             error = jnp.abs(jnp.sum(physical * area) / volume - 1)
             return (

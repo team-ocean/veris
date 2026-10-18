@@ -1,5 +1,51 @@
 # Test suite redundancy audit
 
+## Whole-tree source and test audit — 2026-10-18
+
+Reviewed all 81 maintained source modules and all 145 Python test/support files.
+Source cleanup consolidates Growth on its full `(values, status)` result and
+transport on `calc_flux(..., axis=0|1)`. Numerical callers and type contracts use
+those interfaces directly. Remove the unsupported writer `partial` argument;
+the on-disk completeness marker remains zero for the current restart schema.
+No reference archives, physical equations, tolerances or test-selection rules
+change.
+
+| Removed cases | Retained assertion owner |
+| --- | --- |
+| Registered factory versus its own initializer (6) | Independent notebook startup archive, analytic dynamics wind/masks, literal growth column, island masks, initialization overrides and all-array precision checks. The removed comparator called the same field factory on both sides. |
+| Dynamics/island invalid Grid arguments (6) | `model/test_experiment.py::test_invalid_grids_fail_before_allocation`; consolidate one missing minimum-ny row here (+1). Invalid Grid construction never reached preset initialization. The distinct valid-Grid island minimum remains. |
+| One-device scalar halo comparison (1) | `grid/test_fill_overlap.py::test_sharded_dispatch_uses_explicit_active_mesh` checks the same mesh/scalar result plus UV boundaries and serial dispatch. Rectangular independent-wrap and actual four-device AD probes remain. |
+| Direction-specific wrong-State typing (1) | One rejection row for the single `calc_flux` interface. Both axis stencils and weighted gradients remain independently checked. |
+| Unsupported partial-record flag (1) | Remove with its rejected-only argument. Existing mean-record roundtrip now explicitly checks the stored complete-record marker; incomplete-window output and strict restart validation remain. |
+
+Fifteen obsolete/duplicate rows are removed; one shared validation row and one
+invalid-axis case are added: net reduction **13 collected cases**. The existing
+three-case saline-formation matrix now checks public Growth's status directly,
+including its dtype, as well as advance's status. This prevents loss of failure
+information at the public numerical entry point. The scalar flux stencils and
+finite-difference/JVP/VJP assertions retain both axes without wrapper APIs.
+
+Retain independent physical laws, immutable trajectories, float32 stability,
+threshold/hemisphere branches, parameter directions, inactive-NaN/origin AD,
+transactional output/state checks, restart integrity, callback lifetime, compiled
+reuse, local sharding and multiprocess communication/race regressions. In
+particular, poisoned prior heat-flux invariance remains an exact assertion;
+tolerance-based kernel composition does not replace it. No test is moved behind
+an opt-in marker or into an unexecuted archive.
+
+Keep shared CLI flag translation because three drivers consume it; inlining
+would duplicate their conversions. Keep JAX transform/checkpoint guards and
+weak callback owners because they prevent real file/AD/resource failures. Keep
+CF calendar aliases as standard data interoperability. Keep the complete-restart
+v1 settings/constants schema, including unused stored controls, so a cleanup
+does not silently redefine a current serialized experiment or its parameter
+tree. Remove abandoned commented implementations and obsolete Flake8 metadata;
+Ruff and setup.py already own those responsibilities. Active API, hierarchy,
+budget and contributor documentation follow the canonical interfaces/main.
+
+Validation results are recorded in CHANGELOG.md; detailed per-file inventories
+and logs remain locally in `test_logs/cleanup-2026-10-18/`.
+
 ## CLI forwarding deduplication — 2026-10-14
 
 The output flags are now `--output-snapshot` and `--output-history` in the

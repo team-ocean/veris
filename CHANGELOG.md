@@ -1,5 +1,54 @@
 # Development log
 
+## 2026-10-18 — Source/test cleanup, main integration and 0.2.1 release
+
+- IN PROGRESS (@root): audit every maintained source/test module on
+  `feat/vercor-scientific-validation`, remove obsolete interfaces and redundant
+  tests, validate and commit, then integrate both documentation commits from
+  current `main`. User also requests version 0.2.1 and a release after the
+  original cleanup/integration goals succeed.
+- Specialized source, test-quality and documentation audits are recorded in
+  `test_logs/cleanup-2026-10-18/`. Root schedules the sole pytest process.
+  Initial tracked tree is clean at `35bdbc0`; origin feature `4daaef1` has a
+  successful hosted CI run. Current main is `a0a2a7d`, with documentation fix
+  `74d4af7`; preserve both original commits and their release-version behavior.
+- RED: public Growth discards formation status (three literal-status cases fail
+  unpacking); the canonical axis-based flux entry point is absent (one failure).
+  Consolidate Growth on the existing full-result kernel and transport on one
+  axis-based stencil, preserving equations and every archived numerical result.
+- Keep live JAX tracing/checkpoint safeguards, CF calendar names, regional ocean
+  input validation, shared CLI translation and current strict restart schemas.
+  Their responsibilities remain exercised by distinct numerical/resource tests.
+- [x] Complete all-module inventories: 81 source modules and 145 Python
+  test/support files. Consolidate 15 obsolete/redundant test rows into their
+  canonical owners, add minimum-ny and invalid-axis cases: net 13 fewer cases.
+  `tests/AUDIT.md` maps each removal to retained assertions. Remove unsupported
+  writer partial flag, incidental precision re-export, abandoned implementations
+  and Flake8 metadata. Refresh current API/hierarchy/contributor documentation.
+- [x] Independent final review finds no Critical, Important or remaining Minor
+  findings. Normalized ASTs preserve growth/transport arithmetic; all 17
+  scientific reference artifacts are unchanged. Ruff/format/annotations/ty pass.
+  Focused CPU 73/73, full-tree fast sample 174/174, GPU science plus all four
+  GPU-only contracts 120/120 pass on the local Tesla P100s.
+- [x] Aegir job `66552001` on node441 completes `0:0` with 12 CPUs/32 GiB:
+  full CPU correctness 1,734 passed/four expected GPU-only skips, zero failures
+  or errors; 1,948.99 s pytest / 1,958.38 s external wall. Exactly 1,738 cases
+  execute, 13 fewer than the preceding 1,751-case baseline, matching the audit.
+- [x] Maintained coverage is 4,991/5,245 = 95.16%; counting the two unexecuted
+  three-statement CLI template resources gives 4,991/5,251 = 95.05%. The 80%
+  gate passes. Whole-package coverage including generated version metadata and
+  those resources is 5,132/5,604 = 91.58%. All 4,965 unchanged previously covered
+  maintained lines retain coverage; no scientific reference artifact changes.
+- [x] Final Ruff/format/annotations/ty, strict Sphinx, wheel/sdist builds and
+  both clean-installed lifecycle/framework probes pass. All 259 frozen
+  source/config/reference hashes still match. Main integration and the
+  subsequent 0.2.1 release remain pending.
+- Reviewed a three-way integration preview: preserve both changelog histories,
+  main-based contribution guidance and main's stable-documentation footer. The
+  release version remains owned by Versioneer's annotated tag, avoiding a second
+  hard-coded version source. Correct the citation's software repository URL to
+  the maintained repository without changing the preferred scientific article.
+
 ## 2026-10-18 — Portable surface regression CI repair
 
 - [x] Pull feature tip `225aa34` and reproduce the sole failure in GitHub run

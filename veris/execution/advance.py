@@ -27,7 +27,7 @@ from veris.model.physical_parameters import _physical_parameters_valid
 from veris.model.types import State, jit
 from veris.numerics.autodiff import norm_hypot
 from veris.physics.dynamics.driver import dynamics_transport
-from veris.physics.thermodynamics.growth import _growth_with_status
+from veris.physics.thermodynamics.growth import Growth
 
 
 def _forcing_arrays(
@@ -108,7 +108,7 @@ def _advance_valid(
     freshwater = salt = penetrating = zeros
     mass = salt_mass = external_mass = external_heat = status = zeros
     if physics != "dynamics":
-        values, status = _growth_with_status(state, conf, phys)
+        values, status = Growth(state, conf, phys)
         (
             ice,
             snow,

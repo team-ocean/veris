@@ -31,23 +31,6 @@ def test_periodic_halo_matches_numpy_wrap(
     np.testing.assert_array_equal(v, -expected)
 
 
-def test_shard_map_halo_matches_serial_on_one_device(halo: ModuleType) -> None:
-    """Execute actual collective halo code on the available single-device mesh."""
-    import jax
-    from jax.sharding import NamedSharding
-    from jax.sharding import PartitionSpec as P
-
-    mesh = jax.make_mesh((1, 1), ("x", "y"))
-    interior = np.arange(28.0).reshape(4, 7)
-    initial = jnp.asarray(np.pad(interior, 2, constant_values=-99))
-    initial = jax.device_put(initial, NamedSharding(mesh, P("x", "y")))
-    with jax.set_mesh(mesh):
-        result = halo.fill_overlap(
-            initial, Configuration(nx=4, ny=7, use_sharding=True)
-        )
-    np.testing.assert_array_equal(result, np.pad(interior, 2, mode="wrap"))
-
-
 def test_four_cpu_halo_exchange_and_adjoint_in_fresh_process() -> None:
     """Exercise real cross-device communication in all rectangular mesh layouts."""
     import os

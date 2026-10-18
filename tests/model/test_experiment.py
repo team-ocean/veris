@@ -34,6 +34,7 @@ def test_global_grid_adapts_to_local_extents_and_packed_partition_halos() -> Non
     [
         ((True, 8), (1, 1), "nx"),
         ((1, 8), (1, 1), "nx"),
+        ((8, 1), (1, 1), "ny"),
         ((8, 2.5), (1, 1), "ny"),
         ((12, 8), (5, 1), "divis"),
         ((12, 8), (12, 1), "two"),

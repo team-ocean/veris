@@ -1,11 +1,11 @@
 Developing Veris
 ================
 
-Development takes place on ``jax-only``; published releases are tagged from
-``main``. For the latest published package, follow :doc:`/introduction/get-started`.
+Development and release tagging use ``main``. For the latest published package,
+follow :doc:`/introduction/get-started`.
 To work on the source, use Git and Python 3.14::
 
-   git clone --branch jax-only https://github.com/team-ocean/veris.git
+   git clone --branch main https://github.com/team-ocean/veris.git
    cd veris
    python3 -m venv .venv
    source .venv/bin/activate
@@ -64,10 +64,11 @@ model behavior. Keep the reference equations and rules for calculating
 derivatives unless the change explicitly targets them. A derivative describes
 how a result changes when an input changes. Complete the correctness and coverage checks described
 in the `test-harness guide`_, update `CHANGELOG.md`_, and commit a focused change on
-``jax-only``. Record failed approaches and remaining work for the next session.
+a feature branch based on ``main``. Record failed approaches and remaining work
+for the next session.
 
-.. _AGENTS.md: https://github.com/team-ocean/veris/blob/jax-only/AGENTS.md
-.. _DESIGN.md: https://github.com/team-ocean/veris/blob/jax-only/DESIGN.md
-.. _CHANGELOG.md: https://github.com/team-ocean/veris/blob/jax-only/CHANGELOG.md
-.. _test-harness guide: https://github.com/team-ocean/veris/blob/jax-only/tests/README.md
-.. _benchmark guide: https://github.com/team-ocean/veris/blob/jax-only/benchmarks/README.md
+.. _AGENTS.md: https://github.com/team-ocean/veris/blob/main/AGENTS.md
+.. _DESIGN.md: https://github.com/team-ocean/veris/blob/main/DESIGN.md
+.. _CHANGELOG.md: https://github.com/team-ocean/veris/blob/main/CHANGELOG.md
+.. _test-harness guide: https://github.com/team-ocean/veris/blob/main/tests/README.md
+.. _benchmark guide: https://github.com/team-ocean/veris/blob/main/benchmarks/README.md

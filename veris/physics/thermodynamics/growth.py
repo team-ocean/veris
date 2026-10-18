@@ -2,8 +2,9 @@
 
 The original Veris Growth equations average surface fluxes over nITC thickness
 categories and combine ice/snow melt, mixed-layer exchange, precipitation, and
-salt/freshwater coupling. Inputs and all fifteen outputs are horizontal arrays;
-the internal category axis is last. Surface temperatures come from solve4temp.
+salt/freshwater coupling. Inputs, fifteen physical outputs and formation status
+are horizontal arrays; the internal category axis is last. Surface temperatures
+come from solve4temp.
 """
 
 from __future__ import annotations
@@ -26,11 +27,20 @@ from veris.physics.thermodynamics.budgets import ocean_exchange_fluxes
 
 
 @partial(jit, static_argnames=["conf"])
-def _growth_with_status(
+def Growth(
     vs: State, conf: Configuration, phys: PhysicalConstants
 ) -> tuple[GrowthResult, Array]:
-    """calculate thermodynamic change of ice and snow thickness and ice cover fraction
-    due to atmospheric and ocean surface forcing"""
+    """Return fifteen column/boundary arrays and a same-precision status array.
+
+    Physical results contain updated ice/snow thickness, concentration, surface
+    temperature, freshwater and salt forcing, shortwave and net ocean heat,
+    ice/snow load, penetrating shortwave, regularized reciprocal thickness,
+    ocean mass and salt mass inputs, and external mass and heat inputs.
+    Boundary inputs are downward positive; native Qnet is upward positive.
+    Status is zero for valid formation and two where new ice would contain
+    more salt than the source ocean. Callers must check status before accepting
+    the physical results. Bulk ice salinity is fixed for a trajectory.
+    """
 
     # Dry operands are neutral before arithmetic, including NaN prescribed data.
     wet = vs.iceMask != 0
@@ -78,16 +88,14 @@ def _growth_with_status(
 
     # F_io_net: net upward conductive heat flux through sea ice and snow [W/m2]
 
-    # initialize three dimensional arrays accounting for the thickness categories of the ice
-    # (using * 1 ensures that a new array is created for each variable. otherwise they would
-    # all point to the same one)
-    ones3d = jnp.zeros((*vs.iceMask.shape, conf.nITC), dtype=vs.iceMask.dtype)
-    hIceActual_mult = ones3d * 1
-    hSnowActual_mult = ones3d * 1
-    F_io_net_mult = ones3d * 1
-    F_ia_net_mult = ones3d * 1
-    IcePenetSW_mult = ones3d * 1
-    FWsublim_mult = ones3d * 1
+    # JAX updates return new arrays, so category work fields can share zeros.
+    zeros3d = jnp.zeros((*vs.iceMask.shape, conf.nITC), dtype=vs.iceMask.dtype)
+    hIceActual_mult = zeros3d
+    hSnowActual_mult = zeros3d
+    F_io_net_mult = zeros3d
+    F_ia_net_mult = zeros3d
+    IcePenetSW_mult = zeros3d
+    FWsublim_mult = zeros3d
 
     # constants for converting heat fluxes into growth rates
     qi = 1 / (phys.rhoIce * phys.lhFusion)
@@ -105,7 +113,7 @@ def _growth_with_status(
     ##### calculate heat fluxes through the ice #####
 
     # set ice and snow thickness categories to account for thicknes variations in one grid cell
-    TIce_mult = ones3d * 1
+    TIce_mult = zeros3d
 
     category_factors = _category_factors(conf)
     for l in range(conf.nITC):
@@ -423,15 +431,3 @@ def _growth_with_status(
         ),
         status,
     )
-
-
-@partial(jit, static_argnames=["conf"])
-def Growth(vs: State, conf: Configuration, phys: PhysicalConstants) -> GrowthResult:
-    """Return updated column and fifteen instantaneous ocean/boundary arrays.
-
-    The original eleven-value prefix is retained; actual ocean mass and salt,
-    external mass and external heat follow. Mass/salt/heat boundary inputs are
-    downward positive; native Qnet is upward positive. Bulk ice salinity is
-    fixed for a trajectory. Advance also returns compiled formation status.
-    """
-    return _growth_with_status(vs, conf, phys)[0]

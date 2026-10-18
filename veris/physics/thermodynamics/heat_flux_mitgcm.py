@@ -147,8 +147,6 @@ def bulkf_formula_lanl(
         qstar = re[...] * delq[...]
         tstar = rh[...] * deltap[...]
 
-    # tau = phys.rhoAir * ustar[...]**2
-    # tau = tau * us[...] / usm[...]
     csha = phys.rhoAir * phys.cpdair * us[...] * rh[...] * rd[...]
     clha = phys.rhoAir * lath[...] * us[...] * re[...] * rd[...]
 

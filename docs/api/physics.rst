@@ -82,9 +82,11 @@ Transport
 
 .. autofunction:: veris.physics.transport.advection.calc_Advection
 
-.. autofunction:: veris.physics.transport.advection.calc_ZonalFlux
+.. autofunction:: veris.physics.transport.advection.calc_flux
 
-.. autofunction:: veris.physics.transport.advection.calc_MeridionalFlux
+Transport takes State and Configuration; it uses no physical-constant inputs.
+``calc_flux`` selects the zonal stencil with ``axis=0`` and the meridional
+stencil with ``axis=1``.
 
 .. autofunction:: veris.physics.transport.advection.limiter
 
@@ -104,6 +106,11 @@ Thermodynamics
 .. automodule:: veris.physics.thermodynamics.growth
 
 .. autofunction:: veris.physics.thermodynamics.growth.Growth
+
+``values, status = Growth(state, configuration, constants)`` returns the
+fifteen physical arrays and the formation status separately. Check that status
+is zero before accepting the updated column. ``advance`` carries this status
+in Diagnostics and Simulation checks it before committing a timestep.
 
 See :doc:`/reference/ocean-budgets` for mass, salt, enthalpy and status conventions.
 

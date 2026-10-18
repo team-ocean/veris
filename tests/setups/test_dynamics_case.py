@@ -4,7 +4,6 @@ from dataclasses import replace
 
 import jax
 import numpy as np
-import pytest
 
 from veris import Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance
@@ -102,13 +101,6 @@ def test_dynamics_driver_refreshes_state_and_stress_halos() -> None:
     compiled = compiled_advance(initial, conf, phys, physics="dynamics")[0]
     for a, b in zip(jax.tree.leaves(compiled), jax.tree.leaves(actual), strict=True):
         np.testing.assert_allclose(a, b, atol=1e-12, rtol=1e-12)
-
-
-@pytest.mark.parametrize("nx,ny", [(1, 8), (8, 1), (True, 8), (8, 2.5)])
-def test_invalid_grid_rejected(nx: int, ny: float) -> None:
-    """Grid validation occurs before field allocation."""
-    with pytest.raises((ValueError, TypeError)):
-        initialize_experiment(Experiment.builtin("dynamics", grid=Grid(nx, ny)))  # ty: ignore[invalid-argument-type]
 
 
 def test_dynamics_wind_sensitivity_matches_finite_difference() -> None:

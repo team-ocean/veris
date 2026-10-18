@@ -73,8 +73,9 @@ There is no salinity-dependent replacement of the configured bulk ice salinity.
 ``Simulation`` retains intermediate failures and rejects the candidate run
 without advancing its committed state or clock. Pure callers must check status.
 
-The public ``Growth`` tuple retains its eleven-value prefix and appends actual
-mass, actual salt mass, external mass and external heat arrays. Original v1
+Public ``Growth`` returns ``(values, status)``. The fifteen physical values
+contain the updated column and ocean/boundary exchanges; status reports invalid
+saline-ice formation before the caller accepts those values. Original v1
 reference archives remain unchanged. ``ocean_budgets_v2`` records declared
 correction deltas and new diagnostics from archived a9d6c0a with explicit phase
 hooks and independent NumPy boundary accounting. Its generator verifies every

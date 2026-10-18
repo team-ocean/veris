@@ -51,7 +51,7 @@ def test_unequal_kernel_timesteps_match_frozen_original(compiled: bool) -> None:
             Qsw=jnp.full_like(initial.Qsw, 0.0),
         )
         transported, stress_u, stress_v = dynamics_transport(prescribed, conf, phys)
-        values = Growth(transported, conf, phys)
+        values = Growth(transported, conf, phys)[0]
         grown = replace(
             transported,
             hIceMean=values[0],

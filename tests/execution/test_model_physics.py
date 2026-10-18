@@ -38,7 +38,7 @@ def kernel_reference(
     freshwater = salt = penetrating = zeros
     mass = salt_mass = external_mass = external_heat = zeros
     if physics != "dynamics":
-        values = Growth(state, conf, phys)
+        values = Growth(state, conf, phys)[0]
         state = replace(
             state,
             hIceMean=values[0],

@@ -77,7 +77,6 @@ def evp_solver(
 
         e11, e22, e12 = strainrates(vs, conf, phys, uIce, vIce)
         zeta, _eta, press = viscosities(vs, conf, phys, e11, e22, e12)
-        # sig11, sig22, sig12 = stress(vs, conf, phys, e11, e22, e12, zeta, eta, press)
 
         # calculate adaptive relaxation parameters
         if conf.useAdaptiveEVP:
@@ -266,17 +265,6 @@ def evp_solver(
             uIcePm1 = vs.iceMaskU * (uIce - uIcePm1) * evpBetaU
             vIcePm1 = vs.iceMaskV * (vIce - vIcePm1) * evpBetaV
 
-            # if not explicitDrag:
-            #     ForcingX = ForcingX - uIce * dragU
-            #     ForcingY = ForcingY - vIce * dragV
-
-            # uIcePm1 = ( SeaIceMassU * (uIce - uIceNm1)*recip_deltatDyn
-            #             - (ForcingX + stressDivX)
-            #            ) * iceMaskU
-            # vIcePm1 = ( SeaIceMassV * (vIce - vIceNm1)*recip_deltatDyn
-            #             - (ForcingY + stressDivY)
-            #            ) * iceMaskV
-
             # Halo exchange uses two cells on each side. Residual norms count
             # each interior cell once, excluding periodic halo duplicates.
             stress_norm = (sig11Pm1**2 + sig22Pm1**2 + sig12Pm1**2)[2:-2, 2:-2].sum()
@@ -364,5 +352,4 @@ def evp_solver(
     # calculate u^n, sigma^n and residuals
     arg_body = jax.lax.fori_loop(0, conf.nEVPsteps, evp_solver_body, arg_body)
 
-    # return uIce, vIce, sigma1, sigma2, sigma12
     return arg_body[1], arg_body[2], arg_body[5], arg_body[6], arg_body[7]

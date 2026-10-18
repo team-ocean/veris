@@ -112,7 +112,7 @@ def test_pure_freezing_matches_actual_mass_and_salt_budget(
     c = replace(conf, deltatTherm=300.0)
     before = column(state, p, Qnet=100.0)
     with jax.disable_jit():
-        result = Growth(before, c, p)
+        result = Growth(before, c, p)[0]
     np.testing.assert_allclose(result[0], 100 * 300 / (900 * 334000), rtol=1e-11)
     np.testing.assert_allclose(result[5], 8.982035928143713e-6, rtol=1e-11)
     balanced(result, before, p, c, 0.0, -100.0)
@@ -131,7 +131,7 @@ def test_phase_change_nondefault_densities(
     p = replace(phys, saltIce_ref=si, rhoIce=910.0, rhoSnow=350.0, rhoFresh=997.0)
     before = column(state, p, Qnet=q, Area=0.5, hIceMean=0.2)
     with jax.disable_jit():
-        result = Growth(before, conf, p)
+        result = Growth(before, conf, p)[0]
     balanced(result, before, p, conf, 0.0, -q * 0.5)
     assert np.sign(float(result[11][0, 0])) == -np.sign(q)
 
@@ -150,7 +150,7 @@ def test_atmospheric_events_have_independent_mass_and_enthalpy(
     rate = -1e-7 if event == "evap" else 1e-7
     before = column(state, p, Area=area, hIceMean=area * 0.25, **{event: rate})
     with jax.disable_jit():
-        result = Growth(before, conf, p)
+        result = Growth(before, conf, p)[0]
     mass = p.rhoFresh * rate * ((1 - area) if event == "evap" else 1)
     heat = -p.lhFusion * mass if event == "snowfall" else 0.0
     if event == "snowfall":
@@ -170,7 +170,7 @@ def test_warm_open_water_snow_melts_with_latent_cooling(
 ) -> None:
     before = column(state, phys, snowfall=1e-7, theta=280.0)
     with jax.disable_jit():
-        result = Growth(before, conf, phys)
+        result = Growth(before, conf, phys)[0]
     np.testing.assert_allclose(result[0], 0, atol=1e-14)
     np.testing.assert_allclose(result[7], 33.4, rtol=1e-11)
     np.testing.assert_allclose(result[11], 1e-4, rtol=1e-11)
@@ -197,7 +197,7 @@ def test_cleanup_exchange_compensates_actual_signed_stock_change(
             os_hIceMean=cleaned[4],
             os_hSnowMean=cleaned[5],
         )
-        result = Growth(prepared, conf, phys)
+        result = Growth(prepared, conf, phys)[0]
     raw_minus_prepared_ice = float((before.hIceMean - prepared.hIceMean)[0, 0])
     raw_minus_prepared_snow = float((before.hSnowMean - prepared.hSnowMean)[0, 0])
     balanced(
@@ -221,7 +221,7 @@ def test_flooding_converts_snow_without_spurious_latent_heat(
     p = replace(phys, saltIce_ref=5.0)
     before = column(state, p, Area=1.0, hIceMean=0.01, hSnowMean=0.1)
     with jax.disable_jit():
-        result = Growth(before, conf, p)
+        result = Growth(before, conf, p)[0]
     assert float(result[0][0, 0]) > 0.01
     assert float(result[12][0, 0]) < 0
     np.testing.assert_allclose(result[11], 0, atol=1e-14)
@@ -250,7 +250,7 @@ def test_actual_sublimation_or_deposition_is_a_boundary_event(
     available = phys.rhoIce * 0.02 + phys.rhoSnow * 0.001
     actual = min(rate * 0.5, available / conf.deltatTherm)
     with jax.disable_jit():
-        result = Growth(before, conf, phys)
+        result = Growth(before, conf, phys)[0]
     balanced(result, before, phys, conf, -actual, phys.lhFusion * actual)
     np.testing.assert_allclose(result[11], 0, atol=1e-14)
 
@@ -272,7 +272,7 @@ def test_dry_nan_operands_are_inactive(
         theta=float("nan"),
     )
     with jax.disable_jit():
-        result = Growth(before, conf, phys)
+        result = Growth(before, conf, phys)[0]
     assert all(np.isfinite(np.asarray(x)).all() for x in result)
     for i in (0, 1, 2, 4, 5, 7, 11, 12, 13, 14):
         np.testing.assert_array_equal(result[i], 0)
@@ -309,6 +309,9 @@ def test_compiled_saline_formation_domain(
         SWdown=z,
     )
     p = p.with_overrides(saltIce_ref=si)
+    _, kernel_status = Growth(replace(vs, Qnet=z + q, Qsw=z), c, p)
+    np.testing.assert_array_equal(kernel_status, status)
+    assert kernel_status.dtype == vs.Area.dtype
     updated, diag = jax.jit(
         lambda s, p: advance(s, c, p, {"Qnet": q, "Qsw": 0.0}, physics="thermodynamics")
     )(vs, p)

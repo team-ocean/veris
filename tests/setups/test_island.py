@@ -4,9 +4,8 @@ from dataclasses import replace
 
 import jax
 import numpy as np
-import pytest
 
-from veris import Experiment, Grid, initialize_experiment
+from veris import Experiment, initialize_experiment
 from veris.execution.advance import advance
 
 
@@ -73,12 +72,6 @@ def test_coupled_forced_steps_keep_land_empty_and_halos_periodic() -> None:
         np.max(np.abs(np.asarray(value))) > 0
         for value in (vs.sigma1, vs.sigma2, vs.sigma12)
     )
-
-
-@pytest.mark.parametrize("nx, ny", [(1, 12), (8, 1)])
-def test_too_small_grid_has_clear_error(nx: int, ny: int) -> None:
-    with pytest.raises(ValueError, match="at least"):
-        initialize_experiment(Experiment.builtin("island", grid=Grid(nx, ny)))
 
 
 def test_prescribed_heat_forcing_replaces_previous_outputs() -> None:

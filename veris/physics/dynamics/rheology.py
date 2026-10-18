@@ -286,9 +286,6 @@ def viscosities(
 
     # use regularization to avoid singularies of zeta
     deltaCreg = deltaC + phys.deltaMin
-    # TODO implement smooth regularization after comparing with the MITgcm
-    # smooth regularization of delta for better differentiability
-    # deltaCreg = jnp.sqrt( deltaSq + deltaMin**2 )
 
     # calculate viscosities
     zeta = 0.5 * (vs.SeaIceStrength * (1 + phys.tensileStrFac)) / deltaCreg
