@@ -18,9 +18,6 @@ A fully differentiable sea-ice model in JAX with CPU and GPU as first-class exec
 - **Design document**: `DESIGN.md` (read this first)
 - **Progress log**: `CHANGELOG.md`
 
-The `main` branch in both reference codes is very old and shall not be used. Instead, you need to use `jax-only` branch for all developments.
-After a certain development stage is completed in `veris` repo, you need to commit it back to `jax-only` branch rather than `main`.
-
 ## Setup
 
 ```bash
