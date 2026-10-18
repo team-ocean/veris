@@ -1,5 +1,36 @@
 # Development log
 
+## 2026-10-18 — Portable surface regression CI repair
+
+- [x] Pull feature tip `225aa34` and reproduce the sole failure in GitHub run
+  `39135261460`: six solver JVP entries differ from the frozen archive by at
+  most `5.551115123125783e-17` absolute / `2.7276964075998446e-16` relative.
+- [x] Load the original solver/growth kernels from `6c205a3` independently.
+  Original and extracted outputs/JVPs are bitwise identical on both local CPU
+  and NVIDIA P100; both exhibit the same differences from the saved archive.
+  Maximum GPU relative archive difference is `2.918144061402626e-15`.
+- [x] Replace the archive's bitwise comparison with a float64 relative budget
+  of 32 machine epsilons (`7.105427357601002e-15`), zero absolute tolerance
+  and explicit NaN rejection. Separate solver/growth cases so both are checked
+  when either fails. All reference archives and model equations are unchanged.
+- [x] All 17 focused surface cases pass on CPU and NVIDIA P100. Real-kernel
+  negative controls reject changed physical inputs and stopped derivatives for
+  both solver and growth. Independent test-quality review approves the change
+  and verifies rejection of 20 archive perturbations, including lost small
+  derivatives, changed zeros, NaNs, infinities and `1e-12` relative changes.
+- [x] Aegir job `66533869` on node441: full CPU correctness 1,747 passed /
+  four hardware skips in 1,932.16 s. Maintained coverage 95.11% (80% gate
+  passes); whole-package coverage 91.64%. Ruff, format and annotations pass.
+- Launch-script correction: the job exported `PYTHONPATH` for pytest, which
+  overrode ty's test-helper search paths and stopped the follow-on checks.
+  Rerunning ty with `PYTHONPATH` unset, as in GitHub CI, passes. Strict Sphinx
+  and wheel/source builds also pass. No repository configuration change needed.
+- [x] Both clean-installed lifecycle/framework probes pass, covering public
+  exports, documented CLI examples, restart, sharding and pure JIT/AD.
+  All 254 tested source/reference hashes still match before committing.
+- Validation evidence and scripts: `test_logs/ci-surface-2026-10-18/` (local).
+  The existing GitHub workflow repeats these gates on the pushed commit.
+
 ## 2026-10-18 — Native instantaneous surface albedo for VerCOR
 
 - [x] Start from fetched `feat/vercor-scientific-validation` tip
