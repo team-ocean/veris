@@ -17,6 +17,10 @@ from jax import Array
 from veris.model.configuration import Configuration
 from veris.model.physical_constants import PhysicalConstants
 from veris.model.types import GrowthResult, State, jit
+from veris.numerics.surface_properties import (
+    _category_factors,
+    _prepare_thickness_geometry,
+)
 from veris.numerics.surface_temperature import solve4temp
 from veris.physics.thermodynamics.budgets import ocean_exchange_fluxes
 
@@ -89,39 +93,27 @@ def _growth_with_status(
     qi = 1 / (phys.rhoIce * phys.lhFusion)
     qs = 1 / (phys.rhoSnow * phys.lhFusion)
 
-    # store sea ice fields prior to any thermodynamical changes
-    noIce = (vs.hIceMean == 0) | (vs.Area == 0)
-    hIceMeanpreTH = vs.hIceMean * ~noIce
-    hSnowMeanpreTH = vs.hSnowMean * ~noIce
-    AreapreTH = vs.Area * ~noIce
-
-    # compute actual ice and snow thickness using the regularized area.
-    # ice or snow thickness divided by Area does not work if Area -> 0,
-    # therefore the regularization
-    isIce = hIceMeanpreTH > 0
-    area_squared = AreapreTH**2 + phys.Area_reg
-    # With regularization disabled, absent ice still has no per-ice-area
-    # flux. Give that inactive denominator a finite value before sqrt/division.
-    regArea = jnp.sqrt(jnp.where(area_squared == 0, 1, area_squared))
-    recip_regArea = 1 / regArea
-
-    hIceActual = jnp.where(isIce, hIceMeanpreTH * recip_regArea, 0)
-    recip_hIceActual = AreapreTH / jnp.sqrt(hIceMeanpreTH**2 + phys.hIce_reg)
-    hSnowActual = jnp.where(isIce, hSnowMeanpreTH * recip_regArea, 0)
-
-    hIceActual = jnp.where(wet, jnp.maximum(hIceActual, phys.minActualIceThickness), 0)
+    geometry = _prepare_thickness_geometry(vs, phys)
+    hIceMeanpreTH = geometry.ice_mean
+    hSnowMeanpreTH = geometry.snow_mean
+    AreapreTH = geometry.area
+    recip_regArea = geometry.reciprocal_area
+    recip_hIceActual = geometry.reciprocal_ice_thickness
+    hIceActual = geometry.ice_thickness
+    hSnowActual = geometry.snow_thickness
 
     ##### calculate heat fluxes through the ice #####
 
     # set ice and snow thickness categories to account for thicknes variations in one grid cell
     TIce_mult = ones3d * 1
 
+    category_factors = _category_factors(conf)
     for l in range(conf.nITC):
         # the ice categories all have the same initial temperature
         TIce_mult = TIce_mult.at[:, :, l].set(vs.TSurf)
 
         # set relative thickness of ice and snow categories
-        pFac = (2 * (l + 1) - 1) * conf.recip_nITC
+        pFac = category_factors[l]
 
         # actual snow and ice thickness within each category
         hIceActual_mult = hIceActual_mult.at[:, :, l].set(hIceActual * pFac)

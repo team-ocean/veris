@@ -1,5 +1,20 @@
 # Development log
 
+## 2026-10-18 — Native instantaneous surface albedo for VerCOR
+
+- [x] Start from fetched `feat/vercor-scientific-validation` tip
+  `6c205a356dd1b25c26430f899cb8998523ab3447` in an isolated checkout.
+- [x] Share the existing hemispheric dry/wet snow/ice albedo law, regularized
+  thickness geometry and category factors between growth and the new public
+  `diagnose_surface_albedo`. Preserve wet-cell ice initiation and solver order.
+- [x] RED: 15 missing-diagnostic cases; the pre-extraction baseline already
+  passed. GREEN: 76 surface/growth cases, including bitwise float64 solver and
+  growth outputs/JVPs, current-state category means and inactive-NaN AD.
+- [x] Full CPU correctness: 1,745 passed / five hardware-platform skips;
+  maintained Ruff/format/Linux-target ty and strict Sphinx pass. Broad dot
+  checks retain existing vendor/generated findings; no such files changed.
+  Sandbox-only loopback/DNS failures were rerun with the required access.
+
 ## 2026-10-17 — Requested Vercor GPU and aegir repeat
 
 - [x] Pulled main a0a2a7d and feature 4551fc8 with Git CLI; retain the six

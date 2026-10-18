@@ -246,7 +246,11 @@ The implementations are grouped by their scientific role and function:
 - `veris.numerics`: basic differentiation operations that handle branches
   safely, momentum solver selection, EVP (elastic-viscous-plastic ice motion),
   free drift (motion without internal ice stress) and repeated calculations
-  to find surface temperature.
+  to find surface temperature. `surface_properties` owns the shared native
+  albedo law and category thickness geometry. Public `diagnose_surface_albedo`
+  evaluates current stored temperature and snow in each category, returning
+  halo-inclusive per-ice-area albedo, zero outside present ice. Couplers weight
+  it by concentration before remapping; it is not a preceding-interval mean.
 - `veris.execution`: array allocation, preparation of runnable experiments,
   the pure timestep and rollout, timed output rollouts and the host Simulation lifecycle.
 - `veris.io`: calendars, scheduling, storage, collection, run I/O and
