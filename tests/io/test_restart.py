@@ -24,6 +24,7 @@ import numpy as np
 import pytest
 
 import veris
+from tests.island_helpers import compact_builtin
 from veris.io import (
     FixedDate,
     OutputManager,
@@ -76,7 +77,7 @@ def _experiment(
     }
     if preset == "island":
         series["Qnet"] = 65 + 13 * indices + pattern[None, :, :]
-    return veris.Experiment.builtin(
+    return compact_builtin(
         preset,
         grid=veris.Grid(nx, ny),
         settings={

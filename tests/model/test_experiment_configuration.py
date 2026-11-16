@@ -5,6 +5,7 @@ from dataclasses import FrozenInstanceError, replace
 import numpy as np
 import pytest
 
+from tests.island_helpers import compact_island
 from veris import Experiment, Grid, initialize_experiment
 from veris.execution.initialization import initialize
 from veris.model.configuration import SETTINGS, Configuration
@@ -13,7 +14,8 @@ from veris.setups import island
 
 EXPERIMENT_DEFAULTS = {
     "saltOcn_ref": 34.7,
-    "islandGridSpacing": 8000.0,
+    "islandGridSpacing": 800.0,
+    "islandHalfWidthCells": 10,
     "islandWindSpeed": 5.0,
     "islandAirTemperature": 260.0,
     "islandIceThickness": 1.0,
@@ -22,8 +24,8 @@ EXPERIMENT_DEFAULTS = {
     "islandOceanDepth": -100.0,
     "islandCoriolis": 1e-4,
     "islandCooling": 100.0,
-    "islandTimeStep": 600.0,
-    "islandEVPsteps": 5,
+    "islandTimeStep": 60.0,
+    "islandEVPsteps": 400,
 }
 
 
@@ -52,8 +54,7 @@ def test_allocation_extents_are_recorded_and_settings_overrides_are_used() -> No
 
 def test_island_overrides_drive_geometry_fields_and_time_controls() -> None:
     state, settings, constants = initialize_experiment(
-        Experiment.builtin(
-            "island",
+        compact_island(
             grid=Grid(4, 5),
             settings={},
             constants={"rhoIce": 910, "rhoSnow": 310},
@@ -99,8 +100,7 @@ def test_island_overrides_drive_geometry_fields_and_time_controls() -> None:
 
 
 def test_grouped_overrides_drive_island_fields_and_numerical_controls() -> None:
-    definition = Experiment.builtin(
-        "island",
+    definition = compact_island(
         grid=Grid(8, 8),
         scenario={"islandWindSpeed": 4, "islandAirTemperature": 266},
     ).with_overrides(

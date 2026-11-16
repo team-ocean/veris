@@ -7,7 +7,8 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from veris import Experiment, Grid, initialize_experiment
+from tests.island_helpers import compact_island
+from veris import Grid, initialize_experiment
 from veris.execution.initialization import initialize
 from veris.grid.geometry import OceanGeometry
 from veris.grid.ocean import initialize_from_ocean
@@ -72,7 +73,7 @@ def test_cesm_stable_and_unstable_fluxes_keep_precision(
 def test_alternative_dynamics_keep_precision(dtype: str, solver: str) -> None:
     """Adaptive relaxation and free drift use the same initialized scalar policy."""
     state, settings, constants = initialize_experiment(
-        Experiment.builtin("island", grid=Grid(4, 5), settings={"dtype": dtype})
+        compact_island(grid=Grid(4, 5), settings={"dtype": dtype})
     )
     settings = replace(
         settings,

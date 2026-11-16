@@ -3,7 +3,8 @@
 Run with .venv-latest: python -m benchmarks.profile_veris --backend cpu
 --output test_logs/profiling/paired-cpu --trace. The baseline is the Python
 canonical advance call; candidate compiles that entire call. Float64 periodic
-(nx+4, ny+4) fields include the island and default prescribed forcing.
+(nx+4, ny+4) fields retain the original 8 km grid and two-cell island,
+600-second steps, fixed EVP and default prescribed forcing.
 EVP iteration count is explicit; this is not a convergence benchmark. First-call
 latency includes compilation and execution and can share cached inner kernels
 between variants. Steady timing excludes validation, initialization and tracing.
@@ -230,7 +231,16 @@ def main(argv: list[str] | None = None) -> None:
 
     with jax.default_device(device):
         initial, conf, phys = initialize_experiment(
-            Experiment.builtin("island", grid=Grid(args.nx, args.ny))
+            Experiment.builtin(
+                "island",
+                grid=Grid(args.nx, args.ny),
+                settings={"useAdaptiveEVP": False},
+                scenario={
+                    "islandGridSpacing": 8000.0,
+                    "islandHalfWidthCells": 1,
+                    "islandTimeStep": 600.0,
+                },
+            )
         )
         conf = replace(conf, nEVPsteps=args.evp_steps)
         cooling = island.IslandSettings().islandCooling

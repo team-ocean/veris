@@ -12,7 +12,39 @@ import numpy as np
 import pytest
 
 import veris
+from tests.island_helpers import compact_island
 from veris.io import FixedDate, OutputSettings, Stream
+
+
+@pytest.mark.parametrize("profile", [None, "example"])
+def test_legacy_resolved_island_retains_two_cell_land_geometry(
+    tmp_path: Path, profile: str | None
+) -> None:
+    """Adding a scenario control must not change saved resolved island geometry."""
+    definition = compact_island(profile=profile, steps=0)
+    encoded = definition.to_dict()
+    encoded["scenario"].pop("islandHalfWidthCells")
+    path = tmp_path / "legacy-island.json"
+    path.write_text(json.dumps(encoded))
+    restored = veris.Experiment.from_file(path)
+    assert restored.resolved_scenario["islandHalfWidthCells"] == 1
+    assert restored.to_dict() == definition.to_dict()
+    assert "islandHalfWidthCells" not in encoded["scenario"]
+    with veris.Simulation.initialize(restored) as model:
+        assert np.count_nonzero(np.asarray(model.state.maskInC)[2:-2, 2:-2] == 0) == 4
+
+
+def test_sparse_authored_island_json_uses_current_geometry_defaults(
+    tmp_path: Path,
+) -> None:
+    """Legacy resolved-data migration must not override new authored defaults."""
+    path = tmp_path / "authored-island.json"
+    path.write_text(
+        json.dumps({"preset": "island", "scenario": {"islandWindSpeed": 3}})
+    )
+    definition = veris.Experiment.from_file(path)
+    assert definition.resolved_scenario["islandHalfWidthCells"] == 10
+    assert definition.grid == veris.Grid(80, 120)
 
 
 def test_json_file_python_override_precedence_and_resolved_roundtrip(
@@ -234,7 +266,11 @@ def test_custom_geometry_and_builtin_scenario_roundtrip(tmp_path: Path) -> None:
     builtin = veris.Experiment.builtin(
         "island",
         grid=veris.Grid(4, 6),
-        scenario={"islandWindSpeed": -3.0, "islandCooling": 70.0},
+        scenario={
+            "islandHalfWidthCells": 1,
+            "islandWindSpeed": -3.0,
+            "islandCooling": 70.0,
+        },
     )
     for definition in (custom, builtin):
         path = tmp_path / "resolved.json"

@@ -8,7 +8,8 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from veris import Experiment, Grid, initialize_experiment
+from tests.island_helpers import compact_island
+from veris import Grid, initialize_experiment
 from veris.numerics.momentum import IceVelocities, WindForcingXY
 from veris.physics.dynamics.area_mass import AreaWS, SeaIceMass
 from veris.physics.dynamics.ocean_stress import OceanStressUV
@@ -22,8 +23,7 @@ def test_dynamics_transport_preserves_intermediate_state(cyclic_y: bool) -> None
     """An extra halo refresh or reordered stress/transport must change this result."""
     advance = import_module("veris.physics.dynamics.driver").dynamics_transport
     initial, conf, phys = initialize_experiment(
-        Experiment.builtin(
-            "island",
+        compact_island(
             grid=Grid(5, 7),
             settings={"nEVPsteps": 2, "enable_cyclic_y": cyclic_y},
         )

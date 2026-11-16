@@ -15,7 +15,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from veris import Experiment, Grid, initialize_experiment
+from tests.island_helpers import compact_island
+from veris import Grid, initialize_experiment
 from veris.execution.advance import advance as advance_model
 from veris.execution.initialization import initialize
 from veris.grid.halos import fill_overlap
@@ -51,8 +52,7 @@ def test_coupled_restart_matches_uninterrupted_run(tmp_path: Path) -> None:
     checkpoint_step = 1
     dtype = "float32"
     initial, conf, phys = initialize_experiment(
-        Experiment.builtin(
-            "island",
+        compact_island(
             grid=Grid(6, 8),
             settings={"nEVPsteps": 3, "dtype": dtype},
             constants={"rhoAir": 1.25},

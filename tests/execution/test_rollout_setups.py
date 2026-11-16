@@ -13,6 +13,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from tests.island_helpers import compact_island
 from veris import Experiment, Grid, initialize_experiment, step
 from veris.execution.advance import advance as advance_physics
 from veris.grid.geometry import OceanGeometry
@@ -36,7 +37,7 @@ def make_case(
         )
     else:
         initial, conf, phys = initialize_experiment(
-            Experiment.builtin("island", grid=Grid(6, 8), settings=options)
+            compact_island(grid=Grid(6, 8), settings=options)
         )
         if case == "ocean":
             geometry = OceanGeometry(

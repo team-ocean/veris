@@ -7,7 +7,8 @@ import jax
 import numpy as np
 import pytest
 
-from veris import Experiment, Grid, OceanGeometry, initialize_experiment
+from tests.island_helpers import compact_island
+from veris import Grid, OceanGeometry, initialize_experiment
 from veris.grid.regions import (
     physical_indices,
     regional_forcing,
@@ -16,6 +17,34 @@ from veris.grid.regions import (
 )
 from veris.model.configuration import Configuration
 from veris.model.variables import VARIABLES
+
+
+def test_island_regional_masks_use_global_coast_predecessors() -> None:
+    """A region crossing the enlarged island coast must retain blocked faces."""
+    from veris.setups.island import IslandSettings, _fields
+
+    state, _, constants = initialize_experiment(compact_island())
+    # A 12x16 region straddles the x=50/y=70 global coastline.
+    fields = _fields(
+        state,
+        constants,
+        IslandSettings(islandHalfWidthCells=10),
+        80,
+        120,
+        np.arange(48, 60),
+        np.arange(68, 84),
+        regional=True,
+    )
+    expected = np.ones((12, 16))
+    expected[:2, :2] = 0
+    expected_u = expected.copy()
+    expected_v = expected.copy()
+    expected_u[2, :2] = 0
+    expected_v[:2, 2] = 0
+    np.testing.assert_array_equal(fields["iceMask"], expected)
+    # The first ocean faces beside land remain blocked across the global coast.
+    np.testing.assert_array_equal(fields["iceMaskU"], expected_u)
+    np.testing.assert_array_equal(fields["iceMaskV"], expected_v)
 
 
 @pytest.mark.parametrize("cyclic_y", [False, True])
@@ -70,7 +99,7 @@ def test_legacy_island_serial_face_masks_retain_startup_roll_halos(dtype: str) -
     """Step-zero legacy evidence includes the outermost unrefreshed mask halos."""
 
     state, _, _ = initialize_experiment(
-        Experiment.builtin("island", grid=Grid(6, 8), settings={"dtype": dtype})
+        compact_island(grid=Grid(6, 8), settings={"dtype": dtype})
     )
     physical = np.ones((6, 8), dtype=dtype)
     physical[2:4, 3:5] = 0

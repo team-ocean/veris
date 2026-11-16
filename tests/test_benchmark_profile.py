@@ -159,6 +159,9 @@ def test_cli_writes_metadata_and_separate_real_traces(tmp_path: Path) -> None:
     assert data["metadata"]["backend"] == "cpu"
     assert data["metadata"]["jax_enable_x64"] is True
     assert data["metadata"]["settings"]["nEVPsteps"] == 1
+    assert data["metadata"]["settings"]["deltatDyn"] == 600.0
+    assert data["metadata"]["settings"]["deltatTherm"] == 600.0
+    assert data["metadata"]["settings"]["useAdaptiveEVP"] is False
     assert "rhoIce" not in data["metadata"]["settings"]
     assert data["metadata"]["physical_constants"]["rhoIce"] == 900.0
     assert data["metadata"]["revision"]

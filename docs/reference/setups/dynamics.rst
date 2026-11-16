@@ -1,7 +1,8 @@
 Dynamics only
 =============
 
-A 512-km basin has land on its last x and y grid lines, rotating ocean currents
+A 512-km basin has closed boundary cells on its last x and y grid lines,
+rotating ocean currents
 and the reference's fixed wind snapshot 15 (day 5.875). Wind stays constant
 throughout the run. Defaults are 1024 by 1024 physical cells, 100 steps of 600
 seconds and 120 adaptive EVP iterations per step. EVP, or elastic-viscous-plastic,
@@ -11,7 +12,7 @@ velocity). This case has no thermodynamic growth, meaning freezing or melting.
 A small local CPU run is::
 
    python -m veris.setups.run_dyn --nx 32 --ny 48 --steps 2 --evp-steps 4 \
-       --backend cpu --output-snapshot output/dynamics.nc
+       --backend cpu --output-snapshot output/dynamics-small.nc
 
 Use ``--backend gpu`` for a GPU directly on the current node. If the environment
 already sets ``JAX_PLATFORMS=cpu``, unset it or set ``JAX_PLATFORMS=cuda`` first.
@@ -21,6 +22,49 @@ boundary or neighboring data. The runner reports compilation and integration
 times separately. Compilation prepares executable code for the required loop
 shapes without a warmup model run. Integration executes exactly the requested
 model steps.
+
+.. figure:: /figures/setups/dynamics-concentration-300-steps.svg
+   :alt: Final ice concentration after 300 timesteps with sparse green ocean-current streamlines and translucent vermilion wind arrows.
+   :width: 720px
+   :align: center
+
+   Ice concentration after 300 steps of 600 s (50 h), using the default
+   1024 by 1024 physical grid and 120 adaptive EVP iterations per step.
+   Blue shading shows the ice-covered fraction of each ocean cell. Green
+   streamlines show prescribed ocean circulation; vermilion arrows show
+   atmospheric wind, with a 5 m/s reference arrow. The run uses float64 on
+   CPU. Storage halos and closed boundary cells are excluded.
+
+Download the :download:`SVG figure </figures/setups/dynamics-concentration-300-steps.svg>`.
+It uses outlined lettering, vector flow overlays and an embedded raster map,
+so its typography does not depend on fonts installed on the reader's device.
+
+Reproduce the plotted final state with::
+
+   python -m veris.setups.run_dyn --steps 300 --backend cpu \
+       --output-snapshot output/dynamics.nc \
+       --io-variables Area,maskInC,uOcean,vOcean,uWind,vWind
+
+Plot the snapshot's ``Area[0, :, :]`` from the ``snapshot`` group, masking cells
+where ``maskInC[0, :, :]`` is zero. Arrays are stored in ``(x, y)`` order, so
+transpose the masked array to put x on the horizontal axis. Cell-edge
+coordinates in each direction are ``i * 512000 / (n - 1)`` metres, where
+``i`` runs from zero through the physical cell count ``n``. Keep the
+concentration colour scale fixed from zero to one.
+
+Ocean velocity is stored on cell faces; average the two adjacent U or V faces
+to each center before drawing streamlines. Wind is already cell-centered.
+Both fields are prescribed and constant throughout this run. This figure
+reuses the saved final concentration; its omitted forcing fields were recovered
+from the recorded definition by initialization only, without repeating model
+timesteps. For an older concentration-only snapshot, save a separate
+``output/dynamics-forcing.nc`` using ``--steps 0`` with the same setup controls
+and ``--io-variables uOcean,vOcean,uWind,vWind,maskInC``.
+
+After running all three documented setups into ``output/``, regenerate their
+SVG figures from the repository root with::
+
+   python docs/examples/plot_setup_results.py output
 
 The command-line runner uses ``Experiment.builtin("dynamics", ...)`` and
 ``Simulation`` for the same run process as coupled (motion plus growth) and

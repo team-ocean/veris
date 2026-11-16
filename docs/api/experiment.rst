@@ -43,7 +43,7 @@ and which came from a preset, so it can update inherited defaults when the
 experiment changes::
 
    updated = Experiment.builtin("island").with_overrides({
-       "scenario": {"islandTimeStep": 300, "islandCooling": 25},
+       "scenario": {"islandTimeStep": 30, "islandCooling": 25},
        "settings": {"dtype": "float64"},
    })
 
@@ -67,8 +67,7 @@ the merge rules above. You can write a runnable definition as:
    {
      "schema_version": 1,
      "preset": "island",
-     "grid": {"nx": 6, "ny": 8},
-     "settings": {"dtype": "float32", "nEVPsteps": 2},
+     "settings": {"dtype": "float32"},
      "scenario": {"islandWindSpeed": 4.0},
      "forcing": {"series": {"Qnet": [80.0, 100.0, 120.0]}},
      "steps": 3
@@ -158,7 +157,9 @@ A custom runnable experiment requires geometry. Creating arrays from defaults
 alone does not define one.
 
 Builtins are ``island``, ``dynamics`` and ``growth``. Their scenario controls use
-the maintained setup tables. ``Grid`` supplies dimensions; scenario does not
+the maintained setup tables. Island defaults to 80 by 120 physical cells at
+800 m spacing, resolving a 16 by 16 km island in a 64 by 96 km basin. ``Grid``
+supplies dimensions; scenario does not
 also accept nx, ny, steps or dtype. Island initialization keeps initial
 ``Qnet``/``Qsw`` coupling outputs at zero and queues prescribed heat for each
 timestep. Growth feeds computed heat fluxes into later steps unless heat is
@@ -188,12 +189,12 @@ initializer for arrays split across devices. For example, start a fresh Python
 process with ``JAX_NUM_CPU_DEVICES=2`` before importing JAX, then run::
 
    import jax
-   from veris import Execution, Experiment, Grid, Simulation
+   from veris import Execution, Experiment, Simulation
 
    mesh = jax.make_mesh((2, 1), ("x", "y"), devices=jax.devices("cpu"))
    experiment = Experiment.builtin(
-       "island", grid=Grid(12, 8), steps=2,
-       settings={"dtype": "float32", "nEVPsteps": 2},
+       "island", steps=2,
+       settings={"dtype": "float32"},
        execution=Execution(backend="cpu", partitions=(2, 1)),
    )
    with Simulation.initialize(experiment, mesh=mesh) as simulation:

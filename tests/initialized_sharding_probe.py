@@ -13,7 +13,8 @@ import numpy as np
 from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 
-from veris import Experiment, Grid, initialize_experiment
+from tests.island_helpers import compact_island
+from veris import Grid, initialize_experiment
 from veris.execution.advance import advance as advance_model
 from veris.execution.initialization import initialize
 from veris.model.types import State
@@ -70,7 +71,7 @@ def check_initialized_step() -> None:
         assert_close(array, VARIABLES[field.name].default, f"default {field.name}")
 
     serial, serial_settings, physical = initialize_experiment(
-        Experiment.builtin("island", grid=Grid(px * nx, py * ny))
+        compact_island(grid=Grid(px * nx, py * ny))
     )
     serial_settings = replace(serial_settings, nEVPsteps=2)
     packed = {

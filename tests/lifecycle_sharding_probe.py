@@ -19,6 +19,7 @@ from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 
 import veris
+from tests.island_helpers import compact_builtin
 from veris.execution import simulation
 from veris.io import OutputSettings, Stream, read_record
 
@@ -134,7 +135,7 @@ def _check(
     definition = (
         _custom(grid, cyclic_y, output)
         if name == "custom"
-        else veris.Experiment.builtin(
+        else compact_builtin(
             name,
             grid=grid,
             settings={
@@ -249,7 +250,7 @@ def _check_small_initialization(
             forcing=veris.Forcing(constant={"uWind": x + 2 * y, "vWind": 1.0}),
         )
     else:
-        definition = veris.Experiment.builtin(name, grid=grid, settings=settings)
+        definition = compact_builtin(name, grid=grid, settings=settings)
     serial, _, _ = veris.initialize_experiment(definition)
     mesh = jax.make_mesh(layout, ("x", "y"), devices=jax.devices("cpu"))
     parallel, _, _ = veris.initialize_experiment(

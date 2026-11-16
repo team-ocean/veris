@@ -1,10 +1,11 @@
 """Standalone dynamics and growth on a periodic Cartesian sea with an island.
 
-The small example follows the jax_halo_exchange reference integration sequence.
+The example follows the jax_halo_exchange reference integration sequence.
 It uses prescribed ocean/atmospheric fields, not an evolving ocean or geographic
 coastline. Fields are (nx + 4, ny + 4) JAX arrays with two periodic halo cells.
 The host driver selects serial halos; state is an immutable dataclass PyTree.
-Five EVP substeps keep this example small; they are not a convergence criterion.
+The 800 m grid resolves a 16 km square island inside a 64 by 96 km basin.
+The example uses 60-second steps and 400 adaptive EVP substeps.
 """
 
 from collections.abc import Mapping
@@ -29,7 +30,10 @@ ISLAND_SETTINGS: dict[str, Parameter] = {
         34.7, float, "Prescribed ocean salinity in the island example", "g kg-1"
     ),
     "islandGridSpacing": Parameter(
-        8000.0, float, "Uniform Cartesian grid spacing in the island example", "m"
+        800.0, float, "Uniform Cartesian grid spacing in the island example", "m"
+    ),
+    "islandHalfWidthCells": Parameter(
+        10, int, "Half-width of the centered square island in physical cells", "1"
     ),
     "islandWindSpeed": Parameter(
         5.0, float, "Prescribed signed zonal wind in the island example", "m s-1"
@@ -71,13 +75,13 @@ ISLAND_SETTINGS: dict[str, Parameter] = {
         "W m-2",
     ),
     "islandTimeStep": Parameter(
-        600.0,
+        60.0,
         float,
         "Default dynamics and thermodynamics timestep for the island example",
         "s",
     ),
     "islandEVPsteps": Parameter(
-        5, int, "Default EVP substeps in the island example", "1"
+        400, int, "Default EVP substeps in the island example", "1"
     ),
 }
 
@@ -91,6 +95,7 @@ class IslandSettings:
 
     saltOcn_ref: float = FROM_REGISTRY
     islandGridSpacing: float = FROM_REGISTRY
+    islandHalfWidthCells: int = FROM_REGISTRY
     islandWindSpeed: float = FROM_REGISTRY
     islandAirTemperature: float = FROM_REGISTRY
     islandIceThickness: float = FROM_REGISTRY
@@ -110,6 +115,7 @@ class IslandSettings:
             positive=frozenset(
                 {
                     "islandGridSpacing",
+                    "islandHalfWidthCells",
                     "islandAirTemperature",
                     "islandTimeStep",
                     "islandEVPsteps",
@@ -131,11 +137,15 @@ def numerical_defaults(scenario: IslandSettings) -> dict[str, Any]:
         "deltatTherm": scenario.islandTimeStep,
         "deltatDyn": scenario.islandTimeStep,
         "nEVPsteps": scenario.islandEVPsteps,
+        "useAdaptiveEVP": True,
     }
 
 
-ISLAND_PROFILES: dict[str, Any] = {"example": {"grid": (8, 12), "steps": 3}}
-"""Explicit small coupled launch rather than a duplicate CLI default."""
+ISLAND_DEFAULT_GRID = (80, 120)
+"""Physical cells resolving the 64 by 96 km basin at 800 m spacing."""
+
+ISLAND_PROFILES: dict[str, Any] = {"example": {"steps": 300}}
+"""The coupled island example covers five hours with the normal defaults."""
 
 
 def build_fields(
@@ -174,16 +184,23 @@ def _fields(
     the global basin even when a partition has only two interior cells.
     """
     wind = scenario.islandWindSpeed
+    half_width = scenario.islandHalfWidthCells
+    if 2 * half_width >= min(nx, ny):
+        raise ValueError("islandHalfWidthCells must leave ocean around the global grid")
     air_temperature = scenario.islandAirTemperature
     ones = jnp.ones_like(vs.iceMask)
     fields = {}
-    land_x = (ix >= nx // 2 - 1) & (ix < nx // 2 + 1)
-    land_y = (iy >= ny // 2 - 1) & (iy < ny // 2 + 1)
+    land_x = (ix >= nx // 2 - half_width) & (ix < nx // 2 + half_width)
+    land_y = (iy >= ny // 2 - half_width) & (iy < ny // 2 + half_width)
     mask = jnp.asarray(~(land_x[:, None] & land_y[None, :]), dtype=vs.iceMask.dtype)
     previous_x = (ix - 1) % nx
     previous_y = (iy - 1) % ny
-    west_land = (previous_x >= nx // 2 - 1) & (previous_x < nx // 2 + 1)
-    south_land = (previous_y >= ny // 2 - 1) & (previous_y < ny // 2 + 1)
+    west_land = (previous_x >= nx // 2 - half_width) & (
+        previous_x < nx // 2 + half_width
+    )
+    south_land = (previous_y >= ny // 2 - half_width) & (
+        previous_y < ny // 2 + half_width
+    )
     west = mask * jnp.asarray(~(west_land[:, None] & land_y[None, :]), dtype=mask.dtype)
     south = mask * jnp.asarray(
         ~(land_x[:, None] & south_land[None, :]), dtype=mask.dtype

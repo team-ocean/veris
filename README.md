@@ -30,11 +30,11 @@ cells dividing the modeled area). These prescribed inputs come from the setup,
 without an external ocean model:
 
 ```python
-from veris import Execution, Experiment, Grid, Simulation
+from veris import Execution, Experiment, Simulation
 
 experiment = Experiment.builtin(
-    "island", grid=Grid(6, 8), steps=3,
-    settings={"dtype": "float32", "nEVPsteps": 2},
+    "island", steps=3,
+    settings={"dtype": "float32"},
     execution=Execution(backend="cpu"),
 )
 with Simulation.initialize(experiment) as simulation:
@@ -43,9 +43,11 @@ with Simulation.initialize(experiment) as simulation:
     simulation.save_restart("checkpoint.nc")
 ```
 
-Use new output destinations when repeating this example. Its two EVP subcycles
-(repeated calculations in the elastic-viscous-plastic ice-motion solver) demonstrate the programming
-interface; they do not show that the solver has converged to a solution.
+Use new output destinations when repeating this example. The island uses an
+80 by 120 grid with 800 m cells, a 16 by 16 km island, 60-second timesteps
+and 400 adaptive EVP subcycles (repeated calculations in the
+elastic-viscous-plastic ice-motion solver). This short Python example advances
+three steps; the command-line island example defaults to 300 steps.
 
 - [Python lifecycle tutorial](docs/quickstart/user-guide.rst): successive runs,
   output saved on a schedule, observations and exact restart.

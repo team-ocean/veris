@@ -3,13 +3,16 @@
 See [the local measurement report](RESULTS.md) for accepted changes, results,
 correctness checks and the unresolved variation in CPU timings.
 
-Use the project root and `.venv-latest`. The benchmark runs the island setup:
-a sea with a central island and periodic boundaries that connect opposite edges.
-It uses supplied forcing (inputs such as wind and heat), float64 arrays (64-bit
-numbers) and 600-second steps. Grid arguments count interior cells. Each dimension
-adds four halo cells, extra boundary cells that hold neighboring values. The
-benchmark changes the island example's five EVP iterations to an explicit count,
-defaulting to 400. EVP is the elastic-viscous-plastic method for calculating ice
+Use the project root and `.venv-latest`. The benchmark runs island physics
+with explicitly pinned historical inputs: 8 km cells, a two-cell-wide island,
+600-second steps and fixed EVP relaxation. These controls keep its previous
+measurements comparable; the public island example uses 800 m cells,
+60-second steps and adaptive EVP instead. The benchmark uses supplied forcing
+(inputs such as wind and heat) and float64 arrays (64-bit numbers).
+Grid arguments count interior cells. Each dimension adds four halo cells,
+extra boundary cells that hold neighboring values. The benchmark accepts an
+explicit EVP iteration count, defaulting to 400.
+EVP is the elastic-viscous-plastic method for calculating ice
 motion. Each iteration repeats a calculation to improve the solution. The
 benchmark does not show that this count is enough for the solution to converge.
 

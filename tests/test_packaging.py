@@ -141,6 +141,7 @@ def test_sdist_contains_test_helpers_references_and_documented_architecture(
             ".json",
             ".txt",
             ".conf",
+            ".svg",
         }:
             required.add(str(path.relative_to(source)))
     # The archive must run its benchmark tests and retain source documentation.

@@ -12,6 +12,9 @@ definitions.
 The island setup combines dynamics (ice motion) and growth (freezing and
 melting) with prescribed ocean masks and fields. Masks identify ocean and land
 cells. It requires no geographic datasets or external ocean model. The
+80 by 120 cells at 800 m spacing cover a 64 by 96 km basin around a
+16 by 16 km island. The example runs 300 coupled 60-second steps with 400
+adaptive EVP subcycles, covering five hours. The
 separate dynamics, growth and parallel dynamics cases use the same
 initialization and physics calculations. Each page describes its controls and
 usage. The three separate cases derive from ``veris_minimum_working_example``

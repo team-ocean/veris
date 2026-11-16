@@ -11,6 +11,7 @@ import pytest
 from budget_reference import load_budget_corrections
 
 import veris
+from tests.island_helpers import compact_builtin
 
 _ROOT = Path(__file__).resolve().parents[1] / "reference_data"
 
@@ -76,7 +77,7 @@ def test_pure_and_host_trajectories_match_immutable_reference(
         if preset == "island"
         else veris.Forcing()
     )
-    experiment = veris.Experiment.builtin(
+    experiment = compact_builtin(
         preset,
         grid=veris.Grid(*case["grid"]),
         settings=settings,

@@ -16,9 +16,9 @@ from jax.sharding import Mesh, NamedSharding
 from jax.sharding import PartitionSpec as P
 from jax.typing import ArrayLike
 
+from tests.island_helpers import compact_island
 from veris import (
     Execution,
-    Experiment,
     Forcing,
     Grid,
     advance,
@@ -143,8 +143,7 @@ def check_coupled(mesh: Mesh, no_slip: bool, dtype: str) -> None:
     x, y = np.indices((nx, ny), dtype=dtype)
     # Original storage coordinates started at two on each physical axis.
     x, y = x + 2, y + 2
-    definition = Experiment.builtin(
-        "island",
+    definition = compact_island(
         grid=Grid(nx, ny),
         settings=options,
         initial_conditions={

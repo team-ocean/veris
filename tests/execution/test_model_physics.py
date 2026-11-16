@@ -13,6 +13,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from tests.island_helpers import compact_island
 from veris import Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance
 from veris.grid.halos import fill_state_overlap
@@ -127,7 +128,7 @@ def test_public_timestep_matches_every_kernel_state_and_diagnostic(
         expected = kernel_reference(initial, conf, phys, physics)
     else:
         initial, conf, phys = initialize_experiment(
-            Experiment.builtin("island", grid=Grid(4, 5), settings=options)
+            compact_island(grid=Grid(4, 5), settings=options)
         )
         initial = replace(
             initial,
@@ -229,7 +230,7 @@ def test_closed_y_ocean_forcing_prepares_velocity_halos_before_dynamics(
 def test_explicit_speed_takes_precedence_over_component_derivation() -> None:
     """Catch replacing a separately prescribed thermodynamic wind magnitude."""
     initial, conf, phys = initialize_experiment(
-        Experiment.builtin("island", grid=Grid(4, 5), settings={"nEVPsteps": 2})
+        compact_island(grid=Grid(4, 5), settings={"nEVPsteps": 2})
     )
     expected = replace(
         initial,
@@ -347,8 +348,7 @@ def test_spatial_heat_fields_use_global_physical_grid(cyclic_y: bool) -> None:
 def smooth_coupled_case() -> tuple[State, Configuration, PhysicalConstants]:
     """Keep concentration below ridging and temperature below melting thresholds."""
     initial, conf, phys = initialize_experiment(
-        Experiment.builtin(
-            "island",
+        compact_island(
             grid=Grid(4, 5),
             settings={"nEVPsteps": 2, "useAdaptiveEVP": False},
         )
@@ -510,7 +510,7 @@ def test_invalid_pure_timestep_definition_is_informative(
 ) -> None:
     """Catch unsupported evolved-field forcing, wrong grid shape or ignored mode."""
     initial, conf, phys = initialize_experiment(
-        Experiment.builtin("island", grid=Grid(4, 5), settings={"nEVPsteps": 2})
+        compact_island(grid=Grid(4, 5), settings={"nEVPsteps": 2})
     )
     with pytest.raises((TypeError, ValueError), match=message):
         advance(initial, conf, phys, forcing, physics=physics)

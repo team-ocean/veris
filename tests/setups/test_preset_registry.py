@@ -21,8 +21,8 @@ from veris.setups import presets, run_growth
 @pytest.mark.parametrize(
     "name,profile,shape,steps,seconds,evp",
     [
-        ("island", None, (8, 12), 0, 600.0, 5),
-        ("island", "example", (8, 12), 3, 600.0, 5),
+        ("island", None, (80, 120), 0, 60.0, 400),
+        ("island", "example", (80, 120), 300, 60.0, 400),
         ("dynamics", None, (8, 12), 0, 600.0, 120),
         ("dynamics", "example", (16, 24), 100, 600.0, 120),
         ("dynamics", "standalone", (1024, 1024), 100, 600.0, 120),
@@ -190,9 +190,9 @@ def test_partial_declarative_grid_inherits_preset_dimensions(tmp_path: Path) -> 
 
 def test_partition_override_is_owned_across_later_resolution() -> None:
     partitions = [2, 1]
-    definition = Experiment.builtin("island", grid=Grid(4, 6)).with_overrides(
-        {"execution": {"partitions": partitions}}
-    )
+    definition = Experiment.builtin(
+        "island", grid=Grid(4, 6), scenario={"islandHalfWidthCells": 1}
+    ).with_overrides({"execution": {"partitions": partitions}})
     partitions[0] = 1
     assert definition.with_overrides({}).execution.partitions == (2, 1)
 

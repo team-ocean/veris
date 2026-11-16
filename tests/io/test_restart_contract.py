@@ -1,7 +1,7 @@
 """Exact checkpoint clocks, halos, publication and resumed-output invariants."""
 
 import json
-from dataclasses import replace
+from dataclasses import fields, replace
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -11,7 +11,37 @@ import numpy as np
 import pytest
 
 import veris
+from tests.island_helpers import compact_island
 from veris.io import OutputSettings, Stream, read_record
+
+
+@pytest.mark.parametrize("profile", [None, "example"])
+def test_legacy_island_checkpoint_preserves_state_and_next_step(
+    tmp_path: Path, profile: str | None
+) -> None:
+    """Pre-width-control checkpoints retain exact geometry and continuation."""
+    path = tmp_path / "legacy-island.nc"
+    definition = compact_island(profile=profile, steps=1)
+    with veris.Simulation.initialize(definition) as original:
+        checkpoint = original.state
+        original.save_restart(path)
+        original.step()
+        expected = original.state
+    with h5netcdf.File(path, "r+") as file:
+        encoded = json.loads(file.attrs["experiment"])
+        encoded["scenario"].pop("islandHalfWidthCells")
+        file.attrs["experiment"] = json.dumps(encoded)
+    with veris.Simulation.from_restart(path) as resumed:
+        assert resumed.experiment.resolved_scenario["islandHalfWidthCells"] == 1
+        for item in fields(checkpoint):
+            assert np.array_equal(
+                getattr(resumed.state, item.name), getattr(checkpoint, item.name)
+            ), f"ERROR legacy checkpoint changed {item.name}"
+        resumed.step()
+        for item in fields(expected):
+            assert np.array_equal(
+                getattr(resumed.state, item.name), getattr(expected, item.name)
+            ), f"ERROR legacy continuation changed {item.name}"
 
 
 def test_restart_at_zero_does_not_reemit_checkpoint_instant(tmp_path: Path) -> None:

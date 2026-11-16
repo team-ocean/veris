@@ -170,6 +170,7 @@ def _load_builtins() -> None:
             numerical_defaults=lambda values: island.numerical_defaults(
                 island.IslandSettings(**values)
             ),
+            grid=island.ISLAND_DEFAULT_GRID,
             profiles=island.ISLAND_PROFILES,
             minimum_shape=(4, 4),
             forcing_defaults=lambda values: {

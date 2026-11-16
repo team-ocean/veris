@@ -123,7 +123,7 @@ def main() -> None:
         (docs_root / "quickstart/user-guide.rst", "import jax.numpy as jnp", None),
         (
             docs_root / "quickstart/user-guide.rst",
-            "from veris import Experiment, Grid, Simulation",
+            "from veris import Experiment, Simulation",
             None,
         ),
         (docs_root / "quickstart/custom-ocean.rst", "import numpy as np", None),

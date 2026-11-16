@@ -15,11 +15,11 @@ The island, dynamics and growth presets all use this initializer. Set the groupe
 controls through ``Experiment`` before creating arrays::
 
    import jax
-   from veris import Experiment, Grid, initialize_experiment
+   from veris import Experiment, initialize_experiment
 
    jax.config.update("jax_enable_x64", True)
    experiment = Experiment.builtin(
-       "island", grid=Grid(8, 12),
+       "island",
        settings={"enable_cyclic_y": False},
        scenario={"islandWindSpeed": 5.0},
        constants={"rhoIce": 900.0},

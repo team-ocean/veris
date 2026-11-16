@@ -7,7 +7,8 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from veris import Experiment, Grid, initialize_experiment
+from tests.island_helpers import compact_island
+from veris import Grid, initialize_experiment
 from veris.execution.advance import advance
 
 
@@ -22,9 +23,7 @@ def test_compiled_advance_matches_evolving_eager_trajectory(adaptive: bool) -> N
     assert hasattr(compiled_advance, "lower"), (
         "ERROR coupled step must expose compiled lowering"
     )
-    initial, conf, phys = initialize_experiment(
-        Experiment.builtin("island", grid=Grid(6, 9))
-    )
+    initial, conf, phys = initialize_experiment(compact_island(grid=Grid(6, 9)))
     conf = replace(conf, useAdaptiveEVP=adaptive)
     pattern = jnp.sin(jnp.arange(initial.uWind.size).reshape(initial.uWind.shape))
     initial = replace(initial, uWind=initial.uWind + 0.3 * pattern)
@@ -48,9 +47,7 @@ def test_compiled_advance_cooling_jvp_vjp_and_finite_difference() -> None:
         advance, static_argnames=("configuration", "constants", "physics")
     )
 
-    initial, conf, phys = initialize_experiment(
-        Experiment.builtin("island", grid=Grid(5, 7))
-    )
+    initial, conf, phys = initialize_experiment(compact_island(grid=Grid(5, 7)))
 
     def compiled(cooling: jax.Array) -> jax.Array:
         return (

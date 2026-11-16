@@ -7,8 +7,8 @@ by ice), 253 K air and 80 W/m2 downward longwave radiation (heat radiated from t
 atmosphere). It executes 150 daily Growth steps, calculating freezing and
 melting without ice motion or transport between cells::
 
-   python -m veris.setups.run_growth --backend cpu --output-snapshot output/growth.nc
-   python -m veris.setups.run_growth --backend gpu --output-snapshot output/growth-gpu.nc
+   python -m veris.setups.run_growth --backend cpu --output-snapshot output/growth-default.nc
+   python -m veris.setups.run_growth --backend gpu --output-snapshot output/growth-default-gpu.nc
 
 The CLI uses ``Experiment.builtin("growth", ...)`` and ``Simulation``. Python
 experiments use the same interface for initial conditions, forcing (prescribed
@@ -30,30 +30,52 @@ functions and automatic differentiation (AD). Pure functions do not change
 outside resources; AD calculates how results change with inputs.
 
 The setup uses the ``jax_halo_exchange`` notebook's initial conditions and
-daily steps with the shared Growth routine. With the default inputs, ice
-decreases from 1.3 m and disappears at the end of day 140. The notebook plots
-values before each step (days 0--149). Scheduled instantaneous output includes
-the initial value and values after completed steps (days 0--150).
+daily steps with the shared Growth routine. The run below extends the default
+150-day duration to 200 days. With the current model, grid-cell mean thickness
+decreases from 1.3 m to zero on day 154. The full output contains days 0--200;
+the figure stops at the first zero-thickness day, including that endpoint.
+
+.. figure:: /figures/setups/growth-thickness-to-zero.svg
+   :alt: Grid-cell mean ice thickness decreases from 1.3 metres at day zero to zero on day 154; later samples from the 200-day run are omitted.
+   :width: 720px
+   :align: center
+
+   Grid-cell mean ice thickness from a 200-step daily thermodynamic run, using
+   float64 on CPU and the default 2 by 2 physical grid. All four cells have
+   identical thickness. The 155 plotted samples include the initial state and
+   every completed day through ice disappearance; thickness is averaged over
+   the whole grid cell.
+
+Download the :download:`SVG figure </figures/setups/growth-thickness-to-zero.svg>`.
+The figure uses SVG with outlined lettering and vector lines, so its
+typography does not depend on fonts installed on the reader's device.
 
 To record and plot the evolving ice thickness, request a history stream::
 
-   python -m veris.setups.run_growth --backend cpu \
-       --output-snapshot output/growth-history-final.nc --output-history output/growth-history.nc \
+   python -m veris.setups.run_growth --steps 200 --backend cpu \
+       --output-snapshot output/growth.nc --output-history output/growth-history.nc \
        --io-variables hIceMean
 
 Then read the netCDF time series without needing an interactive environment::
 
    import h5netcdf
    import matplotlib.pyplot as plt
+   import numpy as np
 
    with h5netcdf.File("output/growth-history.nc", "r") as result:
        history = result.groups["instantaneous"]
        days = history.variables["time"][:] / 86400
        ice = history.variables["hIceMean"][:, 0, 0]
-       plt.plot(days, ice)
-   plt.xlabel("days")
-   plt.ylabel("ice thickness / m")
+       first_zero = np.flatnonzero(ice == 0)[0]
+       plt.plot(days[:first_zero + 1], ice[:first_zero + 1])
+   plt.xlabel("Time (days)")
+   plt.ylabel("Grid-cell mean ice thickness (m)")
    plt.show()
+
+After running all three documented setups into ``output/``, regenerate their
+SVG figures from the repository root with::
+
+   python docs/examples/plot_setup_results.py output
 
 Reference adaptations
 ---------------------

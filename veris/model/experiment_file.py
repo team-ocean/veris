@@ -201,6 +201,22 @@ def _execution(value: Any, defaults: Any = None) -> Any:
     return Execution(**controls)
 
 
+def _upgrade_legacy_island_scenario(values: dict[str, Any]) -> None:
+    """Preserve complete pre-width island metadata; sparse inputs keep defaults.
+
+    Before the configurable half-width, every island had two land cells along
+    each axis. Only the complete old resolved scenario identifies that geometry
+    unambiguously. Copy its mapping so decoding never changes the caller's data.
+    """
+    scenario = values.get("scenario")
+    if values.get("preset") != "island" or not isinstance(scenario, Mapping):
+        return
+    from veris.setups.island import ISLAND_SETTINGS
+
+    if scenario.keys() == ISLAND_SETTINGS.keys() - {"islandHalfWidthCells"}:
+        values["scenario"] = {**scenario, "islandHalfWidthCells": 1}
+
+
 def experiment_from_dict(data: Any) -> Experiment:
     """Construct an experiment from grouped version 1 or 2 declarative values.
 
@@ -220,6 +236,7 @@ def experiment_from_dict(data: Any) -> Experiment:
         "experiment",
     )
     _schema_version(values.pop("schema_version", 1))
+    _upgrade_legacy_island_scenario(values)
     authored_groups: dict[str, Any] = {}
     provider = None
     if values.get("preset") is not None:

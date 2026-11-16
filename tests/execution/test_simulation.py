@@ -16,6 +16,7 @@ import numpy as np
 import pytest
 
 import veris
+from tests.island_helpers import compact_island
 from veris.execution.advance import advance
 from veris.model.diagnostics import Diagnostics
 from veris.model.types import State
@@ -28,8 +29,7 @@ def initialize(definition: veris.Experiment) -> Any:
 
 def coupled_definition(steps: int = 5) -> veris.Experiment:
     """Define the established small coupled preset without internal orchestration."""
-    return veris.Experiment.builtin(
-        "island",
+    return compact_island(
         grid=veris.Grid(4, 5),
         settings={"nEVPsteps": 2},
         forcing=veris.Forcing(constant={"Qnet": 85.0, "Qsw": 0.0}),
@@ -223,8 +223,7 @@ def test_explicit_count_can_extend_the_configured_default_duration() -> None:
 
 def test_forcing_exhaustion_is_atomic_and_simulation_remains_usable() -> None:
     """Catch evolving some requested steps before noticing an exhausted series."""
-    definition = veris.Experiment.builtin(
-        "island",
+    definition = compact_island(
         grid=veris.Grid(4, 5),
         settings={"nEVPsteps": 2},
         forcing=veris.Forcing(series={"Qnet": [80.0, 110.0, 90.0]}),
@@ -311,8 +310,7 @@ def test_spatial_wind_and_heat_series_keep_absolute_position_across_runs() -> No
     )
     wind_v = -1.0 + 0.2 * y
     heat = np.array([80.0, 115.0, 65.0, 95.0])
-    definition = veris.Experiment.builtin(
-        "island",
+    definition = compact_island(
         grid=veris.Grid(4, 5),
         settings={"nEVPsteps": 2},
         forcing=veris.Forcing(

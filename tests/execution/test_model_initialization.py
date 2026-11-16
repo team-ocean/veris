@@ -17,6 +17,7 @@ import pytest
 from jax.sharding import Mesh
 
 import veris
+from tests.island_helpers import compact_island
 from veris.grid.geometry import OceanGeometry
 from veris.model.types import State
 
@@ -82,6 +83,7 @@ def test_builtin_initialization_preserves_prescribed_fields_and_controls(
     if name == "island":
         scenario = {
             "islandGridSpacing": 2000.0,
+            "islandHalfWidthCells": 1,
             "islandWindSpeed": -3.0,
             "islandAirTemperature": 263.0,
             "islandIceThickness": 1.2,
@@ -134,7 +136,7 @@ def test_builtin_initialization_preserves_prescribed_fields_and_controls(
 
 def test_presets_record_prescribed_island_and_recursive_growth_flux_policy() -> None:
     """Preset heat inputs are queued separately from initial coupling outputs."""
-    coupled = veris.Experiment.builtin("island", grid=veris.Grid(4, 6))
+    coupled = compact_island(grid=veris.Grid(4, 6))
     assert coupled.resolved_forcing.at(0)["Qnet"] == 100.0
     assert coupled.resolved_forcing.at(0)["Qsw"] == 0.0
     state, _, _ = veris.initialize_experiment(coupled)
@@ -171,8 +173,7 @@ def test_growth_scenario_initializes_custom_column_without_source_edits() -> Non
 
 def test_explicit_preset_forcing_initializes_fields_and_queues_coupled_heat() -> None:
     """Applying coupled heat early must not replace legacy initial flux outputs."""
-    definition = veris.Experiment.builtin(
-        "island",
+    definition = compact_island(
         grid=veris.Grid(4, 6),
         forcing=veris.Forcing(
             constant={

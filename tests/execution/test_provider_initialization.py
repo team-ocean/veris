@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from tests.island_helpers import compact_island
 from tests.lifecycle_sharding_probe import _custom
 from veris import Experiment, Grid, Simulation, initialize_experiment
 from veris.grid.ocean import initialize_from_ocean
@@ -103,9 +104,7 @@ def test_experiment_initialization_requires_a_runnable_host_clock() -> None:
     """Preset initialization shares the public clock contract without bypasses."""
     controls = {"deltatDyn": 1e-9, "deltatTherm": 1e-9}
     with pytest.raises(ValueError, match="microseconds"):
-        initialize_experiment(
-            Experiment.builtin("island", grid=Grid(4, 6), settings=controls)
-        )
+        initialize_experiment(compact_island(grid=Grid(4, 6), settings=controls))
 
 
 def test_ocean_adapter_and_experiment_reject_the_same_invalid_mask() -> None:

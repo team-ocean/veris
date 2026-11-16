@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
+from tests.island_helpers import compact_builtin
 from veris import Execution, Experiment, Forcing, Grid, run_experiment
 from veris.io import OutputSettings, Stream
 
@@ -32,7 +33,7 @@ def definition(kind: str, cyclic_y: bool) -> Experiment:
 
         model = _custom(Grid(8, 12), cyclic_y, output)
     else:
-        model = Experiment.builtin(
+        model = compact_builtin(
             kind,
             grid=Grid(8, 12),
             steps=2,

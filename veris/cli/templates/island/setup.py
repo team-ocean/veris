@@ -4,5 +4,5 @@ from veris import Experiment
 
 
 def build_experiment() -> Experiment:
-    """Define three coupled steps with the island preset's original numerics."""
+    """Define 300 coupled 60-second steps on the 800 m island grid."""
     return Experiment.builtin("island", profile="example")

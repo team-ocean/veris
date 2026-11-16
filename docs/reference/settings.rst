@@ -20,8 +20,8 @@ one divided by a value. Reciprocals calculated from changed values are recalcula
 
 JAX treats Configuration objects as fixed inputs during JIT compilation, which
 turns Python calculations into executable code. Changing a value may require
-compilation again. The island example changes timestep lengths and the
-iteration count of the EVP (elastic-viscous-plastic) ice-motion solver.
+compilation again. The island example selects 60-second timesteps and 400
+adaptive subcycles of the EVP (elastic-viscous-plastic) ice-motion solver.
 
 Horizontal boundaries
 ---------------------
@@ -32,11 +32,11 @@ way. Set it to ``False`` at initialization to use closed southern and northern
 walls that nothing can pass through::
 
    import jax
-   from veris import Experiment, Grid, initialize_experiment
+   from veris import Experiment, initialize_experiment
 
    jax.config.update("jax_enable_x64", True)
    experiment = Experiment.builtin(
-       "island", grid=Grid(8, 12), settings={"enable_cyclic_y": False},
+       "island", settings={"enable_cyclic_y": False},
    )
    state, settings, constants = initialize_experiment(experiment)
 

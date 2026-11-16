@@ -27,10 +27,10 @@ Operating System :: MacOS
 
 INSTALL_REQUIRES: Final[list[str]] = [
     "click>=8.1",
-    "jax>=0.11.2",
     "numpy>=2.0",
     "h5netcdf>=1.8.1",
     "h5py>=3.7",
+    "jax>=0.10.2",
 ]
 
 with open(os.path.join(here, "README.md"), encoding="utf-8") as f:

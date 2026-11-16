@@ -31,6 +31,7 @@ def test_central_cli_grouped_overrides_match_python_all_fields(
     kind = "island"
     raw = {
         "preset": kind,
+        "scenario": {"islandHalfWidthCells": 1},
         "grid": {"nx": 4, "ny": 6},
         "steps": 3,
         "settings": {"nEVPsteps": 2, "nITC": 1, "deltatDyn": 60.0, "deltatTherm": 60.0},

@@ -1,25 +1,42 @@
 Getting started
 ===============
 
-This guide shows you how to install Veris, run your first sea-ice simulation and
-read its results.
+This guide shows you how to install Veris, run your first uncoupled sea-ice simulation
+and read its output.
 
 Installation
 ------------
 
-Use Python 3.12 or newer. Install the latest published release in a virtual
-environment, a separate place for this project's Python packages::
+Quick installation via pip
+++++++++++++++++++++++++++
 
-   python3 -m venv .venv
-   source .venv/bin/activate
-   python -m pip install --upgrade veris
+.. warning::
 
-This documentation describes Veris |release|. See the
-`latest release notes <https://github.com/team-ocean/veris/releases/latest>`_
-for changes and downloads. The installation also adds the packages Veris needs
+  Use this installation method when you want to get started quickly and do not
+  need to modify Veris's source code. For development, use a source
+  installation as described in :doc:`/development`.
+
+Prerequisites
++++++++++++++
+
+Before installing Veris, ensure that Python 3.12 or newer version is installed.
+
+Installation
+++++++++++++
+
+Install the latest published release in a virtual environment,
+a separate place for this project's Python packages::
+
+   $ python3 -m venv .venv
+   $ source .venv/bin/activate
+   $ python -m pip install --upgrade veris
+
+This installation method also adds the packages Veris needs
 to run, including JAX for computer processors (CPU) and support for netCDF files.
-Veris requires no external ocean model. For an editable source installation,
-follow :doc:`/development`.
+Veris requires no external ocean model for uncoupled simulations.
+
+Command line interface (CLI)
+++++++++++++++++++++++++++++
 
 Check that the command is available::
 
@@ -76,7 +93,7 @@ experiment, which combines dynamics and growth, through ``Simulation``. It saves
 output on a schedule and shows how to continue a saved run exactly.
 
 Reading output
-~~~~~~~~~~~~~~
+--------------
 
 The final snapshot saves values at one time in a netCDF file. Its ``snapshot``
 group holds those values. In a Python session started from ``my-growth``, read
@@ -105,7 +122,7 @@ The :doc:`/reference/setups/growth` example shows how to plot its thickness
 history. See :doc:`/reference/io` for calendars, averaging and record selection.
 
 Restarting a simulation
-~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------
 
 A snapshot saves selected fields for analysis. To continue a run exactly, use a
 complete checkpoint, a file with all the model values and inputs needed to
@@ -117,7 +134,7 @@ execution) and output
 continuation. The CLI does not accept checkpoints as setup files.
 
 Running on multiple devices or processes
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------------------
 
 Once a serial setup (one without a device mesh) works, use
 :doc:`/reference/setups/parallel-dynamics` for local CPU/GPU meshes, which group

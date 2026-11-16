@@ -32,6 +32,7 @@ from veris.model.experiment import Execution, Experiment
 from veris.model.experiment_file import (
     _nonfinite_constant,
     _unique_object,
+    _upgrade_legacy_island_scenario,
     experiment_from_dict,
     experiment_to_dict,
 )
@@ -344,6 +345,7 @@ def read_restart(
             if set(file.attrs) != _ATTRIBUTES or file.attrs["Conventions"] != "CF-1.10":
                 raise ValueError("incomplete or unexpected restart metadata")
             encoded_definition = _decode(file.attrs["experiment"], "experiment")
+            _upgrade_legacy_island_scenario(encoded_definition)
             encoded_definition.setdefault("profile", None)
             execution = encoded_definition.get("execution")
             required = {"backend", "partitions"}

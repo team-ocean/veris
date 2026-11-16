@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from tests.island_helpers import compact_island
 from veris import Experiment, Grid, initialize_experiment
 from veris.execution.advance import advance as advance_model
 from veris.execution.initialization import initialize
@@ -165,8 +166,7 @@ def test_closed_coupled_steps_preserve_walls_and_finite_ad(no_slip: bool) -> Non
     """Setup overrides and repeated refreshes cannot revive dry exterior masks."""
 
     state, conf, phys = initialize_experiment(
-        Experiment.builtin(
-            "island",
+        compact_island(
             grid=Grid(6, 8),
             settings={"enable_cyclic_y": False, "noSlip": no_slip, "nEVPsteps": 2},
         )

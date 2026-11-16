@@ -7,7 +7,8 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from veris import Experiment, Grid, initialize_experiment
+from tests.island_helpers import compact_island
+from veris import Grid, initialize_experiment
 from veris.execution.advance import advance as advance_model
 from veris.execution.initialization import initialize
 from veris.model.configuration import SETTINGS
@@ -39,9 +40,7 @@ def test_policy_types_every_array_and_static_coefficient(dtype: str) -> None:
 def test_coupled_step_and_gradients_preserve_precision(dtype: str) -> None:
     """Real dynamics, growth, diagnostics and AD must not promote field precision."""
     state, settings, constants = initialize_experiment(
-        Experiment.builtin(
-            "island", grid=Grid(4, 5), settings={"dtype": dtype, "nEVPsteps": 2}
-        )
+        compact_island(grid=Grid(4, 5), settings={"dtype": dtype, "nEVPsteps": 2})
     )
     result, diagnostics = advance_model(
         state, settings, constants, {"Qnet": 100.0, "Qsw": 0.0}, physics="coupled"

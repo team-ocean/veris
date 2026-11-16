@@ -19,17 +19,17 @@ temperature and wind::
    import jax
    import numpy as np
 
-   from veris import Execution, Experiment, Grid, Simulation
+   from veris import Execution, Experiment, Simulation
    from veris.io import OutputSettings, Stream, read_record
 
    output = OutputSettings(streams=(
-       Stream("instant", ("hIceMean", "Area"), timedelta(seconds=600)),
-       Stream("mean", ("hIceMean",), timedelta(seconds=600),
-              timedelta(seconds=1200)),
+       Stream("instant", ("hIceMean", "Area"), timedelta(seconds=60)),
+       Stream("mean", ("hIceMean",), timedelta(seconds=60),
+              timedelta(seconds=120)),
    ))
    experiment = Experiment.builtin(
-       "island", grid=Grid(6, 8), steps=4,
-       settings={"dtype": "float32", "nEVPsteps": 2},
+       "island", steps=4,
+       settings={"dtype": "float32"},
        execution=Execution(backend="cpu"), output=output,
    )
    with Simulation.initialize(experiment, output_path="history.nc") as simulation:
@@ -44,21 +44,22 @@ temperature and wind::
        resumed = simulation.run()
 
    assert resumed.completed_steps == result.completed_steps == 4
-   assert resumed.elapsed == result.elapsed == timedelta(seconds=2400)
+   assert resumed.elapsed == result.elapsed == timedelta(seconds=240)
    for left, right in zip(jax.tree.leaves(result.state),
                           jax.tree.leaves(resumed.state), strict=True):
        np.testing.assert_array_equal(left, right)
    final = read_record("final.nc")
-   assert final.fields["hIceMean"].shape == (6, 8)
+   assert final.fields["hIceMean"].shape == (80, 120)
    print(final.time, float(final.fields["hIceMean"].mean()))
 
-Use new file destinations when running the example again. ``Grid(6, 8)`` counts
-the whole model's physical cells in ``(x, y)`` order, with the x direction first.
-It excludes halos, extra cells at grid edges used for boundary calculations.
-The example's two EVP subcycles (repeated calculations in the ice-motion solver)
-demonstrate the workflow; they do not show that the solver has converged to a
-solution. Initialization prepares the island's shape and the ocean cells. The
-builtin setup reapplies the supplied heat on every step; see
+Use new file destinations when running the example again. The default island
+grid has 80 by 120 physical cells in ``(x, y)`` order, with the x direction first.
+Its 800 m cells cover a 64 by 96 km basin around a 16 by 16 km island.
+Saved fields exclude halos, extra cells at grid edges used for boundary
+calculations. The setup uses 60-second timesteps and 400 adaptive EVP subcycles
+(repeated calculations in the ice-motion solver). Initialization prepares the
+island's shape and the ocean cells. The builtin setup reapplies the supplied
+heat on every step; see
 :doc:`/reference/setups/island` for its physics.
 
 The first run stops after two timesteps, or intervals of simulated time; the
@@ -102,16 +103,16 @@ values without resuming the model clock. Reload the final thickness and
 concentration (the fraction of each cell covered by ice) into a new serial
 experiment, one without a device mesh::
 
-   from veris import Experiment, Grid, Simulation
+   from veris import Experiment, Simulation
    from veris.io import read_record
 
    with Simulation.initialize(Experiment.builtin(
-       "island", grid=Grid(6, 8), steps=0, settings={"dtype": "float32"},
+       "island", steps=0, settings={"dtype": "float32"},
    )) as simulation:
        simulation.load_fields("final.nc", variables=("hIceMean", "Area"))
        assert simulation.completed_steps == 0
        loaded = simulation.state
-   assert read_record("final.nc").fields["hIceMean"].shape == (6, 8)
+   assert read_record("final.nc").fields["hIceMean"].shape == (80, 120)
 
 ``load_fields`` keeps the new simulation's clock and forcing definition, which
 specifies supplied inputs such as wind and ocean temperature. ``from_restart``

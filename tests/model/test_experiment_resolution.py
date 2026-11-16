@@ -94,6 +94,7 @@ def test_mapping_overlays_merge_and_arrays_replace_without_aliasing() -> None:
     base = Experiment.builtin(
         "island",
         grid=Grid(4, 6),
+        scenario={"islandHalfWidthCells": 1},
         forcing=Forcing(constant={"uWind": np.ones((4, 6)), "ocSalt": 30.0}),
         execution=Execution(backend="cpu"),
         settings={"useRelativeWind": True},
@@ -154,7 +155,7 @@ def test_file_configuration_and_python_overlay_follow_preset_precedence(
         }
     )
     assert definition.configuration.deltatDyn == 30.0
-    assert definition.configuration.nEVPsteps == 5
+    assert definition.configuration.nEVPsteps == 400
     assert definition.physical_constants.rhoIce == 905.0
     assert definition.resolved_forcing.at(0)["Qnet"] == 0.0
     assert definition.resolved_forcing.at(1)["Qnet"] == 110.0
@@ -178,7 +179,7 @@ def test_invalid_overlay_is_rejected_without_mutating_definition(
     base = Experiment.builtin("island")
     with pytest.raises((ValueError, TypeError), match=message):
         base.with_overrides(overrides)
-    assert base.configuration.deltatDyn == 600.0
+    assert base.configuration.deltatDyn == 60.0
     assert base.resolved_forcing.at(0)["Qnet"] == 100.0
 
 

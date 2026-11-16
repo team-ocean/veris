@@ -6,7 +6,8 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from veris import Experiment, Grid, initialize_experiment
+from tests.island_helpers import compact_island
+from veris import Grid, initialize_experiment
 from veris.execution.advance import advance as advance_model
 from veris.execution.initialization import initialize
 from veris.grid.halos import fill_state_overlap
@@ -69,8 +70,7 @@ def test_opposite_wall_shear_produces_equal_tangential_drag() -> None:
 def test_free_slip_momentum_steps_keep_both_wall_shears_zero() -> None:
     """Relaxation must not inherit spurious north traction from halo refresh."""
     state, conf, phys = initialize_experiment(
-        Experiment.builtin(
-            "island",
+        compact_island(
             grid=Grid(6, 8),
             settings={"enable_cyclic_y": False, "noSlip": False, "nEVPsteps": 2},
         )

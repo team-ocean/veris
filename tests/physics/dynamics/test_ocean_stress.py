@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 from conftest import StateFactory
 
+from tests.island_helpers import compact_island
 from veris.model.configuration import Configuration
 from veris.model.physical_constants import PhysicalConstants
 
@@ -149,11 +150,9 @@ def test_evp_turning_force_matches_independent_uniform_balance(hemisphere: int) 
 
 
 def test_freedrift_rejects_unsupported_turning_angle_before_host_allocation() -> None:
-    import veris
 
     with pytest.raises(ValueError, match="free.drift.*turning angle"):
-        veris.Experiment.builtin(
-            "island",
+        compact_island(
             settings={"useFreedrift": True, "useEVP": False},
             constants={"waterTurnAngle": 30.0},
         )

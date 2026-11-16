@@ -17,7 +17,8 @@ import pytest
 from budget_reference import load_budget_corrections
 
 import veris
-from veris import Experiment, Grid, initialize_experiment
+from tests.island_helpers import compact_island
+from veris import Grid, initialize_experiment
 from veris.grid.halos import fill_state_overlap
 from veris.model.diagnostics import Diagnostics
 from veris.model.types import State
@@ -29,8 +30,7 @@ from veris.physics.thermodynamics.growth import Growth
 def test_unequal_kernel_timesteps_match_frozen_original(compiled: bool) -> None:
     """Check native arrays against archived original Dyn600/Therm3600 science."""
     state, conf, phys = initialize_experiment(
-        Experiment.builtin(
-            "island",
+        compact_island(
             grid=Grid(4, 6),
             settings={
                 "dtype": "float64",
@@ -109,16 +109,13 @@ def test_unequal_kernel_timesteps_match_frozen_original(compiled: bool) -> None:
 def test_public_coupled_execution_rejects_unequal_timesteps() -> None:
     """Canonical coupled execution retains its single-clock time contract."""
     state, conf, phys = initialize_experiment(
-        Experiment.builtin(
-            "island", grid=Grid(4, 6), settings={"deltatDyn": 600, "deltatTherm": 600}
-        )
+        compact_island(grid=Grid(4, 6), settings={"deltatDyn": 600, "deltatTherm": 600})
     )
     conf = replace(conf, deltatTherm=3600)
     with pytest.raises(ValueError, match="coupled physics requires equal timesteps"):
         veris.advance(state, conf, phys)
     with pytest.raises(ValueError, match="equal dynamics/thermodynamic timesteps"):
-        veris.Experiment.builtin(
-            "island",
+        compact_island(
             grid=veris.Grid(4, 6),
             settings={"deltatDyn": 600, "deltatTherm": 3600},
         )

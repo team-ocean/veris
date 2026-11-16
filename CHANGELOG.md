@@ -1,5 +1,171 @@
 # Development log
 
+## 2026-11-16 — v0.2.2 release preparation
+
+- [x] Prepare all current changes on `main` for `v0.2.2` (@root).
+  Preserve existing scientific archives and figures; complete release
+  checks before committing and publishing the annotated release tag.
+- [x] Independent read-only code and release review (@release_review)
+  finds no remaining issues after the two corrections below.
+- [x] Reproduce two review findings before fixing them: five regression
+  failures cover old island resolved JSON/checkpoints and missing sdist SVGs.
+  Recognize complete legacy island scenarios and retain their original
+  half-width of one cell; sparse authored inputs keep current defaults.
+  Include SVGs in source distributions and the archive completeness check.
+- Initial full run was deliberately interrupted after 280 passing tests to
+  address these findings; rerun the complete suite on the corrected tree.
+- Native macOS ty reports two existing Linux-only affinity attributes in
+  platform-skipped tests; the Linux-target type check passes. Correct one
+  trailing space in getting-started documentation before packaging.
+- [x] All 45 focused codec/restart/packaging checks pass, including exact
+  old-checkpoint continuation. Maintained Ruff/annotations, formatting
+  (241 files), Linux-target ty and strict Sphinx pass.
+- [x] A clean-installed wheel passes both public lifecycle/framework probes
+  with JAX/JAXlib 0.10.2 and four logical CPU devices, exercising the lowered
+  dependency minimum. The first isolated probe lacked its environment's CLI
+  on PATH; rerunning with that environment's bin directory passes unchanged.
+- [x] Full CPU correctness: 1,755 passed, five platform/hardware skips,
+  zero failures in 1,156.64 s with Python 3.14.7/JAX 0.11.1. Whole-package
+  statement coverage is 91.6444% (5,144/5,613); maintained coverage excluding
+  generated `veris/_version.py` is 95.1141% (5,003/5,260), above the 80% gate.
+  Native GPU execution is not revalidated by this CPU run.
+
+## 2026-10-28 — SVG forcing overlays and sole island example
+
+- [x] Redraw only SVG figures: green ocean streamlines and vermilion wind
+  arrows, alpha0.6/0.65, sparse six-by-six streamline seeds and eight-by-ten
+  wind sampling with a 5 m/s scale key. Average native ocean U/V faces to
+  centers before plotting; winds are already centered. Remove dynamics land
+  legend and growth annotation; retain the exact day0--154 growth data.
+- [x] Reuse all previous integrated states/history. Dynamics snapshot lacks
+  forcing fields; initialization of its exact recorded definition recovers
+  them in `dynamics-forcing.nc`, executing zero timesteps. Island ocean
+  velocity is identically zero; user explicitly chooses stationary-ocean
+  labelling with real wind vectors instead of changing currents or rerunning.
+- [x] Island migration (@sole_island_example): the only profile is `example`,
+  and ordinary defaults also use 80 by 120 cells, 800 m spacing, half-width
+  ten, equal 60 s physics clocks and adaptive EVP400. Preserve the original
+  64 by 96 km basin and 16 by 16 km island. Remove `refined` profile selection.
+  Reference tests explicitly supply compact scientific inputs; immutable
+  archives and physics kernels remain unchanged. The historical benchmark
+  pins its previous inputs separately to preserve measurement comparability.
+- [x] Update all setup pages, six related public documentation pages, README
+  and benchmark README. Public snippets inherit high-resolution island inputs;
+  restart tutorial now records four 60 s steps and 80 by 120 fields. Update
+  the literal-example selector in the installed probe. SVG links replace every
+  figure PDF/PNG download; remove the six superseded non-SVG deliverables.
+- [x] TDD for new defaults (six expected failures) and overlay interpolation/
+  stationary-ocean behavior (two missing-helper failures). Green validation:
+  124 control/archive checks, 298 compatibility checks with two GPU-only skips,
+  four plot tests, and final deterministic fast sample176 passed/1,579
+  deselected. Only one pytest runs at a time. Maintained Ruff/annotations,
+  formatting (241 files), Linux-target ty and strict Sphinx pass.
+- [x] Clean-installed public lifecycle/documentation probe passes, including
+  restart, selected-field loading, sharding and pure JIT/AD. Initial one-device
+  probe failed at the documented two-device mesh; rerun with four logical CPU
+  devices succeeds. No code change was needed for this launch requirement.
+- [x] Independent review (@svg_final_review) finds no remaining findings.
+  Render all three SVGs in memory (no raster/PDF figure files), verify outlined
+  lettering, sparse distinct overlays, no growth annotation, correct stationary
+  label layering, all provenance hashes, built SVG image/download hashes,
+  alt text and responsive Furo sizing. Island label stays above wind arrows.
+- Reproducible generator: `docs/examples/plot_setup_results.py`. Updated
+  provenance retains historical raw metadata (`refined`) without relabelling
+  old files, and records supplemental forcing/source/SVG hashes. Validation
+  logs and installed package: `/private/tmp/veris-svg-20261028/`; final-state
+  inputs remain under `/private/tmp/veris-publication-figures-20261027/`.
+  All changes remain uncommitted; no remote publication requested.
+
+## 2026-10-27 — Longer runs, same-area island refinement and publication figures
+
+- [x] Rerun dynamics300 at 1024 by 1024/600 s (50 h), growth200 at daily
+  timesteps, and island300 on 80 by 120 cells/60 s (5 h), with float64 CPU.
+  Growth records 201 daily samples; plot exactly 155 samples through the
+  first zero thickness on day154, inclusive, retaining all 200 executed steps.
+- [x] User explicitly confirms unchanged island area. Add a named `refined`
+  profile with 800 m cells and a 20 by 20 land block: preserve the 64 by
+  96 km basin, original x24--40/y40--56 km land bounds and 256 square km
+  island. Add validated `islandHalfWidthCells`, using global indices for both
+  centers and coastal predecessor faces. Retain original small defaults and
+  serial mask-halo arithmetic; no physics equations change.
+- [x] Refined numerics use adaptive EVP400 and equal 60 s physics clocks.
+  Every step retains finite State arrays, zero land fields/blocked-face
+  velocity, and periodic prognostic halos. Maximum directional CFL sum is
+  `0.01173738503544865`. At the same five-hour duration, EVP800 changes Area
+  by at most `0.0017032029877031007`; dt30 s changes it by at most
+  `0.0005667898430851137`. Provenance includes max/RMS differences for Area,
+  thickness and both velocities, integrated area/volume and trajectory metrics.
+  These are finite-duration checks, not a general convergence certification.
+- [x] Replace old figures with scientific SVG/PDF/600 dpi PNG exports. SVG
+  uses outlined lettering for consistent web fonts and compact embedded map
+  rasters; PDF embeds TrueType fonts and 600 dpi maps; growth lines are vector.
+  Visually inspect all final PDFs via raster previews and verify all nine
+  figure hashes/resolutions. PDF rendering uses temporary PyMuPDF because
+  system Poppler and the bundled artifact marker are unavailable here.
+- [x] Add reproducible `docs/examples/plot_setup_results.py` and update all
+  three setup pages with exact run commands, settings, the growth cutoff,
+  physical island area, figure/download links and numerical-check limits.
+  Independent figure review catches reused introductory snapshot filenames;
+  give small/default examples distinct names to respect overwrite protection.
+- [x] TDD: five focused failures before implementation; then 62 setup/control/
+  regional tests and both plot-window tests pass. Full deterministic fast
+  sample: 176 passed/1,576 deselected. Run only one pytest at a time.
+  Maintained Ruff/annotations, formatting (240 files), Linux-target ty and
+  strict Sphinx pass. No full correctness run or commit is requested.
+- [x] Independent scientific audit (@refinement_science_review), code/test
+  review (@refinement_code_review) and visual/data review
+  (@publication_figures_review) confirm the geometry, raw output, cutoff,
+  hashes and figures. The minor command-path issue is corrected; no remaining
+  code, scientific or figure-quality findings. Browser preview remains
+  unavailable; inspect PNG/PDF renders and verify built HTML/download assets.
+- [x] Final strict HTML build and artifact audit pass: each embedded SVG,
+  PDF download and PNG download matches its current recorded hash. Alt text
+  is present, obsolete figure references are absent, and Furo constrains
+  images to the viewport width with automatic height for responsive delivery.
+- Current provenance: `docs/validation/2026-10-27-setup-figures.json`. Raw
+  data, observer/validation scripts and logs remain under
+  `/private/tmp/veris-publication-figures-20261027/`. Preserve prior user edits;
+  leave all changes uncommitted, with no remote publication requested.
+
+## 2026-10-27 — Setup result figures
+
+- [x] Run default dynamics for 100 steps, growth for 150 daily steps and
+  island for 100 coupled steps, using the existing public CLI runners on CPU
+  with float64. Preserve the 1024 by 1024 dynamics grid and 120 adaptive EVP
+  iterations, uniform 2 by 2 growth column, and 8 by 12 island with five EVP
+  substeps. No model or test code changes.
+- [x] Embed final concentration maps and the thickness time series on the
+  three corresponding setup pages, with alt text, settings, reproduction
+  commands and physical coordinates. Snapshot output removes halos; maps
+  transpose native `(x, y)` storage and mask land with a shared 0--1 scale.
+  Retain the island's demonstration-only EVP qualification.
+- [x] Verify exact step counts/model times, physical shapes, finite values,
+  concentration bounds, expected masks (2,047 dynamics wall cells/four island
+  cells), and 151 uniform growth samples at days 0--150. Growth ends at
+  `0.16912611295764002 m`; an additional run without scheduled output matches
+  exactly. Correct the stale claim of disappearance at day 140; this is a
+  measured current-model result, not a new reference-physics certification.
+- [x] Visually inspect all three PNGs and verify built HTML image references,
+  alt text and exact image hashes. Strict Sphinx passes. The deterministic
+  fast sample selects 175 tests: 173 pass directly, and both localhost-socket
+  tests pass when rerun with required access. Only one pytest runs at a time.
+- [x] Maintained CI Ruff, formatting (238 files), annotation checks and
+  Linux-target ty pass. Broad root checks retain existing vendor/Versioneer
+  findings (Ruff 129, formatting eight files, ty 26); no unrelated edits.
+  Initial Sphinx inventory fetching and two distributed tests fail under
+  sandbox network restrictions; their exact reruns with access pass.
+- [x] Scientific preflight review (@scientific_plot_audit) verifies fields,
+  masks, coordinates, sampling and preset controls. Final independent review
+  (@final_docs_review) checks the actual artifacts and documentation diff;
+  no Critical, Important or Minor content findings remain.
+- Numerical provenance and growth samples:
+  `docs/validation/2026-10-27-setup-figures.json`. Raw netCDF files, plotting
+  script, build output and validation logs remain under
+  `/private/tmp/veris-setup-figures-20261027/`. No full correctness run or
+  commit is needed for these documentation-only changes; no commit or push
+  was requested. Browser preview is unavailable; visual QA covers the PNGs,
+  with structural checks on the built pages.
+
 ## 2026-10-18 — Source/test cleanup, main integration and 0.2.1 release
 
 - Scope (@root): audit every maintained source/test module on

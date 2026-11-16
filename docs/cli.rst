@@ -40,6 +40,8 @@ identify which grid cells contain ocean. Fields hold values, such as temperature
 across the grid. See :doc:`reference/setup-gallery` for the physical assumptions
 and calculation methods. All use the maintained code to prepare the preset's
 starting conditions. Copying a template does not run a model or allocate its arrays.
+The island template uses 80 by 120 cells at 800 m spacing and runs 300 coupled
+60-second timesteps by default, covering five hours.
 
 Copy a selected setup
 ---------------------
@@ -81,7 +83,7 @@ your chosen name into an external root, then edit its ``setup.py``::
    export VERIS_SETUP_DIR=/path/to/extra-setups
    veris show-setups
    veris inspect my-sea-ice
-   veris run my-sea-ice --backend cpu --steps 3 --output-snapshot my-sea-ice.nc
+   veris run my-sea-ice --backend cpu --output-snapshot my-sea-ice.nc
 
 The folder name is the command line interface (CLI) setup name. Avoid names ending in ``.py`` or
 ``.json``, which identify files. Set ``VERIS_SETUP_DIR`` in each shell that
@@ -97,7 +99,7 @@ Run a setup
 
 Run a copied Python setup, optionally overriding execution controls::
 
-   veris run ./my-island/setup.py --backend cpu --steps 3 --output-snapshot island.nc
+   veris run ./my-island/setup.py --backend cpu --output-snapshot island.nc
 
 Output paths are relative to the current working directory. A final snapshot
 defaults to ``output.nc`` and contains all native State fields at the final
