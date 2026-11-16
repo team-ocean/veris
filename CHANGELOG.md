@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-11-16 — v0.2.3 release
+
+- [x] Merge PR #10 into `main` as b12054e. The merged tree exactly matches
+  tested commit2102376; the release preparation changes only this log.
+- [x] Prepare the patch release for the CPU halo collective deadlock fix and
+  reproducible uv/CI dependency versions. Versioneer derives0.2.3 from the
+  annotated `v0.2.3` tag; scientific equations, archives and tolerances are unchanged.
+- Validation before release: hosted CPU correctness1,756 passed/four expected
+  skips, maintained coverage95.1720%, strict docs, wheel/sdist and clean-installed
+  public examples pass. Local CPU correctness also passes; native GPU model
+  checks pass3/3 and two-P100 scheduled output passes both precisions.
+
 ## 2026-11-16 — Diagnose recurring GitHub CPU collective failure
 
 - [x] Fix prepared (@root; read-only test/code review @ci_review/@final_review): run
@@ -31,6 +43,9 @@
   every package recorded in the failed GitHub run. Pin CI Python to uv's
   available 3.14.8 for an identical interpreter locally. Native CUDA smoke
   confirms both P100 devices with JAX/JAXlib/plugin/PJRT0.11.2.
+- [x] Refresh the local checkout with uv's no-dependency/no-build-isolation
+  editable installation. The `veris` console entry point reports the current
+  fix commit; all 70 pinned dependency versions remain unchanged.
 - [x] Ruff, formatting, annotation checks, ty, strict Sphinx, wheel/sdist and
   both clean-installed public lifecycle/framework probes pass. Independent
   final review finds no actionable issues.
@@ -40,10 +55,20 @@
   Maintained statement coverage is 5,004/5,261 (95.1150%); whole-package
   coverage including generated Versioneer is 5,145/5,614 (91.6459%).
   Native two-P100 scheduled-output probe also passes float32/float64 with
-  real collectors and eight records each. Detailed evidence, original failed
+  real collectors and eight records each. Follow-up native GPU model checks
+  pass3/3 in31.28s: central CLI float32 serial/two-device execution and the
+  parallel dynamics CLI exercise the changed halo routine through real physics.
+  Detailed evidence, original failed
   CI logs, dependency inventories and red/green probes: `test_logs/ci-repair/`.
-- Deliver on `fix/cpu-halo-collective-dispatch` for hosted CI verification.
-  Preserve scientific archives, physics equations and all numerical tolerances.
+- [x] Commit2102376 and PR10 on `fix/cpu-halo-collective-dispatch` pass hosted
+  workflow43950723813: 1,756 passed/four expected skips in3,314.49s; maintained
+  coverage5,007/5,261 (95.1720%), whole-package coverage91.6637%. Every tooling,
+  strict docs, package build, installed-example and artifact-upload step passes.
+  Downloaded logs confirm Python3.14.8, JAX/JAXlib0.11.2, four permitted CPUs,
+  and all70 local dependency versions match the actual CI installation.
+  The duplicate push run was cancelled; the complete PR run succeeded.
+  Scientific archives, physics equations and numerical tolerances are preserved.
+  Evidence: https://github.com/team-ocean/veris/actions/runs/43950723813.
 
 ## 2026-11-16 — v0.2.2 release preparation
 
