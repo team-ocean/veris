@@ -7,9 +7,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.14'
-      - run: python -m pip install -r requirements-test.txt
-      - run: python -m pip install -r docs/requirements.txt
+          python-version: '3.14.8'
+      - run: python -m pip install -r requirements-test.txt -r docs/requirements.txt
       - name: Report JAX runtime and CPU affinity
         run: >-
           python -c "import json, os, jax, jaxlib;

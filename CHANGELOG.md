@@ -1,5 +1,50 @@
 # Development log
 
+## 2026-11-16 — Diagnose recurring GitHub CPU collective failure
+
+- [x] Fix prepared (@root; read-only test/code review @ci_review/@final_review): run
+  `43904774929` fails only the four-CPU lifecycle sharding probe with an XLA
+  CollectivePermute rendezvous abort (four participants, three arrive).
+  The identical release-tag commit passes; lint/format/types pass in both.
+- Recreate the CI JAX/JAXlib 0.11.2 and complete pinned test environment with
+  uv. Add stage markers in a scratch probe and reproduce under restricted CPU
+  affinity before changing the implementation. Historical four-CPU allocation
+  mitigated this failure but is insufficient in the current hosted run.
+- Plan: isolate the first failing collective boundary; add a regression and
+  correct that boundary without changing physics/reference data/tolerances;
+  lock remaining documentation dependencies; run focused and full correctness,
+  coverage, tooling, strict docs and clean installed probes, then hosted CI.
+- Local tooling caches must use `/tmp` (default uv/gh caches are read-only).
+  CUDA 12 dependencies install separately from the CPU reproduction runtime.
+- [x] Reproduce the native abort with the original phase-marked lifecycle
+  probe on two CPUs: growth/4x1/closed-y initialization fails. A minimal repeated
+  all-70-field refresh aborts on round two, and the new small-initialization
+  regression aborts with the identical missing-participant rendezvous.
+- [x] Match the failure to OpenXLA PR49215: the shipped CPU runtime blocks a
+  replica on an in-flight computation permit while its peers wait collectively.
+  Compile `fill_state_overlap` as one complete-PyTree launch, preserving the
+  stencils, asynchronous dispatch, device placement and transformations.
+  Do not retry failed probes, relax tolerances, disable async dispatch or add
+  per-field host waits. Grouped stress passes 100 repetitions; the new repeated
+  regression passes six orientation/boundary cases; focused halo tests pass11/11.
+- [x] All 70 CPU dependency pins, including documentation transitives, match
+  every package recorded in the failed GitHub run. Pin CI Python to uv's
+  available 3.14.8 for an identical interpreter locally. Native CUDA smoke
+  confirms both P100 devices with JAX/JAXlib/plugin/PJRT0.11.2.
+- [x] Ruff, formatting, annotation checks, ty, strict Sphinx, wheel/sdist and
+  both clean-installed public lifecycle/framework probes pass. Independent
+  final review finds no actionable issues.
+- [x] Full CPU correctness: 1,756 passed, four expected hardware/platform
+  skips, zero failures in 1,989.90s (1,995.29s external), SLURM job368590
+  (aegir, 12 permitted CPUs, 32GB, three workers). Only one pytest ran.
+  Maintained statement coverage is 5,004/5,261 (95.1150%); whole-package
+  coverage including generated Versioneer is 5,145/5,614 (91.6459%).
+  Native two-P100 scheduled-output probe also passes float32/float64 with
+  real collectors and eight records each. Detailed evidence, original failed
+  CI logs, dependency inventories and red/green probes: `test_logs/ci-repair/`.
+- Deliver on `fix/cpu-halo-collective-dispatch` for hosted CI verification.
+  Preserve scientific archives, physics equations and all numerical tolerances.
+
 ## 2026-11-16 — v0.2.2 release preparation
 
 - [x] Prepare all current changes on `main` for `v0.2.2` (@root).

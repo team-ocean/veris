@@ -3,19 +3,23 @@ Developing Veris
 
 Development and release tagging use ``main``. For the latest published package,
 follow :doc:`/introduction/get-started`.
-To work on the source, use Git and Python 3.14::
+To work on the source, use Git, uv and the CI Python version::
 
    git clone --branch main https://github.com/team-ocean/veris.git
    cd veris
-   python3 -m venv .venv
+   uv venv --python 3.14.8 .venv
    source .venv/bin/activate
-   python -m pip install -e .
 
 The test dependency lock lists the exact package versions for that Python
 version, so others can use the same environment. Install the development and
 documentation packages from the repository root::
 
-   python -m pip install -r requirements-test.txt -r docs/requirements.txt
+   uv pip sync requirements-test.txt docs/requirements.txt
+   uv pip install --no-deps --no-build-isolation -e .
+
+On the cluster, load uv first with ``module load uv/latest``. For GPU work,
+sync ``requirements-gpu.txt`` and ``docs/requirements.txt`` instead. This adds
+CUDA 12 support while retaining the same JAX/JAXlib and shared package versions.
 
 The repository's `AGENTS.md`_ defines local development rules. `DESIGN.md`_
 explains how the model is organized. `CHANGELOG.md`_ records progress and check
