@@ -184,6 +184,7 @@ def fill_overlap_uv(
     )
 
 
+@partial(jit, static_argnames=["conf"])
 def fill_state_overlap[T: (State, Diagnostics)](state: T, conf: Configuration) -> T:
     """Refresh State or Diagnostics halos with impermeable-wall field semantics.
 
@@ -192,6 +193,11 @@ def fill_state_overlap[T: (State, Diagnostics)](state: T, conf: Configuration) -
     velocities also vanish on the owned southern wall face. Other fields use
     constant extension, avoiding invalid zero temperatures and grid metrics.
     Corner shear stress retains no-slip wall traction or vanishes for free slip.
+
+    Compile the complete PyTree as one launch. Separate eager launches for each
+    field can exhaust CPU runtime in-flight permits while collective peers wait
+    for the final replica (OpenXLA issue/PR 49215). Grouping preserves asynchronous
+    execution and the same stencils without a host synchronization per field.
     """
     zero = {
         "iceMask",

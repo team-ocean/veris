@@ -1,8 +1,7 @@
-"""Draft real four-CPU public initialization/run/output checks for Task 7.
+"""Real four-CPU public initialization/run/output and repeated halo checks.
 
-Copy into tests before wiring the launcher. This script was not executed during
-draft preparation. Initial all-field packing is an independent global-index
-oracle, including stored closed-y wall columns; output uses public snapshots.
+Initial all-field packing is an independent global-index oracle, including
+stored closed-y wall columns; output uses public snapshots.
 """
 
 from dataclasses import fields, replace
@@ -21,6 +20,7 @@ from jax.sharding import PartitionSpec as P
 import veris
 from tests.island_helpers import compact_builtin
 from veris.execution import simulation
+from veris.grid.halos import fill_state_overlap
 from veris.io import OutputSettings, Stream, read_record
 
 
@@ -253,12 +253,19 @@ def _check_small_initialization(
         definition = compact_builtin(name, grid=grid, settings=settings)
     serial, _, _ = veris.initialize_experiment(definition)
     mesh = jax.make_mesh(layout, ("x", "y"), devices=jax.devices("cpu"))
-    parallel, _, _ = veris.initialize_experiment(
+    parallel, parallel_conf, _ = veris.initialize_experiment(
         replace(
             definition, execution=veris.Execution(backend="cpu", partitions=layout)
         ),
         mesh=mesh,
     )
+    # Refresh all 70 fields repeatedly before inspecting any on the host.
+    # Eager field-by-field CPU collective launches can exhaust XLA's per-device
+    # in-flight permits and prevent the final participant from joining a launch.
+    # This must remain safe with asynchronous dispatch and narrow CPU affinity.
+    with jax.set_mesh(mesh):
+        for _ in range(8):
+            parallel = fill_state_overlap(parallel, parallel_conf)
     for item in fields(serial):
         _compare(
             getattr(parallel, item.name),

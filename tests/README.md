@@ -29,15 +29,16 @@ tests remain at the test root. Schema tests check the definitions and single
 owners of State, array inputs and OceanGeometry (the ocean geometry definition).
 They also check cold imports, loading modules into a fresh Python process.
 
-Activate `.venv-latest` before commands. Install the reproducible CPU (computer
+Activate `.venv` before commands. Install the reproducible CPU (computer
 processor) environment with `module load uv/latest` and
-`uv pip install -r requirements-test.txt`.
-The repository's locked dependency versions target Python 3.14 with JAX (a
+`uv pip sync requirements-test.txt docs/requirements.txt`.
+The repository's locked dependency versions target Python 3.14.8 with JAX (a
 library for array calculations) and jaxlib 0.11.2. These match GitHub CI (automated
-checks run on GitHub) and the local `.venv-latest`. `requirements-gpu.txt` adds
+checks run on GitHub). `requirements-gpu.txt` adds
 the matching CUDA 12 plugin, which lets JAX use the local graphics processors
 (GPUs). Create the environment with
-`uv venv --python 3.14 .venv-latest` and activate it before installation.
+`uv venv --python 3.14.8 .venv` and activate it before installation. For GPU
+work, sync `requirements-gpu.txt docs/requirements.txt` instead.
 
 Run `JAX_PLATFORMS=cpu pytest tests/ --fast -n 0` during development. `VERIS_TEST_SEED` varies the stable
 10% sample chosen at collection, when pytest lists tests before running them.
@@ -76,7 +77,11 @@ target is measured with twelve permitted CPUs and three workers. CPU
 CI uses one worker so the four-device sharding probes, which divide arrays
 across devices, inherit all four permitted runner CPUs. Splitting them among
 three workers can stall XLA collectives (cross-device operations produced by
-JAX's compiler) even on JAX 0.11.2.
+JAX's compiler) even on JAX 0.11.2. The whole-State halo refresh is compiled as
+one launch: separate eager launches for every field can exhaust XLA's in-flight
+permits even with one worker. The lifecycle probe repeats halo refreshes before
+host inspection and verifies all fields against independently packed serial
+storage in every mesh orientation and boundary policy.
 Unit tests and installed-example probes impose no execution deadlines on child
 processes. Distributed launchers still report failed ranks and reap their children
 on failure. CI defines no test-step or job timeout; GitHub and the batch scheduler
